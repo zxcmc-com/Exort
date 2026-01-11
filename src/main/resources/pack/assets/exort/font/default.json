@@ -1,0 +1,35 @@
+{
+    "providers": [
+        {
+            "type": "bitmap",
+            "file": "exort:gui/crafting.png",
+            "height": 256,
+            "ascent": 13,
+            "chars": [
+                "૱"
+            ]
+        },
+        {
+            "type": "bitmap",
+            "file": "exort:gui/inventory.png",
+            "height": 256,
+            "ascent": 13,
+            "chars": [
+                "ᾖ"
+            ]
+        },
+        {
+            "type": "bitmap",
+            "file": "exort:gui/bus.png",
+            "height": 256,
+            "ascent": 13,
+            "chars": [
+                "ἢ"
+            ]
+        },
+        {
+            "type": "reference",
+            "id": "exort:shift"
+        }
+    ]
+}

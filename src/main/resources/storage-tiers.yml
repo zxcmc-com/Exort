@@ -1,0 +1,24 @@
+# Storage tiers: add/remove tiers; each tier has maxItems and display material shown inside storage.
+# maxItems can be a number of items (e.g. 14400) or a page count with "p" suffix (e.g. 5p).
+tiers:
+  gold:
+    # Maximum items that can be stored by this tier.
+    maxItems: 5760
+    # Material shown in the storage hologram.
+    material: GOLD_BLOCK
+    # Display name for this tier.
+    displayName: Gold Storage
+  diamond:
+    # Maximum items that can be stored by this tier.
+    maxItems: 10p
+    # Material shown in the storage hologram.
+    material: DIAMOND_BLOCK
+    # Display name for this tier.
+    displayName: Diamond Storage
+  netherite:
+    # Maximum items that can be stored by this tier.
+    maxItems: 100p
+    # Material shown in the storage hologram.
+    material: NETHERITE_BLOCK
+    # Display name for this tier.
+    displayName: Netherite Storage

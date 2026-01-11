@@ -1,0 +1,143 @@
+shaped:
+  storage_core:
+    result:
+      item: exort:storage_core
+      amount: 1
+    shape:
+      - "ABA"
+      - "BCB"
+      - "ABA"
+    ingredients:
+      A: minecraft:obsidian
+      B: minecraft:redstone_block
+      C: minecraft:shulker_box
+
+  storage_gold:
+    result:
+      item: exort:storage:gold
+      amount: 1
+    shape:
+      - "AAA"
+      - "ABA"
+      - "AAA"
+    ingredients:
+      A: minecraft:gold_block
+      B: exort:storage_core
+
+  storage_diamond:
+    result:
+      item: exort:storage:diamond
+      amount: 1
+    shape:
+      - "AAA"
+      - "ABA"
+      - "AAA"
+    ingredients:
+      A: minecraft:diamond_block
+      B: exort:storage_core
+
+  storage_netherite:
+    result:
+      item: exort:storage:netherite
+      amount: 1
+    shape:
+      - "AAA"
+      - "ABA"
+      - "AAA"
+    ingredients:
+      A: minecraft:netherite_ingot
+      B: exort:storage_core
+
+  terminal:
+    result:
+      item: exort:terminal
+      amount: 1
+    shape:
+      - "ABA"
+      - "CDC"
+      - "AEA"
+    ingredients:
+      A: minecraft:iron_ingot
+      B: minecraft:redstone
+      C: minecraft:glass
+      D: exort:wire
+      E: minecraft:observer
+
+  crafting_terminal:
+    result:
+      item: exort:crafting_terminal
+      amount: 1
+    shape:
+      - "_A_"
+      - "_B_"
+      - "_C_"
+    ingredients:
+      A: exort:terminal
+      B: minecraft:crafting_table
+      C: minecraft:redstone_block
+
+  monitor:
+    result:
+      item: exort:monitor
+      amount: 1
+    shape:
+      - "_A_"
+      - "_B_"
+      - "_C_"
+    ingredients:
+      A: minecraft:glass_pane
+      B: exort:terminal
+      C: minecraft:redstone
+
+  import_bus:
+    result:
+      item: exort:import_bus
+      amount: 1
+    shape:
+      - "_A_"
+      - "_B_"
+      - "_C_"
+    ingredients:
+      A: minecraft:hopper
+      B: minecraft:dispenser
+      C: exort:wire
+
+  export_bus:
+    result:
+      item: exort:export_bus
+      amount: 1
+    shape:
+      - "_A_"
+      - "_B_"
+      - "_C_"
+    ingredients:
+      A: minecraft:hopper
+      B: minecraft:dropper
+      C: exort:wire
+
+shapeless:
+  wire:
+    result:
+      item: exort:wire
+      amount: 2
+    ingredients:
+      - minecraft:glass
+      - minecraft:copper_ingot
+      - minecraft:glass
+      - minecraft:quartz
+      - minecraft:redstone
+      - minecraft:quartz
+      - minecraft:glass
+      - minecraft:copper_ingot
+      - minecraft:glass
+
+smithing:
+  wireless_terminal:
+    result:
+      item: exort:wireless_terminal
+      amount: 1
+    template: minecraft:netherite_upgrade_smithing_template
+    base: exort:terminal
+    addition: minecraft:echo_shard
+
+disabled: []

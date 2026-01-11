@@ -1,0 +1,1 @@
+{"variants":{"east=false,west=false,south=false,north=false,up=false,down=false":{"model":"block/chorus_plant"},"west=true,down=true,south=true,east=true,up=true,north=true":{"model":"exort:none"}}}

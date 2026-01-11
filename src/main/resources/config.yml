@@ -1,0 +1,424 @@
+# Language code from assets/minecraft/lang/<code>.json (e.g. en_us, ru_ru, ksh, nds_de).
+# Plugin always regenerates en_us.yml and ru_ru.yml on startup. Custom files can be placed in lang/<code>.yml
+language: en_us
+
+# Global block mode:
+# - VANILLA: uses barrier carriers with vanilla item models (no external resource pack required).
+# - RESOURCE: uses carriers with your custom models from a resource pack namespace.
+mode: VANILLA
+
+# Enable WorldGuard integration (region protection checks).
+worldguard:
+  enabled: true
+  # Log denied actions (build/break/use/interact) to console.
+  debug: false
+
+# Crafting restrictions for custom items.
+crafting:
+  # Block vanilla recipes when any custom item is used as an ingredient.
+  blockVanilla: true
+  # Allow recipes registered by other plugins (non-minecraft namespace) only if they require our exact custom item.
+  allowExternal: true
+  # Timeout (seconds) for all-in confirmation clicks in crafting terminal.
+  confirmTimeoutSeconds: 10
+
+# Register Exort crafting recipes from recipes.yml.
+recipes:
+  enabled: true
+
+# Interval (seconds) to flush dirty caches to database. Set 0 to disable periodic flush.
+flushIntervalSeconds: 10
+
+# Cache eviction for in-memory storages.
+cache:
+  # Unload idle storages from memory after N seconds (0 = disable).
+  idleUnloadSeconds: 900
+  # How often to check for idle storages (seconds).
+  idleCheckSeconds: 60
+
+# Default sort mode for terminals (AMOUNT/NAME/ID/CATEGORY).
+defaultSortMode: AMOUNT
+
+# Import/Export bus settings.
+bus:
+  # Default modes for newly placed buses (DISABLED/WHITELIST/BLACKLIST/ALL).
+  defaultMode:
+    import: WHITELIST
+    export: WHITELIST
+  # Allow buses to interact with Exort storages directly.
+  allowStorageTargets: true
+  # How often (ticks) a bus runs when it successfully moves items. AE2-like default = 5 ticks (4 ops/sec).
+  activeIntervalTicks: 5
+  # How long (ticks) a bus sleeps when idle. AE2-like default = 40 ticks (2 sec).
+  idleIntervalTicks: 40
+  # Max items per operation.
+  itemsPerOperation: 1
+  # Global limit for operations per tick (all buses).
+  maxOperationsPerTick: 6000
+  # Limit operations per chunk per tick (0 = no limit).
+  maxOperationsPerChunk: 600
+
+# Vanilla mode settings (used when mode: VANILLA). Carrier is always BARRIER.
+vanillaMode:
+  wire:
+    # Vanilla model for the wire display (uses minecraft namespace automatically).
+    modelId: black_stained_glass
+  storage:
+    # Vanilla model to mimic the storage block (e.g. minecraft:vault)
+    modelId: vault
+  terminal:
+    # Vanilla model to mimic the terminal block (e.g. minecraft:lectern)
+    modelId: barrel
+  craftingTerminal:
+    # Vanilla model to mimic the crafting terminal block (e.g. minecraft:crafting_table)
+    modelId: crafting_table
+  monitor:
+    # Vanilla item model for the monitor item (inventory/hand).
+    itemModel: smooth_stone
+    # Vanilla model to mimic the monitor block (e.g. minecraft:observer)
+    modelId: smooth_stone
+    # Screen item display position/size (relative to block origin).
+    screenItem:
+      offset:
+        x: 0.5
+        y: 0.62
+        z: 0.99
+      scale: 0.35
+    # Screen display position/size for non-full blocks (e.g. chests, fences).
+    screenBlock:
+      offset:
+        x: 0.5
+        y: 0.62
+        z: 0.99
+      scale: 0.6
+    # Screen display position/size for horizontal blocks (e.g. trapdoors, pressure plates).
+    screenHorizontalBlock:
+      offset:
+        x: 0.5
+        y: 0.61
+        z: 1.032
+      scale: 0.4
+    # Screen display position/size for thin/non-solid blocks (e.g. hanging plants).
+    screenThinBlock:
+      offset:
+        x: 0.5
+        y: 0.62
+        z: 0.99
+      scale: 0.3
+    # Screen display position/size for full blocks (e.g. stone, full cubes).
+    screenFullBlock:
+      offset:
+        x: 0.5
+        y: 0.62
+        z: 0.875
+      scale: 0.58
+    # Screen text display position/size (relative to block origin).
+    screenText:
+      offset:
+        x: 0.51
+        y: 0.2
+        z: 1.01
+      scale: 0.55
+    # Screen text display for empty monitor (no item).
+    screenTextEmpty:
+      offset:
+        x: 0.51
+        y: 0.41
+        z: 1.01
+      scale: 0.8
+  importBus:
+    # Vanilla item model for the import bus (inventory/hand).
+    itemModel: dispenser
+    # Vanilla model to mimic the import bus block.
+    modelId: dispenser
+  exportBus:
+    # Vanilla item model for the export bus (inventory/hand).
+    itemModel: dropper
+    # Vanilla model to mimic the export bus block.
+    modelId: dropper
+  wirelessTerminal:
+    # Vanilla item model for the wireless terminal (inventory/hand).
+    itemModel: target
+    # Vanilla model for the wireless terminal (charged & linked).
+    modelId: target
+    # Vanilla model for disabled/unlinked/empty wireless terminal.
+    modelDisabledId: target
+  terminalHologram:
+    # Show the floating material above terminals.
+    enabled: true
+    # Position relative to terminal block origin (0,0,0 is block corner).
+    offset:
+      x: 0.5
+      y: 0.5
+      z: 0.83
+    # Size multiplier for displayed item.
+    scale: 0.35
+  storageHologram:
+    # Show the tier material inside storage.
+    enabled: true
+    # Position relative to storage block origin (0,0,0 is block corner).
+    offset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+    # Size multiplier for displayed item.
+    scale: 0.35
+
+# Resource mode (carrier + ItemDisplay using your pack).
+# Carriers are fixed in RESOURCE:
+# - wire: CHORUS_PLANT with all faces=true
+# - storage/terminal/monitor/bus: BARRIER
+resourceMode:
+  # Namespace for all resource models (wire/storage/terminal/monitor). Example: exort
+  namespace: exort
+  wire:
+    # Optional item_model for the wire item (inventory/hand). Example: center
+    itemModel: wire/center
+    # Model used for the wire center. Default matches the provided pack: wire/center
+    displayModelCenter: wire/center
+    # Model used for a single connection segment. Default matches the provided pack: wire/connection
+    displayModelConnection: wire/connection
+    # ItemDisplay settings
+    displayBaseMaterial: PAPER
+    displayScale: 1.0
+    displayOffset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+  storage:
+    # Optional item_model for the storage item (inventory/hand). Example: storage/storage
+    itemModel: storage/storage
+    # Resource model for the storage display (uses resourceMode.namespace).
+    modelId: storage/storage
+    # ItemDisplay settings
+    displayBaseMaterial: PAPER
+    displayScale: 1.0
+    displayOffset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+  terminal:
+    # Optional item_model for the terminal item (inventory/hand). Example: terminal/inventory
+    itemModel: terminal/inventory
+    # Resource model for the terminal display (uses resourceMode.namespace).
+    modelId: terminal/inventory
+    # Resource model for the disabled terminal display (uses resourceMode.namespace).
+    modelDisabledId: terminal/inventory_disabled
+    gui:
+      # Prefix text shown before the terminal title (RESOURCE only).
+      prefix: §fᾖ
+      # Font for the prefix only.
+      font: exort:default
+    # ItemDisplay settings
+    displayBaseMaterial: PAPER
+    displayScale: 1.0
+    displayOffset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+  craftingTerminal:
+    # Optional item_model for the crafting terminal item (inventory/hand). Example: terminal/workbench
+    itemModel: terminal/workbench
+    # Resource model for the crafting terminal display (uses resourceMode.namespace).
+    modelId: terminal/workbench
+    # Resource model for the disabled crafting terminal display (uses resourceMode.namespace).
+    modelDisabledId: terminal/workbench_disabled
+    gui:
+      # Prefix text shown before the crafting terminal title (RESOURCE only).
+      prefix: §f૱
+      # Font for the prefix only.
+      font: exort:default
+  monitor:
+    # Optional item_model for the monitor item (inventory/hand). Example: terminal/monitor
+    itemModel: terminal/monitor
+    # Resource model for the monitor display (uses resourceMode.namespace).
+    modelId: terminal/monitor
+    # Resource model for the disabled monitor display (uses resourceMode.namespace).
+    modelDisabledId: terminal/monitor_disabled
+    # ItemDisplay settings for the base monitor model.
+    displayBaseMaterial: PAPER
+    displayScale: 1.0
+    displayOffset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+    # Screen item display position/size (relative to block origin).
+    screenItem:
+      offset:
+        x: 0.5
+        y: 0.56
+        z: 0.93
+      scale: 0.35
+    # Screen display position/size for non-full blocks (e.g. chests, fences).
+    screenBlock:
+      offset:
+        x: 0.5
+        y: 0.56
+        z: 0.93
+      scale: 0.6
+    # Screen display position/size for horizontal blocks (e.g. trapdoors, pressure plates).
+    screenHorizontalBlock:
+      offset:
+        x: 0.5
+        y: 0.55
+        z: 1.026
+      scale: 0.4
+    # Screen display position/size for thin/non-solid blocks (e.g. hanging plants).
+    screenThinBlock:
+      offset:
+        x: 0.5
+        y: 0.56
+        z: 0.93
+      scale: 0.3
+    # Screen display position/size for full blocks (e.g. stone, full cubes).
+    screenFullBlock:
+      offset:
+        x: 0.5
+        y: 0.56
+        z: 0.815
+      scale: 0.58
+    # Screen text display position/size (relative to block origin).
+    screenText:
+      offset:
+        x: 0.51
+        y: 0.26
+        z: 0.95
+      scale: 0.55
+    # Screen text display for empty monitor (no item).
+    screenTextEmpty:
+      offset:
+        x: 0.51
+        y: 0.41
+        z: 0.95
+      scale: 0.7
+  wirelessTerminal:
+    # Optional item_model for the wireless terminal (inventory/hand). Example: terminal/wireless
+    itemModel: terminal/wireless
+    # Resource model for the wireless terminal (charged & linked).
+    modelId: terminal/wireless
+    # Resource model for disabled/unlinked/empty wireless terminal.
+    modelDisabledId: terminal/wireless_disabled
+  bus:
+    import:
+      # Optional item_model for the import bus item (inventory/hand). Example: bus/import
+      itemModel: bus/import
+      # Resource model for the import bus display (uses resourceMode.namespace).
+      modelId: bus/import
+    export:
+      # Optional item_model for the export bus item (inventory/hand). Example: bus/export
+      itemModel: bus/export
+      # Resource model for the export bus display (uses resourceMode.namespace).
+      modelId: bus/export
+    gui:
+      # Prefix text shown before the bus title (RESOURCE only).
+      prefix: §fἢ
+      # Font for the prefix only.
+      font: exort:default
+    # ItemDisplay settings
+    displayBaseMaterial: PAPER
+    displayScale: 1.0
+    displayOffset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+  storageHologram:
+    # Show the tier material inside storage.
+    enabled: true
+    # Position relative to storage block origin (0,0,0 is block corner).
+    offset:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+    # Size multiplier for displayed item.
+    scale: 0.35
+
+# Wire limits.
+wire:
+  # Maximum logical length of a storage wire network used to connect terminal to storage.
+  limit: 32
+  # Hard cap for wire traversal (safety to prevent heavy scans); if exceeded, network is ignored.
+  hardCap: 64
+
+# Bossbar display durations (seconds)
+bossbar:
+  # Duration when right-clicking storage.
+  storagePeekSeconds: 6
+  # Duration when right-clicking wire.
+  wirePeekSeconds: 6
+
+# Wireless terminal settings.
+wireless:
+  enabled: true
+  # Range in chunks from the storage block (Manhattan distance).
+  rangeChunks: 3
+
+# Storage tiers are now configured in storage-tiers.yml.
+# Custom breaking for carrier blocks (storage/terminal/monitor/bus and VANILLA wire).
+# Hardness controls the overall break speed; higher = slower.
+# Tools listed here do NOT restrict breaking; they only speed it up.
+break:
+  storage:
+    # Relative hardness used for storage breaking.
+    hardness: 20.0
+    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
+    tools:
+      - pickaxe
+  terminal:
+    # Relative hardness used for terminal breaking.
+    hardness: 12.0
+    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
+    tools:
+      - pickaxe
+      - axe
+  monitor:
+    # Relative hardness used for monitor breaking.
+    hardness: 12.0
+    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
+    tools:
+      - pickaxe
+      - axe
+  bus:
+    # Relative hardness used for bus breaking (import/export).
+    hardness: 12.0
+    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
+    tools:
+      - pickaxe
+      - axe
+  wire:
+    # Relative hardness used for wire breaking (applies only in VANILLA mode).
+    hardness: 4.0
+    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
+    tools:
+      - pickaxe
+      - axe
+      - sword
+  sounds:
+    # Enable break sounds for carrier blocks (storage/terminal/monitor/bus and VANILLA wire).
+    enabled: true
+    # Base volume for break/place sounds. Hit sounds play 0.2 lower.
+    volume: 0.8
+    # Storage sound events.
+    storage:
+      hit: block.vault.hit
+      break: block.vault.break
+      place: block.vault.place
+    # Terminal sound events.
+    terminal:
+      hit: block.iron.hit
+      break: block.iron.break
+      place: block.iron.place
+    # Monitor sound events.
+    monitor:
+      hit: block.iron.hit
+      break: block.iron.break
+      place: block.iron.place
+    # Bus sound events (import/export).
+    bus:
+      hit: block.iron.hit
+      break: block.iron.break
+      place: block.iron.place
+    # Wire sound events.
+    wire:
+      hit: block.glass.hit
+      break: block.glass.break
+      place: block.glass.place
