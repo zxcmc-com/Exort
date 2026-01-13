@@ -32,7 +32,7 @@ flushIntervalSeconds: 10
 # Cache eviction for in-memory storages.
 cache:
   # Unload idle storages from memory after N seconds (0 = disable).
-  idleUnloadSeconds: 900
+  idleUnloadSeconds: 300
   # How often to check for idle storages (seconds).
   idleCheckSeconds: 60
 

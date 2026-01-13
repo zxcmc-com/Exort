@@ -6,32 +6,35 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 public interface RegionProtection {
-    boolean canBuild(Player player, Location location, Material material);
-    boolean canBreak(Player player, Block block);
-    boolean canInteract(Player player, Block block);
-    boolean canUse(Player player, Block block);
+  boolean canBuild(Player player, Location location, Material material);
 
-    static RegionProtection allowAll() {
-        return new RegionProtection() {
-            @Override
-            public boolean canBuild(Player player, Location location, Material material) {
-                return true;
-            }
+  boolean canBreak(Player player, Block block);
 
-            @Override
-            public boolean canBreak(Player player, Block block) {
-                return true;
-            }
+  boolean canInteract(Player player, Block block);
 
-            @Override
-            public boolean canInteract(Player player, Block block) {
-                return true;
-            }
+  boolean canUse(Player player, Block block);
 
-            @Override
-            public boolean canUse(Player player, Block block) {
-                return true;
-            }
-        };
-    }
+  static RegionProtection allowAll() {
+    return new RegionProtection() {
+      @Override
+      public boolean canBuild(Player player, Location location, Material material) {
+        return true;
+      }
+
+      @Override
+      public boolean canBreak(Player player, Block block) {
+        return true;
+      }
+
+      @Override
+      public boolean canInteract(Player player, Block block) {
+        return true;
+      }
+
+      @Override
+      public boolean canUse(Player player, Block block) {
+        return true;
+      }
+    };
+  }
 }

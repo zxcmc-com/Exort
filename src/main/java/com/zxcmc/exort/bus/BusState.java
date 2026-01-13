@@ -1,174 +1,175 @@
 package com.zxcmc.exort.bus;
 
 import com.zxcmc.exort.core.items.ItemKeyUtil;
+import com.zxcmc.exort.storage.StorageCache;
+import java.util.*;
 import org.bukkit.block.BlockFace;
 import org.bukkit.inventory.ItemStack;
 
-
 public final class BusState {
-    private static final int FILTER_SLOTS = 10;
+  private static final int FILTER_SLOTS = 10;
 
-    private final BusPos pos;
-    private BusType type;
-    private BlockFace facing;
-    private BusMode mode;
-    private final ItemStack[] filters = new ItemStack[FILTER_SLOTS];
-    private final java.util.Map<String, Integer> filterCounts = new java.util.HashMap<>();
-    private long nextTick;
-    private int slotCursor;
-    private int storageCursor;
-    private int viewers;
-    private long cachedStorageVersion = -1L;
-    private String cachedStorageId;
-    private java.util.List<com.zxcmc.exort.storage.StorageCache.StorageItem> cachedItems;
+  private final BusPos pos;
+  private BusType type;
+  private BlockFace facing;
+  private BusMode mode;
+  private final ItemStack[] filters = new ItemStack[FILTER_SLOTS];
+  private final Map<String, Integer> filterCounts = new HashMap<>();
+  private long nextTick;
+  private int slotCursor;
+  private int storageCursor;
+  private int viewers;
+  private long cachedStorageVersion = -1L;
+  private String cachedStorageId;
+  private List<StorageCache.StorageItem> cachedItems;
 
-    public BusState(BusPos pos, BusType type, BlockFace facing, BusMode mode) {
-        this.pos = pos;
-        this.type = type == null ? BusType.IMPORT : type;
-        this.facing = facing == null ? BlockFace.NORTH : facing;
-        this.mode = mode == null ? BusMode.DISABLED : mode;
+  public BusState(BusPos pos, BusType type, BlockFace facing, BusMode mode) {
+    this.pos = pos;
+    this.type = type == null ? BusType.IMPORT : type;
+    this.facing = facing == null ? BlockFace.NORTH : facing;
+    this.mode = mode == null ? BusMode.DISABLED : mode;
+  }
+
+  public BusPos pos() {
+    return pos;
+  }
+
+  public BusType type() {
+    return type;
+  }
+
+  public void setType(BusType type) {
+    if (type != null) {
+      this.type = type;
     }
+  }
 
-    public BusPos pos() {
-        return pos;
-    }
+  public BlockFace facing() {
+    return facing;
+  }
 
-    public BusType type() {
-        return type;
+  public void setFacing(BlockFace facing) {
+    if (facing != null) {
+      this.facing = facing;
     }
+  }
 
-    public void setType(BusType type) {
-        if (type != null) {
-            this.type = type;
-        }
-    }
+  public BusMode mode() {
+    return mode;
+  }
 
-    public BlockFace facing() {
-        return facing;
-    }
+  public void setMode(BusMode mode) {
+    this.mode = mode == null ? BusMode.DISABLED : mode;
+  }
 
-    public void setFacing(BlockFace facing) {
-        if (facing != null) {
-            this.facing = facing;
-        }
-    }
+  public ItemStack[] filters() {
+    return Arrays.copyOf(filters, filters.length);
+  }
 
-    public BusMode mode() {
-        return mode;
+  public void setFilters(ItemStack[] newFilters) {
+    filterCounts.clear();
+    for (int i = 0; i < filters.length; i++) {
+      ItemStack stack = (newFilters != null && i < newFilters.length) ? newFilters[i] : null;
+      if (stack != null && !stack.getType().isAir()) {
+        ItemStack sample = ItemKeyUtil.sampleItem(stack);
+        filters[i] = sample;
+        addFilterKey(ItemKeyUtil.keyFor(sample));
+      } else {
+        filters[i] = null;
+      }
     }
+  }
 
-    public void setMode(BusMode mode) {
-        this.mode = mode == null ? BusMode.DISABLED : mode;
+  public void setFilter(int index, ItemStack sample) {
+    if (index < 0 || index >= filters.length) return;
+    ItemStack prev = filters[index];
+    if (prev != null && !prev.getType().isAir()) {
+      removeFilterKey(ItemKeyUtil.keyFor(prev));
     }
+    if (sample == null || sample.getType().isAir()) {
+      filters[index] = null;
+      return;
+    }
+    ItemStack normalized = ItemKeyUtil.sampleItem(sample);
+    filters[index] = normalized;
+    addFilterKey(ItemKeyUtil.keyFor(normalized));
+  }
 
-    public ItemStack[] filters() {
-        return java.util.Arrays.copyOf(filters, filters.length);
-    }
+  public Set<String> filterKeys() {
+    return Collections.unmodifiableSet(filterCounts.keySet());
+  }
 
-    public void setFilters(ItemStack[] newFilters) {
-        filterCounts.clear();
-        for (int i = 0; i < filters.length; i++) {
-            ItemStack stack = (newFilters != null && i < newFilters.length) ? newFilters[i] : null;
-            if (stack != null && !stack.getType().isAir()) {
-                ItemStack sample = ItemKeyUtil.sampleItem(stack);
-                filters[i] = sample;
-                addFilterKey(ItemKeyUtil.keyFor(sample));
-            } else {
-                filters[i] = null;
-            }
-        }
-    }
+  private void addFilterKey(String key) {
+    filterCounts.put(key, filterCounts.getOrDefault(key, 0) + 1);
+  }
 
-    public void setFilter(int index, ItemStack sample) {
-        if (index < 0 || index >= filters.length) return;
-        ItemStack prev = filters[index];
-        if (prev != null && !prev.getType().isAir()) {
-            removeFilterKey(ItemKeyUtil.keyFor(prev));
-        }
-        if (sample == null || sample.getType().isAir()) {
-            filters[index] = null;
-            return;
-        }
-        ItemStack normalized = ItemKeyUtil.sampleItem(sample);
-        filters[index] = normalized;
-        addFilterKey(ItemKeyUtil.keyFor(normalized));
+  private void removeFilterKey(String key) {
+    Integer count = filterCounts.get(key);
+    if (count == null) return;
+    if (count <= 1) {
+      filterCounts.remove(key);
+    } else {
+      filterCounts.put(key, count - 1);
     }
+  }
 
-    public java.util.Set<String> filterKeys() {
-        return java.util.Collections.unmodifiableSet(filterCounts.keySet());
-    }
+  public long nextTick() {
+    return nextTick;
+  }
 
-    private void addFilterKey(String key) {
-        filterCounts.put(key, filterCounts.getOrDefault(key, 0) + 1);
-    }
+  public void setNextTick(long nextTick) {
+    this.nextTick = nextTick;
+  }
 
-    private void removeFilterKey(String key) {
-        Integer count = filterCounts.get(key);
-        if (count == null) return;
-        if (count <= 1) {
-            filterCounts.remove(key);
-        } else {
-            filterCounts.put(key, count - 1);
-        }
-    }
+  public int slotCursor() {
+    return slotCursor;
+  }
 
-    public long nextTick() {
-        return nextTick;
-    }
+  public void setSlotCursor(int slotCursor) {
+    this.slotCursor = slotCursor;
+  }
 
-    public void setNextTick(long nextTick) {
-        this.nextTick = nextTick;
-    }
+  public int storageCursor() {
+    return storageCursor;
+  }
 
-    public int slotCursor() {
-        return slotCursor;
-    }
+  public void setStorageCursor(int storageCursor) {
+    this.storageCursor = storageCursor;
+  }
 
-    public void setSlotCursor(int slotCursor) {
-        this.slotCursor = slotCursor;
-    }
+  public int viewers() {
+    return viewers;
+  }
 
-    public int storageCursor() {
-        return storageCursor;
-    }
+  public void viewerOpened() {
+    viewers++;
+  }
 
-    public void setStorageCursor(int storageCursor) {
-        this.storageCursor = storageCursor;
-    }
+  public void viewerClosed() {
+    if (viewers > 0) viewers--;
+  }
 
-    public int viewers() {
-        return viewers;
-    }
+  public long cachedStorageVersion() {
+    return cachedStorageVersion;
+  }
 
-    public void viewerOpened() {
-        viewers++;
-    }
+  public void setCachedStorageVersion(long cachedStorageVersion) {
+    this.cachedStorageVersion = cachedStorageVersion;
+  }
 
-    public void viewerClosed() {
-        if (viewers > 0) viewers--;
-    }
+  public String cachedStorageId() {
+    return cachedStorageId;
+  }
 
-    public long cachedStorageVersion() {
-        return cachedStorageVersion;
-    }
+  public void setCachedStorageId(String cachedStorageId) {
+    this.cachedStorageId = cachedStorageId;
+  }
 
-    public void setCachedStorageVersion(long cachedStorageVersion) {
-        this.cachedStorageVersion = cachedStorageVersion;
-    }
+  public List<StorageCache.StorageItem> cachedItems() {
+    return cachedItems;
+  }
 
-    public String cachedStorageId() {
-        return cachedStorageId;
-    }
-
-    public void setCachedStorageId(String cachedStorageId) {
-        this.cachedStorageId = cachedStorageId;
-    }
-
-    public java.util.List<com.zxcmc.exort.storage.StorageCache.StorageItem> cachedItems() {
-        return cachedItems;
-    }
-
-    public void setCachedItems(java.util.List<com.zxcmc.exort.storage.StorageCache.StorageItem> cachedItems) {
-        this.cachedItems = cachedItems;
-    }
+  public void setCachedItems(List<StorageCache.StorageItem> cachedItems) {
+    this.cachedItems = cachedItems;
+  }
 }

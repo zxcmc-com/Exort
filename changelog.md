@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — 2026-01-13
+- Language file export no longer wraps lines, fixing invalid YAML in `lang/*.yml` (multiline values preserved).
+- Codebase cleanup and formatting (imports unified, formatting standardized, unused package removed).
+
 ## 0.8.0 — 2026-01-08
 - Added lightweight recipe system with `recipes.yml` (shaped/shapeless/smithing + disabled list) and `recipes.enabled` toggle.
 - Recipe file is now created from defaults on first run (no config merging to preserve lists).
