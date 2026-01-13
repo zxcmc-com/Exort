@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.2 — 2026-01-13
+- Added bStats integration.
+
 ## 0.8.1 — 2026-01-13
 - Language file export no longer wraps lines, fixing invalid YAML in `lang/*.yml` (multiline values preserved).
 - Codebase cleanup and formatting (imports unified, formatting standardized, unused package removed).

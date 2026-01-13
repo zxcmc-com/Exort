@@ -69,6 +69,8 @@ import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bstats.bukkit.Metrics;
+import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -121,6 +123,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private RecipeService recipeService;
   private LoadTestService loadTestService;
   private CacheDebugService cacheDebugService;
+  private Metrics metrics;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
@@ -163,6 +166,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     bossBarManager = new BossBarManager(this, storageManager, lang);
     loadTestService = new LoadTestService(this, database, bossBarManager, lang);
     cacheDebugService = new CacheDebugService(this);
+    metrics = new Metrics(this, 28841);
+    registerMetricsCharts();
 
     registerRuntime();
     registerBrigadierCommands();
@@ -201,6 +206,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     }
     if (loadTestService != null) {
       loadTestService.stop(false);
+    }
+    if (metrics != null) {
+      metrics.shutdown();
     }
     if (recipeService != null) {
       recipeService.unregisterAll();
@@ -290,6 +298,60 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   public SearchDialogService getSearchDialogService() {
     return searchDialogService;
+  }
+
+  private void registerMetricsCharts() {
+    if (metrics == null) return;
+    metrics.addCustomChart(
+        new SimplePie(
+            "mode",
+            () ->
+                "RESOURCE".equalsIgnoreCase(getConfig().getString("mode", "VANILLA"))
+                    ? "resource"
+                    : "vanilla"));
+    metrics.addCustomChart(
+        new SimplePie(
+            "language", () -> getConfig().getString("language", "en_us").toLowerCase(Locale.ROOT)));
+    metrics.addCustomChart(
+        new SimplePie(
+            "wireless_enabled",
+            () -> getConfig().getBoolean("wireless.enabled", true) ? "enabled" : "disabled"));
+    metrics.addCustomChart(
+        new SimplePie(
+            "recipes_enabled",
+            () -> getConfig().getBoolean("recipes.enabled", true) ? "enabled" : "disabled"));
+    metrics.addCustomChart(
+        new SimplePie(
+            "worldguard_state",
+            () -> {
+              boolean enabled = getConfig().getBoolean("worldguard.enabled", true);
+              if (!enabled) return "disabled";
+              boolean present = getServer().getPluginManager().isPluginEnabled("WorldGuard");
+              return present ? "active" : "missing";
+            }));
+    metrics.addCustomChart(
+        new SimplePie(
+            "bus_storage_targets",
+            () ->
+                getConfig().getBoolean("bus.allowStorageTargets", true) ? "enabled" : "disabled"));
+    metrics.addCustomChart(
+        new SimplePie(
+            "default_sort_mode",
+            () -> getConfig().getString("defaultSortMode", "AMOUNT").toLowerCase(Locale.ROOT)));
+    metrics.addCustomChart(
+        new SimplePie(
+            "bus_default_import",
+            () ->
+                getConfig()
+                    .getString("bus.defaultMode.import", "WHITELIST")
+                    .toLowerCase(Locale.ROOT)));
+    metrics.addCustomChart(
+        new SimplePie(
+            "bus_default_export",
+            () ->
+                getConfig()
+                    .getString("bus.defaultMode.export", "WHITELIST")
+                    .toLowerCase(Locale.ROOT)));
   }
 
   @Override
