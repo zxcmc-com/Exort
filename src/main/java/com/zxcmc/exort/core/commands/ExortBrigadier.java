@@ -11,11 +11,13 @@ import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.i18n.Lang;
 import com.zxcmc.exort.core.items.CustomItems;
 import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.marker.MarkerCoords;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.MonitorMarker;
+import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
 import com.zxcmc.exort.debug.CacheDebugService;
+import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
@@ -36,7 +39,6 @@ import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.StringUtil;
 
@@ -62,8 +64,63 @@ public final class ExortBrigadier {
         Commands.literal("exort")
             .requires(source -> sender(source).hasPermission("exort.storagenetwork.admin"))
             .executes(this::help);
+    LiteralArgumentBuilder<CommandSourceStack> cacheVerbose =
+        Commands.literal("cache")
+            .then(
+                Commands.literal("start")
+                    .executes(ctx -> cacheVerboseStart(ctx, null, null))
+                    .then(
+                        Commands.literal("storage")
+                            .then(
+                                Commands.argument(ARG_STORAGE_ID, StringArgumentType.word())
+                                    .executes(
+                                        ctx ->
+                                            cacheVerboseStart(
+                                                ctx,
+                                                null,
+                                                StringArgumentType.getString(
+                                                    ctx, ARG_STORAGE_ID)))))
+                    .then(
+                        Commands.argument(ARG_VERBOSE_MODE, StringArgumentType.word())
+                            .suggests(this::suggestVerboseModes)
+                            .executes(
+                                ctx ->
+                                    cacheVerboseStart(
+                                        ctx,
+                                        StringArgumentType.getString(ctx, ARG_VERBOSE_MODE),
+                                        null))
+                            .then(
+                                Commands.literal("storage")
+                                    .then(
+                                        Commands.argument(ARG_STORAGE_ID, StringArgumentType.word())
+                                            .executes(
+                                                ctx ->
+                                                    cacheVerboseStart(
+                                                        ctx,
+                                                        StringArgumentType.getString(
+                                                            ctx, ARG_VERBOSE_MODE),
+                                                        StringArgumentType.getString(
+                                                            ctx, ARG_STORAGE_ID)))))))
+            .then(Commands.literal("stop").executes(this::cacheVerboseStop));
 
-    root.then(
+    LiteralArgumentBuilder<CommandSourceStack> worldEditVerbose =
+        Commands.literal("worldedit")
+            .then(
+                Commands.literal("start")
+                    .executes(ctx -> worldEditVerboseStart(ctx, null))
+                    .then(
+                        Commands.argument(ARG_VERBOSE_MODE, StringArgumentType.word())
+                            .suggests(this::suggestVerboseModes)
+                            .executes(
+                                ctx ->
+                                    worldEditVerboseStart(
+                                        ctx, StringArgumentType.getString(ctx, ARG_VERBOSE_MODE)))))
+            .then(Commands.literal("stop").executes(this::worldEditVerboseStop));
+
+    LiteralArgumentBuilder<CommandSourceStack> verbose =
+        Commands.literal("verbose").then(cacheVerbose).then(worldEditVerbose);
+
+    LiteralArgumentBuilder<CommandSourceStack> debug =
         Commands.literal("debug")
             .executes(this::usageDebug)
             .then(
@@ -72,55 +129,7 @@ public final class ExortBrigadier {
                         Commands.argument(ARG_PLAYER, StringArgumentType.word())
                             .suggests(this::suggestPlayers)
                             .executes(this::debugPlayer)))
-            .then(
-                Commands.literal("verbose")
-                    .then(
-                        Commands.literal("cache")
-                            .then(
-                                Commands.literal("start")
-                                    .executes(ctx -> cacheVerboseStart(ctx, null, null))
-                                    .then(
-                                        Commands.literal("storage")
-                                            .then(
-                                                Commands.argument(
-                                                        ARG_STORAGE_ID, StringArgumentType.word())
-                                                    .executes(
-                                                        ctx ->
-                                                            cacheVerboseStart(
-                                                                ctx,
-                                                                null,
-                                                                StringArgumentType.getString(
-                                                                    ctx, ARG_STORAGE_ID)))))
-                                    .then(
-                                        Commands.argument(
-                                                ARG_VERBOSE_MODE, StringArgumentType.word())
-                                            .suggests(this::suggestVerboseModes)
-                                            .executes(
-                                                ctx ->
-                                                    cacheVerboseStart(
-                                                        ctx,
-                                                        StringArgumentType.getString(
-                                                            ctx, ARG_VERBOSE_MODE),
-                                                        null))
-                                            .then(
-                                                Commands.literal("storage")
-                                                    .then(
-                                                        Commands.argument(
-                                                                ARG_STORAGE_ID,
-                                                                StringArgumentType.word())
-                                                            .executes(
-                                                                ctx ->
-                                                                    cacheVerboseStart(
-                                                                        ctx,
-                                                                        StringArgumentType
-                                                                            .getString(
-                                                                                ctx,
-                                                                                ARG_VERBOSE_MODE),
-                                                                        StringArgumentType
-                                                                            .getString(
-                                                                                ctx,
-                                                                                ARG_STORAGE_ID)))))))
-                            .then(Commands.literal("stop").executes(this::cacheVerboseStop))))
+            .then(verbose)
             .then(
                 Commands.literal("cache")
                     .then(
@@ -162,7 +171,9 @@ public final class ExortBrigadier {
                                                             ctx, ARG_PLAYERS),
                                                         IntegerArgumentType.getInteger(
                                                             ctx, ARG_SECONDS))))))
-                    .then(Commands.literal("stop").executes(this::loadTestStop))));
+                    .then(Commands.literal("stop").executes(this::loadTestStop)));
+
+    root.then(debug);
 
     root.then(
         Commands.literal("give")
@@ -507,33 +518,32 @@ public final class ExortBrigadier {
 
   private ConnectionStats findLoadedConnections(String storageId) {
     if (storageId == null || storageId.isBlank()) return new ConnectionStats(0, 0, 0);
-    int terminals = 0;
-    int monitors = 0;
-    int buses = 0;
-    String namespace = plugin.getName().toLowerCase(Locale.ROOT);
+    int[] counts = new int[3];
     for (World world : Bukkit.getWorlds()) {
       for (Chunk chunk : world.getLoadedChunks()) {
-        var pdc = chunk.getPersistentDataContainer();
-        for (var key : pdc.getKeys()) {
-          if (!namespace.equals(key.getNamespace())) continue;
-          String rawKey = key.getKey();
-          if (rawKey.startsWith("terminal_")) {
-            if (isLinkedTerminal(world, rawKey, storageId)) terminals++;
-          } else if (rawKey.startsWith("monitor_")) {
-            if (isLinkedMonitor(world, rawKey, storageId)) monitors++;
-          } else if (rawKey.startsWith("bus_")) {
-            if (isLinkedBus(world, rawKey, storageId)) buses++;
-          }
-        }
+        if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) continue;
+        ChunkMarkerStore.forEachBlock(
+            plugin,
+            chunk,
+            (block, root) -> {
+              if (TerminalMarker.isTerminal(plugin, block)) {
+                if (isLinkedTerminal(block, storageId)) counts[0]++;
+                return;
+              }
+              if (MonitorMarker.isMonitor(plugin, block)) {
+                if (isLinkedMonitor(block, storageId)) counts[1]++;
+                return;
+              }
+              if (BusMarker.isBus(plugin, block)) {
+                if (isLinkedBus(block, storageId)) counts[2]++;
+              }
+            });
       }
     }
-    return new ConnectionStats(terminals, monitors, buses);
+    return new ConnectionStats(counts[0], counts[1], counts[2]);
   }
 
-  private boolean isLinkedTerminal(World world, String rawKey, String storageId) {
-    int[] xyz = MarkerCoords.parseXYZ(rawKey.substring("terminal_".length()));
-    if (xyz == null) return false;
-    Block block = world.getBlockAt(xyz[0], xyz[1], xyz[2]);
+  private boolean isLinkedTerminal(Block block, String storageId) {
     if (!TerminalMarker.isTerminal(plugin, block)) return false;
     var result =
         TerminalLinkFinder.find(
@@ -549,10 +559,7 @@ public final class ExortBrigadier {
         && storageId.equals(result.data().storageId());
   }
 
-  private boolean isLinkedMonitor(World world, String rawKey, String storageId) {
-    int[] xyz = MarkerCoords.parseXYZ(rawKey.substring("monitor_".length()));
-    if (xyz == null) return false;
-    Block block = world.getBlockAt(xyz[0], xyz[1], xyz[2]);
+  private boolean isLinkedMonitor(Block block, String storageId) {
     if (!MonitorMarker.isMonitor(plugin, block)) return false;
     var result =
         TerminalLinkFinder.find(
@@ -568,10 +575,7 @@ public final class ExortBrigadier {
         && storageId.equals(result.data().storageId());
   }
 
-  private boolean isLinkedBus(World world, String rawKey, String storageId) {
-    int[] xyz = MarkerCoords.parseXYZ(rawKey.substring("bus_".length()));
-    if (xyz == null) return false;
-    Block block = world.getBlockAt(xyz[0], xyz[1], xyz[2]);
+  private boolean isLinkedBus(Block block, String storageId) {
     if (!BusMarker.isBus(plugin, block)) return false;
     var result =
         TerminalLinkFinder.find(
@@ -589,26 +593,24 @@ public final class ExortBrigadier {
 
   private Location findLoadedStorageLocation(String storageId) {
     if (storageId == null || storageId.isBlank()) return null;
-    String namespace = plugin.getName().toLowerCase(Locale.ROOT);
+    var result = new AtomicReference<Location>();
     for (World world : Bukkit.getWorlds()) {
       for (Chunk chunk : world.getLoadedChunks()) {
-        var pdc = chunk.getPersistentDataContainer();
-        for (var key : pdc.getKeys()) {
-          if (!namespace.equals(key.getNamespace())) continue;
-          String rawKey = key.getKey();
-          if (!rawKey.startsWith("storage_")) continue;
-          String raw = pdc.get(key, PersistentDataType.STRING);
-          if (raw == null || raw.isBlank()) continue;
-          String[] parts = raw.split(":");
-          if (parts.length < 2) continue;
-          if (!storageId.equals(parts[0])) continue;
-          int[] xyz = MarkerCoords.parseXYZ(rawKey.substring("storage_".length()));
-          if (xyz == null) continue;
-          return new Location(world, xyz[0], xyz[1], xyz[2]);
-        }
+        if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) continue;
+        ChunkMarkerStore.forEachBlock(
+            plugin,
+            chunk,
+            (block, root) -> {
+              if (result.get() != null) return;
+              var data = StorageMarker.get(plugin, block).orElse(null);
+              if (data == null) return;
+              if (!storageId.equals(data.storageId())) return;
+              result.set(block.getLocation());
+            });
+        if (result.get() != null) return result.get();
       }
     }
-    return null;
+    return result.get();
   }
 
   private int usageDebug(CommandContext<CommandSourceStack> context) {
@@ -651,6 +653,31 @@ public final class ExortBrigadier {
     CommandSender sender = sender(context.getSource());
     plugin.getCacheDebugService().stop(sender);
     sender.sendMessage(plugin.getLang().tr("message.debug_cache_stopped"));
+    return 1;
+  }
+
+  private int worldEditVerboseStart(CommandContext<CommandSourceStack> context, String rawMode) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    var mode = WorldEditDebugService.Mode.fromString(rawMode);
+    if (rawMode != null && mode == null) {
+      sender.sendMessage(plugin.getLang().tr("message.debug_worldedit_mode_invalid", rawMode));
+      return 0;
+    }
+    plugin.getWorldEditDebugService().start(sender, mode);
+    String modeName =
+        (mode == null ? plugin.getWorldEditDebugService().getMode() : mode)
+            .name()
+            .toLowerCase(Locale.ROOT);
+    sender.sendMessage(plugin.getLang().tr("message.debug_worldedit_started", modeName));
+    return 1;
+  }
+
+  private int worldEditVerboseStop(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    plugin.getWorldEditDebugService().stop(sender);
+    sender.sendMessage(plugin.getLang().tr("message.debug_worldedit_stopped"));
     return 1;
   }
 

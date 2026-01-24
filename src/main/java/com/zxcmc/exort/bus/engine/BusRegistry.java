@@ -1,20 +1,19 @@
 package com.zxcmc.exort.bus.engine;
 
+import com.zxcmc.exort.bus.BusFilterCodec;
 import com.zxcmc.exort.bus.BusPos;
 import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.db.Database;
 import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.marker.MarkerCoords;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 
 public final class BusRegistry {
@@ -81,6 +80,7 @@ public final class BusRegistry {
     Block block = state.pos().block();
     if (block != null) {
       BusMarker.set(plugin, block, marker.type(), marker.facing(), marker.mode());
+      BusMarker.setFilters(plugin, block, BusFilterCodec.encode(state.filters(), FILTER_SLOTS));
     }
   }
 
@@ -93,20 +93,14 @@ public final class BusRegistry {
   }
 
   public void scanChunk(Chunk chunk) {
-    Set<NamespacedKey> keys = chunk.getPersistentDataContainer().getKeys();
-    if (keys.isEmpty()) return;
-    String ns = plugin.getName().toLowerCase();
-    for (var key : keys) {
-      if (!key.getNamespace().equals(ns)) continue;
-      String raw = key.getKey();
-      if (!raw.startsWith("bus_")) continue;
-      if (raw.startsWith("bus_display_")) continue;
-      int[] xyz = MarkerCoords.parseXYZ(raw.substring("bus_".length()));
-      if (xyz == null) continue;
-      Block block = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-      BusMarker.get(plugin, block)
-          .ifPresent(data -> getOrCreateState(BusPos.of(block), data, block));
-    }
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          if (!BusMarker.isBus(plugin, block)) return;
+          BusMarker.get(plugin, block)
+              .ifPresent(data -> getOrCreateState(BusPos.of(block), data, block));
+        });
   }
 
   public List<BusState> snapshotList() {

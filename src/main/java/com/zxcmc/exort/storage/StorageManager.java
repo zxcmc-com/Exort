@@ -2,8 +2,10 @@ package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.db.Database;
+import com.zxcmc.exort.core.db.DbItem;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.gui.SortMode;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -117,6 +119,28 @@ public class StorageManager {
   public boolean isLoading(String storageId) {
     if (storageId == null) return false;
     return loading.containsKey(storageId);
+  }
+
+  public CompletableFuture<Void> cloneStorage(String fromId, String toId, String tierKey) {
+    if (fromId == null || toId == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    Optional<StorageCache> loaded = peekLoadedCache(fromId);
+    if (loaded.isPresent()) {
+      StorageCache cache = loaded.get();
+      Collection<DbItem> items = cache.snapshotItems();
+      String sortMode = cache.getSortMode().name();
+      Map<String, DbItem> snapshot = new ConcurrentHashMap<>();
+      for (DbItem item : items) {
+        snapshot.put(item.key(), item);
+      }
+      StorageCache cloned = new StorageCache(toId, plugin.getKeys(), plugin);
+      cloned.loadFromDb(snapshot);
+      cloned.setSortMode(cache.getSortMode());
+      caches.put(toId, cloned);
+      return database.createStorageWithItems(toId, tierKey, sortMode, items);
+    }
+    return database.cloneStorage(fromId, toId, tierKey);
   }
 
   public int evictIdleCaches(long idleMs) {

@@ -12,6 +12,14 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
+    WorldEdit:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    FastAsyncWorldEdit:
+      load: BEFORE
+      required: false
+      join-classpath: true
     Nexo:
       load: BEFORE
       required: false

@@ -11,10 +11,11 @@ import org.bukkit.plugin.Plugin;
 public final class BusMarker {
   private BusMarker() {}
 
-  private static final String PREFIX = "bus";
-  private static final String KEY_TYPE = "type";
-  private static final String KEY_FACING = "facing";
-  private static final String KEY_MODE = "mode";
+  private static final String SECTION = "bus";
+  private static final String FIELD_TYPE = "type";
+  private static final String FIELD_FACING = "facing";
+  private static final String FIELD_MODE = "mode";
+  private static final String FIELD_FILTERS = "filters";
 
   public record Data(BusType type, BlockFace facing, BusMode mode) {}
 
@@ -22,55 +23,47 @@ public final class BusMarker {
     BusType safeType = type == null ? BusType.IMPORT : type;
     BusMode safeMode = mode == null ? BusMode.DISABLED : mode;
     BlockFace safeFacing = facing == null ? BlockFace.NORTH : facing;
-    String value =
-        KEY_TYPE
-            + ":"
-            + safeType.name()
-            + ";"
-            + KEY_FACING
-            + ":"
-            + safeFacing.name()
-            + ";"
-            + KEY_MODE
-            + ":"
-            + safeMode.name();
-    ChunkMarkerStore.setMarker(plugin, PREFIX, block, value);
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TYPE, safeType.name());
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_FACING, safeFacing.name());
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_MODE, safeMode.name());
+  }
+
+  public static void setFilters(Plugin plugin, Block block, byte[] filters) {
+    if (filters == null) return;
+    ChunkMarkerStore.setBytes(plugin, block, SECTION, FIELD_FILTERS, filters);
+  }
+
+  public static Optional<byte[]> getFilters(Plugin plugin, Block block) {
+    return ChunkMarkerStore.getBytes(plugin, block, SECTION, FIELD_FILTERS);
   }
 
   public static Optional<Data> get(Plugin plugin, Block block) {
-    return ChunkMarkerStore.getMarker(plugin, PREFIX, block)
-        .flatMap(
-            raw -> {
-              if (raw == null) return Optional.empty();
-              BusType type = null;
-              BusMode mode = null;
-              BlockFace facing = null;
-              for (String part : raw.split(";")) {
-                if (part.startsWith(KEY_TYPE + ":")) {
-                  type = BusType.fromString(part.substring((KEY_TYPE + ":").length()));
-                } else if (part.startsWith(KEY_FACING + ":")) {
-                  String dir = part.substring((KEY_FACING + ":").length());
-                  try {
-                    facing = BlockFace.valueOf(dir);
-                  } catch (IllegalArgumentException ignored) {
-                    facing = null;
-                  }
-                } else if (part.startsWith(KEY_MODE + ":")) {
-                  mode = BusMode.fromString(part.substring((KEY_MODE + ":").length()));
-                }
-              }
-              if (type == null) type = BusType.IMPORT;
-              if (mode == null) mode = BusMode.DISABLED;
-              if (facing == null) facing = BlockFace.NORTH;
-              return Optional.of(new Data(type, facing, mode));
-            });
+    if (!ChunkMarkerStore.hasSection(plugin, block, SECTION)) return Optional.empty();
+    BusType type =
+        BusType.fromString(
+            ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TYPE)
+                .orElse(BusType.IMPORT.name()));
+    BusMode mode =
+        BusMode.fromString(
+            ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_MODE)
+                .orElse(BusMode.DISABLED.name()));
+    BlockFace facing;
+    String facingRaw =
+        ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_FACING)
+            .orElse(BlockFace.NORTH.name());
+    try {
+      facing = BlockFace.valueOf(facingRaw);
+    } catch (IllegalArgumentException ignored) {
+      facing = BlockFace.NORTH;
+    }
+    return Optional.of(new Data(type, facing, mode));
   }
 
   public static boolean isBus(Plugin plugin, Block block) {
-    return ChunkMarkerStore.getMarker(plugin, PREFIX, block).isPresent();
+    return ChunkMarkerStore.hasSection(plugin, block, SECTION);
   }
 
   public static void clear(Plugin plugin, Block block) {
-    ChunkMarkerStore.clearMarker(plugin, PREFIX, block);
+    ChunkMarkerStore.clearSection(plugin, block, SECTION);
   }
 }

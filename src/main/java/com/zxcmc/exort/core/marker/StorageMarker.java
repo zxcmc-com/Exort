@@ -10,45 +10,53 @@ import org.bukkit.plugin.Plugin;
 public final class StorageMarker {
   private StorageMarker() {}
 
-  private static final String PREFIX = "storage";
+  private static final String SECTION = "storage";
+  private static final String FIELD_ID = "id";
+  private static final String FIELD_TIER = "tier";
+  private static final String FIELD_FACING = "facing";
 
   public record Data(String storageId, StorageTier tier, BlockFace facing) {}
 
   public static void set(Plugin plugin, Block block, String storageId, StorageTier tier) {
-    ChunkMarkerStore.setMarker(plugin, PREFIX, block, storageId + ":" + tier.key());
+    if (storageId == null || tier == null) return;
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, storageId);
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, tier.key());
+    ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_FACING);
   }
 
   public static void set(
       Plugin plugin, Block block, String storageId, StorageTier tier, BlockFace facing) {
-    if (facing == null) {
-      set(plugin, block, storageId, tier);
-      return;
+    if (storageId == null || tier == null) return;
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, storageId);
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, tier.key());
+    if (facing != null) {
+      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_FACING, facing.name());
+    } else {
+      ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_FACING);
     }
-    ChunkMarkerStore.setMarker(
-        plugin, PREFIX, block, storageId + ":" + tier.key() + ":facing:" + facing.name());
   }
 
   public static Optional<Data> get(Plugin plugin, Block block) {
-    return ChunkMarkerStore.getMarker(plugin, PREFIX, block)
-        .flatMap(
-            raw -> {
-              String[] parts = raw.split(":");
-              if (parts.length < 2) return Optional.empty();
-              var tierOpt = StorageTier.fromString(parts[1]);
-              if (tierOpt.isEmpty()) return Optional.empty();
-              BlockFace facing = null;
-              if (parts.length >= 4 && "facing".equalsIgnoreCase(parts[2])) {
-                try {
-                  facing = BlockFace.valueOf(parts[3]);
-                } catch (IllegalArgumentException ignored) {
-                  facing = null;
-                }
-              }
-              return Optional.of(new Data(parts[0], tierOpt.get(), facing));
-            });
+    if (!ChunkMarkerStore.hasSection(plugin, block, SECTION)) return Optional.empty();
+    String storageId = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_ID).orElse(null);
+    String tierKey = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TIER).orElse(null);
+    if (storageId == null || tierKey == null) return Optional.empty();
+    var tierOpt = StorageTier.fromString(tierKey);
+    if (tierOpt.isEmpty()) return Optional.empty();
+    BlockFace facing = null;
+    String facingRaw =
+        ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_FACING).orElse(null);
+    if (facingRaw != null) {
+      try {
+        facing = BlockFace.valueOf(facingRaw);
+      } catch (IllegalArgumentException ignored) {
+        facing = null;
+      }
+    }
+    return Optional.of(new Data(storageId, tierOpt.get(), facing));
   }
 
   public static void clear(Plugin plugin, Block block) {
-    ChunkMarkerStore.clearMarker(plugin, PREFIX, block);
+    ChunkMarkerStore.clearSection(plugin, block, SECTION);
   }
 }

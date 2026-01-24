@@ -139,6 +139,15 @@ public class Lang {
         "Unknown cache verbose mode: {0}. Use compact/normal/full.");
     put(defaultsEn, "message.debug_cache_storage_invalid", "Invalid storage UUID: {0}.");
     put(defaultsEn, "message.debug_cache_filter_none", "none");
+    put(
+        defaultsEn,
+        "message.debug_worldedit_started",
+        "WorldEdit verbose logging enabled (mode: {0}).");
+    put(defaultsEn, "message.debug_worldedit_stopped", "WorldEdit verbose logging disabled.");
+    put(
+        defaultsEn,
+        "message.debug_worldedit_mode_invalid",
+        "Invalid WorldEdit debug mode: {0}. Use compact/normal/full.");
     put(defaultsEn, "message.debug_cache_status_header", "Cache status for {0}:");
     put(defaultsEn, "message.debug_cache_status_cache_unloaded", "Cache: not loaded.");
     put(
@@ -432,6 +441,15 @@ public class Lang {
         "Неизвестный режим лога кэша: {0}. Используйте compact/normal/full.");
     put(defaultsRu, "message.debug_cache_storage_invalid", "Неверный UUID хранилища: {0}.");
     put(defaultsRu, "message.debug_cache_filter_none", "нет");
+    put(
+        defaultsRu,
+        "message.debug_worldedit_started",
+        "Подробный лог WorldEdit включен (режим: {0}).");
+    put(defaultsRu, "message.debug_worldedit_stopped", "Подробный лог WorldEdit выключен.");
+    put(
+        defaultsRu,
+        "message.debug_worldedit_mode_invalid",
+        "Неверный режим лога WorldEdit: {0}. Используйте compact/normal/full.");
     put(defaultsRu, "message.debug_cache_status_header", "Статус кэша для {0}:");
     put(defaultsRu, "message.debug_cache_status_cache_unloaded", "Кэш: не загружен.");
     put(

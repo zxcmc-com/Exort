@@ -28,7 +28,8 @@ import com.zxcmc.exort.core.listeners.SearchDialogListener;
 import com.zxcmc.exort.core.listeners.StorageListener;
 import com.zxcmc.exort.core.listeners.TerminalListener;
 import com.zxcmc.exort.core.listeners.WireListener;
-import com.zxcmc.exort.core.marker.MarkerCoords;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
+import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.network.NetworkGraphCache;
 import com.zxcmc.exort.core.protection.DebugRegionProtection;
 import com.zxcmc.exort.core.protection.RegionProtection;
@@ -41,8 +42,10 @@ import com.zxcmc.exort.core.sanity.ChunkSanityService;
 import com.zxcmc.exort.core.sanity.DisplayCleanupService;
 import com.zxcmc.exort.core.sanity.MarkerSanityService;
 import com.zxcmc.exort.core.ui.BossBarManager;
+import com.zxcmc.exort.core.worldedit.WorldEditBridge;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
+import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.BusDisplayManager;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
@@ -76,7 +79,10 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -123,7 +129,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private RecipeService recipeService;
   private LoadTestService loadTestService;
   private CacheDebugService cacheDebugService;
+  private WorldEditDebugService worldEditDebugService;
   private Metrics metrics;
+  private WorldEditBridge worldEditBridge;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
@@ -166,6 +174,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     bossBarManager = new BossBarManager(this, storageManager, lang);
     loadTestService = new LoadTestService(this, database, bossBarManager, lang);
     cacheDebugService = new CacheDebugService(this);
+    worldEditDebugService = new WorldEditDebugService(this);
     metrics = new Metrics(this, 28841);
     registerMetricsCharts();
 
@@ -209,6 +218,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     }
     if (metrics != null) {
       metrics.shutdown();
+    }
+    if (worldEditBridge != null) {
+      worldEditBridge.shutdown();
+      worldEditBridge = null;
     }
     if (recipeService != null) {
       recipeService.unregisterAll();
@@ -272,6 +285,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   public CacheDebugService getCacheDebugService() {
     return cacheDebugService;
+  }
+
+  public WorldEditDebugService getWorldEditDebugService() {
+    return worldEditDebugService;
   }
 
   public int getInventoryRefreshEpoch() {
@@ -1049,6 +1066,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             busDisplayManager);
     var chunkSanityService =
         new ChunkSanityService(
+            this,
             new DisplayCleanupService(
                 this, wireMaterial, storageCarrier, terminalCarrier, monitorCarrier, busCarrier),
             new MarkerSanityService(
@@ -1212,21 +1230,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
               if (networkGraphCache != null) {
                 networkGraphCache.invalidateAll();
               }
-              String namespace = getName().toLowerCase(Locale.ROOT);
               for (var world : Bukkit.getWorlds()) {
                 for (var chunk : world.getLoadedChunks()) {
                   displayRefreshService.refreshChunk(chunk);
-                  var keys = chunk.getPersistentDataContainer().getKeys();
-                  if (keys.isEmpty()) continue;
-                  for (var key : keys) {
-                    if (!key.getNamespace().equals(namespace)) continue;
-                    String raw = key.getKey();
-                    if (!raw.startsWith("storage_")) continue;
-                    int[] xyz = MarkerCoords.parseXYZ(raw.substring("storage_".length()));
-                    if (xyz == null) continue;
-                    var block = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-                    displayRefreshService.refreshNetworkFrom(block);
-                  }
+                  if (!ChunkMarkerStore.hasAnyBlockData(this, chunk)) continue;
+                  ChunkMarkerStore.forEachBlock(
+                      this,
+                      chunk,
+                      (block, root) -> {
+                        if (StorageMarker.get(this, block).isPresent()) {
+                          displayRefreshService.refreshNetworkFrom(block);
+                        }
+                      });
                 }
               }
               if (storageManager != null) {
@@ -1238,6 +1253,31 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
               bumpInventoryRefreshEpoch();
             },
             5L);
+    if (worldEditBridge == null) {
+      worldEditBridge = WorldEditBridge.tryRegister(this);
+      if (worldEditBridge == null) {
+        Bukkit.getPluginManager()
+            .registerEvents(
+                new Listener() {
+                  @EventHandler
+                  public void onPluginEnable(PluginEnableEvent event) {
+                    if (worldEditBridge != null) {
+                      HandlerList.unregisterAll(this);
+                      return;
+                    }
+                    String name = event.getPlugin().getName();
+                    if (!"WorldEdit".equals(name) && !"FastAsyncWorldEdit".equals(name)) {
+                      return;
+                    }
+                    worldEditBridge = WorldEditBridge.tryRegister(ExortPlugin.this);
+                    if (worldEditBridge != null) {
+                      HandlerList.unregisterAll(this);
+                    }
+                  }
+                },
+                this);
+      }
+    }
     scheduleFlushTask();
     scheduleCacheEviction();
     return langFuture;

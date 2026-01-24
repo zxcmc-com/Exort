@@ -3,6 +3,7 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.marker.BusMarker;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
@@ -13,7 +14,6 @@ import java.util.Queue;
 import java.util.Set;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
@@ -51,26 +51,23 @@ public final class DisplayRefreshService {
   }
 
   public void refreshChunk(Chunk chunk) {
-    var keys = chunk.getPersistentDataContainer().getKeys();
-    if (keys.isEmpty()) return;
-    boolean hasWire = false;
-    boolean hasStorage = false;
-    boolean hasTerminal = false;
-    boolean hasMonitor = false;
-    boolean hasBus = false;
-    String ns = plugin.getName().toLowerCase();
-    for (NamespacedKey key : keys) {
-      if (!key.getNamespace().equals(ns)) continue;
-      String raw = key.getKey();
-      if (!hasWire && raw.startsWith("wire_")) hasWire = true;
-      if (!hasStorage && raw.startsWith("storage_")) hasStorage = true;
-      if (!hasTerminal && raw.startsWith("terminal_")) hasTerminal = true;
-      if (!hasMonitor && raw.startsWith("monitor_")) hasMonitor = true;
-      if (!hasBus && raw.startsWith("bus_")) hasBus = true;
-      if (hasWire && hasStorage && hasTerminal && hasMonitor && hasBus) {
-        break;
-      }
-    }
+    boolean[] flags = new boolean[5];
+    if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          if (!flags[0] && WireMarker.isWire(plugin, block)) flags[0] = true;
+          if (!flags[1] && StorageMarker.get(plugin, block).isPresent()) flags[1] = true;
+          if (!flags[2] && TerminalMarker.isTerminal(plugin, block)) flags[2] = true;
+          if (!flags[3] && MonitorMarker.isMonitor(plugin, block)) flags[3] = true;
+          if (!flags[4] && BusMarker.isBus(plugin, block)) flags[4] = true;
+        });
+    boolean hasWire = flags[0];
+    boolean hasStorage = flags[1];
+    boolean hasTerminal = flags[2];
+    boolean hasMonitor = flags[3];
+    boolean hasBus = flags[4];
     if (hasWire && wireDisplayManager != null) {
       wireDisplayManager.refreshChunk(chunk);
     }

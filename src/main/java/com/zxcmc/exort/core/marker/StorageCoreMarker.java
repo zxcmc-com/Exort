@@ -7,17 +7,20 @@ import org.bukkit.plugin.Plugin;
 public final class StorageCoreMarker {
   private StorageCoreMarker() {}
 
-  private static final String PREFIX = "storage_core";
+  private static final String SECTION = "storage_core";
+  private static final String FIELD_PRESENT = "present";
 
   public static void set(Plugin plugin, Block block) {
-    ChunkMarkerStore.setMarker(plugin, PREFIX, block, "core");
+    ChunkMarkerStore.setByte(plugin, block, SECTION, FIELD_PRESENT, (byte) 1);
   }
 
   public static boolean isCore(Plugin plugin, Block block) {
-    return ChunkMarkerStore.getMarker(plugin, PREFIX, block).isPresent();
+    return ChunkMarkerStore.getByte(plugin, block, SECTION, FIELD_PRESENT)
+        .map(val -> val == (byte) 1)
+        .orElse(false);
   }
 
   public static void clear(Plugin plugin, Block block) {
-    ChunkMarkerStore.clearMarker(plugin, PREFIX, block);
+    ChunkMarkerStore.clearSection(plugin, block, SECTION);
   }
 }
