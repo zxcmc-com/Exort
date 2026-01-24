@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — 2026-01-24
+- Updated target Paper API to 1.21.11 (still supports 1.21.7+).
+- FastAsyncWorldEdit (FAWE) integration: copy/move/cut/paste/undo/redo/rotate now preserve Exort block behavior, facing, filters, wire connections, and displays.
+- Bus filter data is persisted alongside markers, keeping filters intact across edit operations.
+- Exort marker data moved to chunk-level PDC containers (per-block nested storage) for stability and faster scans.
+- Added `/exort debug verbose worldedit start|stop [compact|normal|full]` for edit-operation diagnostics.
+
 ## 0.8.2 — 2026-01-13
 - Added bStats integration.
 

@@ -3,8 +3,8 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.items.ItemKeyUtil;
 import com.zxcmc.exort.core.keys.StorageKeys;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.DisplayMarker;
-import com.zxcmc.exort.core.marker.MarkerCoords;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageCache;
@@ -194,27 +194,18 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   }
 
   private void scanChunkMarkers(Chunk chunk) {
-    var keys = chunk.getPersistentDataContainer().getKeys();
-    if (keys.isEmpty()) return;
-    for (NamespacedKey k : keys) {
-      if (!k.getNamespace().equals(plugin.getName().toLowerCase())) continue;
-      String raw = k.getKey();
-      if (!raw.startsWith("monitor_")) continue;
-      if (raw.startsWith("monitor_display_")
-          || raw.startsWith("monitor_item_")
-          || raw.startsWith("monitor_item_blob_")) {
-        continue;
-      }
-      int[] xyz = MarkerCoords.parseXYZ(raw.substring("monitor_".length()));
-      if (xyz == null) continue;
-      Block block = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-      if (!Carriers.matchesCarrier(block, carrierMaterial)) continue;
-      if (!MonitorMarker.isMonitor(plugin, block)) continue;
-      monitors.putIfAbsent(
-          MonitorPos.of(block),
-          new MonitorState(null, null, Long.MIN_VALUE, null, null, false, null));
-      refresh(block);
-    }
+    if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          if (!Carriers.matchesCarrier(block, carrierMaterial)) return;
+          if (!MonitorMarker.isMonitor(plugin, block)) return;
+          monitors.putIfAbsent(
+              MonitorPos.of(block),
+              new MonitorState(null, null, Long.MIN_VALUE, null, null, false, null));
+          refresh(block);
+        });
   }
 
   private void tick() {

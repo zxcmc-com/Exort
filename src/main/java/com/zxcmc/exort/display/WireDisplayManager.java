@@ -3,8 +3,8 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.items.ItemModelUtil;
 import com.zxcmc.exort.core.marker.BusMarker;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.DisplayMarker;
-import com.zxcmc.exort.core.marker.MarkerCoords;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
@@ -23,7 +23,6 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -135,24 +134,15 @@ public class WireDisplayManager {
   }
 
   private void scanChunk(Chunk chunk) {
-    Set<NamespacedKey> keys = chunk.getPersistentDataContainer().getKeys();
-    if (keys.isEmpty()) return;
-    for (NamespacedKey k : keys) {
-      if (!k.getNamespace().equals(plugin.getName().toLowerCase())) continue;
-      String key = k.getKey();
-      if (!key.startsWith("wire_")) continue;
-      // Skip our own display UUID markers: wire_display_x_y_z (stored as STRING)
-      if (key.startsWith("wire_display_")) continue;
-
-      int[] xyz = MarkerCoords.parseXYZ(key.substring("wire_".length()));
-      if (xyz == null) continue;
-      if (!chunk.getPersistentDataContainer().has(k, PersistentDataType.BYTE)) continue;
-      Byte marker = chunk.getPersistentDataContainer().get(k, PersistentDataType.BYTE);
-      if (marker == null || marker != (byte) 1) continue;
-      Block block = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-      if (!Carriers.matchesCarrier(block, wireCarrierMaterial)) continue;
-      updateWireAndNeighbors(block);
-    }
+    if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          if (!WireMarker.isWire(plugin, block)) return;
+          if (!Carriers.matchesCarrier(block, wireCarrierMaterial)) return;
+          updateWireAndNeighbors(block);
+        });
   }
 
   public void updateWireAndNeighbors(Block wire) {

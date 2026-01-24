@@ -230,6 +230,92 @@ public class Database implements AutoCloseable {
         executor);
   }
 
+  public CompletableFuture<Void> createStorageWithItems(
+      String storageId, String tierKey, String sortMode, Collection<DbItem> items) {
+    Objects.requireNonNull(storageId, "storageId");
+    long now = Instant.now().getEpochSecond();
+    String mode = sortMode == null ? defaultSortModeName() : sortMode;
+    return CompletableFuture.runAsync(
+        () -> {
+          try {
+            String sql =
+                "INSERT OR REPLACE INTO storages(id, tier, sort_mode, created_at, updated_at)"
+                    + " VALUES(?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+              ps.setString(1, storageId);
+              ps.setString(2, tierKey);
+              ps.setString(3, mode);
+              ps.setLong(4, now);
+              ps.setLong(5, now);
+              ps.executeUpdate();
+            }
+            writeSnapshotInternal(storageId, items);
+          } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to create storage " + storageId, e);
+          }
+        },
+        executor);
+  }
+
+  public CompletableFuture<Void> cloneStorage(String fromId, String toId, String tierKey) {
+    Objects.requireNonNull(fromId, "fromId");
+    Objects.requireNonNull(toId, "toId");
+    long now = Instant.now().getEpochSecond();
+    return CompletableFuture.runAsync(
+        () -> {
+          try {
+            int rows = 0;
+            String insertSql =
+                "INSERT INTO storages(id, tier, sort_mode, created_at, updated_at)"
+                    + " SELECT ?, tier, sort_mode, ?, ? FROM storages WHERE id = ?";
+            try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
+              ps.setString(1, toId);
+              ps.setLong(2, now);
+              ps.setLong(3, now);
+              ps.setString(4, fromId);
+              rows = ps.executeUpdate();
+            }
+            if (rows == 0) {
+              String fallbackSort = defaultSortModeName();
+              String sql =
+                  "INSERT OR REPLACE INTO storages(id, tier, sort_mode, created_at, updated_at)"
+                      + " VALUES(?, ?, ?, ?, ?)";
+              try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, toId);
+                ps.setString(2, tierKey);
+                ps.setString(3, fallbackSort);
+                ps.setLong(4, now);
+                ps.setLong(5, now);
+                ps.executeUpdate();
+              }
+            } else if (tierKey != null) {
+              try (PreparedStatement ps =
+                  connection.prepareStatement(
+                      "UPDATE storages SET tier = ?, updated_at = ? WHERE id = ?")) {
+                ps.setString(1, tierKey);
+                ps.setLong(2, now);
+                ps.setString(3, toId);
+                ps.executeUpdate();
+              }
+            }
+            String itemsSql =
+                "INSERT INTO storage_items(storage_id, item_key, item_blob, amount)"
+                    + " SELECT ?, item_key, item_blob, amount FROM storage_items WHERE storage_id"
+                    + " = ?";
+            try (PreparedStatement ps = connection.prepareStatement(itemsSql)) {
+              ps.setString(1, toId);
+              ps.setString(2, fromId);
+              ps.executeUpdate();
+            }
+          } catch (SQLException e) {
+            plugin
+                .getLogger()
+                .log(Level.SEVERE, "Failed to clone storage " + fromId + " to " + toId, e);
+          }
+        },
+        executor);
+  }
+
   public CompletableFuture<Optional<String>> getStorageTier(String storageId) {
     Objects.requireNonNull(storageId, "storageId");
     return CompletableFuture.supplyAsync(
@@ -457,58 +543,66 @@ public class Database implements AutoCloseable {
     return CompletableFuture.runAsync(
         () -> {
           try {
-            connection.setAutoCommit(false);
-            try (PreparedStatement delete =
-                connection.prepareStatement("DELETE FROM storage_items WHERE storage_id = ?")) {
-              delete.setString(1, storageId);
-              delete.executeUpdate();
-            }
-            String insertSql =
-                "INSERT INTO storage_items(storage_id, item_key, item_blob, amount) VALUES(?, ?, ?,"
-                    + " ?)";
-            try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
-              int batchSize = 0;
-              // Limit batch size to reduce memory spikes on very large storages.
-              for (DbItem item : items) {
-                if (item.amount() <= 0) continue;
-                insert.setString(1, storageId);
-                insert.setString(2, item.key());
-                insert.setBytes(3, item.blob());
-                insert.setLong(4, item.amount());
-                insert.addBatch();
-                batchSize++;
-                if (batchSize >= 1000) {
-                  insert.executeBatch();
-                  insert.clearBatch();
-                  batchSize = 0;
-                }
-              }
-              if (batchSize > 0) {
-                insert.executeBatch();
-              }
-            }
-            try (PreparedStatement update =
-                connection.prepareStatement("UPDATE storages SET updated_at = ? WHERE id = ?")) {
-              update.setLong(1, Instant.now().getEpochSecond());
-              update.setString(2, storageId);
-              update.executeUpdate();
-            }
-            connection.commit();
+            writeSnapshotInternal(storageId, items);
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to write snapshot for " + storageId, e);
-            try {
-              connection.rollback();
-            } catch (SQLException ex) {
-              plugin.getLogger().log(Level.SEVERE, "Failed to rollback transaction", ex);
-            }
-          } finally {
-            try {
-              connection.setAutoCommit(true);
-            } catch (SQLException ignored) {
-            }
           }
         },
         executor);
+  }
+
+  private void writeSnapshotInternal(String storageId, Collection<DbItem> items)
+      throws SQLException {
+    try {
+      connection.setAutoCommit(false);
+      try (PreparedStatement delete =
+          connection.prepareStatement("DELETE FROM storage_items WHERE storage_id = ?")) {
+        delete.setString(1, storageId);
+        delete.executeUpdate();
+      }
+      String insertSql =
+          "INSERT INTO storage_items(storage_id, item_key, item_blob, amount) VALUES(?, ?, ?, ?)";
+      try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
+        int batchSize = 0;
+        // Limit batch size to reduce memory spikes on very large storages.
+        for (DbItem item : items) {
+          if (item.amount() <= 0) continue;
+          insert.setString(1, storageId);
+          insert.setString(2, item.key());
+          insert.setBytes(3, item.blob());
+          insert.setLong(4, item.amount());
+          insert.addBatch();
+          batchSize++;
+          if (batchSize >= 1000) {
+            insert.executeBatch();
+            insert.clearBatch();
+            batchSize = 0;
+          }
+        }
+        if (batchSize > 0) {
+          insert.executeBatch();
+        }
+      }
+      try (PreparedStatement update =
+          connection.prepareStatement("UPDATE storages SET updated_at = ? WHERE id = ?")) {
+        update.setLong(1, Instant.now().getEpochSecond());
+        update.setString(2, storageId);
+        update.executeUpdate();
+      }
+      connection.commit();
+    } catch (SQLException e) {
+      try {
+        connection.rollback();
+      } catch (SQLException ex) {
+        plugin.getLogger().log(Level.SEVERE, "Failed to rollback transaction", ex);
+      }
+      throw e;
+    } finally {
+      try {
+        connection.setAutoCommit(true);
+      } catch (SQLException ignored) {
+      }
+    }
   }
 
   public CompletableFuture<Void> writeDelta(

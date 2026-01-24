@@ -3,7 +3,7 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.keys.StorageKeys;
-import com.zxcmc.exort.core.marker.MarkerCoords;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
@@ -365,28 +365,21 @@ public class ItemHologramManager implements Listener {
   }
 
   private void scanChunkMarkers(Chunk chunk) {
-    var keys = chunk.getPersistentDataContainer().getKeys();
-    if (keys.isEmpty()) return;
-    for (var key : keys) {
-      if (!key.getNamespace().equals(plugin.getName().toLowerCase())) continue;
-      String raw = key.getKey();
-      if (raw.startsWith("terminal_")) {
-        int[] xyz = MarkerCoords.parseXYZ(raw.substring("terminal_".length()));
-        if (xyz == null) continue;
-        Block b = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-        if (Carriers.matchesCarrier(b, terminalCarrier) && TerminalMarker.isTerminal(plugin, b)) {
-          registerTerminal(b);
-        }
-      } else if (raw.startsWith("storage_")) {
-        int[] xyz = MarkerCoords.parseXYZ(raw.substring("storage_".length()));
-        if (xyz == null) continue;
-        Block b = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-        if (Carriers.matchesCarrier(b, storageCarrier)
-            && StorageMarker.get(plugin, b).isPresent()) {
-          registerStorage(b);
-        }
-      }
-    }
+    if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          if (Carriers.matchesCarrier(block, terminalCarrier)
+              && TerminalMarker.isTerminal(plugin, block)) {
+            registerTerminal(block);
+            return;
+          }
+          if (Carriers.matchesCarrier(block, storageCarrier)
+              && StorageMarker.get(plugin, block).isPresent()) {
+            registerStorage(block);
+          }
+        });
   }
 
   private Material resolveTestBlock() {

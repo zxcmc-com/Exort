@@ -3,8 +3,8 @@ package com.zxcmc.exort.core.sanity;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.marker.BusMarker;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.DisplayMarker;
-import com.zxcmc.exort.core.marker.MarkerCoords;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.marker.StorageCoreMarker;
 import com.zxcmc.exort.core.marker.StorageMarker;
@@ -17,12 +17,14 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
-import org.bukkit.persistence.PersistentDataType;
 
 public final class DisplayCleanupService {
+  private static final String[] DISPLAY_TYPES =
+      new String[] {
+        "wire", "storage", "terminal", "monitor", "bus", "monitor_item", "monitor_text"
+      };
   private final ExortPlugin plugin;
   private final Material wireCarrier;
   private final Material storageCarrier;
@@ -97,70 +99,29 @@ public final class DisplayCleanupService {
   }
 
   private void loadMonitorDisplayIds(Chunk chunk, Set<UUID> monitorItems, Set<UUID> monitorTexts) {
-    var pdc = chunk.getPersistentDataContainer();
-    for (NamespacedKey key : pdc.getKeys()) {
-      if (!key.getNamespace().equals(plugin.getName().toLowerCase())) continue;
-      String rawKey = key.getKey();
-      if (rawKey.startsWith("monitor_item_display_")) {
-        String raw = pdc.get(key, PersistentDataType.STRING);
-        if (raw == null) continue;
-        try {
-          monitorItems.add(UUID.fromString(raw));
-        } catch (IllegalArgumentException ignored) {
-          // Ignore invalid UUIDs; will be cleaned up in marker pass
-        }
-        continue;
-      }
-      if (rawKey.startsWith("monitor_text_display_")) {
-        String raw = pdc.get(key, PersistentDataType.STRING);
-        if (raw == null) continue;
-        try {
-          monitorTexts.add(UUID.fromString(raw));
-        } catch (IllegalArgumentException ignored) {
-          // Ignore invalid UUIDs; will be cleaned up in marker pass
-        }
-      }
-    }
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          DisplayMarker.get(plugin, "monitor_item", block).ifPresent(monitorItems::add);
+          DisplayMarker.get(plugin, "monitor_text", block).ifPresent(monitorTexts::add);
+        });
   }
 
   public void cleanupDisplayMarkers(Chunk chunk) {
-    var pdc = chunk.getPersistentDataContainer();
-    var keys = pdc.getKeys();
-    if (keys.isEmpty()) return;
-    for (var key : keys) {
-      if (!key.getNamespace().equals(plugin.getName().toLowerCase())) continue;
-      String raw = key.getKey();
-      if (raw.startsWith("wire_display_")) {
-        cleanupDisplayMarker(chunk, raw, "wire");
-      } else if (raw.startsWith("storage_display_")) {
-        cleanupDisplayMarker(chunk, raw, "storage");
-      } else if (raw.startsWith("terminal_display_")) {
-        cleanupDisplayMarker(chunk, raw, "terminal");
-      } else if (raw.startsWith("monitor_display_")) {
-        cleanupDisplayMarker(chunk, raw, "monitor");
-      } else if (raw.startsWith("bus_display_")) {
-        cleanupDisplayMarker(chunk, raw, "bus");
-      } else if (raw.startsWith("monitor_item_display_")) {
-        cleanupDisplayMarker(chunk, raw, "monitor_item");
-      } else if (raw.startsWith("monitor_text_display_")) {
-        cleanupDisplayMarker(chunk, raw, "monitor_text");
-      }
-    }
-  }
-
-  private void cleanupDisplayMarker(Chunk chunk, String rawKey, String type) {
-    String suffix = rawKey.substring((type + "_display_").length());
-    int[] xyz = MarkerCoords.parseXYZ(suffix);
-    if (xyz == null) return;
-    Block block = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-    var uuid = DisplayMarker.get(plugin, type, block).orElse(null);
-    if (uuid == null) {
-      DisplayMarker.clear(plugin, type, block);
-      return;
-    }
-    var ent = Bukkit.getEntity(uuid);
-    if (!(ent instanceof Display) || ent.isDead()) {
-      DisplayMarker.clear(plugin, type, block);
-    }
+    if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          for (String type : DISPLAY_TYPES) {
+            UUID uuid = DisplayMarker.get(plugin, type, block).orElse(null);
+            if (uuid == null) continue;
+            var ent = Bukkit.getEntity(uuid);
+            if (!(ent instanceof Display) || ent.isDead()) {
+              DisplayMarker.clear(plugin, type, block);
+            }
+          }
+        });
   }
 }

@@ -2,14 +2,13 @@ package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.items.ItemModelUtil;
+import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.DisplayMarker;
-import com.zxcmc.exort.core.marker.MarkerCoords;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
@@ -65,18 +64,15 @@ public abstract class BaseCarrierDisplayManager {
   }
 
   private void scanChunk(Chunk chunk) {
-    var keys = chunk.getPersistentDataContainer().getKeys();
-    if (keys.isEmpty()) return;
-    for (NamespacedKey k : keys) {
-      if (!k.getNamespace().equals(plugin.getName().toLowerCase())) continue;
-      String key = k.getKey();
-      if (!key.startsWith(markerType + "_")) continue;
-      int[] xyz = MarkerCoords.parseXYZ(key.substring(markerType.length() + 1));
-      if (xyz == null) continue;
-      var block = chunk.getWorld().getBlockAt(xyz[0], xyz[1], xyz[2]);
-      if (!Carriers.matchesCarrier(block, carrierMaterial)) continue;
-      refresh(block);
-    }
+    if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        plugin,
+        chunk,
+        (block, root) -> {
+          if (!Carriers.matchesCarrier(block, carrierMaterial)) return;
+          if (!ChunkMarkerStore.hasSection(plugin, block, markerType)) return;
+          refresh(block);
+        });
   }
 
   public void refresh(Block block) {
