@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1 — 2026-05-02
+- Updated target Paper API to 26.1.2 while keeping Java 21 bytecode and 1.21.7+ plugin compatibility metadata.
+- Hardened storage/database failure handling: SQL errors now fail futures, failed loads/flushes no longer masquerade as empty or clean storages, and shutdown waits are bounded.
+- Fixed storage withdrawals when the player inventory cannot accept the full stack.
+- Fixed crafting ingredient removal for repeated custom-item keys, including wireless terminals.
+- Fixed resource-mode wire breaking to use the Exort custom breaker path instead of hidden carrier particles.
+- Hardened FAWE copy/cut/paste on unofficial 26.1 builds by transporting Exort markers through carrier blocks with a paste fallback.
+
 ## 0.9.0 — 2026-01-24
 - Updated target Paper API to 1.21.11 (still supports 1.21.7+).
 - FastAsyncWorldEdit (FAWE) integration: copy/move/cut/paste/undo/redo/rotate now preserve Exort block behavior, facing, filters, wire connections, and displays.

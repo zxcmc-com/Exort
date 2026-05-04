@@ -10,9 +10,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 
 public class StorageManager {
+  private static final long FLUSH_WAIT_TIMEOUT_SECONDS = 15L;
+
   private final ExortPlugin plugin;
   private final Database database;
   private final StorageFlushService flushService;
@@ -71,6 +75,10 @@ public class StorageManager {
   }
 
   public void flushAllAndWait() {
+    flushAllAndWait(FLUSH_WAIT_TIMEOUT_SECONDS);
+  }
+
+  public void flushAllAndWait(long timeoutSeconds) {
     CompletableFuture<?>[] futures =
         caches.values().stream()
             .filter(StorageCache::isDirty)
@@ -78,7 +86,16 @@ public class StorageManager {
             .toArray(CompletableFuture[]::new);
     if (futures.length == 0) return;
     try {
-      CompletableFuture.allOf(futures).get();
+      CompletableFuture.allOf(futures).get(Math.max(1L, timeoutSeconds), TimeUnit.SECONDS);
+    } catch (TimeoutException e) {
+      plugin
+          .getLogger()
+          .log(
+              Level.SEVERE,
+              "Timed out waiting for "
+                  + futures.length
+                  + " storage flush task(s); dirty caches may remain pending",
+              e);
     } catch (Exception e) {
       plugin.getLogger().log(Level.SEVERE, "Error waiting for storage flush", e);
     }

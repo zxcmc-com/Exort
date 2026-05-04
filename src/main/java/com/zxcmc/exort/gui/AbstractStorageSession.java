@@ -655,9 +655,14 @@ public abstract class AbstractStorageSession implements SearchableSession {
       int move = Math.min(maxStack, remaining);
       ItemStack stack = sample.clone();
       stack.setAmount(move);
-      inv.addItem(stack);
-      remaining -= move;
-      moved += move;
+      int before = stack.getAmount();
+      int leftover = inv.addItem(stack).values().stream().mapToInt(ItemStack::getAmount).sum();
+      int added = Math.max(0, before - leftover);
+      if (added <= 0) {
+        break;
+      }
+      remaining -= added;
+      moved += added;
     }
     return moved;
   }
