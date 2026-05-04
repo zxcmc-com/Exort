@@ -15,6 +15,21 @@ import org.bukkit.persistence.PersistentDataType;
 public class StorageCache {
   public record RemovalRequest(String key, ItemStack sample, long amount) {}
 
+  private record RemovalPlan(
+      boolean success,
+      Map<String, Long> removals,
+      String failedKey,
+      long failedRequired,
+      long failedAvailable) {
+    static RemovalPlan success(Map<String, Long> removals) {
+      return new RemovalPlan(true, removals, null, 0L, 0L);
+    }
+
+    static RemovalPlan failure(String failedKey, long required, long available) {
+      return new RemovalPlan(false, Map.of(), failedKey, required, available);
+    }
+  }
+
   public static class StorageItem {
     private final String key;
     private final ItemStack sample;
@@ -313,38 +328,38 @@ public class StorageCache {
 
   public synchronized boolean removeAll(List<RemovalRequest> requests, WirelessTerminalService ws) {
     if (requests == null || requests.isEmpty()) return true;
-    for (RemovalRequest req : requests) {
-      if (req == null) continue;
-      long required = Math.max(0L, req.amount());
-      if (required <= 0) continue;
-      long available = getAmount(req.key());
-      if (ws != null && req.sample() != null && ws.isWireless(req.sample())) {
-        available += countMatchingWireless(ws, req.sample());
+    RemovalPlan plan = planRemovals(requests, ws);
+    if (!plan.success()) {
+      if (isVerbose()) {
+        log(
+            CacheDebugService.EventType.REMOVE_ALL_FAIL,
+            "cache removeAll FAILED: "
+                + storageId
+                + " key="
+                + plan.failedKey()
+                + " need="
+                + plan.failedRequired()
+                + " available="
+                + plan.failedAvailable());
       }
-      if (available < required) {
+      return false;
+    }
+    for (Map.Entry<String, Long> entry : plan.removals().entrySet()) {
+      long removed = removeItem(entry.getKey(), entry.getValue());
+      if (removed != entry.getValue()) {
         if (isVerbose()) {
           log(
               CacheDebugService.EventType.REMOVE_ALL_FAIL,
-              "cache removeAll FAILED: "
+              "cache removeAll FAILED during apply: "
                   + storageId
                   + " key="
-                  + req.key()
+                  + entry.getKey()
                   + " need="
-                  + required
-                  + " available="
-                  + available);
+                  + entry.getValue()
+                  + " removed="
+                  + removed);
         }
         return false;
-      }
-    }
-    for (RemovalRequest req : requests) {
-      if (req == null) continue;
-      long remaining = Math.max(0L, req.amount());
-      if (remaining <= 0) continue;
-      long removed = removeItem(req.key(), remaining);
-      remaining -= removed;
-      if (remaining > 0 && ws != null && req.sample() != null && ws.isWireless(req.sample())) {
-        removeMatchingWireless(ws, req.sample(), remaining);
       }
     }
     if (isVerbose()) {
@@ -353,6 +368,63 @@ public class StorageCache {
           "cache removeAll OK: " + storageId + " requests=" + requests.size());
     }
     return true;
+  }
+
+  private RemovalPlan planRemovals(List<RemovalRequest> requests, WirelessTerminalService ws) {
+    Map<String, Long> availableByKey = new HashMap<>(items.size());
+    for (Map.Entry<String, StorageItem> entry : items.entrySet()) {
+      StorageItem item = entry.getValue();
+      if (item != null && item.amount() > 0) {
+        availableByKey.put(entry.getKey(), item.amount());
+      }
+    }
+
+    Map<String, Long> removals = new LinkedHashMap<>();
+    for (RemovalRequest req : requests) {
+      if (req == null) continue;
+      long remaining = Math.max(0L, req.amount());
+      if (remaining <= 0) continue;
+
+      long required = remaining;
+      long allocated = 0;
+      if (req.key() != null) {
+        allocated += allocateRemoval(req.key(), remaining, availableByKey, removals);
+        remaining -= allocated;
+      }
+
+      if (remaining > 0 && ws != null && req.sample() != null && ws.isWireless(req.sample())) {
+        for (Map.Entry<String, StorageItem> entry : items.entrySet()) {
+          String key = entry.getKey();
+          Long available = availableByKey.get(key);
+          if (available == null || available <= 0) continue;
+          StorageItem storageItem = entry.getValue();
+          if (storageItem == null || storageItem.amount() <= 0) continue;
+          ItemStack storedSample = storageItem.sample();
+          if (!ws.isWireless(storedSample)) continue;
+          if (!matchesWireless(ws, storedSample, req.sample())) continue;
+          long take = allocateRemoval(key, remaining, availableByKey, removals);
+          remaining -= take;
+          allocated += take;
+          if (remaining <= 0) break;
+        }
+      }
+
+      if (remaining > 0) {
+        return RemovalPlan.failure(req.key(), required, allocated);
+      }
+    }
+    return RemovalPlan.success(removals);
+  }
+
+  private long allocateRemoval(
+      String key, long requested, Map<String, Long> availableByKey, Map<String, Long> removals) {
+    if (key == null || requested <= 0) return 0;
+    long available = Math.max(0L, availableByKey.getOrDefault(key, 0L));
+    long take = Math.min(requested, available);
+    if (take <= 0) return 0;
+    availableByKey.put(key, available - take);
+    removals.merge(key, take, Long::sum);
+    return take;
   }
 
   public synchronized boolean hasMatchingWireless(WirelessTerminalService ws, ItemStack sample) {

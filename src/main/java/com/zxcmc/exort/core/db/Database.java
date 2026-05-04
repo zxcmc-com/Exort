@@ -17,11 +17,15 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class Database implements AutoCloseable {
+  private static final long CLOSE_TIMEOUT_SECONDS = 15L;
+
   private final ExortPlugin plugin;
   private final ExecutorService executor =
       Executors.newSingleThreadExecutor(
@@ -150,6 +154,7 @@ public class Database implements AutoCloseable {
             ps.executeUpdate();
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to ensure storage row", e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -177,6 +182,7 @@ public class Database implements AutoCloseable {
             ps.executeUpdate();
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to set storage tier for " + storageId, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -203,6 +209,7 @@ public class Database implements AutoCloseable {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to read storage sort mode for " + storageId, e);
+            throw new CompletionException(e);
           }
           return Optional.empty();
         },
@@ -225,6 +232,7 @@ public class Database implements AutoCloseable {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to set storage sort mode for " + storageId, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -252,6 +260,7 @@ public class Database implements AutoCloseable {
             writeSnapshotInternal(storageId, items);
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create storage " + storageId, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -311,6 +320,7 @@ public class Database implements AutoCloseable {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to clone storage " + fromId + " to " + toId, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -330,6 +340,7 @@ public class Database implements AutoCloseable {
             }
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to read storage tier for " + storageId, e);
+            throw new CompletionException(e);
           }
           return Optional.empty();
         },
@@ -350,8 +361,8 @@ public class Database implements AutoCloseable {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to check storage existence for " + storageId, e);
+            throw new CompletionException(e);
           }
-          return false;
         },
         executor);
   }
@@ -383,6 +394,7 @@ public class Database implements AutoCloseable {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to update last storage for " + playerId, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -422,6 +434,7 @@ public class Database implements AutoCloseable {
             }
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to read last storage for " + playerId, e);
+            throw new CompletionException(e);
           }
           return Optional.empty();
         },
@@ -456,6 +469,7 @@ public class Database implements AutoCloseable {
             }
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to load bus settings for " + pos, e);
+            throw new CompletionException(e);
           }
           return Optional.empty();
         },
@@ -491,6 +505,7 @@ public class Database implements AutoCloseable {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to save bus settings for " + settings.pos(), e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -509,6 +524,7 @@ public class Database implements AutoCloseable {
             ps.executeUpdate();
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to delete bus settings for " + pos, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -532,6 +548,7 @@ public class Database implements AutoCloseable {
             }
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to load storage " + storageId, e);
+            throw new CompletionException(e);
           }
           return items;
         },
@@ -546,6 +563,7 @@ public class Database implements AutoCloseable {
             writeSnapshotInternal(storageId, items);
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to write snapshot for " + storageId, e);
+            throw new CompletionException(e);
           }
         },
         executor);
@@ -681,6 +699,7 @@ public class Database implements AutoCloseable {
             } catch (SQLException ex) {
               plugin.getLogger().log(Level.SEVERE, "Failed to rollback transaction", ex);
             }
+            throw new CompletionException(e);
           } finally {
             try {
               connection.setAutoCommit(true);
@@ -693,7 +712,22 @@ public class Database implements AutoCloseable {
 
   @Override
   public void close() {
-    executor.shutdownNow();
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        plugin
+            .getLogger()
+            .warning(
+                "Database executor did not stop within "
+                    + CLOSE_TIMEOUT_SECONDS
+                    + "s; forcing shutdown");
+        executor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      plugin.getLogger().log(Level.WARNING, "Interrupted while waiting for database shutdown", e);
+      executor.shutdownNow();
+    }
     if (connection != null) {
       try {
         connection.close();

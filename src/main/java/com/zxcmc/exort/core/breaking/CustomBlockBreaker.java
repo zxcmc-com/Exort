@@ -244,10 +244,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       return BreakType.STORAGE;
     }
     if (WireMarker.isWire(plugin, block) && Carriers.matchesCarrier(block, wireMaterial)) {
-      if (wireMaterial == Carriers.CARRIER_BARRIER) {
-        return BreakType.WIRE;
-      }
-      return BreakType.NONE;
+      return BreakType.WIRE;
     }
     return BreakType.NONE;
   }

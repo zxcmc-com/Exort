@@ -1,13 +1,20 @@
 package com.zxcmc.exort.core.worldedit;
 
 import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.EmptyClipboardException;
+import com.sk89q.worldedit.IncompleteRegionException;
 import com.sk89q.worldedit.LocalSession;
 import com.sk89q.worldedit.MaxChangedBlocksException;
 import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.entity.BaseEntity;
+import com.sk89q.worldedit.entity.Entity;
 import com.sk89q.worldedit.event.extent.EditSessionEvent;
+import com.sk89q.worldedit.event.platform.CommandEvent;
 import com.sk89q.worldedit.extension.platform.Actor;
 import com.sk89q.worldedit.extent.AbstractDelegateExtent;
 import com.sk89q.worldedit.extent.Extent;
+import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard;
+import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.transform.BlockTransformExtent;
 import com.sk89q.worldedit.function.pattern.BlockPattern;
 import com.sk89q.worldedit.function.pattern.Pattern;
@@ -67,7 +74,14 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.enginehub.linbus.tree.LinByteArrayTag;
 import org.enginehub.linbus.tree.LinByteTag;
@@ -75,7 +89,7 @@ import org.enginehub.linbus.tree.LinCompoundTag;
 import org.enginehub.linbus.tree.LinStringTag;
 import org.enginehub.linbus.tree.LinTagType;
 
-public final class WorldEditBridge {
+public final class WorldEditBridge implements Listener {
   private static final String EXORT_TAG = "exort";
   private static final String SECTION_STORAGE = "storage";
   private static final String SECTION_TERMINAL = "terminal";
@@ -96,7 +110,6 @@ public final class WorldEditBridge {
   private static final String FIELD_PRESENT = "present";
   private static final String FIELD_FILTERS = "filters";
   private static final String FIELD_NBT_ID = "id";
-  private static final String STRUCTURE_BLOCK_ID = "minecraft:structure_block";
 
   private static final int BUS_FILTER_SLOTS = 10;
 
@@ -104,7 +117,9 @@ public final class WorldEditBridge {
   private static final int Y_OFFSET = 2048;
   private static final int RETRY_DELAY_TICKS = 2;
   private static final int MAX_RETRIES = 40;
+  private static final int CLIPBOARD_PATCH_ATTEMPTS = 100;
   private static final long HISTORY_TTL_MS = TimeUnit.MINUTES.toMillis(10);
+  private static final long PASTE_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
 
   private static final Map<Class<?>, TranslateAccessor> TRANSLATE_ACCESSORS =
       new ConcurrentHashMap<>();
@@ -121,6 +136,9 @@ public final class WorldEditBridge {
   private final ExortPlugin plugin;
   private final Queue<PendingUpdate> updates = new ConcurrentLinkedQueue<>();
   private final Map<HistoryKey, HistoryEntry> markerHistory = new ConcurrentHashMap<>();
+  private final Map<UUID, PendingClipboardPatch> clipboardPatches = new ConcurrentHashMap<>();
+  private final Map<UUID, PendingPasteCommand> pendingPasteCommands = new ConcurrentHashMap<>();
+  private final Set<BukkitTask> clipboardPatchTasks = ConcurrentHashMap.newKeySet();
   private BukkitTask flushTask;
   private long tickCounter;
 
@@ -138,6 +156,7 @@ public final class WorldEditBridge {
       }
       WorldEditBridge bridge = new WorldEditBridge(plugin);
       WorldEdit.getInstance().getEventBus().register(bridge);
+      Bukkit.getPluginManager().registerEvents(bridge, plugin);
       bridge.startFlushTask();
       plugin.getLogger().info("[WorldEdit] Integration enabled.");
       return bridge;
@@ -209,10 +228,15 @@ public final class WorldEditBridge {
       WorldEdit.getInstance().getEventBus().unregister(this);
     } catch (Throwable ignored) {
     }
+    HandlerList.unregisterAll(this);
     if (flushTask != null) {
       flushTask.cancel();
       flushTask = null;
     }
+    for (BukkitTask task : clipboardPatchTasks) {
+      task.cancel();
+    }
+    clipboardPatchTasks.clear();
   }
 
   private void startFlushTask() {
@@ -243,7 +267,415 @@ public final class WorldEditBridge {
     Extent extent = event.getExtent();
     if (containsMarkerExtent(extent)) return;
     FacingTransform clipboardTransform = resolveClipboardFacing(event.getActor());
-    event.setExtent(new MarkerExtent(extent, world, this, clipboardTransform));
+    PendingPastePatch pastePatch = resolvePendingPastePatch(event.getActor());
+    event.setExtent(new MarkerExtent(extent, world, this, clipboardTransform, pastePatch));
+  }
+
+  @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+  public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
+    if (event == null || event.getPlayer() == null) {
+      return;
+    }
+    String command = event.getMessage();
+    Player player = event.getPlayer();
+    if (isClipboardCopyCommand(command)) {
+      Actor actor = wrapBukkitActor(player);
+      PendingClipboardPatch patch = actor == null ? null : captureClipboardPatch(actor);
+      if (patch == null || patch.markers().isEmpty()) {
+        clipboardPatches.remove(player.getUniqueId());
+        return;
+      }
+      rememberClipboardPatch(actor, patch);
+      return;
+    }
+    if (isClipboardPasteCommand(command)) {
+      PendingPasteCommand pasteCommand = parsePasteCommand(command);
+      pendingPasteCommands.put(player.getUniqueId(), pasteCommand);
+      Bukkit.getScheduler()
+          .runTaskLater(
+              plugin, () -> pendingPasteCommands.remove(player.getUniqueId(), pasteCommand), 100L);
+      return;
+    }
+    if (isClipboardClearCommand(command)) {
+      clipboardPatches.remove(player.getUniqueId());
+      pendingPasteCommands.remove(player.getUniqueId());
+    }
+  }
+
+  @Subscribe
+  public void onCommand(CommandEvent event) {
+    if (event == null || event.isCancelled()) {
+      return;
+    }
+    if (isClipboardClearCommand(event.getArguments())) {
+      clearClipboardPatch(event.getActor());
+      return;
+    }
+    if (!isClipboardCopyCommand(event.getArguments())) {
+      return;
+    }
+    PendingClipboardPatch patch = captureClipboardPatch(event.getActor());
+    if (patch == null || patch.markers().isEmpty()) {
+      patch = storedClipboardPatch(event.getActor());
+      if (patch == null || patch.markers().isEmpty()) {
+        clearClipboardPatch(event.getActor());
+        return;
+      }
+    } else {
+      rememberClipboardPatch(event.getActor(), patch);
+    }
+    scheduleClipboardPatch(event.getActor(), patch);
+  }
+
+  private static boolean isClipboardCopyCommand(String arguments) {
+    String command = commandName(arguments);
+    return "copy".equals(command)
+        || "cut".equals(command)
+        || "lazycopy".equals(command)
+        || "lazycut".equals(command);
+  }
+
+  private static boolean isClipboardPasteCommand(String arguments) {
+    return "paste".equals(commandName(arguments));
+  }
+
+  private static boolean isClipboardClearCommand(String arguments) {
+    String command = commandName(arguments);
+    return "clearclipboard".equals(command) || "clearclipboard".equals(command.replace("-", ""));
+  }
+
+  private static String commandName(String arguments) {
+    if (arguments == null) return "";
+    String command = arguments.trim();
+    while (command.startsWith("/")) {
+      command = command.substring(1);
+    }
+    if (command.isBlank()) return "";
+    int space = command.indexOf(' ');
+    if (space >= 0) {
+      command = command.substring(0, space);
+    }
+    int colon = command.lastIndexOf(':');
+    if (colon >= 0 && colon + 1 < command.length()) {
+      command = command.substring(colon + 1);
+      while (command.startsWith("/")) {
+        command = command.substring(1);
+      }
+    }
+    return command.toLowerCase(Locale.ROOT);
+  }
+
+  private static PendingPasteCommand parsePasteCommand(String arguments) {
+    boolean atOrigin = false;
+    boolean onlySelect = false;
+    String remainder = commandRemainder(arguments);
+    if (!remainder.isBlank()) {
+      for (String token : remainder.split("\\s+")) {
+        if (token.length() <= 1 || !token.startsWith("-") || token.startsWith("--")) {
+          continue;
+        }
+        for (int i = 1; i < token.length(); i++) {
+          char flag = token.charAt(i);
+          if (flag == 'o') {
+            atOrigin = true;
+          } else if (flag == 'n') {
+            onlySelect = true;
+          }
+        }
+      }
+    }
+    return new PendingPasteCommand(atOrigin, onlySelect, System.currentTimeMillis(), 3);
+  }
+
+  private static String commandRemainder(String arguments) {
+    if (arguments == null) return "";
+    String command = arguments.trim();
+    while (command.startsWith("/")) {
+      command = command.substring(1);
+    }
+    int space = command.indexOf(' ');
+    return space < 0 ? "" : command.substring(space + 1).trim();
+  }
+
+  private Actor wrapBukkitActor(Player player) {
+    if (player == null) return null;
+    Plugin worldEdit = Bukkit.getPluginManager().getPlugin("WorldEdit");
+    if (worldEdit == null) {
+      worldEdit = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+    }
+    if (worldEdit == null) return null;
+    try {
+      Method method = worldEdit.getClass().getMethod("wrapPlayer", Player.class);
+      Object actor = method.invoke(worldEdit, player);
+      if (actor instanceof Actor wrapped) {
+        return wrapped;
+      }
+    } catch (Exception ignored) {
+      // Fall back to wrapCommandSender below.
+    }
+    try {
+      Method method =
+          worldEdit
+              .getClass()
+              .getMethod("wrapCommandSender", org.bukkit.command.CommandSender.class);
+      Object actor = method.invoke(worldEdit, player);
+      return actor instanceof Actor wrapped ? wrapped : null;
+    } catch (Exception ignored) {
+      return null;
+    }
+  }
+
+  private void rememberClipboardPatch(Actor actor, PendingClipboardPatch patch) {
+    if (actor == null || actor.getUniqueId() == null) return;
+    if (patch == null || patch.markers().isEmpty()) {
+      clipboardPatches.remove(actor.getUniqueId());
+      return;
+    }
+    clipboardPatches.put(actor.getUniqueId(), patch);
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent(
+          "we clipboard remember markers=" + patch.markers().size(), NamedTextColor.BLUE);
+    }
+  }
+
+  private PendingClipboardPatch storedClipboardPatch(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return null;
+    return clipboardPatches.get(actor.getUniqueId());
+  }
+
+  private void clearClipboardPatch(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return;
+    clipboardPatches.remove(actor.getUniqueId());
+    pendingPasteCommands.remove(actor.getUniqueId());
+  }
+
+  private PendingPastePatch resolvePendingPastePatch(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return null;
+    UUID actorId = actor.getUniqueId();
+    PendingPasteCommand command = pendingPasteCommands.get(actorId);
+    if (command == null) return null;
+    long now = System.currentTimeMillis();
+    if (now - command.timestampMs() > PASTE_COMMAND_TTL_MS) {
+      pendingPasteCommands.remove(actorId);
+      return null;
+    }
+    if (command.onlySelect()) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    PendingClipboardPatch clipboardPatch = clipboardPatches.get(actorId);
+    if (clipboardPatch == null || clipboardPatch.markers().isEmpty()) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
+    ClipboardHolder holder;
+    Clipboard clipboard;
+    try {
+      holder = session.getClipboard();
+      clipboard = holder.getClipboard();
+    } catch (EmptyClipboardException e) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    if (clipboard == null) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    BlockVector3 target;
+    try {
+      target = command.atOrigin() ? clipboard.getOrigin() : session.getPlacementPosition(actor);
+    } catch (IncompleteRegionException e) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    if (target == null) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    Region region = clipboard.getRegion();
+    BlockVector3 origin = clipboard.getOrigin();
+    Transform transform = holder.getTransform();
+    Map<Long, MarkerSnapshot> destinationMarkers = new HashMap<>();
+    for (Map.Entry<BlockVector3, LinCompoundTag> entry : clipboardPatch.markers().entrySet()) {
+      BlockVector3 sourcePos = entry.getKey();
+      if (region != null && !region.contains(sourcePos)) {
+        continue;
+      }
+      MarkerSnapshot snapshot = parseSnapshot(entry.getValue());
+      if (snapshot == null) {
+        continue;
+      }
+      BaseBlock sourceBlock = clipboard.getFullBlock(sourcePos);
+      if (!isPotentialClipboardMarker(sourceBlock, snapshot)) {
+        continue;
+      }
+      BlockVector3 offset = sourcePos.subtract(origin);
+      BlockVector3 destination =
+          transform == null || transform.isIdentity()
+              ? offset.add(target)
+              : transform.apply(offset.toVector3()).toBlockPoint().add(target);
+      destinationMarkers.put(blockKey(destination.x(), destination.y(), destination.z()), snapshot);
+    }
+    if (destinationMarkers.isEmpty()) {
+      pendingPasteCommands.remove(actorId, command);
+      return null;
+    }
+    consumePasteCommand(actorId, command);
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent(
+          "we paste sidecar markers=" + destinationMarkers.size(), NamedTextColor.DARK_GREEN);
+    }
+    return new PendingPastePatch(destinationMarkers);
+  }
+
+  private void consumePasteCommand(UUID actorId, PendingPasteCommand command) {
+    if (actorId == null || command == null) return;
+    if (command.usesRemaining() <= 1) {
+      pendingPasteCommands.remove(actorId, command);
+      return;
+    }
+    pendingPasteCommands.replace(actorId, command, command.consume());
+  }
+
+  private PendingClipboardPatch captureClipboardPatch(Actor actor) {
+    if (actor == null) return null;
+    LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
+    com.sk89q.worldedit.world.World weWorld = session.getSelectionWorld();
+    if (weWorld == null && actor instanceof com.sk89q.worldedit.entity.Player player) {
+      weWorld = player.getWorld();
+    }
+    if (weWorld == null) return null;
+    World world = Bukkit.getWorld(weWorld.getName());
+    if (world == null) return null;
+    Region region;
+    try {
+      region = session.getSelection(weWorld).clone();
+    } catch (IncompleteRegionException e) {
+      return null;
+    }
+    Map<BlockVector3, LinCompoundTag> markers = new HashMap<>();
+    BlockVector3 min = region.getMinimumPoint();
+    BlockVector3 max = region.getMaximumPoint();
+    int minChunkX = min.x() >> 4;
+    int maxChunkX = max.x() >> 4;
+    int minChunkZ = min.z() >> 4;
+    int maxChunkZ = max.z() >> 4;
+    for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+      for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+        if (!world.isChunkLoaded(cx, cz)) {
+          continue;
+        }
+        Chunk chunk = world.getChunkAt(cx, cz);
+        if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) {
+          continue;
+        }
+        ChunkMarkerStore.forEachBlock(
+            plugin,
+            chunk,
+            (block, root) -> {
+              BlockVector3 pos = BlockVector3.at(block.getX(), block.getY(), block.getZ());
+              if (!region.contains(pos)) {
+                return;
+              }
+              LinCompoundTag tag = buildExortTag(block);
+              if (tag != null) {
+                markers.put(pos, tag);
+              }
+            });
+      }
+    }
+    if (markers.isEmpty()) {
+      return null;
+    }
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent("we clipboard capture markers=" + markers.size(), NamedTextColor.BLUE);
+    }
+    return new PendingClipboardPatch(markers);
+  }
+
+  private void scheduleClipboardPatch(Actor actor, PendingClipboardPatch patch) {
+    BukkitRunnable runnable =
+        new BukkitRunnable() {
+          private int attempts;
+
+          @Override
+          public void run() {
+            attempts++;
+            boolean applied = applyClipboardPatch(actor, patch);
+            if (!applied && attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
+              plugin
+                  .getLogger()
+                  .warning(
+                      "[WorldEdit] Exort clipboard patch did not apply after "
+                          + attempts
+                          + " attempts; paste may leave carrier placeholders.");
+            }
+            if (applied || attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
+              clipboardPatchTasks.removeIf(task -> task.getTaskId() == this.getTaskId());
+              cancel();
+            }
+          }
+        };
+    BukkitTask task = runnable.runTaskTimer(plugin, 1L, 2L);
+    clipboardPatchTasks.add(task);
+  }
+
+  private boolean applyClipboardPatch(Actor actor, PendingClipboardPatch patch) {
+    if (actor == null || patch == null || patch.markers().isEmpty()) return true;
+    LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
+    ClipboardHolder holder;
+    Clipboard clipboard;
+    try {
+      holder = session.getClipboard();
+      clipboard = holder.getClipboard();
+    } catch (EmptyClipboardException e) {
+      return false;
+    }
+    if (clipboard == null) return false;
+    Region clipboardRegion = clipboard.getRegion();
+    BlockArrayClipboard patched = new BlockArrayClipboard(clipboardRegion);
+    patched.setOrigin(clipboard.getOrigin());
+    for (BlockVector3 pos : clipboardRegion) {
+      patched.setBlock(pos, clipboard.getFullBlock(pos));
+      if (clipboard.hasBiomes()) {
+        patched.setBiome(pos, clipboard.getBiome(pos));
+      }
+    }
+    for (Entity entity : clipboard.getEntities()) {
+      BaseEntity state = entity.getState();
+      if (state != null) {
+        patched.createEntity(entity.getLocation(), new BaseEntity(state));
+      }
+    }
+    int applied = 0;
+    for (Map.Entry<BlockVector3, LinCompoundTag> entry : patch.markers().entrySet()) {
+      BlockVector3 pos = entry.getKey();
+      if (clipboardRegion != null && !clipboardRegion.contains(pos)) {
+        continue;
+      }
+      BaseBlock markerBlock = buildMarkerBlock(entry.getValue());
+      if (markerBlock == null) {
+        continue;
+      }
+      if (patched.setBlock(pos, markerBlock)) {
+        applied++;
+      }
+    }
+    if (applied <= 0) {
+      return false;
+    }
+    ClipboardHolder patchedHolder = new ClipboardHolder(patched);
+    patchedHolder.setTransform(holder.getTransform());
+    session.setClipboard(patchedHolder);
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent("we clipboard patch markers=" + applied, NamedTextColor.DARK_GREEN);
+    }
+    return true;
   }
 
   private void enqueue(MarkerUpdate update) {
@@ -778,15 +1210,21 @@ public final class WorldEditBridge {
     private final World world;
     private final WorldEditBridge bridge;
     private final FacingTransform facingTransform;
+    private final PendingPastePatch pastePatch;
     private final Map<ChunkKey, ChunkSnapshot> snapshots = new ConcurrentHashMap<>();
     private final Map<BaseBlock, MarkerSnapshot> carried =
         Collections.synchronizedMap(new IdentityHashMap<>());
 
     private MarkerExtent(
-        Extent extent, World world, WorldEditBridge bridge, FacingTransform clipboardTransform) {
+        Extent extent,
+        World world,
+        WorldEditBridge bridge,
+        FacingTransform clipboardTransform,
+        PendingPastePatch pastePatch) {
       super(extent);
       this.world = world;
       this.bridge = bridge;
+      this.pastePatch = pastePatch;
       Transform transform = resolveTransform(extent);
       this.facingTransform =
           clipboardTransform != null
@@ -805,7 +1243,7 @@ public final class WorldEditBridge {
       if (exort == null) return block;
       MarkerSnapshot parsed = parseSnapshot(exort);
       if (parsed == null) return block;
-      BaseBlock withNbt = buildVirtualBlock(exort);
+      BaseBlock withNbt = bridge.buildMarkerBlock(exort);
       if (withNbt == null) {
         return block;
       }
@@ -857,6 +1295,16 @@ public final class WorldEditBridge {
           carriedHit = true;
         }
       }
+      boolean sidecarHit = false;
+      if (parsed == null && base != null && pastePatch != null) {
+        MarkerSnapshot sidecar = pastePatch.get(resolved);
+        if (sidecar != null && bridge.shouldApplyPasteSidecar(base)) {
+          parsed = sidecar;
+          exort = buildExortTag(parsed);
+          fromClipboard = true;
+          sidecarHit = true;
+        }
+      }
       if (parsed == null && existingSnapshot != null && base != null) {
         if (matchesCarrier(base, existingSnapshot)) {
           parsed = existingSnapshot;
@@ -888,6 +1336,8 @@ public final class WorldEditBridge {
                 + (parsed != null)
                 + " carried="
                 + carriedHit
+                + " sidecar="
+                + sidecarHit
                 + " markerPresent="
                 + markerPresent
                 + " fromClipboard="
@@ -1619,25 +2069,85 @@ public final class WorldEditBridge {
     return null;
   }
 
-  private static BaseBlock buildVirtualBlock(LinCompoundTag exort) {
+  private BaseBlock buildMarkerBlock(LinCompoundTag exort) {
+    MarkerSnapshot snapshot = parseSnapshot(exort);
+    if (snapshot == null) return null;
+    Material material = carrierMaterial(snapshot);
+    if (material == null) return null;
+    LinCompoundTag root = buildMarkerRoot(material, exort);
+    return carrierBlock(material, root);
+  }
+
+  private static LinCompoundTag buildMarkerRoot(Material material, LinCompoundTag exort) {
+    if (material == null || exort == null) return null;
     LinCompoundTag.Builder rootBuilder = LinCompoundTag.builder();
-    rootBuilder.putString(FIELD_NBT_ID, STRUCTURE_BLOCK_ID);
+    rootBuilder.putString(FIELD_NBT_ID, material.getKey().toString());
     rootBuilder.put(EXORT_TAG, exort);
-    LinCompoundTag root = rootBuilder.build();
-    LazyReference<LinCompoundTag> ref = LazyReference.computed(root);
-    BlockType type = BlockTypes.STRUCTURE_BLOCK;
-    if (type == null) {
-      BlockType barrier = BlockTypes.BARRIER;
-      if (barrier != null) {
-        return barrier.getDefaultState().toBaseBlock(ref);
-      }
-      BlockType air = BlockTypes.AIR;
-      if (air != null) {
-        return air.getDefaultState().toBaseBlock(ref);
-      }
-      return null;
+    return rootBuilder.build();
+  }
+
+  private Material carrierMaterial(MarkerSnapshot snapshot) {
+    if (snapshot == null) return null;
+    if (snapshot.storage() != null || snapshot.storageCore()) {
+      return plugin.getStorageCarrier();
     }
-    return type.getDefaultState().toBaseBlock(ref);
+    if (snapshot.terminal() != null) {
+      return plugin.getTerminalCarrier();
+    }
+    if (snapshot.monitor() != null) {
+      return plugin.getMonitorCarrier();
+    }
+    if (snapshot.bus() != null) {
+      return plugin.getBusCarrier();
+    }
+    if (snapshot.wire()) {
+      return plugin.getWireMaterial();
+    }
+    return null;
+  }
+
+  private static BaseBlock carrierBlock(Material material, LinCompoundTag root) {
+    if (material == null) return null;
+    BlockType type = BlockTypes.get(material.getKey().toString());
+    if (type == null) return null;
+    BlockState state = type.getDefaultState();
+    if (material == Carriers.CHORUS_MATERIAL) {
+      for (Property<?> property : type.getPropertyMap().values()) {
+        String name = property.getName();
+        if ("waterlogged".equals(name)) {
+          state = withProperty(state, property, "false");
+          continue;
+        }
+        if (property instanceof BooleanProperty) {
+          state = withProperty(state, property, "true");
+        }
+      }
+    }
+    if (root == null) {
+      return state.toBaseBlock();
+    }
+    return state.toBaseBlock(LazyReference.computed(root));
+  }
+
+  private boolean matchesCarrierBlock(BaseBlock base, MarkerSnapshot snapshot) {
+    if (base == null || snapshot == null) return false;
+    Material material = carrierMaterial(snapshot);
+    if (material == null) return false;
+    BlockType type = BlockTypes.get(material.getKey().toString());
+    return type != null && type.equals(base.getBlockType());
+  }
+
+  private boolean isPotentialClipboardMarker(BaseBlock base, MarkerSnapshot snapshot) {
+    if (base == null || snapshot == null) return false;
+    LinCompoundTag root = readRootNbt(base);
+    MarkerSnapshot parsed = parseSnapshot(readExort(root));
+    return parsed != null || matchesCarrierBlock(base, snapshot);
+  }
+
+  private boolean shouldApplyPasteSidecar(BaseBlock base) {
+    if (base == null) return false;
+    BlockType type = base.getBlockType();
+    return type != null && !type.equals(BlockTypes.AIR);
   }
 
   private static boolean containsMarkerExtent(Extent extent) {
@@ -1787,6 +2297,30 @@ public final class WorldEditBridge {
       MonitorData monitor,
       boolean wire,
       boolean storageCore) {}
+
+  private record PendingClipboardPatch(Map<BlockVector3, LinCompoundTag> markers) {
+    private PendingClipboardPatch {
+      markers = markers == null ? Map.of() : Map.copyOf(markers);
+    }
+  }
+
+  private record PendingPasteCommand(
+      boolean atOrigin, boolean onlySelect, long timestampMs, int usesRemaining) {
+    PendingPasteCommand consume() {
+      return new PendingPasteCommand(atOrigin, onlySelect, timestampMs, usesRemaining - 1);
+    }
+  }
+
+  private record PendingPastePatch(Map<Long, MarkerSnapshot> destinationMarkers) {
+    private PendingPastePatch {
+      destinationMarkers = destinationMarkers == null ? Map.of() : Map.copyOf(destinationMarkers);
+    }
+
+    MarkerSnapshot get(BlockVector3 position) {
+      if (position == null) return null;
+      return destinationMarkers.get(blockKey(position.x(), position.y(), position.z()));
+    }
+  }
 
   private static LinCompoundTag readRootNbt(BaseBlock base) {
     if (base == null) return null;
