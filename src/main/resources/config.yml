@@ -5,7 +5,26 @@ language: en_us
 # Global block mode:
 # - VANILLA: uses barrier carriers with vanilla item models (no external resource pack required).
 # - RESOURCE: uses carriers with your custom models from a resource pack namespace.
-mode: VANILLA
+mode: RESOURCE
+
+# Resource pack delivery is used only when the effective mode is RESOURCE.
+# AUTO uses Nexo when it is enabled, otherwise Exort self-hosts the pack.
+resourcePack:
+  # AUTO | NEXO | SELFHOST | LOBFILE | DISABLED
+  hosting: AUTO
+  # SIMPLE obfuscation for internal model/texture paths. Public item/font/blockstate entrypoints stay stable.
+  obfuscation: true
+  # If true, vanilla clients disconnect when they decline the pack.
+  required: true
+  # MiniMessage prompt shown by the client.
+  prompt: "<gray>Accept the Exort resource pack."
+  selfHost:
+    # Public URL visible to players. Empty means Exort tries to infer it from the server address.
+    publicUrl: ""
+    # HTTP bind host for SELFHOST mode.
+    bindHost: "0.0.0.0"
+    # 0 lets the OS pick a free port.
+    port: 0
 
 # Enable WorldGuard integration (region protection checks).
 worldguard:

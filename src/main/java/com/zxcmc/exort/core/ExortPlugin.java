@@ -36,8 +36,7 @@ import com.zxcmc.exort.core.protection.RegionProtection;
 import com.zxcmc.exort.core.protection.WorldGuardProtection;
 import com.zxcmc.exort.core.recipes.CraftingRules;
 import com.zxcmc.exort.core.recipes.RecipeService;
-import com.zxcmc.exort.core.resourcepack.NexoPackBridge;
-import com.zxcmc.exort.core.resourcepack.PackExporter;
+import com.zxcmc.exort.core.resourcepack.ResourcePackService;
 import com.zxcmc.exort.core.sanity.ChunkSanityService;
 import com.zxcmc.exort.core.sanity.DisplayCleanupService;
 import com.zxcmc.exort.core.sanity.MarkerSanityService;
@@ -132,9 +131,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private WorldEditDebugService worldEditDebugService;
   private Metrics metrics;
   private WorldEditBridge worldEditBridge;
+  private ResourcePackService resourcePackService;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
+  private String configuredMode = "RESOURCE";
+  private String modeFallbackReason = "";
   private boolean sanityScanScheduled;
   private RegionProtection regionProtection = RegionProtection.allowAll();
   private final Map<MonitorPos, Integer> recentMonitorPlacements = new ConcurrentHashMap<>();
@@ -146,14 +148,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       return;
     }
     saveDefaultConfig();
-    PackExporter.exportPack(this);
-    NexoPackBridge.copyIfPresent(this);
     ConfigUpdater.update(this, "config.yml");
     reloadConfig();
     ensureStorageTiersFile();
     ensureRecipesFile();
-    switchToResourceOnFirstRun();
-    enforcePaperChorusSetting();
+    evaluateModePolicy();
+    resourcePackService = new ResourcePackService(this);
+    Bukkit.getPluginManager().registerEvents(resourcePackService, this);
+    resourcePackService.reload();
     lang = new Lang(this);
     itemNameService = new ItemNameService(this);
     searchDialogService = new SearchDialogService(lang);
@@ -222,6 +224,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (worldEditBridge != null) {
       worldEditBridge.shutdown();
       worldEditBridge = null;
+    }
+    if (resourcePackService != null) {
+      resourcePackService.stop();
+      resourcePackService = null;
     }
     if (recipeService != null) {
       recipeService.unregisterAll();
@@ -317,13 +323,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return searchDialogService;
   }
 
+  public ResourcePackService getResourcePackService() {
+    return resourcePackService;
+  }
+
   private void registerMetricsCharts() {
     if (metrics == null) return;
     metrics.addCustomChart(
         new SimplePie(
             "mode",
             () ->
-                "RESOURCE".equalsIgnoreCase(getConfig().getString("mode", "VANILLA"))
+                "RESOURCE".equalsIgnoreCase(getConfig().getString("mode", "RESOURCE"))
                     ? "resource"
                     : "vanilla"));
     metrics.addCustomChart(
@@ -479,9 +489,15 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     reloadConfig();
     ensureStorageTiersFile();
     ensureRecipesFile();
-    switchToResourceOnFirstRun();
-    enforcePaperChorusSetting();
+    evaluateModePolicy();
+    reloadResourcePackService();
     return registerRuntime();
+  }
+
+  public void reloadResourcePackService() {
+    if (resourcePackService != null) {
+      resourcePackService.reload();
+    }
   }
 
   private CompletableFuture<ItemNameService.Status> registerRuntime() {
@@ -502,8 +518,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
           }
         });
     CreativeTabOrder.init(this);
-
-    resourceMode = "RESOURCE".equalsIgnoreCase(getConfig().getString("mode", "VANILLA"));
 
     // Carriers are always used; vanilla forces BARRIER carriers and minecraft namespace models.
     String vanillaNs = "minecraft";
@@ -659,6 +673,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     }
 
     HandlerList.unregisterAll(this);
+    if (resourcePackService != null) {
+      Bukkit.getPluginManager().registerEvents(resourcePackService, this);
+    }
     setupRegionProtection();
     if (hologramManager != null) {
       hologramManager.stop();
@@ -1291,21 +1308,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return regionProtection;
   }
 
-  private void switchToResourceOnFirstRun() {
-    File dbFile = new File(new File(getDataFolder(), "db"), "storage.db");
-    if (dbFile.exists()) return;
-    var nexo = getServer().getPluginManager().getPlugin("Nexo");
-    if (nexo == null || !nexo.isEnabled()) return;
-    String mode = getConfig().getString("mode", "VANILLA");
-    if ("RESOURCE".equalsIgnoreCase(mode)) return;
-    getConfig().set("mode", "RESOURCE");
-    saveConfig();
-  }
-
-  private void enforcePaperChorusSetting() {
-    boolean modeVanilla = "VANILLA".equalsIgnoreCase(getConfig().getString("mode", "VANILLA"));
-    if (isChorusUpdatesDisabled()) return;
-    if (modeVanilla) return;
+  private void evaluateModePolicy() {
+    configuredMode = getConfig().getString("mode", "RESOURCE").toUpperCase(Locale.ROOT);
+    if (!configuredMode.equals("VANILLA") && !configuredMode.equals("RESOURCE")) {
+      getLogger().warning("Unknown mode '" + configuredMode + "' in config.yml; using RESOURCE.");
+      configuredMode = "RESOURCE";
+    }
+    resourceMode = configuredMode.equals("RESOURCE");
+    modeFallbackReason = "";
+    if (!resourceMode || isChorusUpdatesDisabled()) return;
+    resourceMode = false;
+    modeFallbackReason = "Paper's block-updates.disable-chorus-plant-updates is not enabled.";
     var console = Bukkit.getConsoleSender();
     console.sendMessage(
         Component.text(
@@ -1320,13 +1333,24 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             NamedTextColor.RED));
     console.sendMessage(
         Component.text(
-            "Until then, the plugin's operating mode is forced to VANILLA.", NamedTextColor.RED));
-    getConfig().set("mode", "VANILLA");
-    saveConfig();
+            "Until then, Exort effective mode is VANILLA and resource-pack delivery is disabled.",
+            NamedTextColor.RED));
   }
 
   public boolean canEnableResourceMode() {
     return isChorusUpdatesDisabled();
+  }
+
+  public String getConfiguredMode() {
+    return configuredMode;
+  }
+
+  public String getEffectiveMode() {
+    return resourceMode ? "RESOURCE" : "VANILLA";
+  }
+
+  public String getModeFallbackReason() {
+    return modeFallbackReason;
   }
 
   private int refreshInventory(Inventory inventory, boolean inStorage) {

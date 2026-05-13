@@ -90,6 +90,10 @@ public class Lang {
         defaultsEn,
         "message.help_mode",
         "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> - switch mode");
+    put(
+        defaultsEn,
+        "message.help_pack",
+        "/{0} pack status | /{0} pack rebuild | /{0} pack send <player|all> - resource pack");
     put(defaultsEn, "message.help_version", "/{0} version - show plugin version");
     put(
         defaultsEn,
@@ -187,17 +191,26 @@ public class Lang {
         defaultsEn,
         "message.usage_mode",
         "Usage: /exort mode info | /exort mode set <VANILLA | RESOURCE>");
+    put(
+        defaultsEn,
+        "message.usage_pack",
+        "Usage: /exort pack status | /exort pack rebuild | /exort pack send <player|all>");
     put(defaultsEn, "message.lang_refreshed", "Language dictionaries refreshed.");
     put(defaultsEn, "message.lang_set", "Language set to {0}.");
     put(defaultsEn, "message.lang_invalid", "Unknown language: {0}");
-    put(defaultsEn, "message.mode_info", "Current mode: {0}");
-    put(defaultsEn, "message.mode_set", "Mode set to {0}.");
+    put(defaultsEn, "message.mode_info", "Configured mode: {0}; effective mode: {1}");
+    put(defaultsEn, "message.mode_set", "Configured mode set to {0}; effective mode: {1}.");
+    put(defaultsEn, "message.mode_fallback", "Mode fallback reason: {0}");
     put(defaultsEn, "message.mode_invalid", "Unknown mode: {0}");
     put(
         defaultsEn,
         "message.mode_blocked",
         "Cannot enable RESOURCE: Paper's block-updates.disable-chorus-plant-updates is not"
             + " enabled.");
+    put(defaultsEn, "message.pack_rebuilt", "Resource pack pipeline reloaded.");
+    put(defaultsEn, "message.pack_sent", "Resource pack request sent to {0}.");
+    put(defaultsEn, "message.pack_sent_all", "Resource pack request sent to {0} player(s).");
+    put(defaultsEn, "message.pack_unavailable", "Resource pack is not ready: {0}");
     put(defaultsEn, "message.lang_status_header", "Language status:");
     put(defaultsEn, "message.lang_status_active", "Active: {0}");
     put(defaultsEn, "message.lang_status_server", "Server version: {0}");
@@ -388,6 +401,10 @@ public class Lang {
         defaultsRu,
         "message.help_mode",
         "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> - сменить режим");
+    put(
+        defaultsRu,
+        "message.help_pack",
+        "/{0} pack status | /{0} pack rebuild | /{0} pack send <игрок|all> - ресурс-пак");
     put(defaultsRu, "message.help_version", "/{0} version - показать версию плагина");
     put(
         defaultsRu,
@@ -495,17 +512,26 @@ public class Lang {
         defaultsRu,
         "message.usage_mode",
         "Использование: /exort mode info | /exort mode set <VANILLA | RESOURCE>");
+    put(
+        defaultsRu,
+        "message.usage_pack",
+        "Использование: /exort pack status | /exort pack rebuild | /exort pack send <игрок|all>");
     put(defaultsRu, "message.lang_refreshed", "Словари языка обновлены.");
     put(defaultsRu, "message.lang_set", "Язык установлен: {0}.");
     put(defaultsRu, "message.lang_invalid", "Неизвестный язык: {0}");
-    put(defaultsRu, "message.mode_info", "Текущий режим: {0}");
-    put(defaultsRu, "message.mode_set", "Режим установлен: {0}.");
+    put(defaultsRu, "message.mode_info", "Режим в конфиге: {0}; фактический режим: {1}");
+    put(defaultsRu, "message.mode_set", "Режим в конфиге установлен: {0}; фактический режим: {1}.");
+    put(defaultsRu, "message.mode_fallback", "Причина fallback режима: {0}");
     put(defaultsRu, "message.mode_invalid", "Неизвестный режим: {0}");
     put(
         defaultsRu,
         "message.mode_blocked",
         "Нельзя включить RESOURCE: в Paper не отключены"
             + " block-updates.disable-chorus-plant-updates.");
+    put(defaultsRu, "message.pack_rebuilt", "Пайплайн ресурс-пака перезагружен.");
+    put(defaultsRu, "message.pack_sent", "Запрос ресурс-пака отправлен игроку {0}.");
+    put(defaultsRu, "message.pack_sent_all", "Запрос ресурс-пака отправлен игрокам: {0}.");
+    put(defaultsRu, "message.pack_unavailable", "Ресурс-пак не готов: {0}");
     put(defaultsRu, "message.lang_status_header", "Статус языка:");
     put(defaultsRu, "message.lang_status_active", "Активный: {0}");
     put(defaultsRu, "message.lang_status_server", "Версия сервера: {0}");

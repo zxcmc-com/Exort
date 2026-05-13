@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.2 — 2026-05-13
+- Fixed resource-pack display textures for terminals, crafting terminals, monitors, and wireless terminals to use square power-of-two atlases, removing mipmap/resolution warnings while preserving the original pixel art.
+- Added RESOURCE-first resource-pack delivery: default RESOURCE mode with VANILLA effective fallback, AUTO/NEXO/SELFHOST/LOBFILE/DISABLED hosting, SIMPLE pack obfuscation, Nexo raw-pack handoff, standalone self-host/LobFile delivery, automatic player dispatch, and `/exort pack` diagnostics.
+
 ## 0.9.1 — 2026-05-02
 - Updated target Paper API to 26.1.2 while keeping Java 21 bytecode and 1.21.7+ plugin compatibility metadata.
 - Hardened storage/database failure handling: SQL errors now fail futures, failed loads/flushes no longer masquerade as empty or clean storages, and shutdown waits are bounded.

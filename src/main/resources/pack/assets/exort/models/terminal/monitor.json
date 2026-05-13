@@ -24,7 +24,7 @@
 			"to": [13, 13, 2],
 			"light_emission": 10,
 			"faces": {
-				"north": {"uv": [0, 0, 8, 16], "texture": "#0"}
+				"north": {"uv": [0, 0, 5, 5], "texture": "#0"}
 			}
 		},
 		{

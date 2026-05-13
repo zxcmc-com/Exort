@@ -49,6 +49,7 @@ public final class ExortBrigadier {
   private static final String ARG_AMOUNT = "amount";
   private static final String ARG_LANG = "lang";
   private static final String ARG_MODE = "mode";
+  private static final String ARG_PACK_TARGET = "packTarget";
   private static final String ARG_PLAYERS = "players";
   private static final String ARG_SECONDS = "seconds";
   private static final String ARG_VERBOSE_MODE = "verboseMode";
@@ -293,6 +294,24 @@ public final class ExortBrigadier {
                             .suggests(this::suggestModes)
                             .executes(this::modeSet))));
 
+    root.then(
+        Commands.literal("pack")
+            .executes(this::usagePack)
+            .then(Commands.literal("status").executes(this::packStatus))
+            .then(Commands.literal("rebuild").executes(this::packRebuild))
+            .then(
+                Commands.literal("send")
+                    .executes(ctx -> packSend(ctx, "@self"))
+                    .then(Commands.literal("all").executes(ctx -> packSend(ctx, "all")))
+                    .then(
+                        Commands.argument(ARG_PACK_TARGET, StringArgumentType.word())
+                            .suggests(this::suggestPackTargets)
+                            .executes(
+                                ctx ->
+                                    packSend(
+                                        ctx,
+                                        StringArgumentType.getString(ctx, ARG_PACK_TARGET))))));
+
     root.then(Commands.literal("version").executes(this::version));
 
     return root.build();
@@ -308,6 +327,7 @@ public final class ExortBrigadier {
     sender.sendMessage(lang.tr("message.help_reload", "exort"));
     sender.sendMessage(lang.tr("message.help_lang", "exort"));
     sender.sendMessage(lang.tr("message.help_mode", "exort"));
+    sender.sendMessage(lang.tr("message.help_pack", "exort"));
     sender.sendMessage(lang.tr("message.help_version", "exort"));
     return 1;
   }
@@ -719,6 +739,12 @@ public final class ExortBrigadier {
     return 1;
   }
 
+  private int usagePack(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.usage_pack"));
+    return 1;
+  }
+
   private int langRefresh(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
@@ -785,8 +811,15 @@ public final class ExortBrigadier {
 
   private int modeInfo(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    String current = plugin.getConfig().getString("mode", "VANILLA").toUpperCase(Locale.ROOT);
-    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.mode_info", current));
+    CommandSender sender = sender(context.getSource());
+    sender.sendMessage(
+        plugin
+            .getLang()
+            .tr("message.mode_info", plugin.getConfiguredMode(), plugin.getEffectiveMode()));
+    if (!plugin.getModeFallbackReason().isBlank()) {
+      sender.sendMessage(
+          plugin.getLang().tr("message.mode_fallback", plugin.getModeFallbackReason()));
+    }
     return 1;
   }
 
@@ -799,15 +832,73 @@ public final class ExortBrigadier {
       sender(context.getSource()).sendMessage(plugin.getLang().tr("message.mode_invalid", raw));
       return 1;
     }
-    if (normalized.equals("RESOURCE") && !plugin.canEnableResourceMode()) {
-      sender(context.getSource()).sendMessage(plugin.getLang().tr("message.mode_blocked"));
-      return 1;
-    }
     plugin.getConfig().set("mode", normalized);
     plugin.saveConfig();
     plugin
         .reloadRuntime()
-        .thenRun(() -> sender.sendMessage(plugin.getLang().tr("message.mode_set", normalized)));
+        .thenRun(
+            () -> {
+              sender.sendMessage(
+                  plugin.getLang().tr("message.mode_set", normalized, plugin.getEffectiveMode()));
+              if (!plugin.getModeFallbackReason().isBlank()) {
+                sender.sendMessage(
+                    plugin.getLang().tr("message.mode_fallback", plugin.getModeFallbackReason()));
+              }
+            });
+    return 1;
+  }
+
+  private int packStatus(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    var service = plugin.getResourcePackService();
+    CommandSender sender = sender(context.getSource());
+    if (service == null) {
+      sender.sendMessage(plugin.getLang().tr("message.pack_unavailable", "service not started"));
+      return 1;
+    }
+    service.statusLines().forEach(sender::sendMessage);
+    return 1;
+  }
+
+  private int packRebuild(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    plugin.reloadResourcePackService();
+    sender.sendMessage(plugin.getLang().tr("message.pack_rebuilt"));
+    packStatus(context);
+    return 1;
+  }
+
+  private int packSend(CommandContext<CommandSourceStack> context, String target) {
+    if (!ensurePermission(context)) return 0;
+    var service = plugin.getResourcePackService();
+    CommandSender sender = sender(context.getSource());
+    if (service == null || !service.dispatchReady()) {
+      String reason = service == null ? "service not started" : service.unavailableReason();
+      sender.sendMessage(plugin.getLang().tr("message.pack_unavailable", reason));
+      return 1;
+    }
+    if ("all".equalsIgnoreCase(target)) {
+      int sent = service.sendAll();
+      sender.sendMessage(plugin.getLang().tr("message.pack_sent_all", sent));
+      return 1;
+    }
+    Player player;
+    if ("@self".equals(target) && sender instanceof Player self) {
+      player = self;
+    } else {
+      player = Bukkit.getPlayerExact(target);
+    }
+    if (player == null) {
+      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      return 1;
+    }
+    if (service.send(player)) {
+      sender.sendMessage(plugin.getLang().tr("message.pack_sent", player.getName()));
+    } else {
+      sender.sendMessage(
+          plugin.getLang().tr("message.pack_unavailable", service.unavailableReason()));
+    }
     return 1;
   }
 
@@ -1241,6 +1332,20 @@ public final class ExortBrigadier {
     List<String> matches =
         StringUtil.copyPartialMatches(
             builder.getRemaining().toUpperCase(Locale.ROOT), options, new ArrayList<>());
+    matches.forEach(builder::suggest);
+    return builder.buildFuture();
+  }
+
+  private CompletableFuture<Suggestions> suggestPackTargets(
+      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    List<String> options = new ArrayList<>();
+    options.add("all");
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      options.add(player.getName());
+    }
+    List<String> matches =
+        StringUtil.copyPartialMatches(
+            builder.getRemaining().toLowerCase(Locale.ROOT), options, new ArrayList<>());
     matches.forEach(builder::suggest);
     return builder.buildFuture();
   }
