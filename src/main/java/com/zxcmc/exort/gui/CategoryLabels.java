@@ -33,7 +33,7 @@ final class CategoryLabels {
       case "food_and_drinks" -> lang.tr("gui.category.food_and_drinks");
       case "ingredients" -> lang.tr("gui.category.ingredients");
       case "spawn_eggs" -> lang.tr("gui.category.spawn_eggs");
-      case "operator" -> lang.tr("gui.category.operator");
+      case "operator", "op_blocks" -> lang.tr("gui.category.operator");
       case "custom" -> lang.tr("gui.category.custom");
       default -> lang.tr("gui.category.other");
     };

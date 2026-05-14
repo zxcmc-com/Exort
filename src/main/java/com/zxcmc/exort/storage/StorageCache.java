@@ -423,7 +423,8 @@ public class StorageCache {
     long take = Math.min(requested, available);
     if (take <= 0) return 0;
     availableByKey.put(key, available - take);
-    removals.merge(key, take, Long::sum);
+    Long planned = removals.get(key);
+    removals.put(key, (planned == null ? 0L : planned) + take);
     return take;
   }
 

@@ -6,10 +6,11 @@ import java.util.*;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
 
 public final class SortSearchHelper {
   public record SortResult(List<StorageCache.StorageItem> ordered, List<String> order) {}
+
+  private static final CreativeTabOrder FALLBACK_CATEGORY_ORDER = CreativeTabOrder.fromData();
 
   private SortSearchHelper() {}
 
@@ -249,31 +250,6 @@ public final class SortSearchHelper {
   }
 
   public static int categoryIndex(ItemStack stack) {
-    if (stack == null) return 10;
-    if (isCustomItem(stack)) {
-      return 9;
-    }
-    var category = stack.getType().getCreativeCategory();
-    if (category == null) {
-      return 10;
-    }
-    return switch (category) {
-      case BUILDING_BLOCKS -> 0;
-      case DECORATIONS -> 1;
-      case REDSTONE -> 2;
-      case TRANSPORTATION -> 3;
-      case MISC -> 4;
-      case FOOD -> 5;
-      case TOOLS -> 6;
-      case COMBAT -> 7;
-      case BREWING -> 8;
-    };
-  }
-
-  private static boolean isCustomItem(ItemStack stack) {
-    ItemMeta meta = stack.getItemMeta();
-    if (meta == null) return false;
-    PersistentDataContainer pdc = meta.getPersistentDataContainer();
-    return !pdc.getKeys().isEmpty();
+    return FALLBACK_CATEGORY_ORDER.positionFor(stack).tabIndex();
   }
 }

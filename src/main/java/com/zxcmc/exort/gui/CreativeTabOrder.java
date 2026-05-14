@@ -47,7 +47,7 @@ public final class CreativeTabOrder {
       return List.of(new Position(unknownTabIndex, 0));
     }
     if (isCustomItem(stack)) {
-      return List.of(new Position(unknownTabIndex, 0));
+      return List.of(new Position(customTabIndex, 0));
     }
     String id = stack.getType().getKey().getKey();
     if (id == null) {
@@ -83,38 +83,49 @@ public final class CreativeTabOrder {
 
   private static CreativeTabOrder load(JavaPlugin plugin) {
     try {
-      Map<String, List<String>> tabs = CreativeTabData.load();
-      Map<String, List<Position>> positions = new HashMap<>();
-      List<String> tabIds = new ArrayList<>();
-      int tabIndex = 0;
-      for (Map.Entry<String, List<String>> entry : tabs.entrySet()) {
-        String tabId = entry.getKey();
-        if (tabId != null && (tabId.endsWith("search") || tabId.endsWith("hotbar"))) {
-          continue;
-        }
-        tabIds.add(tabId);
-        List<String> raw = entry.getValue();
-        if (raw != null) {
-          int index = 0;
-          for (String id : raw) {
-            if (id == null) {
-              continue;
-            }
-            if (id.startsWith("minecraft:")) {
-              id = id.substring("minecraft:".length());
-            }
-            List<Position> list = positions.computeIfAbsent(id, k -> new ArrayList<>());
-            list.add(new Position(tabIndex, index));
-            index++;
-          }
-        }
-        tabIndex++;
-      }
-      return new CreativeTabOrder(positions, tabIds);
+      return fromData();
     } catch (Exception e) {
       plugin.getLogger().warning("[Exort] Failed to load creative tab order: " + e.getMessage());
       return null;
     }
+  }
+
+  static CreativeTabOrder fromData() {
+    return fromTabs(CreativeTabData.load());
+  }
+
+  static CreativeTabOrder fromTabs(Map<String, List<String>> tabs) {
+    Map<String, List<Position>> positions = new HashMap<>();
+    List<String> tabIds = new ArrayList<>();
+    int tabIndex = 0;
+    for (Map.Entry<String, List<String>> entry : tabs.entrySet()) {
+      String tabId = entry.getKey();
+      if (isIgnoredTab(tabId)) {
+        continue;
+      }
+      tabIds.add(tabId);
+      List<String> raw = entry.getValue();
+      if (raw != null) {
+        int index = 0;
+        for (String id : raw) {
+          if (id == null) {
+            continue;
+          }
+          if (id.startsWith("minecraft:")) {
+            id = id.substring("minecraft:".length());
+          }
+          List<Position> list = positions.computeIfAbsent(id, k -> new ArrayList<>());
+          list.add(new Position(tabIndex, index));
+          index++;
+        }
+      }
+      tabIndex++;
+    }
+    return new CreativeTabOrder(positions, tabIds);
+  }
+
+  private static boolean isIgnoredTab(String tabId) {
+    return tabId != null && (tabId.endsWith("search") || tabId.endsWith("hotbar"));
   }
 
   private static boolean isCustomItem(ItemStack stack) {
