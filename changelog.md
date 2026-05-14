@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.3 — 2026-05-14
+- Category sorting now uses embedded vanilla creative-tab data for the supported Minecraft 1.21.7-26.1.2 range instead of the deprecated Bukkit creative-category API; the unused creative search tab is omitted, operator-block labels resolve correctly, and Exort custom items sort before unknown items.
+- Cleaned up internal storage withdrawal accounting to avoid Java null-safety warnings; gameplay behavior is unchanged.
+
 ## 0.9.2 — 2026-05-13
 - Fixed resource-pack display textures for terminals, crafting terminals, monitors, and wireless terminals to use square power-of-two atlases, removing mipmap/resolution warnings while preserving the original pixel art.
 - Added RESOURCE-first resource-pack delivery: default RESOURCE mode with VANILLA effective fallback, AUTO/NEXO/SELFHOST/LOBFILE/DISABLED hosting, SIMPLE pack obfuscation, Nexo raw-pack handoff, standalone self-host/LobFile delivery, automatic player dispatch, and `/exort pack` diagnostics.
