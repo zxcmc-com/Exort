@@ -151,11 +151,15 @@ public class StorageManager {
       for (DbItem item : items) {
         snapshot.put(item.key(), item);
       }
-      StorageCache cloned = new StorageCache(toId, plugin.getKeys(), plugin);
-      cloned.loadFromDb(snapshot);
-      cloned.setSortMode(cache.getSortMode());
-      caches.put(toId, cloned);
-      return database.createStorageWithItems(toId, tierKey, sortMode, items);
+      return database
+          .createStorageWithItems(toId, tierKey, sortMode, items)
+          .thenRun(
+              () -> {
+                StorageCache cloned = new StorageCache(toId, plugin.getKeys(), plugin);
+                cloned.loadFromDb(snapshot);
+                cloned.setSortMode(cache.getSortMode());
+                caches.put(toId, cloned);
+              });
     }
     return database.cloneStorage(fromId, toId, tierKey);
   }

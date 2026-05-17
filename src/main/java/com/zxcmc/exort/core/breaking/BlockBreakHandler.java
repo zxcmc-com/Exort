@@ -18,6 +18,8 @@ import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
+import java.util.concurrent.CompletionException;
+import java.util.logging.Level;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -62,20 +64,26 @@ public final class BlockBreakHandler {
     this.displayRefreshService = displayRefreshService;
   }
 
-  public boolean handleBreak(Player player, Block block, boolean checkRegion) {
-    if (block == null) return false;
+  public enum BreakResult {
+    BROKEN,
+    DENIED,
+    IGNORED
+  }
+
+  public BreakResult handleBreak(Player player, Block block, boolean checkRegion) {
+    if (block == null) return BreakResult.IGNORED;
 
     if (TerminalMarker.isTerminal(plugin, block)) {
       if (!Carriers.matchesCarrier(block, terminalCarrier)) {
         TerminalMarker.clear(plugin, block);
-        return true;
+        return BreakResult.BROKEN;
       }
-      if (checkRegion && !plugin.getRegionProtection().canBreak(player, block)) {
-        return true;
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
       }
+      TerminalKind kind = TerminalMarker.kind(plugin, block);
       block.setType(Material.AIR);
-      if (player.getGameMode() != GameMode.CREATIVE) {
-        TerminalKind kind = TerminalMarker.kind(plugin, block);
+      if (shouldDrop(player)) {
         dropItemSafe(
             block,
             kind == TerminalKind.CRAFTING
@@ -97,19 +105,19 @@ public final class BlockBreakHandler {
       TerminalMarker.clear(plugin, block);
       invalidateNetwork();
       cleanupDisplays(block);
-      return true;
+      return BreakResult.BROKEN;
     }
 
     if (MonitorMarker.isMonitor(plugin, block)) {
       if (!Carriers.matchesCarrier(block, monitorCarrier)) {
         MonitorMarker.clear(plugin, block);
-        return true;
+        return BreakResult.BROKEN;
       }
-      if (checkRegion && !plugin.getRegionProtection().canBreak(player, block)) {
-        return true;
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
       }
       block.setType(Material.AIR);
-      if (player.getGameMode() != GameMode.CREATIVE) {
+      if (shouldDrop(player)) {
         dropItemSafe(block, customItems.monitorItem());
       }
       if (plugin.getMonitorDisplayManager() != null) {
@@ -127,20 +135,20 @@ public final class BlockBreakHandler {
         displayRefreshService.refreshChunk(block.getChunk());
       }
       cleanupDisplays(block);
-      return true;
+      return BreakResult.BROKEN;
     }
 
     if (BusMarker.isBus(plugin, block)) {
       if (!Carriers.matchesCarrier(block, busCarrier)) {
         BusMarker.clear(plugin, block);
-        return true;
+        return BreakResult.BROKEN;
       }
-      if (checkRegion && !plugin.getRegionProtection().canBreak(player, block)) {
-        return true;
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
       }
       var data = BusMarker.get(plugin, block).orElse(null);
       block.setType(Material.AIR);
-      if (player.getGameMode() != GameMode.CREATIVE) {
+      if (shouldDrop(player)) {
         if (data != null && data.type() == BusType.EXPORT) {
           dropItemSafe(block, customItems.exportBusItem());
         } else {
@@ -165,19 +173,19 @@ public final class BlockBreakHandler {
       BusMarker.clear(plugin, block);
       invalidateNetwork();
       cleanupDisplays(block);
-      return true;
+      return BreakResult.BROKEN;
     }
 
     if (WireMarker.isWire(plugin, block)) {
       if (!Carriers.matchesCarrier(block, wireMaterial)) {
         WireMarker.clearWire(plugin, block);
-        return true;
+        return BreakResult.BROKEN;
       }
-      if (checkRegion && !plugin.getRegionProtection().canBreak(player, block)) {
-        return true;
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
       }
       block.setType(Material.AIR);
-      if (player.getGameMode() != GameMode.CREATIVE) {
+      if (shouldDrop(player)) {
         dropItemSafe(block, customItems.wireItem());
       }
       WireMarker.clearWire(plugin, block);
@@ -197,20 +205,20 @@ public final class BlockBreakHandler {
         displayRefreshService.refreshNetworkFrom(block);
       }
       cleanupDisplays(block);
-      return true;
+      return BreakResult.BROKEN;
     }
 
     if (StorageCoreMarker.isCore(plugin, block)
         && !Carriers.matchesCarrier(block, storageCarrier)) {
       StorageCoreMarker.clear(plugin, block);
-      return true;
+      return BreakResult.BROKEN;
     }
     if (StorageCoreMarker.isCore(plugin, block) && Carriers.matchesCarrier(block, storageCarrier)) {
-      if (checkRegion && !plugin.getRegionProtection().canBreak(player, block)) {
-        return true;
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
       }
       block.setType(Material.AIR);
-      if (player.getGameMode() != GameMode.CREATIVE) {
+      if (shouldDrop(player)) {
         dropItemSafe(block, customItems.storageCoreItem());
       }
       StorageCoreMarker.clear(plugin, block);
@@ -221,27 +229,27 @@ public final class BlockBreakHandler {
         displayRefreshService.refreshChunk(block.getChunk());
       }
       cleanupDisplays(block);
-      return true;
+      return BreakResult.BROKEN;
     }
 
     var marker = StorageMarker.get(plugin, block);
     if (marker.isPresent() && !Carriers.matchesCarrier(block, storageCarrier)) {
       StorageMarker.clear(plugin, block);
-      return true;
+      return BreakResult.BROKEN;
     }
-    if (marker.isEmpty()) return false;
-    if (checkRegion && !plugin.getRegionProtection().canBreak(player, block)) {
-      return true;
+    if (marker.isEmpty()) return BreakResult.IGNORED;
+    if (isRegionDenied(player, block, checkRegion)) {
+      return BreakResult.DENIED;
     }
     String storageId = marker.get().storageId();
     StorageTier tier = marker.get().tier();
+    StorageCache cache = plugin.getStorageManager().getLoadedCache(storageId).orElse(null);
+    if (cache == null) {
+      preloadStorageForBreak(player, storageId);
+      return BreakResult.DENIED;
+    }
     block.setType(Material.AIR);
-    long amount =
-        plugin
-            .getStorageManager()
-            .getLoadedCache(storageId)
-            .map(StorageCache::effectiveTotal)
-            .orElse(0L);
+    long amount = cache.effectiveTotal();
     ItemStack drop = customItems.storageItem(tier, storageId, amount);
     dropItemSafe(block, drop);
 
@@ -270,7 +278,7 @@ public final class BlockBreakHandler {
       displayRefreshService.refreshNetworkFrom(block);
     }
     cleanupDisplays(block);
-    return true;
+    return BreakResult.BROKEN;
   }
 
   private void invalidateNetwork() {
@@ -306,6 +314,57 @@ public final class BlockBreakHandler {
         display.remove();
       }
     }
+  }
+
+  private boolean shouldDrop(Player player) {
+    return player == null || player.getGameMode() != GameMode.CREATIVE;
+  }
+
+  private boolean isRegionDenied(Player player, Block block, boolean checkRegion) {
+    return checkRegion && (player == null || !plugin.getRegionProtection().canBreak(player, block));
+  }
+
+  private void preloadStorageForBreak(Player player, String storageId) {
+    if (player != null && player.isOnline()) {
+      plugin
+          .getBossBarManager()
+          .showError(
+              player, plugin.getLang().tr("message.storage_loading"), plugin.getStoragePeekTicks());
+    }
+    plugin
+        .getStorageManager()
+        .getOrLoad(storageId)
+        .whenComplete(
+            (cache, err) -> {
+              if (err == null) return;
+              plugin
+                  .getLogger()
+                  .log(
+                      Level.WARNING,
+                      "Failed to load storage before break " + storageId,
+                      unwrap(err));
+              plugin
+                  .getServer()
+                  .getScheduler()
+                  .runTask(
+                      plugin,
+                      () -> {
+                        if (player == null || !player.isOnline()) return;
+                        plugin
+                            .getBossBarManager()
+                            .showError(
+                                player,
+                                plugin.getLang().tr("message.storage_load_failed"),
+                                plugin.getStoragePeekTicks());
+                      });
+            });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 
   private void dropItemSafe(Block block, ItemStack item) {

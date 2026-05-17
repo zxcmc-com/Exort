@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.4 — 2026-05-17
+- Hardened item integrity for storage, crafting, wireless items, and buses: withdrawals and crafting now reserve real cache items before delivery, failed or partial delivery rolls back leftovers, crafting output checks capacity before consuming ingredients, and wireless item imports no longer mutate rejected source stacks.
+- Hardened WorldEdit/FAWE storage cloning: pasted storage markers apply only after a successful transactional storage clone, missing source storages fail instead of creating empty clones, FAWE extent allow-listing is verified at runtime, and WorldEdit reflection negative caches no longer store nulls.
+- Hardened custom block placement and breaking: storage placement persists tier/load failures visibly, protected or not-yet-loaded storage breaks fail closed, and custom break sounds play only after an actual break.
+- Hardened storage load and async failure paths: terminal/wireless opens revalidate current main-thread state after load, storage/debug/reload/lang/mode/bus/WorldEdit futures log failures, and players get visible failure messages where applicable.
+- Load benchmarking no longer starts automatically on a fresh database; it remains available only through `/exort debug benchmark start [players] [seconds]`.
+
 ## 0.9.3 — 2026-05-14
 - Category sorting now uses embedded vanilla creative-tab data for the supported Minecraft 1.21.7-26.1.2 range instead of the deprecated Bukkit creative-category API; the unused creative search tab is omitted, operator-block labels resolve correctly, and Exort custom items sort before unknown items.
 - Cleaned up internal storage withdrawal accounting to avoid Java null-safety warnings; gameplay behavior is unchanged.

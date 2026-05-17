@@ -85,8 +85,9 @@ public final class CustomBlockBreaker implements Listener, Runnable {
 
     if (player.getGameMode() == GameMode.CREATIVE) {
       stopBreaking(player);
-      soundService.playBreak(block, type);
-      breakHandler.handleBreak(player, block, false);
+      if (breakHandler.handleBreak(player, block, false) == BlockBreakHandler.BreakResult.BROKEN) {
+        soundService.playBreak(block, type);
+      }
       return;
     }
 
@@ -170,22 +171,27 @@ public final class CustomBlockBreaker implements Listener, Runnable {
         continue;
       }
       if (totalDamage <= 0.0) continue;
-      session.progress += totalDamage;
-      soundService.handleTick(
-          block, session.type, session.soundTracker, tick, session.progress, totalDamage);
-      if (session.progress >= 1.0) {
+      double nextProgress = session.progress + totalDamage;
+      if (nextProgress >= 1.0) {
+        session.progress = nextProgress;
         Player breaker =
             session.players.isEmpty() ? null : Bukkit.getPlayer(session.players.get(0).playerId);
-        if (!session.soundTracker.isBreakPlayed()) {
+        BlockBreakHandler.BreakResult result =
+            breaker == null
+                ? BlockBreakHandler.BreakResult.IGNORED
+                : breakHandler.handleBreak(breaker, block, false);
+        if (result == BlockBreakHandler.BreakResult.BROKEN
+            && !session.soundTracker.isBreakPlayed()) {
           soundService.playBreak(block, session.type);
           session.soundTracker.markBreakPlayed();
         }
-        if (breaker != null) {
-          breakHandler.handleBreak(breaker, block, false);
-        }
         sessionManager.clearSession(session);
         it.remove();
+        continue;
       }
+      session.progress = nextProgress;
+      soundService.handleTick(
+          block, session.type, session.soundTracker, tick, session.progress, totalDamage);
     }
   }
 

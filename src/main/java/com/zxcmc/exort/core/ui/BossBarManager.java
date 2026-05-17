@@ -6,7 +6,9 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -32,30 +34,34 @@ public class BossBarManager {
     cancelRemoval(player.getUniqueId());
     storageManager
         .getOrLoad(storageId)
-        .thenAccept(
-            cache ->
-                Bukkit.getScheduler()
-                    .runTask(
-                        plugin,
-                        () -> {
-                          if (!player.isOnline()) return;
-                          if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen))
-                            return;
-                          long current = cache.effectiveTotal();
-                          long max = Math.max(1, tier.maxItems());
-                          double progress =
-                              Math.min(1.0, Math.max(0.0, (double) current / (double) max));
-                          String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
-                          String title =
-                              lang.tr(
-                                  "gui.bossbar",
-                                  tier.displayName(),
-                                  formatNumber(current),
-                                  formatNumber(max),
-                                  percent);
-                          double free = 1.0 - progress;
-                          showCustom(player, title, progress, freeColor(free), durationTicks, gen);
-                        }));
+        .whenComplete(
+            (cache, err) -> {
+              if (err != null) {
+                handleLoadFailure(player, storageId, durationTicks, gen, err);
+                return;
+              }
+              Bukkit.getScheduler()
+                  .runTask(
+                      plugin,
+                      () -> {
+                        if (!player.isOnline()) return;
+                        if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
+                        long current = cache.effectiveTotal();
+                        long max = Math.max(1, tier.maxItems());
+                        double progress =
+                            Math.min(1.0, Math.max(0.0, (double) current / (double) max));
+                        String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
+                        String title =
+                            lang.tr(
+                                "gui.bossbar",
+                                tier.displayName(),
+                                formatNumber(current),
+                                formatNumber(max),
+                                percent);
+                        double free = 1.0 - progress;
+                        showCustom(player, title, progress, freeColor(free), durationTicks, gen);
+                      });
+            });
   }
 
   public void showWireStatus(
@@ -83,20 +89,23 @@ public class BossBarManager {
     cancelRemoval(player.getUniqueId());
     storageManager
         .getOrLoad(storageId)
-        .thenAccept(
-            cache ->
-                Bukkit.getScheduler()
-                    .runTask(
-                        plugin,
-                        () -> {
-                          if (!player.isOnline()) return;
-                          if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen))
-                            return;
-                          long amount = cache.getAmount(itemKey);
-                          String title =
-                              lang.tr("gui.monitor.item", itemName, formatNumber(amount));
-                          showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
-                        }));
+        .whenComplete(
+            (cache, err) -> {
+              if (err != null) {
+                handleLoadFailure(player, storageId, durationTicks, gen, err);
+                return;
+              }
+              Bukkit.getScheduler()
+                  .runTask(
+                      plugin,
+                      () -> {
+                        if (!player.isOnline()) return;
+                        if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
+                        long amount = cache.getAmount(itemKey);
+                        String title = lang.tr("gui.monitor.item", itemName, formatNumber(amount));
+                        showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
+                      });
+            });
   }
 
   public void showError(Player player, String message, long durationTicks) {
@@ -133,6 +142,32 @@ public class BossBarManager {
                 durationTicks)
             .getTaskId();
     removalTasks.put(player.getUniqueId(), taskId);
+  }
+
+  private void handleLoadFailure(
+      Player player, String storageId, long durationTicks, int gen, Throwable err) {
+    plugin.getLogger().log(Level.WARNING, "Failed to load storage " + storageId, unwrap(err));
+    Bukkit.getScheduler()
+        .runTask(
+            plugin,
+            () -> {
+              if (player == null || !player.isOnline()) return;
+              if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
+              showCustom(
+                  player,
+                  lang.tr("message.storage_load_failed"),
+                  1.0,
+                  BarColor.RED,
+                  durationTicks,
+                  gen);
+            });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 
   private BossBar createOrGetBar(Player player) {

@@ -163,7 +163,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     networkGraphCache = new NetworkGraphCache(this);
     database = new Database(this);
     File dbFile = new File(new File(getDataFolder(), "db"), "storage.db");
-    boolean freshDb = !dbFile.exists();
     try {
       database.init(dbFile);
     } catch (SQLException e) {
@@ -182,10 +181,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
     registerRuntime();
     registerBrigadierCommands();
-    if (freshDb && loadTestService != null) {
-      Bukkit.getScheduler()
-          .runTaskLater(this, () -> loadTestService.start(Bukkit.getConsoleSender(), -1, 15), 100L);
-    }
   }
 
   @Override

@@ -11,6 +11,8 @@ import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.marker.WireMarker;
 import com.zxcmc.exort.display.DisplayRefreshService;
+import java.util.concurrent.CompletionException;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
@@ -122,22 +124,52 @@ public final class MarkerSanityService {
           plugin
               .getDatabase()
               .storageExists(storageId)
-              .thenAccept(
-                  exists -> {
+              .whenComplete(
+                  (exists, err) -> {
+                    if (err != null) {
+                      plugin
+                          .getLogger()
+                          .log(
+                              Level.WARNING,
+                              "Failed to check storage marker " + storageId,
+                              unwrap(err));
+                      return;
+                    }
                     if (exists) return;
-                    plugin.getDatabase().setStorageTier(storageId, tierKey);
-                    Bukkit.getScheduler()
-                        .runTask(
-                            plugin,
-                            () -> {
-                              displayRefreshService.refreshStorage(block);
-                              if (plugin.getHologramManager() != null) {
-                                plugin.getHologramManager().registerStorage(block);
-                                plugin.getHologramManager().invalidateAll();
+                    plugin
+                        .getDatabase()
+                        .setStorageTier(storageId, tierKey)
+                        .whenComplete(
+                            (ignored, tierErr) -> {
+                              if (tierErr != null) {
+                                plugin
+                                    .getLogger()
+                                    .log(
+                                        Level.WARNING,
+                                        "Failed to repair storage tier for " + storageId,
+                                        unwrap(tierErr));
+                                return;
                               }
+                              Bukkit.getScheduler()
+                                  .runTask(
+                                      plugin,
+                                      () -> {
+                                        displayRefreshService.refreshStorage(block);
+                                        if (plugin.getHologramManager() != null) {
+                                          plugin.getHologramManager().registerStorage(block);
+                                          plugin.getHologramManager().invalidateAll();
+                                        }
+                                      });
                             });
                   });
         });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 
   private void migrateWireCarrier(Block block) {

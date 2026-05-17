@@ -538,9 +538,12 @@ public abstract class AbstractStorageSession implements SearchableSession {
             .showError(viewer, message, manager.getPlugin().getStoragePeekTicks());
         return 0;
       }
-      ws.prepareForStorage(stack);
     }
-    ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(stack);
+    ItemStack storageStack = stack.clone();
+    if (ws != null && ws.isWireless(storageStack)) {
+      ws.prepareForStorage(storageStack);
+    }
+    ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(storageStack);
     String key = data.key();
     ItemStack sample = data.sample();
     long allowed = Math.min(stack.getAmount(), spaceLeftFor(sample));
@@ -562,9 +565,13 @@ public abstract class AbstractStorageSession implements SearchableSession {
             .showError(viewer, message, manager.getPlugin().getStoragePeekTicks());
         return 0;
       }
-      ws.prepareForStorage(cursor);
     }
-    long allowed = Math.min(intended, spaceLeftFor(cursor));
+    ItemStack storageStack = cursor.clone();
+    storageStack.setAmount(Math.max(1, intended));
+    if (ws != null && ws.isWireless(storageStack)) {
+      ws.prepareForStorage(storageStack);
+    }
+    long allowed = Math.min(intended, spaceLeftFor(storageStack));
     if (allowed <= 0) {
       setInfoErrorMessage(null);
       triggerInfoError();
@@ -574,7 +581,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
       setInfoErrorMessage(null);
       triggerInfoError();
     }
-    ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(cursor);
+    ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(storageStack);
     String key = data.key();
     ItemStack sample = data.sample();
     cache.addItem(key, sample, allowed);
@@ -599,28 +606,37 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected int moveToCursor(
-      HumanEntity who, DisplayEntry entry, int desiredAmount, InventoryClickEvent event) {
+      HumanEntity who,
+      StorageCache.ReservedItem reserved,
+      int desiredAmount,
+      InventoryClickEvent event) {
+    if (reserved == null || reserved.amount() <= 0) return 0;
     ItemStack cursor = event.getView().getCursor();
-    ItemStack give = entry.sample().clone();
+    ItemStack give = reserved.sample().clone();
     var ws = manager.getPlugin().getWirelessService();
     if (ws != null) {
       give = ws.extractFromStorage(give);
     }
+    String giveKey = ItemKeyUtil.keyFor(give);
     int max = give.getMaxStackSize();
     int moved = 0;
     if (cursor == null || cursor.getType() == Material.AIR) {
-      int take = Math.min(desiredAmount, max);
+      int take =
+          Math.min(
+              Math.min(desiredAmount, max), (int) Math.min(Integer.MAX_VALUE, reserved.amount()));
       give.setAmount(take);
       event.getView().setCursor(give);
       moved = take;
     } else {
       String cursorKey = ItemKeyUtil.keyFor(cursor);
-      if (!cursorKey.equals(entry.itemKey())) {
+      if (!cursorKey.equals(giveKey)) {
         return 0;
       }
       int space = max - cursor.getAmount();
       if (space <= 0) return 0;
-      int take = Math.min(space, desiredAmount);
+      int take =
+          Math.min(
+              Math.min(space, desiredAmount), (int) Math.min(Integer.MAX_VALUE, reserved.amount()));
       cursor.setAmount(cursor.getAmount() + take);
       event.getView().setCursor(cursor);
       moved = take;
@@ -628,15 +644,18 @@ public abstract class AbstractStorageSession implements SearchableSession {
     return moved;
   }
 
-  protected int moveToInventory(HumanEntity who, ItemStack sample, String key, int amount) {
+  protected int moveToInventory(HumanEntity who, StorageCache.ReservedItem reserved, int amount) {
+    if (reserved == null || reserved.amount() <= 0) return 0;
     if (!(who instanceof Player player)) return 0;
+    ItemStack sample = reserved.sample().clone();
     var ws = manager.getPlugin().getWirelessService();
     if (ws != null) {
       sample = ws.extractFromStorage(sample);
     }
+    String key = ItemKeyUtil.keyFor(sample);
     var inv = player.getInventory();
     int moved = 0;
-    int remaining = amount;
+    int remaining = Math.min(amount, (int) Math.min(Integer.MAX_VALUE, reserved.amount()));
     int maxStack = sample.getMaxStackSize();
     // Fill existing stacks
     for (int i = 0; i < 36 && remaining > 0; i++) {
@@ -655,15 +674,22 @@ public abstract class AbstractStorageSession implements SearchableSession {
       int move = Math.min(maxStack, remaining);
       ItemStack stack = sample.clone();
       stack.setAmount(move);
-      int before = stack.getAmount();
-      int leftover = inv.addItem(stack).values().stream().mapToInt(ItemStack::getAmount).sum();
-      int added = Math.max(0, before - leftover);
-      if (added <= 0) {
+      int empty = inv.firstEmpty();
+      if (empty < 0 || empty >= 36) {
         break;
       }
-      remaining -= added;
-      moved += added;
+      inv.setItem(empty, stack);
+      remaining -= move;
+      moved += move;
     }
     return moved;
+  }
+
+  protected void rollbackReserved(StorageCache.ReservedItem reserved, int moved) {
+    if (reserved == null) return;
+    long rollback = reserved.amount() - Math.max(0, moved);
+    if (rollback > 0) {
+      cache.addItem(reserved.key(), reserved.sample(), rollback);
+    }
   }
 }
