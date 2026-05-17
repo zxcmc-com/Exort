@@ -15,6 +15,8 @@ import org.bukkit.persistence.PersistentDataType;
 public class StorageCache {
   public record RemovalRequest(String key, ItemStack sample, long amount) {}
 
+  public record ReservedItem(String key, ItemStack sample, long amount) {}
+
   private record RemovalPlan(
       boolean success,
       Map<String, Long> removals,
@@ -248,6 +250,71 @@ public class StorageCache {
   }
 
   public synchronized long removeItem(String key, long amount) {
+    return removeItemInternal(key, amount);
+  }
+
+  public synchronized Optional<ReservedItem> reserveItem(String key, long amount) {
+    if (amount <= 0) return Optional.empty();
+    StorageItem existing = items.get(key);
+    if (existing == null || existing.amount() <= 0) return Optional.empty();
+    ItemStack sample = ItemKeyUtil.cloneSample(existing.sample());
+    long removed = removeItemInternal(key, amount);
+    if (removed <= 0) return Optional.empty();
+    return Optional.of(new ReservedItem(key, sample, removed));
+  }
+
+  public synchronized Optional<List<ReservedItem>> reserveAll(
+      List<RemovalRequest> requests, WirelessTerminalService ws) {
+    if (requests == null || requests.isEmpty()) return Optional.of(List.of());
+    RemovalPlan plan = planRemovals(requests, ws);
+    if (!plan.success()) {
+      if (isVerbose()) {
+        log(
+            CacheDebugService.EventType.REMOVE_ALL_FAIL,
+            "cache reserveAll FAILED: "
+                + storageId
+                + " key="
+                + plan.failedKey()
+                + " need="
+                + plan.failedRequired()
+                + " available="
+                + plan.failedAvailable());
+      }
+      return Optional.empty();
+    }
+    List<ReservedItem> reserved = new ArrayList<>(plan.removals().size());
+    for (Map.Entry<String, Long> entry : plan.removals().entrySet()) {
+      Optional<ReservedItem> item = reserveItem(entry.getKey(), entry.getValue());
+      if (item.isEmpty() || item.get().amount() != entry.getValue()) {
+        item.ifPresent(reserved::add);
+        for (ReservedItem rollback : reserved) {
+          addItem(rollback.key(), rollback.sample(), rollback.amount());
+        }
+        if (isVerbose()) {
+          log(
+              CacheDebugService.EventType.REMOVE_ALL_FAIL,
+              "cache reserveAll FAILED during apply: "
+                  + storageId
+                  + " key="
+                  + entry.getKey()
+                  + " need="
+                  + entry.getValue()
+                  + " reserved="
+                  + item.map(ReservedItem::amount).orElse(0L));
+        }
+        return Optional.empty();
+      }
+      reserved.add(item.get());
+    }
+    if (isVerbose()) {
+      log(
+          CacheDebugService.EventType.REMOVE_ALL_OK,
+          "cache reserveAll OK: " + storageId + " requests=" + requests.size());
+    }
+    return Optional.of(reserved);
+  }
+
+  private long removeItemInternal(String key, long amount) {
     if (amount <= 0) return 0;
     touch();
     StorageItem existing = items.get(key);
@@ -327,47 +394,7 @@ public class StorageCache {
   }
 
   public synchronized boolean removeAll(List<RemovalRequest> requests, WirelessTerminalService ws) {
-    if (requests == null || requests.isEmpty()) return true;
-    RemovalPlan plan = planRemovals(requests, ws);
-    if (!plan.success()) {
-      if (isVerbose()) {
-        log(
-            CacheDebugService.EventType.REMOVE_ALL_FAIL,
-            "cache removeAll FAILED: "
-                + storageId
-                + " key="
-                + plan.failedKey()
-                + " need="
-                + plan.failedRequired()
-                + " available="
-                + plan.failedAvailable());
-      }
-      return false;
-    }
-    for (Map.Entry<String, Long> entry : plan.removals().entrySet()) {
-      long removed = removeItem(entry.getKey(), entry.getValue());
-      if (removed != entry.getValue()) {
-        if (isVerbose()) {
-          log(
-              CacheDebugService.EventType.REMOVE_ALL_FAIL,
-              "cache removeAll FAILED during apply: "
-                  + storageId
-                  + " key="
-                  + entry.getKey()
-                  + " need="
-                  + entry.getValue()
-                  + " removed="
-                  + removed);
-        }
-        return false;
-      }
-    }
-    if (isVerbose()) {
-      log(
-          CacheDebugService.EventType.REMOVE_ALL_OK,
-          "cache removeAll OK: " + storageId + " requests=" + requests.size());
-    }
-    return true;
+    return reserveAll(requests, ws).isPresent();
   }
 
   private RemovalPlan planRemovals(List<RemovalRequest> requests, WirelessTerminalService ws) {

@@ -18,7 +18,9 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -172,7 +174,7 @@ public final class BusEngine implements Runnable {
     }
     StorageCache cache = storageManager.getLoadedCache(storageId).orElse(null);
     if (cache == null || !cache.isLoaded()) {
-      storageManager.getOrLoad(storageId);
+      preloadStorage(storageId);
       return false;
     }
     return state.type() == BusType.IMPORT
@@ -210,7 +212,7 @@ public final class BusEngine implements Runnable {
       if (storageTarget.storageId().equals(cache.getStorageId())) return false;
       StorageCache source = storageManager.getLoadedCache(storageTarget.storageId()).orElse(null);
       if (source == null || !source.isLoaded()) {
-        storageManager.getOrLoad(storageTarget.storageId());
+        preloadStorage(storageTarget.storageId());
         return false;
       }
       boolean moved = tickStorageTransfer(state, source, cache, tier);
@@ -242,7 +244,7 @@ public final class BusEngine implements Runnable {
       if (destTier == null) return false;
       StorageCache dest = storageManager.getLoadedCache(storageTarget.storageId()).orElse(null);
       if (dest == null || !dest.isLoaded()) {
-        storageManager.getOrLoad(storageTarget.storageId());
+        preloadStorage(storageTarget.storageId());
         return false;
       }
       boolean moved = tickStorageTransfer(state, cache, dest, destTier);
@@ -253,6 +255,27 @@ public final class BusEngine implements Runnable {
       return moved;
     }
     return false;
+  }
+
+  private void preloadStorage(String storageId) {
+    if (storageId == null || storageManager.isLoading(storageId)) return;
+    storageManager
+        .getOrLoad(storageId)
+        .whenComplete(
+            (cache, err) -> {
+              if (err != null) {
+                plugin
+                    .getLogger()
+                    .log(Level.WARNING, "Failed to preload bus storage " + storageId, unwrap(err));
+              }
+            });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 
   private boolean tickImportInventory(
@@ -272,10 +295,11 @@ public final class BusEngine implements Runnable {
       if (stack == null || stack.getType() == Material.AIR) continue;
       if (!InventorySideRules.canExtract(inventory, target.state(), target.side(), stack, slot))
         continue;
-      if (wirelessService != null && wirelessService.isWireless(stack)) {
-        wirelessService.prepareForStorage(stack);
+      ItemStack storageStack = stack.clone();
+      if (wirelessService != null && wirelessService.isWireless(storageStack)) {
+        wirelessService.prepareForStorage(storageStack);
       }
-      ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(stack);
+      ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(storageStack);
       if (!allows(state.mode(), data.key(), state.filterKeys())) {
         continue;
       }
@@ -283,7 +307,7 @@ public final class BusEngine implements Runnable {
       if (space <= 0) {
         return false;
       }
-      long weight = cache.nestedWeight(stack);
+      long weight = cache.nestedWeight(storageStack);
       long maxBySpace = Math.max(0, space / Math.max(1, weight));
       if (maxBySpace <= 0) {
         return false;
@@ -317,11 +341,17 @@ public final class BusEngine implements Runnable {
       if (!allows(state.mode(), entry.key(), state.filterKeys())) continue;
       int desired = Math.min(itemsPerOperation, (int) Math.min(Integer.MAX_VALUE, entry.amount()));
       if (desired <= 0) continue;
+      ItemStack outputSample = entry.sample();
+      String outputKey = entry.key();
+      if (wirelessService != null && wirelessService.isWireless(outputSample)) {
+        outputSample = wirelessService.extractFromStorage(outputSample.clone());
+        outputKey = ItemKeyUtil.keyFor(outputSample);
+      }
       long removed = cache.removeItem(entry.key(), desired);
       if (removed <= 0) continue;
       int moved =
           InventorySideRules.insert(
-              inventory, target.state(), target.side(), entry.sample(), entry.key(), (int) removed);
+              inventory, target.state(), target.side(), outputSample, outputKey, (int) removed);
       if (moved < removed) {
         cache.addItem(entry.key(), entry.sample(), removed - moved);
       }

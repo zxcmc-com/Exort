@@ -21,6 +21,8 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.logging.Level;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -217,8 +219,8 @@ public class ItemPlaceBridgeListener implements Listener {
     Carriers.applyCarrier(target, storageCarrier);
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     StorageMarker.set(plugin, target, storageId, tier, face);
-    plugin.getDatabase().setStorageTier(storageId, tier.key());
-    storageManager.getOrLoad(storageId);
+    persistStorageTier(event.getPlayer(), storageId, tier.key());
+    preloadStorage(event.getPlayer(), storageId);
     var refresh = plugin.getDisplayRefreshService();
     if (refresh != null) {
       refresh.refreshStorage(target);
@@ -403,6 +405,54 @@ public class ItemPlaceBridgeListener implements Listener {
     String raw = plugin.getConfig().getString(path, "WHITELIST");
     BusMode mode = BusMode.fromString(raw);
     return mode == null ? BusMode.WHITELIST : mode;
+  }
+
+  private void preloadStorage(Player player, String storageId) {
+    storageManager
+        .getOrLoad(storageId)
+        .whenComplete(
+            (cache, err) -> {
+              if (err != null) {
+                reportStorageFailure(player, "load placed storage " + storageId, err);
+              }
+            });
+  }
+
+  private void persistStorageTier(Player player, String storageId, String tierKey) {
+    plugin
+        .getDatabase()
+        .setStorageTier(storageId, tierKey)
+        .whenComplete(
+            (ignored, err) -> {
+              if (err != null) {
+                reportStorageFailure(player, "persist storage tier for " + storageId, err);
+              }
+            });
+  }
+
+  private void reportStorageFailure(Player player, String action, Throwable err) {
+    plugin.getLogger().log(Level.WARNING, "Failed to " + action, unwrap(err));
+    plugin
+        .getServer()
+        .getScheduler()
+        .runTask(
+            plugin,
+            () -> {
+              if (player == null || !player.isOnline()) return;
+              plugin
+                  .getBossBarManager()
+                  .showError(
+                      player,
+                      plugin.getLang().tr("message.storage_load_failed"),
+                      plugin.getStoragePeekTicks());
+            });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 
   private void consume(PlayerInteractEvent event) {

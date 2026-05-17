@@ -61,11 +61,14 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -129,6 +132,7 @@ public final class WorldEditBridge implements Listener {
   private static final Map<Class<?>, TransformAccessor> TRANSFORM_ACCESSORS =
       new ConcurrentHashMap<>();
   private static final Set<Class<?>> TRANSFORM_SKIP = ConcurrentHashMap.newKeySet();
+  private static final Set<String> FAWE_WARNED_KEYS = ConcurrentHashMap.newKeySet();
   private static final BlockFace[] ROTATABLE_FACES = {
     BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN
   };
@@ -152,7 +156,7 @@ public final class WorldEditBridge implements Listener {
     if (worldEdit == null && fawe == null) return null;
     try {
       if (fawe != null) {
-        allowFaweExtent(fawe);
+        allowFaweExtent(fawe, plugin.getLogger());
       }
       WorldEditBridge bridge = new WorldEditBridge(plugin);
       WorldEdit.getInstance().getEventBus().register(bridge);
@@ -169,9 +173,11 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
-  private static void allowFaweExtent(Plugin fawe) {
+  private static void allowFaweExtent(Plugin fawe, Logger logger) {
     String extentClass = MarkerExtent.class.getName();
     boolean modified = false;
+    boolean runtimeAllowed = false;
+    Throwable runtimeError = null;
     try {
       File configFile = new File(fawe.getDataFolder(), "config.yml");
       if (configFile.isFile()) {
@@ -216,11 +222,42 @@ public final class WorldEditBridge implements Listener {
         try {
           File configFile = new File(fawe.getDataFolder(), "config.yml");
           settingsClass.getMethod("reload", File.class).invoke(settings, configFile);
+          extent = settingsClass.getField("EXTENT").get(settings);
+          allowedField = extent.getClass().getField("ALLOWED_PLUGINS");
         } catch (Exception ignored) {
         }
       }
-    } catch (Throwable ignored) {
+      runtimeAllowed = containsString(allowedField.get(extent), extentClass);
+    } catch (Throwable err) {
+      runtimeError = err;
     }
+    if (!runtimeAllowed && logger != null && FAWE_WARNED_KEYS.add(FAWE_ALLOWED_KEY)) {
+      String suffix =
+          runtimeError == null
+              ? ""
+              : " Runtime check failed: "
+                  + runtimeError.getClass().getSimpleName()
+                  + ": "
+                  + runtimeError.getMessage();
+      logger.warning(
+          "[WorldEdit] Could not verify FAWE "
+              + FAWE_ALLOWED_KEY
+              + " contains "
+              + extentClass
+              + "; Exort marker extent may be rejected by FAWE."
+              + suffix);
+    }
+  }
+
+  private static boolean containsString(Object value, String expected) {
+    if (value instanceof Iterable<?> iterable) {
+      for (Object item : iterable) {
+        if (expected.equals(String.valueOf(item))) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   public void shutdown() {
@@ -743,19 +780,50 @@ public final class WorldEditBridge implements Listener {
       for (PendingUpdate pending : batch.updates) {
         MarkerUpdate update = pending.update;
         MarkerSnapshot snapshot = update.snapshot();
-        if (snapshot != null && snapshot.storage() != null) {
+        if (snapshot != null && snapshot.storage() != null && !update.storageCloneReady()) {
           String storageId = snapshot.storage().storageId();
           if (storageId != null && !removedStorageIds.contains(storageId)) {
             String newId = UUID.randomUUID().toString();
             var storageManager = plugin.getStorageManager();
-            if (storageManager != null) {
-              storageManager.cloneStorage(storageId, newId, snapshot.storage().tier());
+            if (storageManager == null) {
+              plugin
+                  .getLogger()
+                  .warning(
+                      "Skipping WorldEdit storage paste at "
+                          + update.x()
+                          + ","
+                          + update.y()
+                          + ","
+                          + update.z()
+                          + ": storage manager is unavailable");
+              continue;
             }
-            snapshot = withStorageId(snapshot, newId);
-            update =
+            MarkerSnapshot clonedSnapshot = withStorageId(snapshot, newId);
+            MarkerUpdate clonedUpdate =
                 new MarkerUpdate(
-                    update.worldId(), update.x(), update.y(), update.z(), snapshot, null);
-            pending.update = update;
+                    update.worldId(),
+                    update.x(),
+                    update.y(),
+                    update.z(),
+                    clonedSnapshot,
+                    null,
+                    true);
+            storageManager
+                .cloneStorage(storageId, newId, snapshot.storage().tier())
+                .whenComplete(
+                    (ignored, err) -> {
+                      if (err != null) {
+                        plugin
+                            .getLogger()
+                            .log(
+                                Level.WARNING,
+                                "Failed to clone WorldEdit storage " + storageId + " to " + newId,
+                                unwrap(err));
+                        return;
+                      }
+                      enqueue(clonedUpdate);
+                    });
+            continue;
           }
         }
         if (!applyUpdate(world, update)) {
@@ -1411,7 +1479,8 @@ public final class WorldEditBridge implements Listener {
                 resolved.y(),
                 resolved.z(),
                 parsed,
-                removedStorageId));
+                removedStorageId,
+                false));
       }
       return result;
     }
@@ -1869,26 +1938,30 @@ public final class WorldEditBridge implements Listener {
   private static final Map<Class<?>, Method> SETBLOCKS_STATE = new ConcurrentHashMap<>();
   private static final Map<Class<?>, Method> SETBLOCKS_PATTERN = new ConcurrentHashMap<>();
   private static final Map<Class<?>, Method> SETBLOCKS_SET = new ConcurrentHashMap<>();
+  private static final Set<Class<?>> SETBLOCKS_STATE_SKIP = ConcurrentHashMap.newKeySet();
+  private static final Set<Class<?>> SETBLOCKS_PATTERN_SKIP = ConcurrentHashMap.newKeySet();
+  private static final Set<Class<?>> SETBLOCKS_SET_SKIP = ConcurrentHashMap.newKeySet();
 
   private static Method findSetBlocks(Class<?> extentClass, Class<?> paramType) {
     Map<Class<?>, Method> cache = paramType == Pattern.class ? SETBLOCKS_PATTERN : SETBLOCKS_STATE;
+    Set<Class<?>> skip = paramType == Pattern.class ? SETBLOCKS_PATTERN_SKIP : SETBLOCKS_STATE_SKIP;
     Method cached = cache.get(extentClass);
     if (cached != null) return cached;
+    if (skip.contains(extentClass)) return null;
     try {
       Method method = extentClass.getMethod("setBlocks", Region.class, paramType);
       cache.put(extentClass, method);
       return method;
     } catch (Exception ignored) {
-      cache.put(extentClass, null);
+      skip.add(extentClass);
       return null;
     }
   }
 
   private static Method findSetBlocksSetMethod(Class<?> extentClass) {
     Method cached = SETBLOCKS_SET.get(extentClass);
-    if (cached != null || SETBLOCKS_SET.containsKey(extentClass)) {
-      return cached;
-    }
+    if (cached != null) return cached;
+    if (SETBLOCKS_SET_SKIP.contains(extentClass)) return null;
     try {
       Method method =
           extentClass.getMethod(
@@ -1896,7 +1969,7 @@ public final class WorldEditBridge implements Listener {
       SETBLOCKS_SET.put(extentClass, method);
       return method;
     } catch (Exception ignored) {
-      SETBLOCKS_SET.put(extentClass, null);
+      SETBLOCKS_SET_SKIP.add(extentClass);
       return null;
     }
   }
@@ -2353,7 +2426,13 @@ public final class WorldEditBridge implements Listener {
   private record HistoryEntry(MarkerSnapshot snapshot, long timestampMs) {}
 
   private record MarkerUpdate(
-      UUID worldId, int x, int y, int z, MarkerSnapshot snapshot, String removedStorageId) {
+      UUID worldId,
+      int x,
+      int y,
+      int z,
+      MarkerSnapshot snapshot,
+      String removedStorageId,
+      boolean storageCloneReady) {
     int chunkX() {
       return x >> 4;
     }
@@ -2364,6 +2443,13 @@ public final class WorldEditBridge implements Listener {
   }
 
   private record ChunkKey(UUID worldId, int chunkX, int chunkZ) {}
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
+  }
 
   private static final class ChunkSnapshot {
     private final Map<Long, LinCompoundTag> data;

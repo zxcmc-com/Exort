@@ -30,6 +30,9 @@ public class Lang {
         "message.multiple_storages_adjacent",
         "Multiple storages are connected. Leave only one.");
     put(defaultsEn, "message.storage_missing_id", "Storage block is missing id.");
+    put(defaultsEn, "message.storage_load_failed", "Failed to load storage. See console.");
+    put(defaultsEn, "message.storage_loading", "Storage is loading. Try again in a moment.");
+    put(defaultsEn, "message.operation_failed", "Operation failed. See console.");
     put(defaultsEn, "message.invalid_terminal", "This is not a valid terminal.");
     put(defaultsEn, "message.only_player", "Only players can use this command.");
     put(defaultsEn, "message.player_not_found", "Player not found.");
@@ -332,6 +335,15 @@ public class Lang {
         "message.multiple_storages_adjacent",
         "Подключено несколько хранилищ. Оставьте только одно.");
     put(defaultsRu, "message.storage_missing_id", "У хранилища отсутствует идентификатор.");
+    put(
+        defaultsRu,
+        "message.storage_load_failed",
+        "Не удалось загрузить хранилище. Смотрите консоль.");
+    put(
+        defaultsRu,
+        "message.storage_loading",
+        "Хранилище загружается. Повторите через пару секунд.");
+    put(defaultsRu, "message.operation_failed", "Операция не выполнена. Смотрите консоль.");
     put(defaultsRu, "message.invalid_terminal", "Это не терминал хранилища.");
     put(defaultsRu, "message.only_player", "Команда доступна только игрокам.");
     put(defaultsRu, "message.player_not_found", "Игрок не найден.");

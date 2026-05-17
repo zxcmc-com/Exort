@@ -11,7 +11,9 @@ import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
@@ -68,14 +70,35 @@ public final class BusRegistry {
     if (pos == null) return;
     states.remove(pos);
     markDirty();
-    database.deleteBusSettings(pos);
+    database
+        .deleteBusSettings(pos)
+        .whenComplete(
+            (ignored, err) -> {
+              if (err != null) {
+                plugin
+                    .getLogger()
+                    .log(Level.WARNING, "Failed to delete bus settings for " + pos, unwrap(err));
+              }
+            });
   }
 
   public void saveSettings(BusState state) {
     if (state == null) return;
     BusSettings settings =
         new BusSettings(state.pos(), state.type(), state.mode(), state.filters());
-    database.saveBusSettings(settings, FILTER_SLOTS);
+    database
+        .saveBusSettings(settings, FILTER_SLOTS)
+        .whenComplete(
+            (ignored, err) -> {
+              if (err != null) {
+                plugin
+                    .getLogger()
+                    .log(
+                        Level.WARNING,
+                        "Failed to save bus settings for " + settings.pos(),
+                        unwrap(err));
+              }
+            });
     BusMarker.Data marker = new BusMarker.Data(state.type(), state.facing(), state.mode());
     Block block = state.pos().block();
     if (block != null) {
@@ -118,18 +141,32 @@ public final class BusRegistry {
     BusPos pos = state.pos();
     database
         .loadBusSettings(pos, FILTER_SLOTS)
-        .thenAccept(
-            opt -> {
+        .whenComplete(
+            (opt, err) -> {
+              if (err != null) {
+                plugin
+                    .getLogger()
+                    .log(Level.WARNING, "Failed to load bus settings for " + pos, unwrap(err));
+                return;
+              }
               if (opt.isEmpty()) return;
               Bukkit.getScheduler()
                   .runTask(
                       plugin,
                       () -> {
+                        if (states.get(pos) != state) return;
                         BusSettings settings = opt.get();
                         state.setType(settings.type());
                         state.setMode(settings.mode());
                         state.setFilters(settings.filters());
                       });
             });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 }

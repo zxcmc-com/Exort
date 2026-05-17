@@ -243,9 +243,11 @@ public class Database implements AutoCloseable {
     Objects.requireNonNull(storageId, "storageId");
     long now = Instant.now().getEpochSecond();
     String mode = sortMode == null ? defaultSortModeName() : sortMode;
+    Collection<DbItem> safeItems = items == null ? List.of() : items;
     return CompletableFuture.runAsync(
         () -> {
           try {
+            connection.setAutoCommit(false);
             String sql =
                 "INSERT OR REPLACE INTO storages(id, tier, sort_mode, created_at, updated_at)"
                     + " VALUES(?, ?, ?, ?, ?)";
@@ -257,10 +259,48 @@ public class Database implements AutoCloseable {
               ps.setLong(5, now);
               ps.executeUpdate();
             }
-            writeSnapshotInternal(storageId, items);
+            try (PreparedStatement delete =
+                connection.prepareStatement("DELETE FROM storage_items WHERE storage_id = ?")) {
+              delete.setString(1, storageId);
+              delete.executeUpdate();
+            }
+            String insertSql =
+                "INSERT INTO storage_items(storage_id, item_key, item_blob, amount) VALUES(?, ?, ?,"
+                    + " ?)";
+            try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
+              int batchSize = 0;
+              for (DbItem item : safeItems) {
+                if (item == null || item.amount() <= 0) continue;
+                insert.setString(1, storageId);
+                insert.setString(2, item.key());
+                insert.setBytes(3, item.blob());
+                insert.setLong(4, item.amount());
+                insert.addBatch();
+                batchSize++;
+                if (batchSize >= 1000) {
+                  insert.executeBatch();
+                  insert.clearBatch();
+                  batchSize = 0;
+                }
+              }
+              if (batchSize > 0) {
+                insert.executeBatch();
+              }
+            }
+            connection.commit();
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create storage " + storageId, e);
+            try {
+              connection.rollback();
+            } catch (SQLException ex) {
+              plugin.getLogger().log(Level.SEVERE, "Failed to rollback transaction", ex);
+            }
             throw new CompletionException(e);
+          } finally {
+            try {
+              connection.setAutoCommit(true);
+            } catch (SQLException ignored) {
+            }
           }
         },
         executor);
@@ -273,7 +313,8 @@ public class Database implements AutoCloseable {
     return CompletableFuture.runAsync(
         () -> {
           try {
-            int rows = 0;
+            connection.setAutoCommit(false);
+            int rows;
             String insertSql =
                 "INSERT INTO storages(id, tier, sort_mode, created_at, updated_at)"
                     + " SELECT ?, tier, sort_mode, ?, ? FROM storages WHERE id = ?";
@@ -285,18 +326,7 @@ public class Database implements AutoCloseable {
               rows = ps.executeUpdate();
             }
             if (rows == 0) {
-              String fallbackSort = defaultSortModeName();
-              String sql =
-                  "INSERT OR REPLACE INTO storages(id, tier, sort_mode, created_at, updated_at)"
-                      + " VALUES(?, ?, ?, ?, ?)";
-              try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                ps.setString(1, toId);
-                ps.setString(2, tierKey);
-                ps.setString(3, fallbackSort);
-                ps.setLong(4, now);
-                ps.setLong(5, now);
-                ps.executeUpdate();
-              }
+              throw new SQLException("Source storage does not exist: " + fromId);
             } else if (tierKey != null) {
               try (PreparedStatement ps =
                   connection.prepareStatement(
@@ -316,11 +346,22 @@ public class Database implements AutoCloseable {
               ps.setString(2, fromId);
               ps.executeUpdate();
             }
+            connection.commit();
           } catch (SQLException e) {
             plugin
                 .getLogger()
                 .log(Level.SEVERE, "Failed to clone storage " + fromId + " to " + toId, e);
+            try {
+              connection.rollback();
+            } catch (SQLException ex) {
+              plugin.getLogger().log(Level.SEVERE, "Failed to rollback transaction", ex);
+            }
             throw new CompletionException(e);
+          } finally {
+            try {
+              connection.setAutoCommit(true);
+            } catch (SQLException ignored) {
+            }
           }
         },
         executor);

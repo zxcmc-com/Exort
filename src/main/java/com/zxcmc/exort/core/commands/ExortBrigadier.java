@@ -19,15 +19,19 @@ import com.zxcmc.exort.core.network.TerminalLinkFinder;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.gui.GuiSession;
+import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
@@ -357,19 +361,22 @@ public final class ExortBrigadier {
     plugin
         .getDatabase()
         .getPlayerLastStorage(offline.getUniqueId())
-        .thenAccept(
-            result ->
-                Bukkit.getScheduler()
-                    .runTask(
-                        plugin,
-                        () -> {
-                          if (result.isEmpty()) {
-                            sender.sendMessage(
-                                plugin.getLang().tr("message.debug_player_none", playerName));
-                            return;
-                          }
-                          sendCacheStatus(sender, result.get().storageId());
-                        }));
+        .whenComplete(
+            (result, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "read player storage history", err);
+                return;
+              }
+              runSync(
+                  () -> {
+                    if (result.isEmpty()) {
+                      sender.sendMessage(
+                          plugin.getLang().tr("message.debug_player_none", playerName));
+                      return;
+                    }
+                    sendCacheStatus(sender, result.get().storageId());
+                  });
+            });
     return 1;
   }
 
@@ -723,7 +730,16 @@ public final class ExortBrigadier {
   private int reload(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
-    plugin.reloadRuntime().thenRun(() -> sender.sendMessage(plugin.getLang().tr("message.reload")));
+    plugin
+        .reloadRuntime()
+        .whenComplete(
+            (status, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "reload runtime", err);
+                return;
+              }
+              runSync(() -> sender.sendMessage(plugin.getLang().tr("message.reload")));
+            });
     return 1;
   }
 
@@ -753,10 +769,17 @@ public final class ExortBrigadier {
     plugin
         .getItemNameService()
         .refresh(normalized)
-        .thenAccept(
-            status -> {
-              plugin.getLang().reload(status.activeLanguage());
-              sender.sendMessage(plugin.getLang().tr("message.lang_refreshed"));
+        .whenComplete(
+            (status, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "refresh language dictionaries", err);
+                return;
+              }
+              runSync(
+                  () -> {
+                    plugin.getLang().reload(status.activeLanguage());
+                    sender.sendMessage(plugin.getLang().tr("message.lang_refreshed"));
+                  });
             });
     return 1;
   }
@@ -802,10 +825,17 @@ public final class ExortBrigadier {
     plugin.saveConfig();
     plugin
         .reloadRuntime()
-        .thenAccept(
-            status ->
-                sender.sendMessage(
-                    plugin.getLang().tr("message.lang_set", status.activeLanguage())));
+        .whenComplete(
+            (status, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "set language", err);
+                return;
+              }
+              runSync(
+                  () ->
+                      sender.sendMessage(
+                          plugin.getLang().tr("message.lang_set", status.activeLanguage())));
+            });
     return 1;
   }
 
@@ -836,14 +866,25 @@ public final class ExortBrigadier {
     plugin.saveConfig();
     plugin
         .reloadRuntime()
-        .thenRun(
-            () -> {
-              sender.sendMessage(
-                  plugin.getLang().tr("message.mode_set", normalized, plugin.getEffectiveMode()));
-              if (!plugin.getModeFallbackReason().isBlank()) {
-                sender.sendMessage(
-                    plugin.getLang().tr("message.mode_fallback", plugin.getModeFallbackReason()));
+        .whenComplete(
+            (status, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "set mode", err);
+                return;
               }
+              runSync(
+                  () -> {
+                    sender.sendMessage(
+                        plugin
+                            .getLang()
+                            .tr("message.mode_set", normalized, plugin.getEffectiveMode()));
+                    if (!plugin.getModeFallbackReason().isBlank()) {
+                      sender.sendMessage(
+                          plugin
+                              .getLang()
+                              .tr("message.mode_fallback", plugin.getModeFallbackReason()));
+                    }
+                  });
             });
     return 1;
   }
@@ -946,33 +987,36 @@ public final class ExortBrigadier {
     plugin
         .getDatabase()
         .getPlayerLastStorage(offline.getUniqueId())
-        .thenAccept(
-            result ->
-                Bukkit.getScheduler()
-                    .runTask(
-                        plugin,
-                        () -> {
-                          if (result.isEmpty()) {
-                            sender.sendMessage(
-                                plugin.getLang().tr("message.debug_player_none", playerName));
-                            return;
-                          }
-                          var data = result.get();
-                          sender.sendMessage(
-                              clickableDebugPlayer(
-                                  plugin
-                                      .getLang()
-                                      .tr(
-                                          "message.debug_player_last",
-                                          playerName,
-                                          data.storageId(),
-                                          data.tier(),
-                                          data.world(),
-                                          data.x(),
-                                          data.y(),
-                                          data.z()),
-                                  data.storageId()));
-                        }));
+        .whenComplete(
+            (result, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "read player storage history", err);
+                return;
+              }
+              runSync(
+                  () -> {
+                    if (result.isEmpty()) {
+                      sender.sendMessage(
+                          plugin.getLang().tr("message.debug_player_none", playerName));
+                      return;
+                    }
+                    var data = result.get();
+                    sender.sendMessage(
+                        clickableDebugPlayer(
+                            plugin
+                                .getLang()
+                                .tr(
+                                    "message.debug_player_last",
+                                    playerName,
+                                    data.storageId(),
+                                    data.tier(),
+                                    data.world(),
+                                    data.x(),
+                                    data.y(),
+                                    data.z()),
+                            data.storageId()));
+                  });
+            });
     return 1;
   }
 
@@ -998,19 +1042,22 @@ public final class ExortBrigadier {
       plugin
           .getDatabase()
           .getPlayerLastStorage(offline.getUniqueId())
-          .thenAccept(
-              result ->
-                  Bukkit.getScheduler()
-                      .runTask(
-                          plugin,
-                          () -> {
-                            if (result.isEmpty()) {
-                              sender.sendMessage(
-                                  plugin.getLang().tr("message.debug_player_none", playerName));
-                              return;
-                            }
-                            openStorageById(result.get().storageId(), write, player, sender);
-                          }));
+          .whenComplete(
+              (result, err) -> {
+                if (err != null) {
+                  sendAsyncFailure(sender, "read player storage history", err);
+                  return;
+                }
+                runSync(
+                    () -> {
+                      if (result.isEmpty()) {
+                        sender.sendMessage(
+                            plugin.getLang().tr("message.debug_player_none", playerName));
+                        return;
+                      }
+                      openStorageById(result.get().storageId(), write, player, sender);
+                    });
+              });
     }
     return 1;
   }
@@ -1020,51 +1067,67 @@ public final class ExortBrigadier {
     plugin
         .getDatabase()
         .getStorageTier(storageId)
-        .thenAccept(
-            optTier ->
-                Bukkit.getScheduler()
-                    .runTask(
-                        plugin,
-                        () -> {
-                          if (optTier.isEmpty()) {
-                            feedback.sendMessage(
-                                plugin.getLang().tr("message.debug_storage_missing", storageId));
-                            return;
-                          }
-                          StorageTier tier = StorageTier.fromString(optTier.get()).orElse(null);
-                          if (tier == null) {
-                            feedback.sendMessage(
-                                plugin.getLang().tr("message.debug_storage_missing", storageId));
-                            return;
-                          }
-                          plugin
-                              .getStorageManager()
-                              .getOrLoad(storageId)
-                              .thenAccept(
-                                  cache ->
-                                      Bukkit.getScheduler()
-                                          .runTask(
-                                              plugin,
-                                              () -> {
-                                                plugin
-                                                    .getSessionManager()
-                                                    .openDebugSession(viewer, cache, tier, write);
-                                                feedback.sendMessage(
-                                                    plugin
-                                                        .getLang()
-                                                        .tr(
-                                                            "message.debug_storage_opened",
-                                                            storageId,
-                                                            write
-                                                                ? plugin
-                                                                    .getLang()
-                                                                    .tr("debug.mode.write")
-                                                                : plugin
-                                                                    .getLang()
-                                                                    .tr("debug.mode.read")));
-                                              }));
-                        }));
+        .thenCompose(
+            optTier -> {
+              if (optTier.isEmpty()) {
+                return CompletableFuture.completedFuture(new DebugStorageOpen(optTier, null));
+              }
+              return plugin
+                  .getStorageManager()
+                  .getOrLoad(storageId)
+                  .thenApply(cache -> new DebugStorageOpen(optTier, cache));
+            })
+        .whenComplete(
+            (open, err) -> {
+              if (err != null) {
+                sendAsyncFailure(feedback, "open debug storage " + storageId, err);
+                return;
+              }
+              runSync(
+                  () -> {
+                    if (open.optTier().isEmpty() || open.cache() == null) {
+                      feedback.sendMessage(
+                          plugin.getLang().tr("message.debug_storage_missing", storageId));
+                      return;
+                    }
+                    StorageTier tier = StorageTier.fromString(open.optTier().get()).orElse(null);
+                    if (tier == null) {
+                      feedback.sendMessage(
+                          plugin.getLang().tr("message.debug_storage_missing", storageId));
+                      return;
+                    }
+                    if (!viewer.isOnline()) return;
+                    plugin.getSessionManager().openDebugSession(viewer, open.cache(), tier, write);
+                    feedback.sendMessage(
+                        plugin
+                            .getLang()
+                            .tr(
+                                "message.debug_storage_opened",
+                                storageId,
+                                write
+                                    ? plugin.getLang().tr("debug.mode.write")
+                                    : plugin.getLang().tr("debug.mode.read")));
+                  });
+            });
   }
+
+  private void runSync(Runnable task) {
+    Bukkit.getScheduler().runTask(plugin, task);
+  }
+
+  private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
+    plugin.getLogger().log(Level.WARNING, "Failed to " + action, unwrap(err));
+    runSync(() -> sender.sendMessage(plugin.getLang().tr("message.operation_failed")));
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
+  }
+
+  private record DebugStorageOpen(Optional<String> optTier, StorageCache cache) {}
 
   private Component clickableDebugPlayer(String message, String storageId) {
     // Replace the first occurrence of the storageId with a clickable/hoverable component.

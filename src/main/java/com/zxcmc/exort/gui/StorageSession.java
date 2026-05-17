@@ -410,11 +410,17 @@ public class StorageSession extends AbstractStorageSession {
     }
 
     if (event.isShiftClick()) {
-      int moved =
-          moveToInventory(event.getWhoClicked(), entry.sample(), entry.itemKey(), entry.amount());
+      var reserved = cache.reserveItem(entry.itemKey(), entry.amount()).orElse(null);
+      if (reserved == null) {
+        manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
+        return;
+      }
+      int moved = moveToInventory(event.getWhoClicked(), reserved, entry.amount());
+      rollbackReserved(reserved, moved);
       if (moved > 0) {
-        cache.removeItem(entry.itemKey(), moved);
         manager.renderStorage(cache.getStorageId(), SortEvent.WITHDRAW);
+      } else {
+        manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
       }
       return;
     }
@@ -423,10 +429,17 @@ public class StorageSession extends AbstractStorageSession {
     if (event.isRightClick()) {
       desired = (desired + 1) / 2;
     }
-    int given = moveToCursor(event.getWhoClicked(), entry, desired, event);
+    var reserved = cache.reserveItem(entry.itemKey(), desired).orElse(null);
+    if (reserved == null) {
+      manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
+      return;
+    }
+    int given = moveToCursor(event.getWhoClicked(), reserved, desired, event);
+    rollbackReserved(reserved, given);
     if (given > 0) {
-      cache.removeItem(entry.itemKey(), given);
       manager.renderStorage(cache.getStorageId(), SortEvent.WITHDRAW);
+    } else {
+      manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
     }
   }
 

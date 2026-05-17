@@ -24,12 +24,15 @@ import com.zxcmc.exort.storage.StorageTier;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.logging.Level;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -301,8 +304,8 @@ public class BlockListener implements Listener {
     }
     BlockFace storageFace = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     StorageMarker.set(plugin, block, storageId, tier, storageFace);
-    storageManager.getOrLoad(storageId);
-    plugin.getDatabase().setStorageTier(storageId, tier.key());
+    preloadStorage(event.getPlayer(), storageId);
+    persistStorageTier(event.getPlayer(), storageId, tier.key());
     var refresh = plugin.getDisplayRefreshService();
     if (refresh != null) {
       refresh.refreshStorage(block);
@@ -346,8 +349,16 @@ public class BlockListener implements Listener {
   @EventHandler(ignoreCancelled = true)
   public void onBreak(BlockBreakEvent event) {
     Block block = event.getBlock();
-    if (breakHandler.handleBreak(event.getPlayer(), block, true)) {
-      event.setDropItems(false);
+    BlockBreakHandler.BreakResult result = breakHandler.handleBreak(event.getPlayer(), block, true);
+    switch (result) {
+      case BROKEN -> event.setDropItems(false);
+      case DENIED -> {
+        event.setCancelled(true);
+        event.setDropItems(false);
+      }
+      case IGNORED -> {
+        // Let vanilla and other plugins handle non-Exort blocks.
+      }
     }
   }
 
@@ -422,6 +433,54 @@ public class BlockListener implements Listener {
         soundConfig.range(),
         soundConfig.volume(),
         soundConfig.pitch());
+  }
+
+  private void preloadStorage(Player player, String storageId) {
+    storageManager
+        .getOrLoad(storageId)
+        .whenComplete(
+            (cache, err) -> {
+              if (err != null) {
+                reportStorageFailure(player, "load placed storage " + storageId, err);
+              }
+            });
+  }
+
+  private void persistStorageTier(Player player, String storageId, String tierKey) {
+    plugin
+        .getDatabase()
+        .setStorageTier(storageId, tierKey)
+        .whenComplete(
+            (ignored, err) -> {
+              if (err != null) {
+                reportStorageFailure(player, "persist storage tier for " + storageId, err);
+              }
+            });
+  }
+
+  private void reportStorageFailure(Player player, String action, Throwable err) {
+    plugin.getLogger().log(Level.WARNING, "Failed to " + action, unwrap(err));
+    plugin
+        .getServer()
+        .getScheduler()
+        .runTask(
+            plugin,
+            () -> {
+              if (player == null || !player.isOnline()) return;
+              plugin
+                  .getBossBarManager()
+                  .showError(
+                      player,
+                      plugin.getLang().tr("message.storage_load_failed"),
+                      plugin.getStoragePeekTicks());
+            });
+  }
+
+  private Throwable unwrap(Throwable err) {
+    if (err instanceof CompletionException && err.getCause() != null) {
+      return err.getCause();
+    }
+    return err;
   }
 
   private BusMode defaultBusMode(boolean exportBus) {
