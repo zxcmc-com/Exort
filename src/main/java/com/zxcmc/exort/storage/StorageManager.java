@@ -39,27 +39,46 @@ public class StorageManager {
       cache.touch();
       return CompletableFuture.completedFuture(cache);
     }
-    return loading.computeIfAbsent(
-        storageId,
-        id ->
-            database
-                .ensureStorage(storageId)
-                .thenCompose(
-                    v ->
-                        database
-                            .loadStorage(storageId)
-                            .thenCombine(
-                                database.getStorageSortMode(storageId),
-                                (data, sort) -> {
-                                  cache.loadFromDb(data);
-                                  cache.refreshCustomItems(
-                                      plugin.getCustomItems(), plugin.getWirelessService(), true);
-                                  SortMode mode =
-                                      sortService.resolveAndPersistDefault(storageId, sort);
-                                  cache.setSortMode(mode);
-                                  return cache;
-                                }))
-                .whenComplete((res, err) -> loading.remove(id)));
+    CompletableFuture<StorageCache> loadFuture = new CompletableFuture<>();
+    CompletableFuture<StorageCache> existingLoad = loading.putIfAbsent(storageId, loadFuture);
+    if (existingLoad != null) {
+      return existingLoad;
+    }
+    if (cache.isLoaded()) {
+      cache.touch();
+      loadFuture.complete(cache);
+      loading.remove(storageId, loadFuture);
+      return loadFuture;
+    }
+    database
+        .ensureStorage(storageId)
+        .thenCompose(
+            v ->
+                database
+                    .loadStorage(storageId)
+                    .thenCombine(
+                        database.getStorageSortMode(storageId),
+                        (data, sort) -> {
+                          cache.loadFromDb(data);
+                          cache.refreshCustomItems(
+                              plugin.getCustomItems(), plugin.getWirelessService(), true);
+                          SortMode mode = sortService.resolveAndPersistDefault(storageId, sort);
+                          cache.setSortMode(mode);
+                          return cache;
+                        }))
+        .whenComplete(
+            (res, err) -> {
+              try {
+                if (err != null) {
+                  loadFuture.completeExceptionally(err);
+                } else {
+                  loadFuture.complete(res);
+                }
+              } finally {
+                loading.remove(storageId, loadFuture);
+              }
+            });
+    return loadFuture;
   }
 
   public void flushDirtyCaches() {

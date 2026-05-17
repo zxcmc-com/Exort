@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.5 — 2026-05-17
+- Removed the hard runtime dependency on WorldEdit/FAWE classes: Exort now starts without WorldEdit or FastAsyncWorldEdit installed, while registering the WorldEdit bridge lazily when either optional plugin is available.
+- Fixed storage load de-duplication so synchronously completed loads no longer throw `IllegalStateException: Recursive update` while resolving or testing storage networks.
+- Verified bus compatibility with Minecraft `1.21.9+` copper chests and shelves on Purpur `26.1.2-2583`: all copper chest and shelf variants work as block inventory targets, double copper chests expose the combined inventory to buses, shelf slot/merge/empty-slot operations pass, and non-storage copper blocks are ignored.
+
 ## 0.9.4 — 2026-05-17
 - Hardened item integrity for storage, crafting, wireless items, and buses: withdrawals and crafting now reserve real cache items before delivery, failed or partial delivery rolls back leftovers, crafting output checks capacity before consuming ingredients, and wireless item imports no longer mutate rejected source stacks.
 - Hardened WorldEdit/FAWE storage cloning: pasted storage markers apply only after a successful transactional storage clone, missing source storages fail instead of creating empty clones, FAWE extent allow-listing is verified at runtime, and WorldEdit reflection negative caches no longer store nulls.
