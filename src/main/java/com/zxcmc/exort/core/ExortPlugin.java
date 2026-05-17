@@ -41,7 +41,7 @@ import com.zxcmc.exort.core.sanity.ChunkSanityService;
 import com.zxcmc.exort.core.sanity.DisplayCleanupService;
 import com.zxcmc.exort.core.sanity.MarkerSanityService;
 import com.zxcmc.exort.core.ui.BossBarManager;
-import com.zxcmc.exort.core.worldedit.WorldEditBridge;
+import com.zxcmc.exort.core.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
@@ -130,7 +130,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private CacheDebugService cacheDebugService;
   private WorldEditDebugService worldEditDebugService;
   private Metrics metrics;
-  private WorldEditBridge worldEditBridge;
+  private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
@@ -216,9 +216,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (metrics != null) {
       metrics.shutdown();
     }
-    if (worldEditBridge != null) {
-      worldEditBridge.shutdown();
-      worldEditBridge = null;
+    if (worldEditIntegration != null) {
+      worldEditIntegration.shutdown();
+      worldEditIntegration = null;
     }
     if (resourcePackService != null) {
       resourcePackService.stop();
@@ -1265,15 +1265,15 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
               bumpInventoryRefreshEpoch();
             },
             5L);
-    if (worldEditBridge == null) {
-      worldEditBridge = WorldEditBridge.tryRegister(this);
-      if (worldEditBridge == null) {
+    if (worldEditIntegration == null) {
+      worldEditIntegration = WorldEditIntegration.tryRegister(this);
+      if (worldEditIntegration == null) {
         Bukkit.getPluginManager()
             .registerEvents(
                 new Listener() {
                   @EventHandler
                   public void onPluginEnable(PluginEnableEvent event) {
-                    if (worldEditBridge != null) {
+                    if (worldEditIntegration != null) {
                       HandlerList.unregisterAll(this);
                       return;
                     }
@@ -1281,8 +1281,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                     if (!"WorldEdit".equals(name) && !"FastAsyncWorldEdit".equals(name)) {
                       return;
                     }
-                    worldEditBridge = WorldEditBridge.tryRegister(ExortPlugin.this);
-                    if (worldEditBridge != null) {
+                    worldEditIntegration = WorldEditIntegration.tryRegister(ExortPlugin.this);
+                    if (worldEditIntegration != null) {
                       HandlerList.unregisterAll(this);
                     }
                   }
