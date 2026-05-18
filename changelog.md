@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.6 — 2026-05-18
+- Resource-pack auto-delivery now supports configuration-phase loading before players enter the world, with conservative AUTO behavior that falls back to post-join Exort delivery when `server.properties` already defines a resource pack.
+- Added resource-pack delivery controls (`AUTO`/`CONFIGURATION`/`JOIN`/`MANUAL`), opt-in online resend on ready, and a placeholder `EXORT` hosting mode for a future immutable official HTTPS pack.
+- Made LOBFILE hosting configuration explicit through `resourcePack.lobfile.apiKey`.
+- Hardened resource-pack reloads so stale async LobFile uploads cannot overwrite newer pack state after rebuild/reload.
+
 ## 0.9.5 — 2026-05-17
 - Removed the hard runtime dependency on WorldEdit/FAWE classes: Exort now starts without WorldEdit or FastAsyncWorldEdit installed, while registering the WorldEdit bridge lazily when either optional plugin is available.
 - Fixed storage load de-duplication so synchronously completed loads no longer throw `IllegalStateException: Recursive update` while resolving or testing storage networks.

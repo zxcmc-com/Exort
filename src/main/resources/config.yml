@@ -8,10 +8,20 @@ language: en_us
 mode: RESOURCE
 
 # Resource pack delivery is used only when the effective mode is RESOURCE.
-# AUTO uses Nexo when it is enabled, otherwise Exort self-hosts the pack.
+# AUTO uses Nexo when it is enabled, otherwise an official Exort pack if configured,
+# otherwise Exort self-hosts the pack.
 resourcePack:
-  # AUTO | NEXO | SELFHOST | LOBFILE | DISABLED
+  # AUTO | EXORT | NEXO | SELFHOST | LOBFILE | DISABLED
   hosting: AUTO
+  # AUTO uses the login configuration phase when Exort can safely deliver the pack directly,
+  # or JOIN when server.properties already defines another resource pack.
+  # JOIN keeps the old post-join delayed request. MANUAL disables automatic requests.
+  # AUTO | CONFIGURATION | JOIN | MANUAL
+  delivery: AUTO
+  # How long CONFIGURATION delivery waits for a terminal client pack status before allowing join.
+  configurationTimeoutSeconds: 30
+  # If true, Exort sends the pack to already-online players when a direct-delivery pack becomes ready.
+  sendOnlineOnReady: false
   # SIMPLE obfuscation for internal model/texture paths. Public item/font/blockstate entrypoints stay stable.
   obfuscation: true
   # If true, vanilla clients disconnect when they decline the pack.
@@ -25,6 +35,9 @@ resourcePack:
     bindHost: "0.0.0.0"
     # 0 lets the OS pick a free port.
     port: 0
+  lobfile:
+    # API key for LOBFILE hosting. Keep empty unless hosting is set to LOBFILE.
+    apiKey: ""
 
 # Enable WorldGuard integration (region protection checks).
 worldguard:

@@ -2,15 +2,13 @@ package com.zxcmc.exort.core.resourcepack;
 
 import java.util.Locale;
 
-public enum ResourcePackHosting {
+public enum ResourcePackDelivery {
   AUTO,
-  EXORT,
-  NEXO,
-  SELFHOST,
-  LOBFILE,
-  DISABLED;
+  CONFIGURATION,
+  JOIN,
+  MANUAL;
 
-  public static ResourcePackHosting fromConfig(String raw) {
+  public static ResourcePackDelivery fromConfig(String raw) {
     if (raw == null || raw.isBlank()) {
       return AUTO;
     }
