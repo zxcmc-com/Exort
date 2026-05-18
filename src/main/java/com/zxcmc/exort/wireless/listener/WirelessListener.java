@@ -228,10 +228,24 @@ public class WirelessListener implements Listener {
                 handleStorageLoadFailure(player, storageId, err);
                 return;
               }
-              Bukkit.getScheduler()
-                  .runTask(
-                      plugin, () -> completeWirelessOpen(player, hand, storageId, anchor, data));
+              runSyncIfEnabled(() -> completeWirelessOpen(player, hand, storageId, anchor, data));
             });
+  }
+
+  private void runSyncIfEnabled(Runnable task) {
+    if (!plugin.isEnabled()) return;
+    try {
+      Bukkit.getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async storage load completes.
+    }
   }
 
   private void completeWirelessOpen(

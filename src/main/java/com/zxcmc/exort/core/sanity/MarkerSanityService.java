@@ -150,16 +150,29 @@ public final class MarkerSanityService {
                                         unwrap(tierErr));
                                 return;
                               }
-                              Bukkit.getScheduler()
-                                  .runTask(
-                                      plugin,
-                                      () -> {
-                                        displayRefreshService.refreshStorage(block);
-                                        if (plugin.getHologramManager() != null) {
-                                          plugin.getHologramManager().registerStorage(block);
-                                          plugin.getHologramManager().invalidateAll();
-                                        }
-                                      });
+                              if (!plugin.isEnabled()) return;
+                              try {
+                                Bukkit.getScheduler()
+                                    .runTask(
+                                        plugin,
+                                        () -> {
+                                          if (!plugin.isEnabled()) return;
+                                          var current = StorageMarker.get(plugin, block);
+                                          if (current.isEmpty()
+                                              || !storageId.equals(current.get().storageId())
+                                              || !Carriers.matchesCarrier(block, storageCarrier)) {
+                                            return;
+                                          }
+                                          displayRefreshService.refreshStorage(block);
+                                          if (plugin.getHologramManager() != null) {
+                                            plugin.getHologramManager().registerStorage(block);
+                                            plugin.getHologramManager().invalidateAll();
+                                          }
+                                        });
+                              } catch (IllegalStateException handoffFailure) {
+                                // Plugin is disabling between the async repair and the sync
+                                // handoff.
+                              }
                             });
                   });
         });

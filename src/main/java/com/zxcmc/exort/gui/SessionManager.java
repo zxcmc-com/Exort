@@ -417,7 +417,8 @@ public class SessionManager {
   }
 
   public Set<GuiSession> sessionsForStorage(String storageId) {
-    return byStorage.getOrDefault(storageId, new LinkedHashSet<>());
+    Set<GuiSession> sessions = byStorage.get(storageId);
+    return sessions == null ? Set.of() : Set.copyOf(sessions);
   }
 
   public Collection<GuiSession> allSessions() {

@@ -55,6 +55,7 @@ import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.gui.CreativeTabOrder;
 import com.zxcmc.exort.gui.SearchDialogService;
 import com.zxcmc.exort.gui.SessionManager;
+import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -137,6 +138,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private boolean resourceMode;
   private String configuredMode = "RESOURCE";
   private String modeFallbackReason = "";
+  private volatile String defaultSortModeName = SortMode.AMOUNT.name();
   private boolean sanityScanScheduled;
   private RegionProtection regionProtection = RegionProtection.allowAll();
   private final Map<MonitorPos, Integer> recentMonitorPlacements = new ConcurrentHashMap<>();
@@ -192,14 +194,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       Bukkit.getScheduler().cancelTask(cacheEvictTaskId);
       cacheEvictTaskId = -1;
     }
-    if (sessionManager != null) {
-      sessionManager.allSessions().stream()
-          .toList()
-          .forEach(session -> sessionManager.forceCloseSession(session.getViewer()));
-    }
-    if (busSessionManager != null) {
-      busSessionManager.shutdown();
-    }
+    closeRuntimeSessions();
     if (storageManager != null) {
       storageManager.flushAllAndWait();
     }
@@ -229,19 +224,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (monitorDisplayManager != null) {
       monitorDisplayManager.stop();
     }
-    if (busSessionManager != null) {
-      busSessionManager.shutdown();
-      busSessionManager = null;
-    }
+    busSessionManager = null;
     if (busService != null) {
       busService.stop();
     }
     if (customBlockBreaker != null) {
       customBlockBreaker.shutdown();
       customBlockBreaker = null;
-    }
-    if (customBlockBreaker != null) {
-      customBlockBreaker.shutdown();
     }
     if (database != null) {
       database.close();
@@ -482,11 +471,24 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   public CompletableFuture<ItemNameService.Status> reloadRuntime() {
     ConfigUpdater.update(this, "config.yml");
     reloadConfig();
+    closeRuntimeSessions();
     ensureStorageTiersFile();
     ensureRecipesFile();
     evaluateModePolicy();
     reloadResourcePackService();
     return registerRuntime();
+  }
+
+  private void closeRuntimeSessions() {
+    if (sessionManager != null) {
+      sessionManager.allSessions().stream()
+          .toList()
+          .forEach(session -> sessionManager.forceCloseSession(session.getViewer()));
+    }
+    if (busSessionManager != null) {
+      busSessionManager.shutdown();
+      busSessionManager = null;
+    }
   }
 
   public void reloadResourcePackService() {
@@ -496,6 +498,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   private CompletableFuture<ItemNameService.Status> registerRuntime() {
+    reloadDefaultSortMode();
     String langCode = getConfig().getString("language", "en_us");
     String normalized = itemNameService.normalizeLanguage(langCode);
     if (lang == null) {
@@ -1147,6 +1150,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             wireMaterial,
             storageCarrier,
             terminalCarrier,
+            monitorCarrier,
             busCarrier);
     customBlockBreaker.start();
     Bukkit.getPluginManager().registerEvents(customBlockBreaker, this);
@@ -1391,12 +1395,19 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (!getConfig().getBoolean("worldguard.enabled", true)) {
       return;
     }
+    boolean failClosed = getConfig().getBoolean("worldguard.failClosedOnError", false);
     var wg = getServer().getPluginManager().getPlugin("WorldGuard");
     if (wg == null || !wg.isEnabled()) return;
     try {
-      regionProtection = new WorldGuardProtection();
-    } catch (IllegalStateException ignored) {
-      // WorldGuard classes are unavailable; keep allow-all behavior.
+      regionProtection = new WorldGuardProtection(getLogger(), failClosed);
+    } catch (IllegalStateException error) {
+      getLogger()
+          .log(
+              Level.WARNING,
+              "WorldGuard is enabled, but Exort could not initialize its protection adapter; "
+                  + (failClosed ? "denying Exort actions." : "allowing Exort actions."),
+              error);
+      regionProtection = failClosed ? RegionProtection.denyAll() : RegionProtection.allowAll();
     }
     boolean debug = getConfig().getBoolean("worldguard.debug", false);
     if (debug) {
@@ -1484,6 +1495,16 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   public int getWireHardCap() {
     return wireHardCap;
+  }
+
+  public String getDefaultSortModeName() {
+    return defaultSortModeName;
+  }
+
+  private void reloadDefaultSortMode() {
+    defaultSortModeName =
+        SortMode.fromString(getConfig().getString("defaultSortMode", SortMode.AMOUNT.name()))
+            .name();
   }
 
   public ItemHologramManager getHologramManager() {

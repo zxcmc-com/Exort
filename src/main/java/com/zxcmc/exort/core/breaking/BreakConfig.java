@@ -113,6 +113,13 @@ public final class BreakConfig {
     return material != null ? Set.of(material) : Set.of();
   }
 
+  private static void addOptionalTool(Set<Material> tools, String materialName) {
+    Material material = Material.matchMaterial(materialName);
+    if (material != null) {
+      tools.add(material);
+    }
+  }
+
   private static Material parseMaterial(String raw) {
     if (raw == null) return null;
     String trimmed = raw.trim();
@@ -145,56 +152,65 @@ public final class BreakConfig {
   }
 
   private static Set<Material> defaultStorageTools() {
-    return Set.of(
-        Material.WOODEN_PICKAXE,
-        Material.STONE_PICKAXE,
-        Material.COPPER_PICKAXE,
-        Material.IRON_PICKAXE,
-        Material.DIAMOND_PICKAXE,
-        Material.NETHERITE_PICKAXE,
-        Material.GOLDEN_PICKAXE);
+    Set<Material> tools =
+        new HashSet<>(
+            List.of(
+                Material.WOODEN_PICKAXE,
+                Material.STONE_PICKAXE,
+                Material.IRON_PICKAXE,
+                Material.DIAMOND_PICKAXE,
+                Material.NETHERITE_PICKAXE,
+                Material.GOLDEN_PICKAXE));
+    addOptionalTool(tools, "COPPER_PICKAXE");
+    return tools;
   }
 
   private static Set<Material> defaultTerminalTools() {
-    return Set.of(
-        Material.WOODEN_PICKAXE,
-        Material.STONE_PICKAXE,
-        Material.COPPER_PICKAXE,
-        Material.IRON_PICKAXE,
-        Material.DIAMOND_PICKAXE,
-        Material.NETHERITE_PICKAXE,
-        Material.GOLDEN_PICKAXE,
-        Material.WOODEN_AXE,
-        Material.STONE_AXE,
-        Material.COPPER_AXE,
-        Material.IRON_AXE,
-        Material.DIAMOND_AXE,
-        Material.NETHERITE_AXE,
-        Material.GOLDEN_AXE);
+    Set<Material> tools =
+        new HashSet<>(
+            List.of(
+                Material.WOODEN_PICKAXE,
+                Material.STONE_PICKAXE,
+                Material.IRON_PICKAXE,
+                Material.DIAMOND_PICKAXE,
+                Material.NETHERITE_PICKAXE,
+                Material.GOLDEN_PICKAXE,
+                Material.WOODEN_AXE,
+                Material.STONE_AXE,
+                Material.IRON_AXE,
+                Material.DIAMOND_AXE,
+                Material.NETHERITE_AXE,
+                Material.GOLDEN_AXE));
+    addOptionalTool(tools, "COPPER_PICKAXE");
+    addOptionalTool(tools, "COPPER_AXE");
+    return tools;
   }
 
   private static Set<Material> defaultWireTools() {
-    return Set.of(
-        Material.WOODEN_PICKAXE,
-        Material.STONE_PICKAXE,
-        Material.COPPER_PICKAXE,
-        Material.IRON_PICKAXE,
-        Material.DIAMOND_PICKAXE,
-        Material.NETHERITE_PICKAXE,
-        Material.GOLDEN_PICKAXE,
-        Material.WOODEN_AXE,
-        Material.STONE_AXE,
-        Material.COPPER_AXE,
-        Material.IRON_AXE,
-        Material.DIAMOND_AXE,
-        Material.NETHERITE_AXE,
-        Material.GOLDEN_AXE,
-        Material.WOODEN_SWORD,
-        Material.STONE_SWORD,
-        Material.COPPER_SWORD,
-        Material.IRON_SWORD,
-        Material.DIAMOND_SWORD,
-        Material.NETHERITE_SWORD,
-        Material.GOLDEN_SWORD);
+    Set<Material> tools =
+        new HashSet<>(
+            List.of(
+                Material.WOODEN_PICKAXE,
+                Material.STONE_PICKAXE,
+                Material.IRON_PICKAXE,
+                Material.DIAMOND_PICKAXE,
+                Material.NETHERITE_PICKAXE,
+                Material.GOLDEN_PICKAXE,
+                Material.WOODEN_AXE,
+                Material.STONE_AXE,
+                Material.IRON_AXE,
+                Material.DIAMOND_AXE,
+                Material.NETHERITE_AXE,
+                Material.GOLDEN_AXE,
+                Material.WOODEN_SWORD,
+                Material.STONE_SWORD,
+                Material.IRON_SWORD,
+                Material.DIAMOND_SWORD,
+                Material.NETHERITE_SWORD,
+                Material.GOLDEN_SWORD));
+    addOptionalTool(tools, "COPPER_PICKAXE");
+    addOptionalTool(tools, "COPPER_AXE");
+    addOptionalTool(tools, "COPPER_SWORD");
+    return tools;
   }
 }

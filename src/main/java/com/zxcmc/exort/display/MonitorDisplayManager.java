@@ -753,8 +753,24 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         .whenComplete(
             (cache, err) -> {
               if (err != null) return;
-              Bukkit.getScheduler().runTask(plugin, () -> refreshStorageMonitors(storageId));
+              runSyncIfEnabled(() -> refreshStorageMonitors(storageId));
             });
+  }
+
+  private void runSyncIfEnabled(Runnable task) {
+    if (!plugin.isEnabled()) return;
+    try {
+      Bukkit.getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async storage load completes.
+    }
   }
 
   private void refreshStorageMonitors(String storageId) {

@@ -12,7 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.logging.Level;
+import org.bukkit.Bukkit;
 
 public class StorageManager {
   private static final long FLUSH_WAIT_TIMEOUT_SECONDS = 15L;
@@ -56,16 +58,8 @@ public class StorageManager {
             v ->
                 database
                     .loadStorage(storageId)
-                    .thenCombine(
-                        database.getStorageSortMode(storageId),
-                        (data, sort) -> {
-                          cache.loadFromDb(data);
-                          cache.refreshCustomItems(
-                              plugin.getCustomItems(), plugin.getWirelessService(), true);
-                          SortMode mode = sortService.resolveAndPersistDefault(storageId, sort);
-                          cache.setSortMode(mode);
-                          return cache;
-                        }))
+                    .thenCombine(database.getStorageSortMode(storageId), LoadedStorageData::new))
+        .thenCompose(data -> finishLoadOnMainThread(storageId, cache, data))
         .whenComplete(
             (res, err) -> {
               try {
@@ -79,6 +73,19 @@ public class StorageManager {
               }
             });
     return loadFuture;
+  }
+
+  private CompletableFuture<StorageCache> finishLoadOnMainThread(
+      String storageId, StorageCache cache, LoadedStorageData data) {
+    return supplyOnMainThread(
+        "loading storage " + storageId,
+        () -> {
+          cache.loadFromDb(data.items());
+          cache.refreshCustomItems(plugin.getCustomItems(), plugin.getWirelessService(), true);
+          SortMode mode = sortService.resolveAndPersistDefault(storageId, data.sortMode());
+          cache.setSortMode(mode);
+          return cache;
+        });
   }
 
   public void flushDirtyCaches() {
@@ -163,24 +170,41 @@ public class StorageManager {
     }
     Optional<StorageCache> loaded = peekLoadedCache(fromId);
     if (loaded.isPresent()) {
-      StorageCache cache = loaded.get();
-      Collection<DbItem> items = cache.snapshotItems();
-      String sortMode = cache.getSortMode().name();
-      Map<String, DbItem> snapshot = new ConcurrentHashMap<>();
-      for (DbItem item : items) {
-        snapshot.put(item.key(), item);
-      }
-      return database
-          .createStorageWithItems(toId, tierKey, sortMode, items)
-          .thenRun(
-              () -> {
-                StorageCache cloned = new StorageCache(toId, plugin.getKeys(), plugin);
-                cloned.loadFromDb(snapshot);
-                cloned.setSortMode(cache.getSortMode());
-                caches.put(toId, cloned);
-              });
+      return snapshotLoadedCacheForClone(loaded.get(), toId)
+          .thenCompose(
+              snapshot ->
+                  database
+                      .createStorageWithItems(
+                          toId, tierKey, snapshot.sortMode().name(), snapshot.items())
+                      .thenCompose(ignored -> installClonedCache(toId, snapshot)));
     }
     return database.cloneStorage(fromId, toId, tierKey);
+  }
+
+  private CompletableFuture<CloneSnapshot> snapshotLoadedCacheForClone(
+      StorageCache cache, String toId) {
+    return supplyOnMainThread(
+        "snapshotting loaded storage for clone " + toId,
+        () -> {
+          Collection<DbItem> items = cache.snapshotItems();
+          Map<String, DbItem> byKey = new ConcurrentHashMap<>();
+          for (DbItem item : items) {
+            byKey.put(item.key(), item);
+          }
+          return new CloneSnapshot(items, byKey, cache.getSortMode());
+        });
+  }
+
+  private CompletableFuture<Void> installClonedCache(String toId, CloneSnapshot snapshot) {
+    return supplyOnMainThread(
+        "installing cloned storage cache " + toId,
+        () -> {
+          StorageCache cloned = new StorageCache(toId, plugin.getKeys(), plugin);
+          cloned.loadFromDb(snapshot.byKey());
+          cloned.setSortMode(snapshot.sortMode());
+          caches.put(toId, cloned);
+          return null;
+        });
   }
 
   public int evictIdleCaches(long idleMs) {
@@ -213,5 +237,41 @@ public class StorageManager {
     if (debug != null && debug.isEnabled()) {
       debug.record(type, storageId, message, amount);
     }
+  }
+
+  private record LoadedStorageData(Map<String, DbItem> items, Optional<String> sortMode) {}
+
+  private record CloneSnapshot(
+      Collection<DbItem> items, Map<String, DbItem> byKey, SortMode sortMode) {}
+
+  private <T> CompletableFuture<T> supplyOnMainThread(String action, Supplier<T> supplier) {
+    CompletableFuture<T> future = new CompletableFuture<>();
+    if (!plugin.isEnabled()) {
+      future.completeExceptionally(new IllegalStateException("Plugin disabled while " + action));
+      return future;
+    }
+    Runnable task =
+        () -> {
+          if (!plugin.isEnabled()) {
+            future.completeExceptionally(
+                new IllegalStateException("Plugin disabled while " + action));
+            return;
+          }
+          try {
+            future.complete(supplier.get());
+          } catch (RuntimeException e) {
+            future.completeExceptionally(e);
+          }
+        };
+    if (Bukkit.isPrimaryThread()) {
+      task.run();
+      return future;
+    }
+    try {
+      Bukkit.getScheduler().runTask(plugin, task);
+    } catch (RuntimeException e) {
+      future.completeExceptionally(e);
+    }
+    return future;
   }
 }

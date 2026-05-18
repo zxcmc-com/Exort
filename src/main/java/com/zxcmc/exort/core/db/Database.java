@@ -25,6 +25,7 @@ import java.util.logging.Level;
 
 public class Database implements AutoCloseable {
   private static final long CLOSE_TIMEOUT_SECONDS = 15L;
+  private static final int MAX_ITEM_BLOB_BYTES = 1_048_576;
 
   private final ExortPlugin plugin;
   private final ExecutorService executor =
@@ -56,6 +57,7 @@ public class Database implements AutoCloseable {
       stmt.execute("PRAGMA journal_mode=WAL");
       stmt.execute("PRAGMA synchronous=NORMAL");
       stmt.execute("PRAGMA foreign_keys=ON");
+      stmt.execute("PRAGMA busy_timeout=5000");
     }
   }
 
@@ -189,7 +191,7 @@ public class Database implements AutoCloseable {
   }
 
   private String defaultSortModeName() {
-    String raw = plugin.getConfig().getString("defaultSortMode", "AMOUNT");
+    String raw = plugin == null ? "AMOUNT" : plugin.getDefaultSortModeName();
     return SortMode.fromString(raw).name();
   }
 
@@ -270,7 +272,7 @@ public class Database implements AutoCloseable {
             try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
               int batchSize = 0;
               for (DbItem item : safeItems) {
-                if (item == null || item.amount() <= 0) continue;
+                if (!isPersistableDbItem(storageId, item, "create")) continue;
                 insert.setString(1, storageId);
                 insert.setString(2, item.key());
                 insert.setBytes(3, item.blob());
@@ -576,14 +578,35 @@ public class Database implements AutoCloseable {
     return CompletableFuture.supplyAsync(
         () -> {
           Map<String, DbItem> items = new HashMap<>();
-          String sql = "SELECT item_key, item_blob, amount FROM storage_items WHERE storage_id = ?";
+          String sql =
+              "SELECT item_key, item_blob, amount, length(item_blob) AS blob_len FROM storage_items"
+                  + " WHERE storage_id = ?";
           try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, storageId);
             try (ResultSet rs = ps.executeQuery()) {
               while (rs.next()) {
                 String key = rs.getString("item_key");
-                byte[] blob = rs.getBytes("item_blob");
                 long amount = rs.getLong("amount");
+                long blobLen = rs.getLong("blob_len");
+                if (amount <= 0) {
+                  warnInvalidStorageRow(storageId, key, amount, blobLen, "amount must be positive");
+                  continue;
+                }
+                if (blobLen <= 0 || blobLen > MAX_ITEM_BLOB_BYTES) {
+                  warnInvalidStorageRow(
+                      storageId, key, amount, blobLen, "invalid serialized item blob length");
+                  continue;
+                }
+                byte[] blob = rs.getBytes("item_blob");
+                if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+                  warnInvalidStorageRow(
+                      storageId,
+                      key,
+                      amount,
+                      blob == null ? 0L : blob.length,
+                      "invalid serialized item blob");
+                  continue;
+                }
                 items.put(key, new DbItem(key, blob, amount));
               }
             }
@@ -598,10 +621,11 @@ public class Database implements AutoCloseable {
 
   public CompletableFuture<Void> writeSnapshot(String storageId, Collection<DbItem> items) {
     Objects.requireNonNull(storageId, "storageId");
+    Collection<DbItem> safeItems = items == null ? List.of() : items;
     return CompletableFuture.runAsync(
         () -> {
           try {
-            writeSnapshotInternal(storageId, items);
+            writeSnapshotInternal(storageId, safeItems);
           } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to write snapshot for " + storageId, e);
             throw new CompletionException(e);
@@ -625,7 +649,7 @@ public class Database implements AutoCloseable {
         int batchSize = 0;
         // Limit batch size to reduce memory spikes on very large storages.
         for (DbItem item : items) {
-          if (item.amount() <= 0) continue;
+          if (!isPersistableDbItem(storageId, item, "snapshot")) continue;
           insert.setString(1, storageId);
           insert.setString(2, item.key());
           insert.setBytes(3, item.blob());
@@ -708,7 +732,7 @@ public class Database implements AutoCloseable {
               try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
                 int batchSize = 0;
                 for (DbItem item : upserts) {
-                  if (item == null || item.amount() <= 0) continue;
+                  if (!isPersistableDbItem(storageId, item, "delta")) continue;
                   insert.setString(1, storageId);
                   insert.setString(2, item.key());
                   insert.setBytes(3, item.blob());
@@ -749,6 +773,57 @@ public class Database implements AutoCloseable {
           }
         },
         executor);
+  }
+
+  private boolean isPersistableDbItem(String storageId, DbItem item, String operation) {
+    if (item == null) {
+      warnInvalidStorageRow(storageId, "<null>", 0L, 0L, operation + " item is null");
+      return false;
+    }
+    if (item.key() == null || item.key().isBlank()) {
+      warnInvalidStorageRow(storageId, item.key(), item.amount(), blobLength(item), "missing key");
+      return false;
+    }
+    if (item.amount() <= 0) {
+      warnInvalidStorageRow(
+          storageId, item.key(), item.amount(), blobLength(item), "amount must be positive");
+      return false;
+    }
+    byte[] blob = item.blob();
+    if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+      warnInvalidStorageRow(
+          storageId,
+          item.key(),
+          item.amount(),
+          blob == null ? 0L : blob.length,
+          "invalid serialized item blob length");
+      return false;
+    }
+    return true;
+  }
+
+  private long blobLength(DbItem item) {
+    if (item == null || item.blob() == null) return 0L;
+    return item.blob().length;
+  }
+
+  private void warnInvalidStorageRow(
+      String storageId, String key, long amount, long blobLength, String reason) {
+    if (plugin == null) return;
+    plugin
+        .getLogger()
+        .warning(
+            "Storage "
+                + storageId
+                + ": skipping invalid DB item row: "
+                + reason
+                + " (key="
+                + key
+                + ", amount="
+                + amount
+                + ", blobLength="
+                + blobLength
+                + ")");
   }
 
   @Override

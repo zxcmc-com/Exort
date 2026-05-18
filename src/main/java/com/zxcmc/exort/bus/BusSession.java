@@ -114,6 +114,7 @@ public class BusSession implements InventoryHolder {
     }
     if (rawSlot == GuiLayout.Bus.SLOT_MODE) {
       state.setMode(state.mode().next());
+      manager.saveSettings(state);
       render();
       return;
     }
@@ -133,11 +134,13 @@ public class BusSession implements InventoryHolder {
     ItemStack cursor = event.getView().getCursor();
     if (cursor == null || cursor.getType() == Material.AIR) {
       state.setFilter(index, null);
+      manager.saveSettings(state);
       render();
       return;
     }
     ItemStack sample = ItemKeyUtil.sampleItem(cursor);
     state.setFilter(index, sample);
+    manager.saveSettings(state);
     render();
   }
 

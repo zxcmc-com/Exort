@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 — 2026-05-19
+- Hardened item integrity for crafting terminals: recipe remainder items are now returned, cursor output buffers are capacity-checked, and unflushable buffered output is returned to the player or dropped instead of being lost or overfilling storage.
+- Hardened storage placement failure handling: if tier persistence fails after placement, Exort now revalidates the marker, removes the failed storage block/display, and returns the consumed item when appropriate.
+- Restored declared 1.21.7 runtime compatibility for custom breaking defaults by resolving new copper tools dynamically instead of directly referencing newer `Material` enum constants.
+- Hardened storage/cache loading against corrupt DB rows, oversized item blobs, invalid serialized item data, weighted-total overflow, and oversized/null DB write rows.
+- Moved storage post-load item refresh, default-sort resolution, and loaded-cache clone snapshots back onto the main thread while keeping SQLite I/O async.
+- Hardened bus, wireless, display, and admin command edge cases: bus filters reject oversized blobs, bus GUI settings persist on change and flush on service stop, wireless unbind clears stale tier metadata, display markers verify entity type before casting, async UI/command handoffs avoid disabled-plugin scheduling, and `/exort give` caps amount and reports partial delivery.
+- Added safer WorldGuard failure diagnostics with configurable `worldguard.failClosedOnError`, and moved Exort custom item/block placement later in the event pipeline so earlier protection cancellations can apply.
+- Added JUnit-based regression coverage for storage tier capacity parsing, malformed bus filter blobs, corrupt DB row filtering, and recipe key parsing.
+
 ## 0.9.7 — 2026-05-18
 - Fixed wireless/search session cleanup so storage and wireless error bossbars no longer remain after forced GUI/dialog closure.
 - Physical terminal, crafting-terminal, and bus GUIs now close cleanly when the player leaves the configured device range.

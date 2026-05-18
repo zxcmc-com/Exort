@@ -44,6 +44,10 @@ public class Lang {
             + " [amount] | wire [amount]");
     put(defaultsEn, "message.give_unknown", "Unknown item type.");
     put(defaultsEn, "message.give_success", "Gave {0}x {1} to {2}.");
+    put(
+        defaultsEn,
+        "message.give_partial",
+        "Only {0} of {1} item(s) could fit in {2}'s inventory.");
     put(defaultsEn, "message.reload", "Config reloaded.");
     put(defaultsEn, "message.debug_player_none", "No storage history for {0}.");
     put(defaultsEn, "message.debug_player_active", "{0} is viewing: {1} ({2}) at {3} {4} {5} {6}");
@@ -355,6 +359,10 @@ public class Lang {
             + " [кол-во] | wire [кол-во]");
     put(defaultsRu, "message.give_unknown", "Неизвестный тип предмета.");
     put(defaultsRu, "message.give_success", "Выдано {0}x {1} игроку {2}.");
+    put(
+        defaultsRu,
+        "message.give_partial",
+        "В инвентарь игрока {2} поместилось только {0} из {1} предметов.");
     put(defaultsRu, "message.reload", "Конфигурация перезагружена.");
     put(defaultsRu, "message.debug_player_none", "Нет данных о хранилищах для {0}.");
     put(

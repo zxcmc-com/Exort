@@ -13,6 +13,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 public class StorageCache {
+  private static final int MAX_ITEM_BLOB_BYTES = 1_048_576;
+
   public record RemovalRequest(String key, ItemStack sample, long amount) {}
 
   public record ReservedItem(String key, ItemStack sample, long amount) {}
@@ -64,7 +66,7 @@ public class StorageCache {
     }
 
     public void add(long delta) {
-      this.amount += delta;
+      this.amount = saturatingAdd(this.amount, delta);
     }
 
     public void subtract(long delta) {
@@ -118,14 +120,60 @@ public class StorageCache {
     removedKeys.clear();
     totalAmount = 0;
     totalWeighted = 0;
+    dirty = false;
     version++;
     touch();
     for (DbItem item : data.values()) {
-      ItemStack stack = ItemKeyUtil.deserialize(item.blob());
-      long weight = nestedWeight(stack);
-      items.put(item.key(), new StorageItem(item.key(), stack, item.amount(), weight, item.blob()));
-      totalAmount += item.amount();
-      totalWeighted += item.amount() * weight;
+      if (item == null || item.amount() <= 0) {
+        warnInvalidDbItem(item, "amount must be positive");
+        continue;
+      }
+      byte[] blob = item.blob();
+      if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+        warnInvalidDbItem(item, "invalid serialized item blob length");
+        continue;
+      }
+      ItemStack stack;
+      try {
+        stack = ItemKeyUtil.deserialize(blob);
+      } catch (RuntimeException e) {
+        warnInvalidDbItem(item, "serialized item blob cannot be decoded: " + e.getMessage());
+        continue;
+      }
+      if (stack == null || stack.getType().isAir()) {
+        warnInvalidDbItem(item, "serialized item is empty");
+        continue;
+      }
+      ItemKeyUtil.SampleData normalized = ItemKeyUtil.sampleData(stack);
+      String key = item.key();
+      if (key == null || key.isBlank()) {
+        key = normalized.key();
+        dirtyKeys.add(key);
+        dirty = true;
+        logInvalidDbItem(item, "missing item key; rebuilt key from item blob");
+      } else if (!key.equals(normalized.key())) {
+        removedKeys.add(key);
+        key = normalized.key();
+        dirtyKeys.add(key);
+        dirty = true;
+        logInvalidDbItem(item, "item key did not match blob; rebuilt key from item blob");
+      }
+      long weight = nestedWeight(normalized.sample());
+      long weighted = saturatingMultiply(item.amount(), weight);
+      if (weighted == Long.MAX_VALUE) {
+        warnInvalidDbItem(item, "weighted amount is too large");
+        continue;
+      }
+      StorageItem existing = items.get(key);
+      if (existing == null) {
+        items.put(
+            key,
+            new StorageItem(key, normalized.sample(), item.amount(), weight, normalized.bytes()));
+      } else {
+        existing.add(item.amount());
+      }
+      totalAmount = saturatingAdd(totalAmount, item.amount());
+      totalWeighted = saturatingAdd(totalWeighted, weighted);
     }
     log(
         CacheDebugService.EventType.LOAD,
@@ -137,7 +185,7 @@ public class StorageCache {
             + totalAmount
             + " weighted="
             + totalWeighted);
-    dirty = false;
+    dirty = dirty || !dirtyKeys.isEmpty() || !removedKeys.isEmpty();
     loaded = true;
   }
 
@@ -174,8 +222,8 @@ public class StorageCache {
       } else {
         target.add(item.amount());
       }
-      newTotal += item.amount();
-      newWeighted += item.amount() * weight;
+      newTotal = saturatingAdd(newTotal, item.amount());
+      newWeighted = saturatingAdd(newWeighted, saturatingMultiply(item.amount(), weight));
       if (custom) {
         if (!newKey.equals(item.key())) {
           newRemoved.add(item.key());
@@ -238,13 +286,13 @@ public class StorageCache {
       byte[] blob = sampleClone.serializeAsBytes();
       long weight = nestedWeight(sampleClone);
       items.put(key, new StorageItem(key, sampleClone, amount, weight, blob));
-      totalWeighted += amount * weight;
+      totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(amount, weight));
     } else {
       existing.add(amount);
-      totalWeighted += amount * existing.weight();
+      totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(amount, existing.weight()));
     }
     markChanged(key);
-    totalAmount += amount;
+    totalAmount = saturatingAdd(totalAmount, amount);
     dirty = true;
     version++;
   }
@@ -327,8 +375,8 @@ public class StorageCache {
     } else {
       markChanged(key);
     }
-    totalAmount -= removed;
-    totalWeighted -= removed * existing.weight();
+    totalAmount = Math.max(0L, totalAmount - removed);
+    totalWeighted = Math.max(0L, totalWeighted - saturatingMultiply(removed, existing.weight()));
     if (removed > 0) {
       dirty = true;
       version++;
@@ -370,8 +418,9 @@ public class StorageCache {
       } else {
         markChanged(entry.getKey());
       }
-      totalAmount -= remove;
-      totalWeighted -= remove * storageItem.weight();
+      totalAmount = Math.max(0L, totalAmount - remove);
+      totalWeighted =
+          Math.max(0L, totalWeighted - saturatingMultiply(remove, storageItem.weight()));
       remaining -= remove;
       dirty = true;
       version++;
@@ -513,11 +562,8 @@ public class StorageCache {
     List<DbItem> snap = new ArrayList<>(items.size());
     for (StorageItem item : items.values()) {
       if (item.amount() <= 0) continue;
-      byte[] blob = item.blob();
-      if (blob == null) {
-        blob = item.sample().serializeAsBytes();
-        item.setBlob(blob);
-      }
+      byte[] blob = blobFor(item);
+      if (blob == null) continue;
       snap.add(new DbItem(item.key(), blob, item.amount()));
     }
     return snap;
@@ -535,11 +581,8 @@ public class StorageCache {
     for (String key : dirtyKeys) {
       StorageItem item = items.get(key);
       if (item == null || item.amount() <= 0) continue;
-      byte[] blob = item.blob();
-      if (blob == null) {
-        blob = item.sample().serializeAsBytes();
-        item.setBlob(blob);
-      }
+      byte[] blob = blobFor(item);
+      if (blob == null) continue;
       upserts.add(new DbItem(item.key(), blob, item.amount()));
     }
     Set<String> removals = removedKeys.isEmpty() ? Set.of() : new HashSet<>(removedKeys);
@@ -670,8 +713,10 @@ public class StorageCache {
   public long nestedWeight(ItemStack stack) {
     // Weight is at least 1 to prevent division by zero in space calculations.
     long nested = nestedCount(stack);
-    long weight = 1 + nested;
-    return Math.max(1, weight);
+    if (nested >= Long.MAX_VALUE - 1) {
+      return Long.MAX_VALUE;
+    }
+    return Math.max(1, 1 + nested);
   }
 
   public long nestedCount(ItemStack stack) {
@@ -683,6 +728,54 @@ public class StorageCache {
             .get(keys.nestedCount(), PersistentDataType.LONG);
     if (val == null) return 0;
     return Math.max(0, val);
+  }
+
+  private byte[] blobFor(StorageItem item) {
+    byte[] blob = item.blob();
+    if (blob != null && blob.length > 0 && blob.length <= MAX_ITEM_BLOB_BYTES) {
+      return blob;
+    }
+    try {
+      blob = item.sample().serializeAsBytes();
+      if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+        logInvalidDbItem(
+            new DbItem(item.key(), blob, item.amount()), "serialized blob size invalid");
+        return null;
+      }
+      item.setBlob(blob);
+      return blob;
+    } catch (RuntimeException e) {
+      logInvalidDbItem(
+          new DbItem(item.key(), null, item.amount()),
+          "failed to serialize item sample: " + e.getMessage());
+      return null;
+    }
+  }
+
+  private void warnInvalidDbItem(DbItem item, String reason) {
+    logInvalidDbItem(item, "skipping invalid storage item: " + reason);
+  }
+
+  private void logInvalidDbItem(DbItem item, String message) {
+    if (plugin == null) return;
+    String key = item == null ? "<null>" : String.valueOf(item.key());
+    long amount = item == null ? 0L : item.amount();
+    plugin
+        .getLogger()
+        .warning(
+            "Storage " + storageId + ": " + message + " (key=" + key + ", amount=" + amount + ")");
+  }
+
+  private static long saturatingAdd(long left, long right) {
+    if (right <= 0) return left;
+    if (left > Long.MAX_VALUE - right) return Long.MAX_VALUE;
+    return left + right;
+  }
+
+  private static long saturatingMultiply(long left, long right) {
+    if (left <= 0 || right <= 0) return 0L;
+    if (left > Long.MAX_VALUE / right) return Long.MAX_VALUE;
+    return left * right;
   }
 
   private void markChanged(String key) {

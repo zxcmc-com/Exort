@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.9.7'
+version = '0.10.0'
 description = 'Exort Storage Network'
 
 base {
@@ -58,6 +58,10 @@ dependencies {
     compileOnly 'com.sk89q.worldedit:worldedit-core:7.3.0'
     implementation 'org.bstats:bstats-bukkit:3.1.0'
     implementation 'org.bstats:bstats-base:3.1.0'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'io.papermc.paper:paper-api:26.1.2.build.59-stable'
+    testRuntimeOnly 'org.xerial:sqlite-jdbc:3.45.3.0'
     googleJavaFormat 'com.google.googlejavaformat:google-java-format:1.35.0'
 }
 
@@ -87,14 +91,44 @@ tasks.register('googleJavaFormat', JavaExec) {
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
     )
     args '--replace'
-    args fileTree('src/main/java') {
-        include '**/*.java'
+    args fileTree('src') {
+        include 'main/java/**/*.java'
+        include 'test/java/**/*.java'
+        exclude '**/CreativeTabData.java'
+    }.files
+}
+
+tasks.register('googleJavaFormatCheck', JavaExec) {
+    group = 'verification'
+    description = 'Checks Java source formatting using google-java-format without rewriting files.'
+    classpath = configurations.googleJavaFormat
+    mainClass = 'com.google.googlejavaformat.java.Main'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+    jvmArgs(
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
+    )
+    args '--dry-run'
+    args '--set-exit-if-changed'
+    args fileTree('src') {
+        include 'main/java/**/*.java'
+        include 'test/java/**/*.java'
         exclude '**/CreativeTabData.java'
     }.files
 }
 
 tasks.withType(JavaCompile).configureEach {
     dependsOn tasks.named('googleJavaFormat')
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 tasks.named('shadowJar') {

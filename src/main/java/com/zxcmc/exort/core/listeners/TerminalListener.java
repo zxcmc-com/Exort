@@ -139,8 +139,7 @@ public class TerminalListener implements Listener {
                 handleStorageLoadFailure(player, storageId, err);
                 return;
               }
-              Bukkit.getScheduler()
-                  .runTask(plugin, () -> completeOpen(player, block, storageId, cache));
+              runSyncIfEnabled(() -> completeOpen(player, block, storageId, cache));
             });
   }
 
@@ -192,16 +191,30 @@ public class TerminalListener implements Listener {
     plugin
         .getLogger()
         .log(Level.WARNING, "Failed to load terminal storage " + storageId, unwrap(err));
-    Bukkit.getScheduler()
-        .runTask(
-            plugin,
-            () -> {
-              if (player == null || !player.isOnline()) return;
-              plugin
-                  .getBossBarManager()
-                  .showError(
-                      player, lang.tr("message.storage_load_failed"), plugin.getStoragePeekTicks());
-            });
+    runSyncIfEnabled(
+        () -> {
+          if (player == null || !player.isOnline()) return;
+          plugin
+              .getBossBarManager()
+              .showError(
+                  player, lang.tr("message.storage_load_failed"), plugin.getStoragePeekTicks());
+        });
+  }
+
+  private void runSyncIfEnabled(Runnable task) {
+    if (!plugin.isEnabled()) return;
+    try {
+      Bukkit.getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async storage load completes.
+    }
   }
 
   private Throwable unwrap(Throwable err) {

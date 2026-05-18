@@ -343,21 +343,35 @@ public final class BlockBreakHandler {
                       Level.WARNING,
                       "Failed to load storage before break " + storageId,
                       unwrap(err));
-              plugin
-                  .getServer()
-                  .getScheduler()
-                  .runTask(
-                      plugin,
-                      () -> {
-                        if (player == null || !player.isOnline()) return;
-                        plugin
-                            .getBossBarManager()
-                            .showError(
-                                player,
-                                plugin.getLang().tr("message.storage_load_failed"),
-                                plugin.getStoragePeekTicks());
-                      });
+              runSyncIfEnabled(
+                  () -> {
+                    if (player == null || !player.isOnline()) return;
+                    plugin
+                        .getBossBarManager()
+                        .showError(
+                            player,
+                            plugin.getLang().tr("message.storage_load_failed"),
+                            plugin.getStoragePeekTicks());
+                  });
             });
+  }
+
+  private void runSyncIfEnabled(Runnable task) {
+    if (!plugin.isEnabled()) return;
+    try {
+      plugin
+          .getServer()
+          .getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async storage load completes.
+    }
   }
 
   private Throwable unwrap(Throwable err) {
