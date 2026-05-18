@@ -337,7 +337,7 @@ public class WirelessListener implements Listener {
           .getBossBarManager()
           .showError(
               player, plugin.getLang().tr("message.wireless.empty"), plugin.getStoragePeekTicks());
-      player.closeInventory();
+      plugin.getSessionManager().forceCloseSession(player);
     }
     updateHand(player, current, hand);
   }

@@ -378,6 +378,13 @@ bossbar:
   # Duration when right-clicking wire.
   wirePeekSeconds: 6
 
+# Physical device GUI session limits.
+session:
+  # Maximum distance in blocks from a terminal/crafting terminal/bus before its GUI is closed.
+  maxDeviceDistanceBlocks: 8.0
+  # How often physical device GUI distance is checked.
+  deviceCheckIntervalTicks: 5
+
 # Wireless terminal settings.
 wireless:
   enabled: true

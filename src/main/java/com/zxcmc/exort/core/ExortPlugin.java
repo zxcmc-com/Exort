@@ -195,14 +195,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (sessionManager != null) {
       sessionManager.allSessions().stream()
           .toList()
-          .forEach(session -> session.getViewer().closeInventory());
+          .forEach(session -> sessionManager.forceCloseSession(session.getViewer()));
     }
     if (busSessionManager != null) {
-      for (var player : Bukkit.getOnlinePlayers()) {
-        if (busSessionManager.sessionFor(player) != null) {
-          player.closeInventory();
-        }
-      }
+      busSessionManager.shutdown();
     }
     if (storageManager != null) {
       storageManager.flushAllAndWait();
@@ -232,6 +228,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     }
     if (monitorDisplayManager != null) {
       monitorDisplayManager.stop();
+    }
+    if (busSessionManager != null) {
+      busSessionManager.shutdown();
+      busSessionManager = null;
     }
     if (busService != null) {
       busService.stop();
@@ -1122,6 +1122,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     busService.start();
     Bukkit.getScheduler().runTask(this, busService::scanLoadedChunks);
     busSessionManager = new BusSessionManager(this, busService, lang);
+    busSessionManager.reconfigure();
 
     breakHandler =
         new BlockBreakHandler(
@@ -1182,8 +1183,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     Bukkit.getPluginManager()
         .registerEvents(new BusListener(this, busSessionManager, busCarrier), this);
     Bukkit.getPluginManager()
-        .registerEvents(
-            new InventoryEvents(sessionManager, storageManager, busSessionManager), this);
+        .registerEvents(new InventoryEvents(sessionManager, busSessionManager), this);
     dialogSupported = detectDialogSupport();
     Bukkit.getPluginManager()
         .registerEvents(new SearchDialogListener(sessionManager, searchDialogService, this), this);

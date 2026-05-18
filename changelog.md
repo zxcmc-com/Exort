@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.7 — 2026-05-18
+- Fixed wireless/search session cleanup so storage and wireless error bossbars no longer remain after forced GUI/dialog closure.
+- Physical terminal, crafting-terminal, and bus GUIs now close cleanly when the player leaves the configured device range.
+
 ## 0.9.6 — 2026-05-18
 - Resource-pack auto-delivery now supports configuration-phase loading before players enter the world, with conservative AUTO behavior that falls back to post-join Exort delivery when `server.properties` already defines a resource pack.
 - Added resource-pack delivery controls (`AUTO`/`CONFIGURATION`/`JOIN`/`MANUAL`), opt-in online resend on ready, and a placeholder `EXORT` hosting mode for a future immutable official HTTPS pack.

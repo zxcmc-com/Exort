@@ -255,7 +255,7 @@ public final class BlockBreakHandler {
 
     for (GuiSession session :
         plugin.getSessionManager().sessionsForStorage(storageId).stream().toList()) {
-      session.getViewer().closeInventory();
+      plugin.getSessionManager().forceCloseSession(session.getViewer());
     }
 
     if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
