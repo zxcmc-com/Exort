@@ -26,11 +26,13 @@ import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -57,6 +59,7 @@ public final class ExortBrigadier {
   private static final String ARG_PLAYERS = "players";
   private static final String ARG_SECONDS = "seconds";
   private static final String ARG_VERBOSE_MODE = "verboseMode";
+  private static final int MAX_GIVE_AMOUNT = 512;
 
   private final ExortPlugin plugin;
 
@@ -194,7 +197,8 @@ public final class ExortBrigadier {
                                     .executes(ctx -> giveStorage(ctx, 1))
                                     .then(
                                         Commands.argument(
-                                                ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                                ARG_AMOUNT,
+                                                IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                             .executes(
                                                 ctx ->
                                                     giveStorage(
@@ -205,7 +209,8 @@ public final class ExortBrigadier {
                         Commands.literal("terminal")
                             .executes(ctx -> giveTerminal(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveTerminal(
@@ -215,7 +220,8 @@ public final class ExortBrigadier {
                         Commands.literal("crafting_terminal")
                             .executes(ctx -> giveCraftingTerminal(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveCraftingTerminal(
@@ -225,7 +231,8 @@ public final class ExortBrigadier {
                         Commands.literal("monitor")
                             .executes(ctx -> giveMonitor(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveMonitor(
@@ -235,7 +242,8 @@ public final class ExortBrigadier {
                         Commands.literal("import_bus")
                             .executes(ctx -> giveImportBus(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveImportBus(
@@ -245,7 +253,8 @@ public final class ExortBrigadier {
                         Commands.literal("export_bus")
                             .executes(ctx -> giveExportBus(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveExportBus(
@@ -255,7 +264,8 @@ public final class ExortBrigadier {
                         Commands.literal("wire")
                             .executes(ctx -> giveWire(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveWire(
@@ -265,7 +275,8 @@ public final class ExortBrigadier {
                         Commands.literal("wireless_terminal")
                             .executes(ctx -> giveWireless(ctx, 1))
                             .then(
-                                Commands.argument(ARG_AMOUNT, IntegerArgumentType.integer(1))
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
                                     .executes(
                                         ctx ->
                                             giveWireless(
@@ -348,7 +359,7 @@ public final class ExortBrigadier {
     }
     if (storageId != null) {
       String finalStorageId = storageId;
-      Bukkit.getScheduler().runTask(plugin, () -> sendCacheStatus(sender, finalStorageId));
+      runSync(() -> sendCacheStatus(sender, finalStorageId));
       return 1;
     }
     Player online = Bukkit.getPlayerExact(raw);
@@ -1112,7 +1123,19 @@ public final class ExortBrigadier {
   }
 
   private void runSync(Runnable task) {
-    Bukkit.getScheduler().runTask(plugin, task);
+    if (!plugin.isEnabled()) return;
+    try {
+      Bukkit.getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async command callback completes.
+    }
   }
 
   private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
@@ -1162,15 +1185,14 @@ public final class ExortBrigadier {
       return 1;
     }
     StorageTier tier = tierOpt.get();
-    int giveAmount = Math.max(1, amount);
+    int giveAmount = clampGiveAmount(amount);
     CustomItems items = plugin.getCustomItems();
-    for (int i = 0; i < giveAmount; i++) {
-      target.getInventory().addItem(items.storageItem(tier, null));
-    }
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr("message.give_success", giveAmount, tier.displayName(), target.getName()));
+    sendGiveResult(
+        sender,
+        target,
+        tier.displayName(),
+        giveAmount,
+        deliverItems(target, () -> items.storageItem(tier, null), giveAmount));
     return 1;
   }
 
@@ -1183,18 +1205,14 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    ItemStack item = plugin.getCustomItems().terminalItem();
-    item.setAmount(giveAmount);
-    target.getInventory().addItem(item);
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.terminal"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.terminal");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getCustomItems().terminalItem(), giveAmount));
     return 1;
   }
 
@@ -1207,18 +1225,14 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    ItemStack item = plugin.getCustomItems().craftingTerminalItem();
-    item.setAmount(giveAmount);
-    target.getInventory().addItem(item);
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.crafting_terminal"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.crafting_terminal");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getCustomItems().craftingTerminalItem(), giveAmount));
     return 1;
   }
 
@@ -1231,18 +1245,14 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    ItemStack item = plugin.getCustomItems().monitorItem();
-    item.setAmount(giveAmount);
-    target.getInventory().addItem(item);
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.monitor"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.monitor");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getCustomItems().monitorItem(), giveAmount));
     return 1;
   }
 
@@ -1255,18 +1265,14 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    ItemStack item = plugin.getCustomItems().importBusItem();
-    item.setAmount(giveAmount);
-    target.getInventory().addItem(item);
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.import_bus"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.import_bus");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getCustomItems().importBusItem(), giveAmount));
     return 1;
   }
 
@@ -1279,18 +1285,14 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    ItemStack item = plugin.getCustomItems().exportBusItem();
-    item.setAmount(giveAmount);
-    target.getInventory().addItem(item);
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.export_bus"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.export_bus");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getCustomItems().exportBusItem(), giveAmount));
     return 1;
   }
 
@@ -1303,18 +1305,14 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    ItemStack item = plugin.getCustomItems().wireItem();
-    item.setAmount(giveAmount);
-    target.getInventory().addItem(item);
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.wire"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.wire");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getCustomItems().wireItem(), giveAmount));
     return 1;
   }
 
@@ -1327,20 +1325,48 @@ public final class ExortBrigadier {
       sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = Math.max(1, amount);
-    for (int i = 0; i < giveAmount; i++) {
-      ItemStack item = plugin.getWirelessService().create();
-      target.getInventory().addItem(item);
-    }
-    sender.sendMessage(
-        plugin
-            .getLang()
-            .tr(
-                "message.give_success",
-                giveAmount,
-                plugin.getLang().tr("item.wireless_terminal"),
-                target.getName()));
+    int giveAmount = clampGiveAmount(amount);
+    String label = plugin.getLang().tr("item.wireless_terminal");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        deliverItems(target, () -> plugin.getWirelessService().create(), giveAmount));
     return 1;
+  }
+
+  private int clampGiveAmount(int amount) {
+    return Math.max(1, Math.min(MAX_GIVE_AMOUNT, amount));
+  }
+
+  private int deliverItems(Player target, Supplier<ItemStack> itemFactory, int amount) {
+    int remaining = Math.max(0, amount);
+    int delivered = 0;
+    while (remaining > 0) {
+      ItemStack prototype = itemFactory.get();
+      if (prototype == null || prototype.getType().isAir()) break;
+      int stackSize = Math.max(1, prototype.getMaxStackSize());
+      int move = Math.min(stackSize, remaining);
+      ItemStack stack = prototype.clone();
+      stack.setAmount(move);
+      Map<Integer, ItemStack> leftovers = target.getInventory().addItem(stack);
+      int leftoverAmount = leftovers.values().stream().mapToInt(ItemStack::getAmount).sum();
+      delivered += move - leftoverAmount;
+      if (leftoverAmount > 0) break;
+      remaining -= move;
+    }
+    return delivered;
+  }
+
+  private void sendGiveResult(
+      CommandSender sender, Player target, String itemName, int requested, int delivered) {
+    sender.sendMessage(
+        plugin.getLang().tr("message.give_success", delivered, itemName, target.getName()));
+    if (delivered < requested) {
+      sender.sendMessage(
+          plugin.getLang().tr("message.give_partial", delivered, requested, target.getName()));
+    }
   }
 
   private CompletableFuture<Suggestions> suggestPlayers(

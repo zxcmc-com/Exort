@@ -15,8 +15,7 @@ public final class StorageSortService {
   }
 
   public SortMode resolveAndPersistDefault(String storageId, Optional<String> stored) {
-    SortMode defaultMode =
-        SortMode.fromString(plugin.getConfig().getString("defaultSortMode", "AMOUNT"));
+    SortMode defaultMode = SortMode.fromString(plugin.getDefaultSortModeName());
     SortMode mode = stored.isEmpty() ? defaultMode : SortMode.fromString(stored.orElse(null));
     if (stored.isEmpty()) {
       database.setStorageSortMode(storageId, mode.name());

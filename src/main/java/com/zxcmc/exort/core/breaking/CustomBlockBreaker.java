@@ -34,6 +34,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material terminalCarrier;
+  private final Material monitorCarrier;
   private final Material busCarrier;
   private final BreakSessionManager sessionManager = new BreakSessionManager();
   private int taskId = -1;
@@ -47,6 +48,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       Material wireMaterial,
       Material storageCarrier,
       Material terminalCarrier,
+      Material monitorCarrier,
       Material busCarrier) {
     this.plugin = plugin;
     this.breakHandler = breakHandler;
@@ -55,6 +57,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
     this.terminalCarrier = terminalCarrier;
+    this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
   }
 
@@ -232,7 +235,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
 
   private BreakType resolveType(Block block) {
     if (block == null) return BreakType.NONE;
-    if (MonitorMarker.isMonitor(plugin, block) && Carriers.matchesCarrier(block, terminalCarrier)) {
+    if (MonitorMarker.isMonitor(plugin, block) && Carriers.matchesCarrier(block, monitorCarrier)) {
       return BreakType.MONITOR;
     }
     if (TerminalMarker.isTerminal(plugin, block)

@@ -198,21 +198,51 @@ public class ItemNameService {
   private CompletableFuture<Status> reloadAsync(
       String requestedLanguage, boolean force, boolean refreshIndex) {
     CompletableFuture<Status> future = new CompletableFuture<>();
-    Bukkit.getScheduler()
-        .runTaskAsynchronously(
-            plugin,
-            () -> {
-              try {
-                reloadInternal(requestedLanguage, force, refreshIndex);
-                Bukkit.getScheduler().runTask(plugin, () -> future.complete(status()));
-              } catch (Exception e) {
-                plugin
-                    .getLogger()
-                    .log(Level.WARNING, "Failed to reload item dictionaries: " + e.getMessage(), e);
-                Bukkit.getScheduler().runTask(plugin, () -> future.complete(status()));
-              }
-            });
+    if (!plugin.isEnabled()) {
+      future.complete(status());
+      return future;
+    }
+    try {
+      Bukkit.getScheduler()
+          .runTaskAsynchronously(
+              plugin,
+              () -> {
+                try {
+                  reloadInternal(requestedLanguage, force, refreshIndex);
+                } catch (Exception e) {
+                  plugin
+                      .getLogger()
+                      .log(
+                          Level.WARNING,
+                          "Failed to reload item dictionaries: " + e.getMessage(),
+                          e);
+                } finally {
+                  completeStatusSync(future);
+                }
+              });
+    } catch (RuntimeException ignored) {
+      future.complete(status());
+    }
     return future;
+  }
+
+  private void completeStatusSync(CompletableFuture<Status> future) {
+    if (!plugin.isEnabled()) {
+      future.complete(status());
+      return;
+    }
+    try {
+      Bukkit.getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (!future.isDone()) {
+                  future.complete(status());
+                }
+              });
+    } catch (RuntimeException ignored) {
+      future.complete(status());
+    }
   }
 
   private void reloadInternal(String requestedLanguage, boolean force, boolean refreshIndex) {

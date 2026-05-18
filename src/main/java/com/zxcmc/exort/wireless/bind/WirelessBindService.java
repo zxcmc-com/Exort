@@ -24,6 +24,12 @@ public final class WirelessBindService {
       String storageId,
       StorageTier tier,
       Location storageLoc) {
+    if (pdc == null || player == null || storageId == null || tier == null || storageLoc == null) {
+      return;
+    }
+    if (storageLoc.getWorld() == null) {
+      return;
+    }
     pdc.set(keys.wirelessOwner(), PersistentDataType.STRING, player.getUniqueId().toString());
     pdc.set(keys.wirelessOwnerName(), PersistentDataType.STRING, player.getName());
     pdc.set(keys.wirelessStorageId(), PersistentDataType.STRING, storageId);
@@ -41,6 +47,7 @@ public final class WirelessBindService {
     pdc.remove(keys.wirelessOwner());
     pdc.remove(keys.wirelessOwnerName());
     pdc.remove(keys.wirelessStorageId());
+    pdc.remove(keys.wirelessTier());
     pdc.remove(keys.wirelessStorageWorld());
     pdc.remove(keys.wirelessStorageX());
     pdc.remove(keys.wirelessStorageY());

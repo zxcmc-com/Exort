@@ -41,6 +41,13 @@ public final class BreakProgressCalculator {
   private static double baseSpeed(ItemStack tool) {
     if (tool == null) return 1.0;
     Material type = tool.getType();
+    String name = type.name();
+    if ("COPPER_PICKAXE".equals(name) || "COPPER_AXE".equals(name)) {
+      return 5.0;
+    }
+    if ("COPPER_SWORD".equals(name)) {
+      return 1.6;
+    }
     return switch (type) {
       case WOODEN_PICKAXE, WOODEN_AXE -> 2.0;
       case STONE_PICKAXE, STONE_AXE -> 4.0;

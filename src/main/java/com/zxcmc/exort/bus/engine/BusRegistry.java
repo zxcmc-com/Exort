@@ -107,6 +107,12 @@ public final class BusRegistry {
     }
   }
 
+  public void flushSettings() {
+    for (BusState state : new ArrayList<>(states.values())) {
+      saveSettings(state);
+    }
+  }
+
   public void scanLoadedChunks() {
     for (var world : Bukkit.getWorlds()) {
       for (var chunk : world.getLoadedChunks()) {
@@ -150,16 +156,22 @@ public final class BusRegistry {
                 return;
               }
               if (opt.isEmpty()) return;
-              Bukkit.getScheduler()
-                  .runTask(
-                      plugin,
-                      () -> {
-                        if (states.get(pos) != state) return;
-                        BusSettings settings = opt.get();
-                        state.setType(settings.type());
-                        state.setMode(settings.mode());
-                        state.setFilters(settings.filters());
-                      });
+              if (!plugin.isEnabled()) return;
+              try {
+                Bukkit.getScheduler()
+                    .runTask(
+                        plugin,
+                        () -> {
+                          if (!plugin.isEnabled()) return;
+                          if (states.get(pos) != state) return;
+                          BusSettings settings = opt.get();
+                          state.setType(settings.type());
+                          state.setMode(settings.mode());
+                          state.setFilters(settings.filters());
+                        });
+              } catch (IllegalStateException ignored) {
+                // Plugin is disabling between the async load and the sync handoff.
+              }
             });
   }
 

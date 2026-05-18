@@ -92,22 +92,25 @@ public class InventoryEvents implements Listener {
 
   @EventHandler
   public void onClose(InventoryCloseEvent event) {
+    if (!(event.getPlayer() instanceof Player player)) {
+      return;
+    }
     if (event.getInventory().getHolder() instanceof StorageSession session) {
-      if (sessionManager.isSwitchingToSearch((Player) event.getPlayer())) {
+      if (sessionManager.isSwitchingToSearch(player)) {
         return;
       }
-      sessionManager.closeSession((Player) event.getPlayer(), session);
+      sessionManager.closeSession(player, session);
       return;
     }
     if (event.getInventory().getHolder() instanceof CraftingSession session) {
-      if (sessionManager.isSwitchingToSearch((Player) event.getPlayer())) {
+      if (sessionManager.isSwitchingToSearch(player)) {
         return;
       }
-      sessionManager.closeSession((Player) event.getPlayer(), session);
+      sessionManager.closeSession(player, session);
       return;
     }
     if (event.getInventory().getHolder() instanceof BusSession session) {
-      busSessionManager.closeSession((Player) event.getPlayer(), session);
+      busSessionManager.closeSession(player, session);
       return;
     }
   }

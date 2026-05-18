@@ -186,7 +186,11 @@ public class WireDisplayManager {
     }
 
     UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
-    ItemDisplay display = existingId != null ? (ItemDisplay) Bukkit.getEntity(existingId) : null;
+    var existing = existingId != null ? Bukkit.getEntity(existingId) : null;
+    ItemDisplay display = existing instanceof ItemDisplay itemDisplay ? itemDisplay : null;
+    if (existingId != null && existing != null && display == null) {
+      DisplayMarker.clear(plugin, "wire", wire);
+    }
     if (display == null || display.isDead()) {
       display = findNearbyDisplay(wire);
       if (display != null) {

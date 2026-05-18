@@ -34,6 +34,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
@@ -83,7 +84,7 @@ public class BlockListener implements Listener {
     this.breakHandler = breakHandler;
   }
 
-  @EventHandler(ignoreCancelled = true)
+  @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
   public void onPlace(BlockPlaceEvent event) {
     Block block = event.getBlockPlaced();
     if (customItems.isMonitor(event.getItemInHand())
@@ -294,6 +295,9 @@ public class BlockListener implements Listener {
 
     String storageId =
         customItems.storageId(event.getItemInHand()).orElse(UUID.randomUUID().toString());
+    ItemStack placedItem = event.getItemInHand().clone();
+    placedItem.setAmount(1);
+    boolean refundOnPersistFailure = shouldRefundPlacementItem(event.getPlayer(), placedItem);
     consumeIfInitialized(event);
     // Apply facing for vault like vanilla placement
     BlockData data = block.getBlockData();
@@ -305,7 +309,8 @@ public class BlockListener implements Listener {
     BlockFace storageFace = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     StorageMarker.set(plugin, block, storageId, tier, storageFace);
     preloadStorage(event.getPlayer(), storageId);
-    persistStorageTier(event.getPlayer(), storageId, tier.key());
+    persistStorageTier(
+        event.getPlayer(), block, storageId, tier.key(), placedItem, refundOnPersistFailure);
     var refresh = plugin.getDisplayRefreshService();
     if (refresh != null) {
       refresh.refreshStorage(block);
@@ -446,34 +451,91 @@ public class BlockListener implements Listener {
             });
   }
 
-  private void persistStorageTier(Player player, String storageId, String tierKey) {
+  private void persistStorageTier(
+      Player player,
+      Block block,
+      String storageId,
+      String tierKey,
+      ItemStack refund,
+      boolean shouldRefund) {
     plugin
         .getDatabase()
         .setStorageTier(storageId, tierKey)
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {
-                reportStorageFailure(player, "persist storage tier for " + storageId, err);
+                rollbackFailedPlacement(player, block, storageId, refund, shouldRefund, err);
               }
             });
   }
 
+  private void rollbackFailedPlacement(
+      Player player,
+      Block block,
+      String storageId,
+      ItemStack refund,
+      boolean shouldRefund,
+      Throwable err) {
+    plugin
+        .getLogger()
+        .log(Level.WARNING, "Failed to persist storage tier for " + storageId, unwrap(err));
+    runSyncIfEnabled(
+        () -> {
+          boolean rolledBack =
+              StoragePlacementRollback.rollbackIfCurrent(
+                  plugin, block, storageCarrier, storageId, player, refund, shouldRefund);
+          if (!rolledBack) {
+            plugin
+                .getLogger()
+                .warning(
+                    "Could not roll back failed storage placement for "
+                        + storageId
+                        + "; block marker changed before the database failure was handled.");
+          }
+          showStorageFailure(player);
+        });
+  }
+
   private void reportStorageFailure(Player player, String action, Throwable err) {
     plugin.getLogger().log(Level.WARNING, "Failed to " + action, unwrap(err));
+    runSyncIfEnabled(() -> showStorageFailure(player));
+  }
+
+  private void showStorageFailure(Player player) {
+    if (player == null || !player.isOnline()) return;
     plugin
-        .getServer()
-        .getScheduler()
-        .runTask(
-            plugin,
-            () -> {
-              if (player == null || !player.isOnline()) return;
-              plugin
-                  .getBossBarManager()
-                  .showError(
-                      player,
-                      plugin.getLang().tr("message.storage_load_failed"),
-                      plugin.getStoragePeekTicks());
-            });
+        .getBossBarManager()
+        .showError(
+            player,
+            plugin.getLang().tr("message.storage_load_failed"),
+            plugin.getStoragePeekTicks());
+  }
+
+  private void runSyncIfEnabled(Runnable task) {
+    if (!plugin.isEnabled()) return;
+    try {
+      plugin
+          .getServer()
+          .getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async database callback completes.
+    }
+  }
+
+  private boolean shouldRefundPlacementItem(Player player, ItemStack item) {
+    if (item == null || item.getType() == Material.AIR) return false;
+    if (player == null || player.getGameMode() != GameMode.CREATIVE) return true;
+    if (!item.hasItemMeta()) return false;
+    return item.getItemMeta()
+        .getPersistentDataContainer()
+        .has(keys.storageId(), PersistentDataType.STRING);
   }
 
   private Throwable unwrap(Throwable err) {

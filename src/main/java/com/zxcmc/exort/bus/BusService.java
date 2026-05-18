@@ -52,6 +52,7 @@ public final class BusService {
 
   public void stop() {
     engine.stop();
+    registry.flushSettings();
     registry.clear();
   }
 

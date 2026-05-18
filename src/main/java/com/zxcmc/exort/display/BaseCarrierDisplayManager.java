@@ -81,7 +81,11 @@ public abstract class BaseCarrierDisplayManager {
       return;
     }
     UUID existingId = DisplayMarker.get(plugin, markerType, block).orElse(null);
-    ItemDisplay display = existingId != null ? (ItemDisplay) Bukkit.getEntity(existingId) : null;
+    var existing = existingId != null ? Bukkit.getEntity(existingId) : null;
+    ItemDisplay display = existing instanceof ItemDisplay itemDisplay ? itemDisplay : null;
+    if (existingId != null && existing != null && display == null) {
+      DisplayMarker.clear(plugin, markerType, block);
+    }
     if (display == null || display.isDead()) {
       display = spawn(block);
       if (display != null) {

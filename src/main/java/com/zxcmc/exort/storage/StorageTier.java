@@ -120,7 +120,20 @@ public class StorageTier {
     String base = pages ? str.substring(0, str.length() - 1).trim() : str;
     try {
       long value = Long.parseLong(base);
+      if (value <= 0) {
+        logger.warning(
+            "Tier '" + tierKey + "': maxItems must be positive, using default " + defaultValue);
+        return defaultValue;
+      }
       if (pages) {
+        if (value > Long.MAX_VALUE / ITEMS_PER_PAGE) {
+          logger.warning(
+              "Tier '"
+                  + tierKey
+                  + "': maxItems page value overflows, using default "
+                  + defaultValue);
+          return defaultValue;
+        }
         return Math.max(1L, value * ITEMS_PER_PAGE);
       }
       return Math.max(1L, value);

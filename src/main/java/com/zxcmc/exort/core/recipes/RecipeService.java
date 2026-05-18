@@ -17,6 +17,7 @@ import org.bukkit.Tag;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
@@ -108,7 +109,7 @@ public final class RecipeService {
         continue;
       }
       List<String> shape = recipe.getStringList("shape");
-      if (shape == null || shape.isEmpty()) {
+      if (shape == null || shape.isEmpty() || shape.size() > 3) {
         logSkip(id, "missing shape");
         skipped++;
         continue;
@@ -116,8 +117,13 @@ public final class RecipeService {
       List<String> normalizedShape = new ArrayList<>();
       Set<Character> used = new HashSet<>();
       boolean shapeOk = true;
+      int expectedWidth = -1;
       for (String line : shape) {
         if (line == null) {
+          shapeOk = false;
+          continue;
+        }
+        if (line.isEmpty() || line.length() > 3) {
           shapeOk = false;
           continue;
         }
@@ -126,6 +132,12 @@ public final class RecipeService {
           continue;
         }
         String normalized = line.replace('_', ' ');
+        if (expectedWidth < 0) {
+          expectedWidth = normalized.length();
+        } else if (expectedWidth != normalized.length()) {
+          shapeOk = false;
+          continue;
+        }
         normalizedShape.add(normalized);
         for (int i = 0; i < normalized.length(); i++) {
           char ch = normalized.charAt(i);
@@ -134,14 +146,25 @@ public final class RecipeService {
           }
         }
       }
-      if (!shapeOk) {
-        logSkip(id, "shape must use '_' for empty slots");
+      if (!shapeOk || used.isEmpty()) {
+        logSkip(id, "shape must be 1-3 rows of equal width and use '_' for empty slots");
         skipped++;
         continue;
       }
-      NamespacedKey key = new NamespacedKey(plugin, id);
+      NamespacedKey key = recipeKey(id);
+      if (key == null) {
+        logSkip(id, "invalid recipe key");
+        skipped++;
+        continue;
+      }
       ShapedRecipe shaped = new ShapedRecipe(key, resultItem);
-      shaped.shape(normalizedShape.toArray(new String[0]));
+      try {
+        shaped.shape(normalizedShape.toArray(new String[0]));
+      } catch (IllegalArgumentException e) {
+        logSkip(id, "invalid shape: " + e.getMessage());
+        skipped++;
+        continue;
+      }
       ConfigurationSection ingredients = recipe.getConfigurationSection("ingredients");
       if (ingredients == null) {
         logSkip(id, "missing ingredients");
@@ -165,7 +188,12 @@ public final class RecipeService {
           ok = false;
           break;
         }
-        shaped.setIngredient(ch, choice);
+        try {
+          shaped.setIngredient(ch, choice);
+        } catch (IllegalArgumentException e) {
+          ok = false;
+          break;
+        }
         provided.add(ch);
       }
       if (ok && !provided.containsAll(used)) {
@@ -182,9 +210,11 @@ public final class RecipeService {
         skipped++;
         continue;
       }
-      Bukkit.addRecipe(shaped);
-      registered.add(key);
-      loaded++;
+      if (registerRecipe(id, key, shaped)) {
+        loaded++;
+      } else {
+        skipped++;
+      }
     }
     return new Result(loaded, skipped);
   }
@@ -209,7 +239,17 @@ public final class RecipeService {
         skipped++;
         continue;
       }
-      NamespacedKey key = new NamespacedKey(plugin, id);
+      if (ingredients.size() > 9) {
+        logSkip(id, "too many shapeless ingredients");
+        skipped++;
+        continue;
+      }
+      NamespacedKey key = recipeKey(id);
+      if (key == null) {
+        logSkip(id, "invalid recipe key");
+        skipped++;
+        continue;
+      }
       ShapelessRecipe shapeless = new ShapelessRecipe(key, resultItem);
       boolean ok = true;
       for (String raw : ingredients) {
@@ -218,16 +258,23 @@ public final class RecipeService {
           ok = false;
           break;
         }
-        shapeless.addIngredient(choice);
+        try {
+          shapeless.addIngredient(choice);
+        } catch (IllegalArgumentException e) {
+          ok = false;
+          break;
+        }
       }
       if (!ok) {
         logSkip(id, "invalid ingredients");
         skipped++;
         continue;
       }
-      Bukkit.addRecipe(shapeless);
-      registered.add(key);
-      loaded++;
+      if (registerRecipe(id, key, shapeless)) {
+        loaded++;
+      } else {
+        skipped++;
+      }
     }
     return new Result(loaded, skipped);
   }
@@ -254,12 +301,19 @@ public final class RecipeService {
         skipped++;
         continue;
       }
-      NamespacedKey key = new NamespacedKey(plugin, id);
+      NamespacedKey key = recipeKey(id);
+      if (key == null) {
+        logSkip(id, "invalid recipe key");
+        skipped++;
+        continue;
+      }
       SmithingTransformRecipe smithing =
           new SmithingTransformRecipe(key, resultItem, template, base, addition);
-      Bukkit.addRecipe(smithing);
-      registered.add(key);
-      loaded++;
+      if (registerRecipe(id, key, smithing)) {
+        loaded++;
+      } else {
+        skipped++;
+      }
     }
     return new Result(loaded, skipped);
   }
@@ -269,10 +323,9 @@ public final class RecipeService {
     int removed = 0;
     for (String raw : disabled) {
       if (raw == null || raw.isBlank()) continue;
-      NamespacedKey key = NamespacedKey.fromString(raw);
-      if (key == null) {
-        key = new NamespacedKey(plugin, raw);
-      }
+      NamespacedKey key = parseNamespacedKey(raw);
+      if (key == null) key = recipeKey(raw);
+      if (key == null) continue;
       if (Bukkit.removeRecipe(key)) {
         registered.remove(key);
         removed++;
@@ -291,8 +344,36 @@ public final class RecipeService {
       logSkip(raw, "result is not exort item");
       return null;
     }
+    int maxStack = Math.max(1, item.getMaxStackSize());
+    if (amount > maxStack) {
+      logSkip(raw, "result amount " + amount + " exceeds max stack " + maxStack + "; clamped");
+      amount = maxStack;
+    }
     item.setAmount(amount);
     return item;
+  }
+
+  private NamespacedKey recipeKey(String raw) {
+    if (raw == null || raw.isBlank()) return null;
+    try {
+      return NamespacedKey.fromString(raw.toLowerCase(Locale.ROOT), plugin);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
+  private boolean registerRecipe(String id, NamespacedKey key, Recipe recipe) {
+    try {
+      if (!Bukkit.addRecipe(recipe)) {
+        logSkip(id, "Bukkit rejected recipe");
+        return false;
+      }
+      registered.add(key);
+      return true;
+    } catch (IllegalArgumentException | IllegalStateException e) {
+      logSkip(id, "failed to register recipe: " + e.getMessage());
+      return false;
+    }
   }
 
   private RecipeChoice resolveChoice(String raw) {
@@ -300,7 +381,7 @@ public final class RecipeService {
     String id = raw.trim();
     if (id.isEmpty()) return null;
     if (id.startsWith("#")) {
-      NamespacedKey key = NamespacedKey.fromString(id.substring(1));
+      NamespacedKey key = parseNamespacedKey(id.substring(1));
       if (key == null) return null;
       Tag<Material> tag = Bukkit.getTag("items", key, Material.class);
       if (tag == null) return null;
@@ -319,12 +400,21 @@ public final class RecipeService {
   private Material resolveMaterial(String raw) {
     String id = raw.trim();
     if (id.contains(":")) {
-      NamespacedKey key = NamespacedKey.fromString(id);
+      NamespacedKey key = parseNamespacedKey(id);
       if (key != null && "minecraft".equalsIgnoreCase(key.getNamespace())) {
         id = key.getKey();
       }
     }
     return Material.matchMaterial(id);
+  }
+
+  static NamespacedKey parseNamespacedKey(String raw) {
+    if (raw == null || raw.isBlank()) return null;
+    try {
+      return NamespacedKey.fromString(raw.toLowerCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
   }
 
   private ItemStack resolveExortItem(String raw) {

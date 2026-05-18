@@ -42,6 +42,9 @@ resourcePack:
 # Enable WorldGuard integration (region protection checks).
 worldguard:
   enabled: true
+  # If WorldGuard is installed but Exort cannot complete a protection check,
+  # false preserves legacy fail-open behavior; true denies Exort actions instead.
+  failClosedOnError: false
   # Log denied actions (build/break/use/interact) to console.
   debug: false
 

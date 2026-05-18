@@ -2,6 +2,8 @@ package com.zxcmc.exort.core.protection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -14,8 +16,13 @@ public final class WorldGuardProtection implements RegionProtection {
   private final Constructor<?> placeCtor;
   private final Constructor<?> breakCtor;
   private final Constructor<?> useCtor;
+  private final Logger logger;
+  private final boolean failClosedOnError;
+  private boolean warnedFailure;
 
-  public WorldGuardProtection() {
+  public WorldGuardProtection(Logger logger, boolean failClosedOnError) {
+    this.logger = logger;
+    this.failClosedOnError = failClosedOnError;
     try {
       ClassLoader loader = WorldGuardProtection.class.getClassLoader();
       Class<?> causeClass = Class.forName("com.sk89q.worldguard.bukkit.cause.Cause", false, loader);
@@ -77,7 +84,18 @@ public final class WorldGuardProtection implements RegionProtection {
       boolean cancelled = (Boolean) fireAndTest.invoke(null, event);
       return !cancelled;
     } catch (ReflectiveOperationException e) {
-      return true;
+      warnFailure(e);
+      return !failClosedOnError;
     }
+  }
+
+  private void warnFailure(ReflectiveOperationException error) {
+    if (warnedFailure || logger == null) return;
+    warnedFailure = true;
+    logger.log(
+        Level.WARNING,
+        "WorldGuard protection check failed through reflection; "
+            + (failClosedOnError ? "denying Exort action." : "allowing Exort action."),
+        error);
   }
 }

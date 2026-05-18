@@ -40,27 +40,24 @@ public class BossBarManager {
                 handleLoadFailure(player, storageId, durationTicks, gen, err);
                 return;
               }
-              Bukkit.getScheduler()
-                  .runTask(
-                      plugin,
-                      () -> {
-                        if (!player.isOnline()) return;
-                        if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
-                        long current = cache.effectiveTotal();
-                        long max = Math.max(1, tier.maxItems());
-                        double progress =
-                            Math.min(1.0, Math.max(0.0, (double) current / (double) max));
-                        String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
-                        String title =
-                            lang.tr(
-                                "gui.bossbar",
-                                tier.displayName(),
-                                formatNumber(current),
-                                formatNumber(max),
-                                percent);
-                        double free = 1.0 - progress;
-                        showCustom(player, title, progress, freeColor(free), durationTicks, gen);
-                      });
+              runSyncIfEnabled(
+                  () -> {
+                    if (!player.isOnline()) return;
+                    if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
+                    long current = cache.effectiveTotal();
+                    long max = Math.max(1, tier.maxItems());
+                    double progress = Math.min(1.0, Math.max(0.0, (double) current / (double) max));
+                    String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
+                    String title =
+                        lang.tr(
+                            "gui.bossbar",
+                            tier.displayName(),
+                            formatNumber(current),
+                            formatNumber(max),
+                            percent);
+                    double free = 1.0 - progress;
+                    showCustom(player, title, progress, freeColor(free), durationTicks, gen);
+                  });
             });
   }
 
@@ -95,16 +92,14 @@ public class BossBarManager {
                 handleLoadFailure(player, storageId, durationTicks, gen, err);
                 return;
               }
-              Bukkit.getScheduler()
-                  .runTask(
-                      plugin,
-                      () -> {
-                        if (!player.isOnline()) return;
-                        if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
-                        long amount = cache.getAmount(itemKey);
-                        String title = lang.tr("gui.monitor.item", itemName, formatNumber(amount));
-                        showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
-                      });
+              runSyncIfEnabled(
+                  () -> {
+                    if (!player.isOnline()) return;
+                    if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
+                    long amount = cache.getAmount(itemKey);
+                    String title = lang.tr("gui.monitor.item", itemName, formatNumber(amount));
+                    showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
+                  });
             });
   }
 
@@ -147,20 +142,34 @@ public class BossBarManager {
   private void handleLoadFailure(
       Player player, String storageId, long durationTicks, int gen, Throwable err) {
     plugin.getLogger().log(Level.WARNING, "Failed to load storage " + storageId, unwrap(err));
-    Bukkit.getScheduler()
-        .runTask(
-            plugin,
-            () -> {
-              if (player == null || !player.isOnline()) return;
-              if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
-              showCustom(
-                  player,
-                  lang.tr("message.storage_load_failed"),
-                  1.0,
-                  BarColor.RED,
-                  durationTicks,
-                  gen);
-            });
+    runSyncIfEnabled(
+        () -> {
+          if (player == null || !player.isOnline()) return;
+          if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
+          showCustom(
+              player,
+              lang.tr("message.storage_load_failed"),
+              1.0,
+              BarColor.RED,
+              durationTicks,
+              gen);
+        });
+  }
+
+  private void runSyncIfEnabled(Runnable task) {
+    if (!plugin.isEnabled()) return;
+    try {
+      Bukkit.getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (plugin.isEnabled()) {
+                  task.run();
+                }
+              });
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while an async storage load completes.
+    }
   }
 
   private Throwable unwrap(Throwable err) {

@@ -37,4 +37,28 @@ public interface RegionProtection {
       }
     };
   }
+
+  static RegionProtection denyAll() {
+    return new RegionProtection() {
+      @Override
+      public boolean canBuild(Player player, Location location, Material material) {
+        return false;
+      }
+
+      @Override
+      public boolean canBreak(Player player, Block block) {
+        return false;
+      }
+
+      @Override
+      public boolean canInteract(Player player, Block block) {
+        return false;
+      }
+
+      @Override
+      public boolean canUse(Player player, Block block) {
+        return false;
+      }
+    };
+  }
 }
