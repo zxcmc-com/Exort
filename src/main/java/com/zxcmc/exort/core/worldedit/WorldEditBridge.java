@@ -303,8 +303,10 @@ public final class WorldEditBridge implements Listener {
     }
     Extent extent = event.getExtent();
     if (containsMarkerExtent(extent)) return;
-    FacingTransform clipboardTransform = resolveClipboardFacing(event.getActor());
-    PendingPastePatch pastePatch = resolvePendingPastePatch(event.getActor());
+    Actor actor = event.getActor();
+    boolean pasteCommandPending = hasPendingPasteCommand(actor);
+    PendingPastePatch pastePatch = resolvePendingPastePatch(actor);
+    FacingTransform clipboardTransform = pasteCommandPending ? resolveClipboardFacing(actor) : null;
     event.setExtent(new MarkerExtent(extent, world, this, clipboardTransform, pastePatch));
   }
 
@@ -326,11 +328,7 @@ public final class WorldEditBridge implements Listener {
       return;
     }
     if (isClipboardPasteCommand(command)) {
-      PendingPasteCommand pasteCommand = parsePasteCommand(command);
-      pendingPasteCommands.put(player.getUniqueId(), pasteCommand);
-      Bukkit.getScheduler()
-          .runTaskLater(
-              plugin, () -> pendingPasteCommands.remove(player.getUniqueId(), pasteCommand), 100L);
+      rememberPasteCommand(player.getUniqueId(), parsePasteCommand(command));
       return;
     }
     if (isClipboardClearCommand(command)) {
@@ -348,6 +346,13 @@ public final class WorldEditBridge implements Listener {
       clearClipboardPatch(event.getActor());
       return;
     }
+    if (isClipboardPasteCommand(event.getArguments())) {
+      Actor actor = event.getActor();
+      if (actor != null && actor.getUniqueId() != null) {
+        rememberPasteCommand(actor.getUniqueId(), parsePasteCommand(event.getArguments()));
+      }
+      return;
+    }
     if (!isClipboardCopyCommand(event.getArguments())) {
       return;
     }
@@ -362,6 +367,13 @@ public final class WorldEditBridge implements Listener {
       rememberClipboardPatch(event.getActor(), patch);
     }
     scheduleClipboardPatch(event.getActor(), patch);
+  }
+
+  private void rememberPasteCommand(UUID actorId, PendingPasteCommand pasteCommand) {
+    if (actorId == null || pasteCommand == null) return;
+    pendingPasteCommands.put(actorId, pasteCommand);
+    Bukkit.getScheduler()
+        .runTaskLater(plugin, () -> pendingPasteCommands.remove(actorId, pasteCommand), 100L);
   }
 
   private static boolean isClipboardCopyCommand(String arguments) {
@@ -566,6 +578,19 @@ public final class WorldEditBridge implements Listener {
           "we paste sidecar markers=" + destinationMarkers.size(), NamedTextColor.DARK_GREEN);
     }
     return new PendingPastePatch(destinationMarkers);
+  }
+
+  private boolean hasPendingPasteCommand(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return false;
+    UUID actorId = actor.getUniqueId();
+    PendingPasteCommand command = pendingPasteCommands.get(actorId);
+    if (command == null) return false;
+    long now = System.currentTimeMillis();
+    if (now - command.timestampMs() > PASTE_COMMAND_TTL_MS) {
+      pendingPasteCommands.remove(actorId);
+      return false;
+    }
+    return !command.onlySelect();
   }
 
   private void consumePasteCommand(UUID actorId, PendingPasteCommand command) {
@@ -777,6 +802,7 @@ public final class WorldEditBridge implements Listener {
         }
       }
       Chunk chunk = world.getChunkAt(batch.key.chunkX(), batch.key.chunkZ());
+      Set<Block> networkRefreshStarts = new HashSet<>();
       for (PendingUpdate pending : batch.updates) {
         MarkerUpdate update = pending.update;
         MarkerSnapshot snapshot = update.snapshot();
@@ -841,11 +867,17 @@ public final class WorldEditBridge implements Listener {
           if (debug != null && debug.isEnabled()) {
             debug.incUpdatesApplied();
           }
+          if (shouldRefreshWireNetworkAfterUpdate(update)) {
+            networkRefreshStarts.add(world.getBlockAt(update.x(), update.y(), update.z()));
+          }
         }
       }
       cleanupService.cleanupDisplays(chunk);
       if (refreshService != null) {
         refreshService.refreshChunk(chunk);
+        for (Block start : networkRefreshStarts) {
+          refreshService.refreshNetworkFrom(start);
+        }
       }
       if (busService != null) {
         busService.scanChunk(chunk);
@@ -966,6 +998,12 @@ public final class WorldEditBridge implements Listener {
       WireMarker.setWire(plugin, block);
     }
     return true;
+  }
+
+  private static boolean shouldRefreshWireNetworkAfterUpdate(MarkerUpdate update) {
+    if (update == null) return false;
+    MarkerSnapshot snapshot = update.snapshot();
+    return snapshot == null || !snapshot.wire();
   }
 
   private static TerminalKind parseTerminalKind(TerminalData data) {

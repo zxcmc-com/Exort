@@ -43,22 +43,32 @@ public final class BusRegistry {
     BusState existing = states.get(pos);
     if (existing != null) {
       if (busBlock != null) {
-        existing.setFacing(marker.facing());
-        existing.setType(marker.type());
-        existing.setMode(marker.mode());
+        applyMarkerState(existing, marker, busBlock);
       }
       return existing;
     }
     BusState created = new BusState(pos, marker.type(), marker.facing(), marker.mode());
     states.put(pos, created);
+    boolean markerHasFilters = false;
     if (busBlock != null) {
-      created.setFacing(marker.facing());
-      created.setType(marker.type());
-      created.setMode(marker.mode());
+      markerHasFilters = applyMarkerState(created, marker, busBlock);
     }
     markDirty();
-    loadSettingsIfMissing(created);
+    if (!markerHasFilters) {
+      loadSettingsIfMissing(created, marker, created.settingsRevision());
+    }
     return created;
+  }
+
+  private boolean applyMarkerState(BusState state, BusMarker.Data marker, Block busBlock) {
+    if (state == null || marker == null) return false;
+    state.setFacing(marker.facing());
+    state.setType(marker.type());
+    state.setMode(marker.mode());
+    if (busBlock == null) return false;
+    var filters = BusMarker.getFilters(plugin, busBlock);
+    filters.ifPresent(data -> state.setFilters(BusFilterCodec.decode(data, FILTER_SLOTS)));
+    return filters.isPresent();
   }
 
   public void unregisterBus(Block block) {
@@ -83,6 +93,10 @@ public final class BusRegistry {
   }
 
   public void saveSettings(BusState state) {
+    saveSettings(state, null);
+  }
+
+  public void saveSettings(BusState state, Block busBlock) {
     if (state == null) return;
     BusSettings settings =
         new BusSettings(state.pos(), state.type(), state.mode(), state.filters());
@@ -100,7 +114,7 @@ public final class BusRegistry {
               }
             });
     BusMarker.Data marker = new BusMarker.Data(state.type(), state.facing(), state.mode());
-    Block block = state.pos().block();
+    Block block = busBlock != null ? busBlock : state.pos().block();
     if (block != null) {
       BusMarker.set(plugin, block, marker.type(), marker.facing(), marker.mode());
       BusMarker.setFilters(plugin, block, BusFilterCodec.encode(state.filters(), FILTER_SLOTS));
@@ -143,7 +157,8 @@ public final class BusRegistry {
     stateListDirty = true;
   }
 
-  private void loadSettingsIfMissing(BusState state) {
+  private void loadSettingsIfMissing(
+      BusState state, BusMarker.Data markerAtLoadStart, long revisionAtLoadStart) {
     BusPos pos = state.pos();
     database
         .loadBusSettings(pos, FILTER_SLOTS)
@@ -164,6 +179,17 @@ public final class BusRegistry {
                         () -> {
                           if (!plugin.isEnabled()) return;
                           if (states.get(pos) != state) return;
+                          if (state.settingsRevision() != revisionAtLoadStart) return;
+                          if (!stateStillMatchesMarker(state, markerAtLoadStart)) return;
+                          Block block = pos.block();
+                          if (block != null) {
+                            if (BusMarker.getFilters(plugin, block).isPresent()) return;
+                            var currentMarker = BusMarker.get(plugin, block);
+                            if (currentMarker.isPresent()
+                                && !sameMarker(currentMarker.get(), markerAtLoadStart)) {
+                              return;
+                            }
+                          }
                           BusSettings settings = opt.get();
                           state.setType(settings.type());
                           state.setMode(settings.mode());
@@ -173,6 +199,20 @@ public final class BusRegistry {
                 // Plugin is disabling between the async load and the sync handoff.
               }
             });
+  }
+
+  private boolean stateStillMatchesMarker(BusState state, BusMarker.Data marker) {
+    if (state == null || marker == null) return false;
+    return state.type() == marker.type()
+        && state.mode() == marker.mode()
+        && state.facing() == marker.facing();
+  }
+
+  private boolean sameMarker(BusMarker.Data left, BusMarker.Data right) {
+    if (left == null || right == null) return false;
+    return left.type() == right.type()
+        && left.mode() == right.mode()
+        && left.facing() == right.facing();
   }
 
   private Throwable unwrap(Throwable err) {

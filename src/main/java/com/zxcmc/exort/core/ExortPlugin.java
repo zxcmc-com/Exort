@@ -1393,11 +1393,16 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private void setupRegionProtection() {
     regionProtection = RegionProtection.allowAll();
     if (!getConfig().getBoolean("worldguard.enabled", true)) {
+      getLogger().info("[WorldGuard] Integration disabled by config.");
       return;
     }
     boolean failClosed = getConfig().getBoolean("worldguard.failClosedOnError", false);
     var wg = getServer().getPluginManager().getPlugin("WorldGuard");
-    if (wg == null || !wg.isEnabled()) return;
+    if (wg == null || !wg.isEnabled()) {
+      getLogger().info("[WorldGuard] Integration disabled: plugin not found.");
+      registerWorldGuardEnableHook();
+      return;
+    }
     try {
       regionProtection = new WorldGuardProtection(getLogger(), failClosed);
     } catch (IllegalStateException error) {
@@ -1408,11 +1413,29 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                   + (failClosed ? "denying Exort actions." : "allowing Exort actions."),
               error);
       regionProtection = failClosed ? RegionProtection.denyAll() : RegionProtection.allowAll();
+      return;
     }
     boolean debug = getConfig().getBoolean("worldguard.debug", false);
     if (debug) {
       regionProtection = new DebugRegionProtection(regionProtection, getLogger(), true);
     }
+    getLogger().info("[WorldGuard] Integration enabled.");
+  }
+
+  private void registerWorldGuardEnableHook() {
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new Listener() {
+              @EventHandler
+              public void onPluginEnable(PluginEnableEvent event) {
+                if (!"WorldGuard".equals(event.getPlugin().getName())) {
+                  return;
+                }
+                setupRegionProtection();
+                HandlerList.unregisterAll(this);
+              }
+            },
+            this);
   }
 
   private void registerBrigadierCommands() {

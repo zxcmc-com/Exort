@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1 — 2026-05-20
+- Fixed crafting-terminal recipe remainder routing by using Paper's server-side craft result matrix/overflow items, so server-defined remainders return to storage first and fall back to the player's inventory or a nearby drop.
+- Fixed bus GUI settings during `/exort reload` so mode/filter changes are written to the live marker immediately and cannot be overwritten by a stale asynchronous SQLite load.
+- Fixed WorldEdit/FAWE marker restoration after `/exort reload` by tracking paste commands through the WorldEdit command event, prevented stale clipboard rotations from changing Exort block facing during non-paste operations such as `//move`, and refreshed adjacent wire displays after device/storage marker updates.
+- Added explicit WorldGuard integration status logging on startup/reload.
+
 ## 0.10.0 — 2026-05-19
 - Hardened item integrity for crafting terminals: recipe remainder items are now returned, cursor output buffers are capacity-checked, and unflushable buffered output is returned to the player or dropped instead of being lost or overfilling storage.
 - Hardened storage placement failure handling: if tier persistence fails after placement, Exort now revalidates the marker, removes the failed storage block/display, and returns the consumed item when appropriate.
