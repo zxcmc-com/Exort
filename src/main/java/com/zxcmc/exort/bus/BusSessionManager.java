@@ -181,6 +181,11 @@ public class BusSessionManager {
     busService.saveSettings(state);
   }
 
+  public void saveSettings(BusState state, Block busBlock) {
+    if (state == null) return;
+    busService.saveSettings(state, busBlock);
+  }
+
   public BusLinkStatus resolveStatus(BusState state) {
     if (state == null) {
       return new BusLinkStatus(StorageState.NONE, null, null, null, false);

@@ -19,6 +19,7 @@ public final class BusState {
   private int slotCursor;
   private int storageCursor;
   private int viewers;
+  private long settingsRevision;
   private long cachedStorageVersion = -1L;
   private String cachedStorageId;
   private List<StorageCache.StorageItem> cachedItems;
@@ -39,9 +40,9 @@ public final class BusState {
   }
 
   public void setType(BusType type) {
-    if (type != null) {
-      this.type = type;
-    }
+    if (type == null || type == this.type) return;
+    this.type = type;
+    bumpSettingsRevision();
   }
 
   public BlockFace facing() {
@@ -49,9 +50,9 @@ public final class BusState {
   }
 
   public void setFacing(BlockFace facing) {
-    if (facing != null) {
-      this.facing = facing;
-    }
+    if (facing == null || facing == this.facing) return;
+    this.facing = facing;
+    bumpSettingsRevision();
   }
 
   public BusMode mode() {
@@ -59,7 +60,10 @@ public final class BusState {
   }
 
   public void setMode(BusMode mode) {
-    this.mode = mode == null ? BusMode.DISABLED : mode;
+    BusMode normalized = mode == null ? BusMode.DISABLED : mode;
+    if (normalized == this.mode) return;
+    this.mode = normalized;
+    bumpSettingsRevision();
   }
 
   public ItemStack[] filters() {
@@ -67,16 +71,23 @@ public final class BusState {
   }
 
   public void setFilters(ItemStack[] newFilters) {
+    boolean changed = false;
     filterCounts.clear();
     for (int i = 0; i < filters.length; i++) {
       ItemStack stack = (newFilters != null && i < newFilters.length) ? newFilters[i] : null;
+      ItemStack previous = filters[i];
       if (stack != null && !stack.getType().isAir()) {
         ItemStack sample = ItemKeyUtil.sampleItem(stack);
         filters[i] = sample;
         addFilterKey(ItemKeyUtil.keyFor(sample));
+        changed |= !sameFilter(previous, sample);
       } else {
         filters[i] = null;
+        changed |= previous != null && !previous.getType().isAir();
       }
+    }
+    if (changed) {
+      bumpSettingsRevision();
     }
   }
 
@@ -88,11 +99,32 @@ public final class BusState {
     }
     if (sample == null || sample.getType().isAir()) {
       filters[index] = null;
+      if (prev != null && !prev.getType().isAir()) {
+        bumpSettingsRevision();
+      }
       return;
     }
     ItemStack normalized = ItemKeyUtil.sampleItem(sample);
     filters[index] = normalized;
     addFilterKey(ItemKeyUtil.keyFor(normalized));
+    if (!sameFilter(prev, normalized)) {
+      bumpSettingsRevision();
+    }
+  }
+
+  public long settingsRevision() {
+    return settingsRevision;
+  }
+
+  private void bumpSettingsRevision() {
+    settingsRevision++;
+  }
+
+  private boolean sameFilter(ItemStack left, ItemStack right) {
+    boolean leftEmpty = left == null || left.getType().isAir();
+    boolean rightEmpty = right == null || right.getType().isAir();
+    if (leftEmpty || rightEmpty) return leftEmpty == rightEmpty;
+    return left.getAmount() == right.getAmount() && left.isSimilar(right);
   }
 
   public Set<String> filterKeys() {

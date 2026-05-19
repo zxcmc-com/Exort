@@ -80,6 +80,10 @@ public final class BusService {
     registry.saveSettings(state);
   }
 
+  public void saveSettings(BusState state, Block busBlock) {
+    registry.saveSettings(state, busBlock);
+  }
+
   public void scanLoadedChunks() {
     registry.scanLoadedChunks();
   }

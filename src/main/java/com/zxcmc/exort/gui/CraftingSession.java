@@ -21,6 +21,7 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemCraftResult;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -619,14 +620,15 @@ public class CraftingSession extends AbstractStorageSession {
         showWirelessMissingError();
         return false;
       }
-      List<OutputStack> additions = storageCraftAdditions(plan, outputAmount, crafts);
-      if (!canStoreAdditions(additions)) {
+      List<OutputStack> output = outputAdditions(plan, outputAmount);
+      if (!canStoreAdditions(output)) {
         rollbackIngredients(reserved);
         setInfoErrorMessage(null);
         triggerInfoError();
         return false;
       }
-      addToStorage(additions);
+      addToStorage(output);
+      deliverRemainders(plan, crafts);
       return true;
     }
     return craftToPlayer(plan, crafts);
@@ -634,8 +636,8 @@ public class CraftingSession extends AbstractStorageSession {
 
   private boolean craftToPlayer(CraftPlan plan, int crafts) {
     long outputAmount = outputAmount(plan, crafts);
-    List<OutputStack> additions = playerCraftAdditions(plan, outputAmount, crafts);
-    if (!canAddAllToPlayer(viewer, additions)) {
+    List<OutputStack> output = outputAdditions(plan, outputAmount);
+    if (!canAddAllToPlayer(viewer, output)) {
       return false;
     }
     List<StorageCache.ReservedItem> reserved = reserveIngredients(plan, crafts);
@@ -643,11 +645,12 @@ public class CraftingSession extends AbstractStorageSession {
       showWirelessMissingError();
       return false;
     }
-    if (!canAddAllToPlayer(viewer, additions)) {
+    if (!canAddAllToPlayer(viewer, output)) {
       rollbackIngredients(reserved);
       return false;
     }
-    addAllToPlayerOrStorage(viewer, additions);
+    addAllToPlayerOrStorage(viewer, output);
+    deliverRemainders(plan, crafts);
     return true;
   }
 
@@ -671,14 +674,7 @@ public class CraftingSession extends AbstractStorageSession {
         showWirelessMissingError();
         return false;
       }
-      List<OutputStack> additions = storageCraftAdditions(plan, 0L, stack.crafts);
-      if (!canStoreAdditions(additions)) {
-        rollbackIngredients(reserved);
-        setInfoErrorMessage(null);
-        triggerInfoError();
-        return false;
-      }
-      addToStorage(additions);
+      deliverRemainders(plan, stack.crafts);
     }
     if (cursor == null || cursor.getType() == Material.AIR) {
       ItemStack out = plan.result.clone();
@@ -699,8 +695,8 @@ public class CraftingSession extends AbstractStorageSession {
     if (fit <= 0) return false;
     StackCraft stack = planStackCraft(plan, fit);
     if (stack == null || stack.give <= 0) return false;
-    List<OutputStack> additions = playerCraftAdditions(plan, stack.give, stack.crafts);
-    if (!canAddAllToPlayer(viewer, additions)) return false;
+    List<OutputStack> output = outputAdditions(plan, stack.give);
+    if (!canAddAllToPlayer(viewer, output)) return false;
     List<StorageCache.ReservedItem> reserved = null;
     if (stack.crafts > 0) {
       reserved = reserveIngredients(plan, stack.crafts);
@@ -709,7 +705,8 @@ public class CraftingSession extends AbstractStorageSession {
         return false;
       }
     }
-    addAllToPlayerOrStorage(viewer, additions);
+    addAllToPlayerOrStorage(viewer, output);
+    deliverRemainders(plan, stack.crafts);
     int bufferGive = Math.min(stack.bufferUsed, stack.give);
     if (bufferGive > 0) {
       state.takeFromBuffer(plan.resultKey, bufferGive);
@@ -774,14 +771,14 @@ public class CraftingSession extends AbstractStorageSession {
       buffered = plan.resultPerCraft;
       actualGive = Math.min(giveAmount, buffered);
       int bufferLeft = buffered - actualGive;
-      List<OutputStack> capacityAdditions = storageCraftAdditions(plan, bufferLeft, 1);
+      List<OutputStack> capacityAdditions = outputAdditions(plan, bufferLeft);
       if (!canStoreAdditions(capacityAdditions)) {
         rollbackIngredients(reserved);
         setInfoErrorMessage(null);
         triggerInfoError();
         return false;
       }
-      addToStorage(storageCraftAdditions(plan, 0L, 1));
+      deliverRemainders(plan, 1);
       if (bufferLeft > 0) {
         state.setBuffer(resultKey, plan.result, bufferLeft);
       } else {
@@ -827,7 +824,7 @@ public class CraftingSession extends AbstractStorageSession {
     int high = Math.max(0, craftCount);
     while (low < high) {
       int mid = low + (high - low + 1) / 2;
-      List<OutputStack> additions = playerCraftAdditions(plan, outputAmount(plan, mid), mid);
+      List<OutputStack> additions = outputAdditions(plan, outputAmount(plan, mid));
       if (canAddAllToPlayer(viewer, additions)) {
         low = mid;
       } else {
@@ -903,7 +900,9 @@ public class CraftingSession extends AbstractStorageSession {
     Recipe recipe = Bukkit.getCraftingRecipe(matrix, viewer.getWorld());
     if (recipe == null) return null;
     if (craftingRules != null && craftingRules.shouldBlock(matrix, recipe)) return null;
-    ItemStack result = recipe.getResult();
+    ItemCraftResult craftResult =
+        Bukkit.craftItemResult(copyMatrix(matrix), viewer.getWorld(), viewer);
+    ItemStack result = craftResult.getResult();
     if (result == null || result.getType() == Material.AIR) return null;
 
     Map<String, Ingredient> ingredients = new HashMap<>();
@@ -929,39 +928,46 @@ public class CraftingSession extends AbstractStorageSession {
     ItemStack resultSample = result.clone();
     resultSample.setAmount(1);
     return new CraftPlan(
-        resultSample, perCraft, ingredients, remainderItems(matrix), maxCraft, resultKey, false);
+        resultSample,
+        perCraft,
+        ingredients,
+        remainderItems(craftResult),
+        maxCraft,
+        resultKey,
+        false);
   }
 
-  private Map<String, CraftItem> remainderItems(ItemStack[] matrix) {
+  private ItemStack[] copyMatrix(ItemStack[] matrix) {
+    ItemStack[] copy = new ItemStack[matrix.length];
+    for (int i = 0; i < matrix.length; i++) {
+      copy[i] = matrix[i] == null ? null : matrix[i].clone();
+    }
+    return copy;
+  }
+
+  private Map<String, CraftItem> remainderItems(ItemCraftResult craftResult) {
     Map<String, CraftItem> remainders = new HashMap<>();
-    for (ItemStack ingredient : matrix) {
-      ItemStack remainder = craftingRemainder(ingredient);
-      if (remainder == null) continue;
-      ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(remainder);
-      CraftItem existing = remainders.get(data.key());
-      if (existing == null) {
-        remainders.put(data.key(), new CraftItem(data.key(), data.sample(), 1));
-      } else {
-        remainders.put(
-            data.key(),
-            new CraftItem(data.key(), existing.sample(), existing.amountPerCraft() + 1));
-      }
+    for (ItemStack remainder : craftResult.getResultingMatrix()) {
+      addRemainder(remainders, remainder);
+    }
+    for (ItemStack remainder : craftResult.getOverflowItems()) {
+      addRemainder(remainders, remainder);
     }
     return remainders;
   }
 
-  private ItemStack craftingRemainder(ItemStack ingredient) {
-    if (ingredient == null || ingredient.getType().isAir() || !ingredient.getType().isItem()) {
-      return null;
+  private void addRemainder(Map<String, CraftItem> remainders, ItemStack remainder) {
+    if (remainder == null || remainder.getType().isAir() || remainder.getAmount() <= 0) return;
+    ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(remainder);
+    CraftItem existing = remainders.get(data.key());
+    if (existing == null) {
+      remainders.put(data.key(), new CraftItem(data.key(), data.sample(), remainder.getAmount()));
+    } else {
+      remainders.put(
+          data.key(),
+          new CraftItem(
+              data.key(), existing.sample(), existing.amountPerCraft() + remainder.getAmount()));
     }
-    Material remaining;
-    try {
-      remaining = ingredient.getType().getCraftingRemainingItem();
-    } catch (IllegalArgumentException | NoSuchMethodError e) {
-      return null;
-    }
-    if (remaining == null || remaining.isAir()) return null;
-    return new ItemStack(remaining, 1);
   }
 
   private ItemStack clearButton() {
@@ -1198,19 +1204,18 @@ public class CraftingSession extends AbstractStorageSession {
     return infoBlockedUntilMs > System.currentTimeMillis();
   }
 
-  private List<OutputStack> storageCraftAdditions(
-      CraftPlan plan, long outputAmount, int remainderCrafts) {
+  private List<OutputStack> outputAdditions(CraftPlan plan, long outputAmount) {
     Map<String, OutputStack> additions = new HashMap<>();
     if (outputAmount > 0) {
       addOutput(additions, plan.resultKey, plan.result, outputAmount);
     }
-    addRemainders(additions, plan, remainderCrafts);
     return new ArrayList<>(additions.values());
   }
 
-  private List<OutputStack> playerCraftAdditions(
-      CraftPlan plan, long outputAmount, int remainderCrafts) {
-    return storageCraftAdditions(plan, outputAmount, remainderCrafts);
+  private List<OutputStack> remainderAdditions(CraftPlan plan, int crafts) {
+    Map<String, OutputStack> additions = new HashMap<>();
+    addRemainders(additions, plan, crafts);
+    return new ArrayList<>(additions.values());
   }
 
   private void addRemainders(Map<String, OutputStack> additions, CraftPlan plan, int crafts) {
@@ -1253,6 +1258,16 @@ public class CraftingSession extends AbstractStorageSession {
         cache.addItem(addition.key(), addition.sample(), addition.amount());
       }
     }
+  }
+
+  private void deliverRemainders(CraftPlan plan, int crafts) {
+    List<OutputStack> remainders = remainderAdditions(plan, crafts);
+    if (remainders.isEmpty()) return;
+    if (canStoreAdditions(remainders)) {
+      addToStorage(remainders);
+      return;
+    }
+    addAllToPlayerOrStorage(viewer, remainders);
   }
 
   private boolean canAddAllToPlayer(Player player, List<OutputStack> additions) {
