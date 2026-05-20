@@ -6,7 +6,9 @@ import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.db.Database;
+import com.zxcmc.exort.core.feedback.CommandFeedback;
 import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.ui.BossBarManager;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -62,7 +64,6 @@ public final class LoadTestService {
       new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
   private static final DecimalFormat TWO_DECIMALS =
       new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.US));
-  private static final String LOG_PREFIX = "[Exort] ";
 
   private final ExortPlugin plugin;
   private final Database database;
@@ -145,7 +146,7 @@ public final class LoadTestService {
 
   public void start(CommandSender sender, int players, int durationSecondsOverride) {
     if (isRunning()) {
-      sender.sendMessage(lang.tr("message.debug_load_running"));
+      CommandFeedback.send(sender, lang.tr("message.debug_load_running"));
       return;
     }
     this.owner = sender;
@@ -162,12 +163,10 @@ public final class LoadTestService {
     prepareDbPositions(simulatedPlayers);
     prepareDisplaySamples(sender);
     String summary = summaryLine();
-    String prefixedSummary = LOG_PREFIX + summary;
-    sender.sendMessage(sender == Bukkit.getConsoleSender() ? prefixedSummary : summary);
+    CommandFeedback.send(sender, summary);
     sendToConsoleIfNeeded(summary);
     String started = lang.tr("message.debug_load_started", simulatedPlayers);
-    String prefixedStarted = LOG_PREFIX + started;
-    sender.sendMessage(sender == Bukkit.getConsoleSender() ? prefixedStarted : started);
+    CommandFeedback.send(sender, started);
     sendToConsoleIfNeeded(started);
     taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::tick, 1L, 1L);
   }
@@ -180,7 +179,7 @@ public final class LoadTestService {
     }
     if (notify && owner != null) {
       String stopped = lang.tr("message.debug_load_stopped");
-      owner.sendMessage(owner == Bukkit.getConsoleSender() ? LOG_PREFIX + stopped : stopped);
+      CommandFeedback.send(owner, stopped);
     }
     if (notify) {
       sendToConsoleIfNeeded(lang.tr("message.debug_load_stopped"));
@@ -242,13 +241,13 @@ public final class LoadTestService {
   private void finishForced(String forcedGradeKey) {
     String verdict = verdict(forcedGradeKey);
     if (owner != null) {
-      owner.sendMessage(owner == Bukkit.getConsoleSender() ? LOG_PREFIX + verdict : verdict);
+      CommandFeedback.send(owner, verdict);
     }
     sendToConsoleIfNeeded(verdict);
     String hints = profileHints();
     if (hints != null && !hints.isBlank()) {
       if (owner != null) {
-        owner.sendMessage(owner == Bukkit.getConsoleSender() ? LOG_PREFIX + hints : hints);
+        CommandFeedback.send(owner, hints);
       }
       sendToConsoleIfNeeded(hints);
     }
@@ -270,7 +269,7 @@ public final class LoadTestService {
             ONE_DECIMAL.format(tps),
             ONE_DECIMAL.format(mspt));
     if (owner != null) {
-      owner.sendMessage(owner == Bukkit.getConsoleSender() ? LOG_PREFIX + message : message);
+      CommandFeedback.send(owner, message);
       if (ownerId != null) {
         Player player = Bukkit.getPlayer(ownerId);
         if (player != null && player.isOnline()) {
@@ -795,7 +794,7 @@ public final class LoadTestService {
     if (owner != null && owner == Bukkit.getConsoleSender()) {
       return;
     }
-    Bukkit.getConsoleSender().sendMessage(LOG_PREFIX + message);
+    ExortLog.info(message);
   }
 
   private void computeCounts() {

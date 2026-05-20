@@ -74,27 +74,19 @@ public class SessionManager {
                     }
                     Location anchor = storageSession.getStorageLocation();
                     if (!tickWireless.isEnabled()) {
-                      toClose.add(
-                          new WirelessCloseRequest(
-                              p, plugin.getLang().tr("message.wireless.disabled")));
+                      toClose.add(new WirelessCloseRequest(p, "message.wireless.disabled"));
                       continue;
                     }
                     if (anchor == null || !anchor.isWorldLoaded()) {
-                      toClose.add(
-                          new WirelessCloseRequest(
-                              p, plugin.getLang().tr("message.wireless.missing_storage")));
+                      toClose.add(new WirelessCloseRequest(p, "message.wireless.missing_storage"));
                       continue;
                     }
                     if (!tickWireless.inRange(anchor, p.getLocation())) {
-                      toClose.add(
-                          new WirelessCloseRequest(
-                              p, plugin.getLang().tr("message.wireless.out_of_range")));
+                      toClose.add(new WirelessCloseRequest(p, "message.wireless.out_of_range"));
                       continue;
                     }
                     if (!Carriers.matchesCarrier(anchor.getBlock(), tickStorageCarrier)) {
-                      toClose.add(
-                          new WirelessCloseRequest(
-                              p, plugin.getLang().tr("message.wireless.missing_storage")));
+                      toClose.add(new WirelessCloseRequest(p, "message.wireless.missing_storage"));
                     }
                   }
                   if (!physicalToClose.isEmpty()) {
@@ -110,10 +102,8 @@ public class SessionManager {
                       }
                       if (player.isOnline()) {
                         forceCloseSession(player);
-                        if (request.message() != null) {
-                          plugin
-                              .getBossBarManager()
-                              .showError(player, request.message(), plugin.getStoragePeekTicks());
+                        if (request.messageKey() != null) {
+                          plugin.getPlayerFeedback().error(player, request.messageKey());
                         }
                       } else {
                         closeSessionState(player, null);
@@ -318,9 +308,7 @@ public class SessionManager {
   public boolean openSearch(Player player, SearchableSession parent) {
     if (parent == null) return false;
     if (!plugin.isDialogSupported()) {
-      plugin
-          .getBossBarManager()
-          .showError(player, plugin.getLang().tr("error.search.dialogs_unsupported"), 100);
+      plugin.getPlayerFeedback().error(player, "error.search.dialogs_unsupported");
       return false;
     }
     SearchableSession existing = pendingSearch.get(player.getUniqueId());
@@ -718,7 +706,7 @@ public class SessionManager {
     }
   }
 
-  private record WirelessCloseRequest(Player player, String message) {}
+  private record WirelessCloseRequest(Player player, String messageKey) {}
 
   private record TerminalPos(UUID world, int x, int y, int z) {
     static TerminalPos of(Block block) {

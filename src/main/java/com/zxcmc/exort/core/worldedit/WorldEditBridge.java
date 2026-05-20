@@ -40,6 +40,7 @@ import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.*;
 import com.zxcmc.exort.core.network.NetworkGraphCache;
 import com.zxcmc.exort.core.sanity.DisplayCleanupService;
@@ -162,13 +163,13 @@ public final class WorldEditBridge implements Listener {
       WorldEdit.getInstance().getEventBus().register(bridge);
       Bukkit.getPluginManager().registerEvents(bridge, plugin);
       bridge.startFlushTask();
-      plugin.getLogger().info("[WorldEdit] Integration enabled.");
+      ExortLog.success("[WorldEdit] Integration enabled.");
       return bridge;
     } catch (NoClassDefFoundError err) {
-      plugin.getLogger().warning("[WorldEdit] Integration disabled: missing classes.");
+      ExortLog.warn("[WorldEdit] Integration disabled: missing classes.");
       return null;
     } catch (Throwable err) {
-      plugin.getLogger().warning("[WorldEdit] Integration disabled: " + err.getMessage());
+      ExortLog.warn("[WorldEdit] Integration disabled: " + err.getMessage());
       return null;
     }
   }

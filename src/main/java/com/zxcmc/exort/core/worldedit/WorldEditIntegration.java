@@ -1,6 +1,7 @@
 package com.zxcmc.exort.core.worldedit;
 
 import com.zxcmc.exort.core.ExortPlugin;
+import com.zxcmc.exort.core.logging.ExortLog;
 import java.lang.reflect.InvocationTargetException;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -22,7 +23,7 @@ public final class WorldEditIntegration {
     Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
     if (worldEdit == null && fawe == null) return null;
     if (!isClassAvailable(WORLDEDIT_CLASS) || !isClassAvailable(EXTENT_CLASS)) {
-      plugin.getLogger().warning("[WorldEdit] Integration disabled: missing classes.");
+      ExortLog.warn("[WorldEdit] Integration disabled: missing classes.");
       return null;
     }
     try {
@@ -32,10 +33,10 @@ public final class WorldEditIntegration {
           bridgeClass.getMethod("tryRegister", ExortPlugin.class).invoke(null, plugin);
       return bridgeInstance == null ? null : new WorldEditIntegration(bridgeInstance);
     } catch (InvocationTargetException e) {
-      plugin.getLogger().warning("[WorldEdit] Integration disabled: " + message(e.getCause()));
+      ExortLog.warn("[WorldEdit] Integration disabled: " + message(e.getCause()));
       return null;
     } catch (ReflectiveOperationException | LinkageError e) {
-      plugin.getLogger().warning("[WorldEdit] Integration disabled: " + message(e));
+      ExortLog.warn("[WorldEdit] Integration disabled: " + message(e));
       return null;
     }
   }

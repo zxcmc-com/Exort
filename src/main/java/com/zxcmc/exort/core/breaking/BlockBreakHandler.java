@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.items.CustomItems;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.BusMarker;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.marker.StorageCoreMarker;
@@ -11,6 +12,7 @@ import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalKind;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.marker.WireMarker;
+import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.DisplayTags;
 import com.zxcmc.exort.display.ItemHologramManager;
@@ -18,7 +20,6 @@ import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
-import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -326,10 +327,7 @@ public final class BlockBreakHandler {
 
   private void preloadStorageForBreak(Player player, String storageId) {
     if (player != null && player.isOnline()) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, plugin.getLang().tr("message.storage_loading"), plugin.getStoragePeekTicks());
+      plugin.getPlayerFeedback().warn(player, "message.storage_loading");
     }
     plugin
         .getStorageManager()
@@ -337,48 +335,15 @@ public final class BlockBreakHandler {
         .whenComplete(
             (cache, err) -> {
               if (err == null) return;
-              plugin
-                  .getLogger()
-                  .log(
-                      Level.WARNING,
-                      "Failed to load storage before break " + storageId,
-                      unwrap(err));
-              runSyncIfEnabled(
+              ExortLog.log(
+                  plugin, Level.WARNING, "Failed to load storage before break " + storageId, err);
+              PluginTasks.runSyncIfEnabled(
+                  plugin,
                   () -> {
                     if (player == null || !player.isOnline()) return;
-                    plugin
-                        .getBossBarManager()
-                        .showError(
-                            player,
-                            plugin.getLang().tr("message.storage_load_failed"),
-                            plugin.getStoragePeekTicks());
+                    plugin.getPlayerFeedback().error(player, "message.storage_load_failed");
                   });
             });
-  }
-
-  private void runSyncIfEnabled(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      plugin
-          .getServer()
-          .getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async storage load completes.
-    }
-  }
-
-  private Throwable unwrap(Throwable err) {
-    if (err instanceof CompletionException && err.getCause() != null) {
-      return err.getCause();
-    }
-    return err;
   }
 
   private void dropItemSafe(Block block, ItemStack item) {

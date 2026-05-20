@@ -532,10 +532,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
         String message = manager.getPlugin().getLang().tr("message.wireless.self_store");
         setInfoErrorMessage(message);
         triggerInfoError();
-        manager
-            .getPlugin()
-            .getBossBarManager()
-            .showError(viewer, message, manager.getPlugin().getStoragePeekTicks());
+        manager.getPlugin().getPlayerFeedback().errorMessage(viewer, message);
         return 0;
       }
     }
@@ -559,10 +556,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
         String message = manager.getPlugin().getLang().tr("message.wireless.self_store");
         setInfoErrorMessage(message);
         triggerInfoError();
-        manager
-            .getPlugin()
-            .getBossBarManager()
-            .showError(viewer, message, manager.getPlugin().getStoragePeekTicks());
+        manager.getPlugin().getPlayerFeedback().errorMessage(viewer, message);
         return 0;
       }
     }

@@ -2,11 +2,12 @@ package com.zxcmc.exort.core.ui;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.core.logging.ExortLog;
+import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
@@ -40,7 +41,8 @@ public class BossBarManager {
                 handleLoadFailure(player, storageId, durationTicks, gen, err);
                 return;
               }
-              runSyncIfEnabled(
+              PluginTasks.runSyncIfEnabled(
+                  plugin,
                   () -> {
                     if (!player.isOnline()) return;
                     if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
@@ -92,7 +94,8 @@ public class BossBarManager {
                 handleLoadFailure(player, storageId, durationTicks, gen, err);
                 return;
               }
-              runSyncIfEnabled(
+              PluginTasks.runSyncIfEnabled(
+                  plugin,
                   () -> {
                     if (!player.isOnline()) return;
                     if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
@@ -141,8 +144,9 @@ public class BossBarManager {
 
   private void handleLoadFailure(
       Player player, String storageId, long durationTicks, int gen, Throwable err) {
-    plugin.getLogger().log(Level.WARNING, "Failed to load storage " + storageId, unwrap(err));
-    runSyncIfEnabled(
+    ExortLog.log(plugin, Level.WARNING, "Failed to load storage " + storageId, err);
+    PluginTasks.runSyncIfEnabled(
+        plugin,
         () -> {
           if (player == null || !player.isOnline()) return;
           if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
@@ -154,29 +158,6 @@ public class BossBarManager {
               durationTicks,
               gen);
         });
-  }
-
-  private void runSyncIfEnabled(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      Bukkit.getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async storage load completes.
-    }
-  }
-
-  private Throwable unwrap(Throwable err) {
-    if (err instanceof CompletionException && err.getCause() != null) {
-      return err.getCause();
-    }
-    return err;
   }
 
   private BossBar createOrGetBar(Player player) {

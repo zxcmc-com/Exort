@@ -222,9 +222,7 @@ public final class CacheDebugService {
   }
 
   private Component prefix() {
-    return Component.text("[", NamedTextColor.DARK_GRAY)
-        .append(Component.text("Exort", NamedTextColor.AQUA))
-        .append(Component.text("] ", NamedTextColor.DARK_GRAY));
+    return Component.text("[Exort] ", NamedTextColor.AQUA);
   }
 
   private NamedTextColor color(EventType type) {

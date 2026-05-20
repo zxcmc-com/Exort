@@ -2,6 +2,7 @@ package com.zxcmc.exort.core.recipes;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.items.CustomItems;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.io.File;
@@ -39,7 +40,7 @@ public final class RecipeService {
   public void reload() {
     unregisterAll();
     if (!plugin.getConfig().getBoolean("recipes.enabled", true)) {
-      plugin.getLogger().info("Recipes are disabled.");
+      ExortLog.info("Recipes are disabled.");
       return;
     }
     File file = ensureFile();
@@ -67,16 +68,8 @@ public final class RecipeService {
     }
 
     int disabled = disableRecipes(config.getStringList("disabled"));
-    plugin
-        .getLogger()
-        .info(
-            "Recipes loaded: "
-                + loaded
-                + ", skipped: "
-                + skipped
-                + ", disabled: "
-                + disabled
-                + ".");
+    ExortLog.info(
+        "Recipes loaded: " + loaded + ", skipped: " + skipped + ", disabled: " + disabled + ".");
   }
 
   public void unregisterAll() {
@@ -447,7 +440,7 @@ public final class RecipeService {
   }
 
   private void logSkip(String id, String reason) {
-    plugin.getLogger().warning("Skipped recipe '" + id + "': " + reason);
+    ExortLog.warn("Skipped recipe '" + id + "': " + reason);
   }
 
   private record Result(int loaded, int skipped) {}
