@@ -261,6 +261,7 @@ public class ItemPlaceBridgeListener implements Listener {
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     Carriers.applyCarrier(target, terminalCarrier);
     TerminalMarker.set(plugin, target, kind, face);
+    invalidateNetwork();
     var refresh = plugin.getDisplayRefreshService();
     if (refresh != null) {
       refresh.refreshTerminal(target);
@@ -271,23 +272,24 @@ public class ItemPlaceBridgeListener implements Listener {
     }
     if (refresh != null) {
       refresh.refreshChunk(target.getChunk());
+      refresh.refreshNetworkFrom(target);
     }
-    invalidateNetwork();
   }
 
   private void placeMonitor(PlayerInteractEvent event, Block target) {
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     Carriers.applyCarrier(target, monitorCarrier);
     MonitorMarker.set(plugin, target, face);
+    invalidateNetwork();
     var refresh = plugin.getDisplayRefreshService();
-    if (refresh != null) {
-      refresh.refreshChunk(target.getChunk());
-    }
     if (plugin.getMonitorDisplayManager() != null) {
       plugin.getMonitorDisplayManager().registerMonitor(target);
     }
     plugin.markMonitorPlaced(target);
-    invalidateNetwork();
+    if (refresh != null) {
+      refresh.refreshChunk(target.getChunk());
+      refresh.refreshNetworkFrom(target);
+    }
   }
 
   private void placeBus(PlayerInteractEvent event, Block target, boolean exportBus) {
@@ -300,6 +302,7 @@ public class ItemPlaceBridgeListener implements Listener {
         exportBus ? BusType.EXPORT : BusType.IMPORT,
         face,
         defaultBusMode(exportBus));
+    invalidateNetwork();
     var refresh = plugin.getDisplayRefreshService();
     if (refresh != null) {
       refresh.refreshBus(target);
@@ -310,7 +313,9 @@ public class ItemPlaceBridgeListener implements Listener {
           .getBusService()
           .getOrCreateState(BusPos.of(target), BusMarker.get(plugin, target).orElse(null), target);
     }
-    invalidateNetwork();
+    if (refresh != null) {
+      refresh.refreshNetworkFrom(target);
+    }
   }
 
   private void invalidateNetwork() {

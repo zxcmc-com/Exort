@@ -103,15 +103,16 @@ public class BlockListener implements Listener {
         block.setBlockData(directional, false);
       }
       MonitorMarker.set(plugin, block, monitorFace);
+      invalidateNetwork();
       var refresh = plugin.getDisplayRefreshService();
-      if (refresh != null) {
-        refresh.refreshChunk(block.getChunk());
-      }
       playPlaceSound(block, BreakType.MONITOR);
       if (plugin.getMonitorDisplayManager() != null) {
         plugin.getMonitorDisplayManager().registerMonitor(block);
       }
-      invalidateNetwork();
+      if (refresh != null) {
+        refresh.refreshChunk(block.getChunk());
+        refresh.refreshNetworkFrom(block);
+      }
       return;
     }
 
@@ -148,6 +149,7 @@ public class BlockListener implements Listener {
             isExport ? BusType.EXPORT : BusType.IMPORT,
             face,
             defaultBusMode(isExport));
+        invalidateNetwork();
         var refresh = plugin.getDisplayRefreshService();
         if (refresh != null) {
           refresh.refreshBus(block);
@@ -176,7 +178,9 @@ public class BlockListener implements Listener {
             }
           }
         }
-        invalidateNetwork();
+        if (refresh != null) {
+          refresh.refreshNetworkFrom(block);
+        }
         return;
       }
     }
@@ -201,6 +205,7 @@ public class BlockListener implements Listener {
       }
       TerminalMarker.set(
           plugin, block, isCrafting ? TerminalKind.CRAFTING : TerminalKind.TERMINAL, terminalFace);
+      invalidateNetwork();
       var refresh = plugin.getDisplayRefreshService();
       if (refresh != null) {
         refresh.refreshTerminal(block);
@@ -227,8 +232,8 @@ public class BlockListener implements Listener {
       }
       if (refresh != null) {
         refresh.refreshChunk(block.getChunk());
+        refresh.refreshNetworkFrom(block);
       }
-      invalidateNetwork();
       return;
     }
 

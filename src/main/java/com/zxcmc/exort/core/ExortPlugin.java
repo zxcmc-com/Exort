@@ -1125,7 +1125,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 storageManager,
                 sessionManager,
                 keys,
-                lang,
                 wireLimit,
                 wireHardCap,
                 wireMaterial,

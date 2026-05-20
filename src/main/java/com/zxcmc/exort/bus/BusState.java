@@ -121,9 +121,12 @@ public final class BusState {
   }
 
   private boolean sameFilter(ItemStack left, ItemStack right) {
-    boolean leftEmpty = left == null || left.getType().isAir();
-    boolean rightEmpty = right == null || right.getType().isAir();
-    if (leftEmpty || rightEmpty) return leftEmpty == rightEmpty;
+    if (left == null || left.getType().isAir()) {
+      return right == null || right.getType().isAir();
+    }
+    if (right == null || right.getType().isAir()) {
+      return false;
+    }
     return left.getAmount() == right.getAmount() && left.isSimilar(right);
   }
 
