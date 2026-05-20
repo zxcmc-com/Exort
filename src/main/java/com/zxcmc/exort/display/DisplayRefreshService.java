@@ -148,6 +148,11 @@ public final class DisplayRefreshService {
         }
       }
     }
+    if (wireDisplayManager != null) {
+      for (Block wire : visited) {
+        wireDisplayManager.updateWireAndNeighbors(wire);
+      }
+    }
     for (Block terminal : terminals) {
       refreshTerminal(terminal);
     }

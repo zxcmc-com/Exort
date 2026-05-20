@@ -321,6 +321,7 @@ public final class BusEngine implements Runnable {
         inventory.setItem(slot, stack);
       }
       cache.addItem(data.key(), data.sample(), move);
+      refreshVisualInventory(target);
       state.setSlotCursor(idx + 1);
       return true;
     }
@@ -356,6 +357,7 @@ public final class BusEngine implements Runnable {
         cache.addItem(entry.key(), entry.sample(), removed - moved);
       }
       if (moved > 0) {
+        refreshVisualInventory(target);
         state.setStorageCursor(idx + 1);
         return true;
       }
@@ -419,6 +421,18 @@ public final class BusEngine implements Runnable {
       case WHITELIST -> filterKeys.contains(key);
       case BLACKLIST -> !filterKeys.contains(key);
     };
+  }
+
+  private void refreshVisualInventory(BusTargetResolver.InventoryTarget target) {
+    if (target == null || !isVisualInventory(target.inventory())) return;
+    Block block = target.block();
+    if (block == null || block.getWorld() == null) return;
+    if (!block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) return;
+    block.getState().update(false, false);
+  }
+
+  private boolean isVisualInventory(Inventory inventory) {
+    return inventory != null && "SHELF".equals(inventory.getType().name());
   }
 
   private record ResolvedContext(

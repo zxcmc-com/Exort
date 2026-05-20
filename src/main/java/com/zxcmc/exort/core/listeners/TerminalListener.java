@@ -2,7 +2,6 @@ package com.zxcmc.exort.core.listeners;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.i18n.Lang;
 import com.zxcmc.exort.core.keys.StorageKeys;
 import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.TerminalKind;
@@ -29,7 +28,6 @@ public class TerminalListener implements Listener {
   private final StorageManager storageManager;
   private final SessionManager sessionManager;
   private final StorageKeys keys;
-  private final Lang lang;
   private final int wireLimit;
   private final int wireHardCap;
   private final Material wireMaterial;
@@ -41,7 +39,6 @@ public class TerminalListener implements Listener {
       StorageManager storageManager,
       SessionManager sessionManager,
       StorageKeys keys,
-      Lang lang,
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
@@ -51,7 +48,6 @@ public class TerminalListener implements Listener {
     this.storageManager = storageManager;
     this.sessionManager = sessionManager;
     this.keys = keys;
-    this.lang = lang;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
     this.wireMaterial = wireMaterial;

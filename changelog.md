@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.3 — 2026-05-21
+- Fixed immediate visual refresh for one-wire storage links so newly placed terminals, crafting terminals, monitors, and buses show their cable connection/active state without `/exort reload`.
+- Fixed shelf inventory visuals after bus moves so shelves no longer keep a phantom last item after Exort extracts it.
+
 ## 0.10.2 — 2026-05-20
 - Moved transient wireless, terminal, and storage failure feedback from boss bars to action bars while keeping boss bars for persistent storage, wire, bus, monitor, and benchmark status.
 - Added a short duplicate cooldown for identical action-bar feedback so rapid wireless/terminal validation failures do not spam players.
