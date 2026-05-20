@@ -8,14 +8,11 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.zxcmc.exort.core.ExortPlugin;
+import com.zxcmc.exort.core.feedback.CommandFeedback;
 import com.zxcmc.exort.core.i18n.Lang;
 import com.zxcmc.exort.core.items.CustomItems;
-import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.marker.ChunkMarkerStore;
-import com.zxcmc.exort.core.marker.MonitorMarker;
-import com.zxcmc.exort.core.marker.StorageMarker;
-import com.zxcmc.exort.core.marker.TerminalMarker;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.core.logging.ExortLog;
+import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.gui.GuiSession;
@@ -26,26 +23,16 @@ import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
-import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.util.StringUtil;
 
 public final class ExortBrigadier {
@@ -62,9 +49,11 @@ public final class ExortBrigadier {
   private static final int MAX_GIVE_AMOUNT = 512;
 
   private final ExortPlugin plugin;
+  private final DebugCacheStatusRenderer cacheStatusRenderer;
 
   public ExortBrigadier(ExortPlugin plugin) {
     this.plugin = plugin;
+    this.cacheStatusRenderer = new DebugCacheStatusRenderer(plugin);
   }
 
   public LiteralCommandNode<CommandSourceStack> build() {
@@ -336,14 +325,14 @@ public final class ExortBrigadier {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     Lang lang = plugin.getLang();
-    sender.sendMessage(lang.tr("message.help_header"));
-    sender.sendMessage(lang.tr("message.help_debug", "exort"));
-    sender.sendMessage(lang.tr("message.help_give", "exort"));
-    sender.sendMessage(lang.tr("message.help_reload", "exort"));
-    sender.sendMessage(lang.tr("message.help_lang", "exort"));
-    sender.sendMessage(lang.tr("message.help_mode", "exort"));
-    sender.sendMessage(lang.tr("message.help_pack", "exort"));
-    sender.sendMessage(lang.tr("message.help_version", "exort"));
+    sendMessage(sender, lang.tr("message.help_header"));
+    sendMessage(sender, lang.tr("message.help_debug", "exort"));
+    sendMessage(sender, lang.tr("message.help_give", "exort"));
+    sendMessage(sender, lang.tr("message.help_reload", "exort"));
+    sendMessage(sender, lang.tr("message.help_lang", "exort"));
+    sendMessage(sender, lang.tr("message.help_mode", "exort"));
+    sendMessage(sender, lang.tr("message.help_pack", "exort"));
+    sendMessage(sender, lang.tr("message.help_version", "exort"));
     return 1;
   }
 
@@ -359,13 +348,13 @@ public final class ExortBrigadier {
     }
     if (storageId != null) {
       String finalStorageId = storageId;
-      runSync(() -> sendCacheStatus(sender, finalStorageId));
+      runSync(() -> cacheStatusRenderer.send(sender, finalStorageId));
       return 1;
     }
     Player online = Bukkit.getPlayerExact(raw);
     OfflinePlayer offline = online != null ? online : Bukkit.getOfflinePlayer(raw);
     if (offline == null || (offline.getName() == null && !offline.hasPlayedBefore())) {
-      sender.sendMessage(plugin.getLang().tr("message.debug_storage_invalid"));
+      sendMessage(sender, plugin.getLang().tr("message.debug_storage_invalid"));
       return 1;
     }
     String playerName = offline.getName() != null ? offline.getName() : raw;
@@ -381,279 +370,19 @@ public final class ExortBrigadier {
               runSync(
                   () -> {
                     if (result.isEmpty()) {
-                      sender.sendMessage(
-                          plugin.getLang().tr("message.debug_player_none", playerName));
+                      sendMessage(
+                          sender, plugin.getLang().tr("message.debug_player_none", playerName));
                       return;
                     }
-                    sendCacheStatus(sender, result.get().storageId());
+                    cacheStatusRenderer.send(sender, result.get().storageId());
                   });
             });
     return 1;
   }
 
-  private void sendCacheStatus(CommandSender sender, String storageId) {
-    Lang lang = plugin.getLang();
-    sender.sendMessage(lang.tr("message.debug_cache_status_header", storageId));
-    var storageManager = plugin.getStorageManager();
-    var cacheOpt = storageManager.getCache(storageId);
-    boolean loading = storageManager.isLoading(storageId);
-    long now = System.currentTimeMillis();
-    if (cacheOpt.isEmpty() || !cacheOpt.get().isLoaded()) {
-      sender.sendMessage(lang.tr("message.debug_cache_status_cache_unloaded"));
-    } else {
-      var cache = cacheOpt.get();
-      long idleMs = Math.max(0L, now - cache.lastAccessMs());
-      long idleThresholdMs =
-          Math.max(0L, plugin.getConfig().getLong("cache.idleUnloadSeconds", 300L) * 1000L);
-      boolean dirty = cache.isDirty();
-      int viewers = cache.viewerCount();
-      sender.sendMessage(
-          lang.tr(
-              "message.debug_cache_status_cache",
-              "true",
-              String.valueOf(dirty),
-              String.valueOf(viewers),
-              String.valueOf(idleMs),
-              String.valueOf(idleMs / 1000L)));
-      String touchSource = cache.lastTouchSource();
-      if (touchSource != null) {
-        long touchAge = Math.max(0L, now - cache.lastTouchMs());
-        sender.sendMessage(
-            lang.tr(
-                "message.debug_cache_status_touch",
-                String.valueOf(touchAge),
-                String.valueOf(touchAge / 1000L),
-                touchSource));
-      }
-      boolean eligible = idleMs >= idleThresholdMs && !dirty && viewers <= 0 && !loading;
-      sender.sendMessage(
-          lang.tr(
-              "message.debug_cache_status_evict",
-              String.valueOf(eligible),
-              String.valueOf(idleMs),
-              String.valueOf(idleThresholdMs),
-              String.valueOf(dirty),
-              String.valueOf(viewers),
-              String.valueOf(loading)));
-    }
-
-    Location loc = findLoadedStorageLocation(storageId);
-    if (loc == null || loc.getWorld() == null) {
-      sender.sendMessage(lang.tr("message.debug_cache_status_marker_missing"));
-      return;
-    }
-    int cx = loc.getBlockX() >> 4;
-    int cz = loc.getBlockZ() >> 4;
-    sender.sendMessage(
-        lang.tr(
-            "message.debug_cache_status_marker",
-            loc.getWorld().getName(),
-            String.valueOf(loc.getBlockX()),
-            String.valueOf(loc.getBlockY()),
-            String.valueOf(loc.getBlockZ()),
-            String.valueOf(cx),
-            String.valueOf(cz)));
-    boolean loaded = loc.getWorld().isChunkLoaded(cx, cz);
-    if (!loaded) {
-      sender.sendMessage(lang.tr("message.debug_cache_status_chunk_unloaded"));
-      ConnectionStats stats = findLoadedConnections(storageId);
-      sender.sendMessage(
-          lang.tr(
-              "message.debug_cache_status_connections",
-              String.valueOf(stats.terminals),
-              String.valueOf(stats.monitors),
-              String.valueOf(stats.buses),
-              String.valueOf(stats.total())));
-      if (stats.total() == 0) {
-        sender.sendMessage(lang.tr("message.debug_cache_status_connections_empty"));
-      }
-      return;
-    }
-    Chunk chunk = loc.getWorld().getChunkAt(cx, cz);
-    var tickets = chunk.getPluginChunkTickets();
-    String ticketNames =
-        tickets.isEmpty()
-            ? "-"
-            : tickets.stream()
-                .map(Plugin::getName)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("-");
-    var players = chunk.getPlayersSeeingChunk();
-    String playerNames =
-        players.isEmpty()
-            ? "-"
-            : players.stream()
-                .map(Player::getName)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("-");
-    sender.sendMessage(
-        lang.tr(
-            "message.debug_cache_status_chunk",
-            String.valueOf(chunk.isLoaded()),
-            String.valueOf(chunk.getLoadLevel()),
-            String.valueOf(chunk.isForceLoaded()),
-            ticketNames,
-            playerNames));
-    String reason = buildChunkReason(chunk, ticketNames, playerNames);
-    sender.sendMessage(lang.tr("message.debug_cache_status_chunk_reason", reason));
-    ConnectionStats stats = findLoadedConnections(storageId);
-    sender.sendMessage(
-        lang.tr(
-            "message.debug_cache_status_connections",
-            String.valueOf(stats.terminals),
-            String.valueOf(stats.monitors),
-            String.valueOf(stats.buses),
-            String.valueOf(stats.total())));
-    if (stats.total() == 0) {
-      sender.sendMessage(lang.tr("message.debug_cache_status_connections_empty"));
-    }
-  }
-
-  private String buildChunkReason(Chunk chunk, String ticketNames, String playerNames) {
-    List<String> reasons = new ArrayList<>();
-    if (chunk.isForceLoaded()) {
-      reasons.add("forceLoaded");
-    }
-    if (ticketNames != null && !ticketNames.equals("-")) {
-      reasons.add("pluginTickets=" + ticketNames);
-    }
-    if (playerNames != null && !playerNames.equals("-")) {
-      reasons.add("players=" + playerNames);
-    }
-    String spawnReason = spawnReason(chunk);
-    if (spawnReason != null) {
-      reasons.add(spawnReason);
-    }
-    if (reasons.isEmpty()) {
-      reasons.add("unknown (spawn/region/other)");
-    }
-    return String.join(", ", reasons);
-  }
-
-  private String spawnReason(Chunk chunk) {
-    if (chunk == null || chunk.getWorld() == null) return null;
-    World world = chunk.getWorld();
-    Location spawn = world.getSpawnLocation();
-    int spawnCx = spawn.getBlockX() >> 4;
-    int spawnCz = spawn.getBlockZ() >> 4;
-    int radiusBlocks = Bukkit.getServer().getSpawnRadius();
-    int radiusChunks = Math.max(1, (int) Math.ceil(radiusBlocks / 16.0));
-    int dx = Math.abs(chunk.getX() - spawnCx);
-    int dz = Math.abs(chunk.getZ() - spawnCz);
-    if (dx <= radiusChunks && dz <= radiusChunks) {
-      return "spawn(radiusChunks=" + radiusChunks + ")";
-    }
-    return null;
-  }
-
-  private record ConnectionStats(int terminals, int monitors, int buses) {
-    int total() {
-      return terminals + monitors + buses;
-    }
-  }
-
-  private ConnectionStats findLoadedConnections(String storageId) {
-    if (storageId == null || storageId.isBlank()) return new ConnectionStats(0, 0, 0);
-    int[] counts = new int[3];
-    for (World world : Bukkit.getWorlds()) {
-      for (Chunk chunk : world.getLoadedChunks()) {
-        if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) continue;
-        ChunkMarkerStore.forEachBlock(
-            plugin,
-            chunk,
-            (block, root) -> {
-              if (TerminalMarker.isTerminal(plugin, block)) {
-                if (isLinkedTerminal(block, storageId)) counts[0]++;
-                return;
-              }
-              if (MonitorMarker.isMonitor(plugin, block)) {
-                if (isLinkedMonitor(block, storageId)) counts[1]++;
-                return;
-              }
-              if (BusMarker.isBus(plugin, block)) {
-                if (isLinkedBus(block, storageId)) counts[2]++;
-              }
-            });
-      }
-    }
-    return new ConnectionStats(counts[0], counts[1], counts[2]);
-  }
-
-  private boolean isLinkedTerminal(Block block, String storageId) {
-    if (!TerminalMarker.isTerminal(plugin, block)) return false;
-    var result =
-        TerminalLinkFinder.find(
-            block,
-            plugin.getKeys(),
-            plugin,
-            plugin.getWireLimit(),
-            plugin.getWireHardCap(),
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier());
-    return result.count() == 1
-        && result.data() != null
-        && storageId.equals(result.data().storageId());
-  }
-
-  private boolean isLinkedMonitor(Block block, String storageId) {
-    if (!MonitorMarker.isMonitor(plugin, block)) return false;
-    var result =
-        TerminalLinkFinder.find(
-            block,
-            plugin.getKeys(),
-            plugin,
-            plugin.getWireLimit(),
-            plugin.getWireHardCap(),
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier());
-    return result.count() == 1
-        && result.data() != null
-        && storageId.equals(result.data().storageId());
-  }
-
-  private boolean isLinkedBus(Block block, String storageId) {
-    if (!BusMarker.isBus(plugin, block)) return false;
-    var result =
-        TerminalLinkFinder.find(
-            block,
-            plugin.getKeys(),
-            plugin,
-            plugin.getWireLimit(),
-            plugin.getWireHardCap(),
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier());
-    return result.count() == 1
-        && result.data() != null
-        && storageId.equals(result.data().storageId());
-  }
-
-  private Location findLoadedStorageLocation(String storageId) {
-    if (storageId == null || storageId.isBlank()) return null;
-    var result = new AtomicReference<Location>();
-    for (World world : Bukkit.getWorlds()) {
-      for (Chunk chunk : world.getLoadedChunks()) {
-        if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) continue;
-        ChunkMarkerStore.forEachBlock(
-            plugin,
-            chunk,
-            (block, root) -> {
-              if (result.get() != null) return;
-              var data = StorageMarker.get(plugin, block).orElse(null);
-              if (data == null) return;
-              if (!storageId.equals(data.storageId())) return;
-              result.set(block.getLocation());
-            });
-        if (result.get() != null) return result.get();
-      }
-    }
-    return result.get();
-  }
-
   private int usageDebug(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.usage_debug"));
+    sendMessage(sender(context.getSource()), plugin.getLang().tr("message.usage_debug"));
     return 1;
   }
 
@@ -663,7 +392,7 @@ public final class ExortBrigadier {
     CommandSender sender = sender(context.getSource());
     var mode = CacheDebugService.Mode.fromString(rawMode);
     if (rawMode != null && mode == null) {
-      sender.sendMessage(plugin.getLang().tr("message.debug_cache_mode_invalid", rawMode));
+      sendMessage(sender, plugin.getLang().tr("message.debug_cache_mode_invalid", rawMode));
       return 0;
     }
     UUID filter = null;
@@ -671,7 +400,7 @@ public final class ExortBrigadier {
       try {
         filter = UUID.fromString(rawStorage.trim());
       } catch (IllegalArgumentException e) {
-        sender.sendMessage(plugin.getLang().tr("message.debug_cache_storage_invalid", rawStorage));
+        sendMessage(sender, plugin.getLang().tr("message.debug_cache_storage_invalid", rawStorage));
         return 0;
       }
     }
@@ -682,7 +411,7 @@ public final class ExortBrigadier {
             .toLowerCase(Locale.ROOT);
     String filterText =
         filter == null ? plugin.getLang().tr("message.debug_cache_filter_none") : filter.toString();
-    sender.sendMessage(plugin.getLang().tr("message.debug_cache_started", modeName, filterText));
+    sendMessage(sender, plugin.getLang().tr("message.debug_cache_started", modeName, filterText));
     return 1;
   }
 
@@ -690,7 +419,7 @@ public final class ExortBrigadier {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     plugin.getCacheDebugService().stop(sender);
-    sender.sendMessage(plugin.getLang().tr("message.debug_cache_stopped"));
+    sendMessage(sender, plugin.getLang().tr("message.debug_cache_stopped"));
     return 1;
   }
 
@@ -699,7 +428,7 @@ public final class ExortBrigadier {
     CommandSender sender = sender(context.getSource());
     var mode = WorldEditDebugService.Mode.fromString(rawMode);
     if (rawMode != null && mode == null) {
-      sender.sendMessage(plugin.getLang().tr("message.debug_worldedit_mode_invalid", rawMode));
+      sendMessage(sender, plugin.getLang().tr("message.debug_worldedit_mode_invalid", rawMode));
       return 0;
     }
     plugin.getWorldEditDebugService().start(sender, mode);
@@ -707,7 +436,7 @@ public final class ExortBrigadier {
         (mode == null ? plugin.getWorldEditDebugService().getMode() : mode)
             .name()
             .toLowerCase(Locale.ROOT);
-    sender.sendMessage(plugin.getLang().tr("message.debug_worldedit_started", modeName));
+    sendMessage(sender, plugin.getLang().tr("message.debug_worldedit_started", modeName));
     return 1;
   }
 
@@ -715,7 +444,7 @@ public final class ExortBrigadier {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     plugin.getWorldEditDebugService().stop(sender);
-    sender.sendMessage(plugin.getLang().tr("message.debug_worldedit_stopped"));
+    sendMessage(sender, plugin.getLang().tr("message.debug_worldedit_stopped"));
     return 1;
   }
 
@@ -734,7 +463,7 @@ public final class ExortBrigadier {
 
   private int usageGive(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.give_usage"));
+    sendMessage(sender(context.getSource()), plugin.getLang().tr("message.give_usage"));
     return 1;
   }
 
@@ -749,26 +478,26 @@ public final class ExortBrigadier {
                 sendAsyncFailure(sender, "reload runtime", err);
                 return;
               }
-              runSync(() -> sender.sendMessage(plugin.getLang().tr("message.reload")));
+              runSync(() -> sendMessage(sender, plugin.getLang().tr("message.reload")));
             });
     return 1;
   }
 
   private int usageLang(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.usage_lang"));
+    sendMessage(sender(context.getSource()), plugin.getLang().tr("message.usage_lang"));
     return 1;
   }
 
   private int usageMode(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.usage_mode"));
+    sendMessage(sender(context.getSource()), plugin.getLang().tr("message.usage_mode"));
     return 1;
   }
 
   private int usagePack(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sender(context.getSource()).sendMessage(plugin.getLang().tr("message.usage_pack"));
+    sendMessage(sender(context.getSource()), plugin.getLang().tr("message.usage_pack"));
     return 1;
   }
 
@@ -789,7 +518,7 @@ public final class ExortBrigadier {
               runSync(
                   () -> {
                     plugin.getLang().reload(status.activeLanguage());
-                    sender.sendMessage(plugin.getLang().tr("message.lang_refreshed"));
+                    sendMessage(sender, plugin.getLang().tr("message.lang_refreshed"));
                   });
             });
     return 1;
@@ -800,23 +529,23 @@ public final class ExortBrigadier {
     var status = plugin.getItemNameService().status();
     CommandSender sender = sender(context.getSource());
     Lang lang = plugin.getLang();
-    sender.sendMessage(lang.tr("message.lang_status_header"));
-    sender.sendMessage(lang.tr("message.lang_status_active", status.activeLanguage()));
-    sender.sendMessage(lang.tr("message.lang_status_server", status.serverVersion()));
-    sender.sendMessage(lang.tr("message.lang_status_paths", "Exort/lang", "Exort/lang/items"));
+    sendMessage(sender, lang.tr("message.lang_status_header"));
+    sendMessage(sender, lang.tr("message.lang_status_active", status.activeLanguage()));
+    sendMessage(sender, lang.tr("message.lang_status_server", status.serverVersion()));
+    sendMessage(sender, lang.tr("message.lang_status_paths", "Exort/lang", "Exort/lang/items"));
     String indexLine =
         status.indexCached()
             ? lang.tr("message.lang_status_index_cached", status.availableLanguages())
             : lang.tr("message.lang_status_index_missing");
-    sender.sendMessage(indexLine);
+    sendMessage(sender, indexLine);
     if (status.indexFetched()) {
-      sender.sendMessage(lang.tr("message.lang_status_index_fetched"));
+      sendMessage(sender, lang.tr("message.lang_status_index_fetched"));
     }
     if (!status.dictVersions().isEmpty()) {
       for (var entry : status.dictVersions().entrySet()) {
         int size = status.dictSizes().getOrDefault(entry.getKey(), 0);
-        sender.sendMessage(
-            lang.tr("message.lang_status_dict", entry.getKey(), entry.getValue(), size));
+        sendMessage(
+            sender, lang.tr("message.lang_status_dict", entry.getKey(), entry.getValue(), size));
       }
     }
     return 1;
@@ -828,8 +557,7 @@ public final class ExortBrigadier {
     String lang = StringArgumentType.getString(context, ARG_LANG);
     String normalized = plugin.getItemNameService().normalizeLanguage(stripLangExtension(lang));
     if (!plugin.getItemNameService().isKnownLanguage(normalized)) {
-      sender(context.getSource())
-          .sendMessage(plugin.getLang().tr("message.lang_invalid", normalized));
+      sendMessage(sender, plugin.getLang().tr("message.lang_invalid", normalized));
       return 1;
     }
     plugin.getConfig().set("language", normalized);
@@ -844,7 +572,8 @@ public final class ExortBrigadier {
               }
               runSync(
                   () ->
-                      sender.sendMessage(
+                      sendMessage(
+                          sender,
                           plugin.getLang().tr("message.lang_set", status.activeLanguage())));
             });
     return 1;
@@ -853,13 +582,14 @@ public final class ExortBrigadier {
   private int modeInfo(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
-    sender.sendMessage(
+    sendMessage(
+        sender,
         plugin
             .getLang()
             .tr("message.mode_info", plugin.getConfiguredMode(), plugin.getEffectiveMode()));
     if (!plugin.getModeFallbackReason().isBlank()) {
-      sender.sendMessage(
-          plugin.getLang().tr("message.mode_fallback", plugin.getModeFallbackReason()));
+      sendMessage(
+          sender, plugin.getLang().tr("message.mode_fallback", plugin.getModeFallbackReason()));
     }
     return 1;
   }
@@ -870,7 +600,7 @@ public final class ExortBrigadier {
     String raw = StringArgumentType.getString(context, ARG_MODE);
     String normalized = raw.toUpperCase(Locale.ROOT);
     if (!normalized.equals("VANILLA") && !normalized.equals("RESOURCE")) {
-      sender(context.getSource()).sendMessage(plugin.getLang().tr("message.mode_invalid", raw));
+      sendMessage(sender(context.getSource()), plugin.getLang().tr("message.mode_invalid", raw));
       return 1;
     }
     plugin.getConfig().set("mode", normalized);
@@ -885,12 +615,14 @@ public final class ExortBrigadier {
               }
               runSync(
                   () -> {
-                    sender.sendMessage(
+                    sendMessage(
+                        sender,
                         plugin
                             .getLang()
                             .tr("message.mode_set", normalized, plugin.getEffectiveMode()));
                     if (!plugin.getModeFallbackReason().isBlank()) {
-                      sender.sendMessage(
+                      sendMessage(
+                          sender,
                           plugin
                               .getLang()
                               .tr("message.mode_fallback", plugin.getModeFallbackReason()));
@@ -905,10 +637,16 @@ public final class ExortBrigadier {
     var service = plugin.getResourcePackService();
     CommandSender sender = sender(context.getSource());
     if (service == null) {
-      sender.sendMessage(plugin.getLang().tr("message.pack_unavailable", "service not started"));
+      sendMessage(
+          sender,
+          plugin
+              .getLang()
+              .tr(
+                  "message.pack_unavailable",
+                  plugin.getLang().tr("message.pack_service_not_started")));
       return 1;
     }
-    service.statusLines().forEach(sender::sendMessage);
+    service.statusLines().forEach(line -> sendMessage(sender, line));
     return 1;
   }
 
@@ -916,7 +654,7 @@ public final class ExortBrigadier {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     plugin.reloadResourcePackService();
-    sender.sendMessage(plugin.getLang().tr("message.pack_rebuilt"));
+    sendMessage(sender, plugin.getLang().tr("message.pack_rebuilt"));
     packStatus(context);
     return 1;
   }
@@ -926,13 +664,16 @@ public final class ExortBrigadier {
     var service = plugin.getResourcePackService();
     CommandSender sender = sender(context.getSource());
     if (service == null || !service.dispatchReady()) {
-      String reason = service == null ? "service not started" : service.unavailableReason();
-      sender.sendMessage(plugin.getLang().tr("message.pack_unavailable", reason));
+      String reason =
+          service == null
+              ? plugin.getLang().tr("message.pack_service_not_started")
+              : service.unavailableReason();
+      sendMessage(sender, plugin.getLang().tr("message.pack_unavailable", reason));
       return 1;
     }
     if ("all".equalsIgnoreCase(target)) {
       int sent = service.sendAll();
-      sender.sendMessage(plugin.getLang().tr("message.pack_sent_all", sent));
+      sendMessage(sender, plugin.getLang().tr("message.pack_sent_all", sent));
       return 1;
     }
     Player player;
@@ -942,22 +683,23 @@ public final class ExortBrigadier {
       player = Bukkit.getPlayerExact(target);
     }
     if (player == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
     if (service.send(player)) {
-      sender.sendMessage(plugin.getLang().tr("message.pack_sent", player.getName()));
+      sendMessage(sender, plugin.getLang().tr("message.pack_sent", player.getName()));
     } else {
-      sender.sendMessage(
-          plugin.getLang().tr("message.pack_unavailable", service.unavailableReason()));
+      sendMessage(
+          sender, plugin.getLang().tr("message.pack_unavailable", service.unavailableReason()));
     }
     return 1;
   }
 
   private int version(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sender(context.getSource())
-        .sendMessage(plugin.getLang().tr("message.version", plugin.getPluginMeta().getVersion()));
+    sendMessage(
+        sender(context.getSource()),
+        plugin.getLang().tr("message.version", plugin.getPluginMeta().getVersion()));
     return 1;
   }
 
@@ -971,7 +713,8 @@ public final class ExortBrigadier {
       if (session != null && session.getStorageLocation() != null) {
         var loc = session.getStorageLocation();
         String storageId = session.getStorageId();
-        sender.sendMessage(
+        sendMessage(
+            sender,
             clickableDebugPlayer(
                 plugin
                     .getLang()
@@ -991,7 +734,7 @@ public final class ExortBrigadier {
 
     var offline = Bukkit.getOfflinePlayer(name);
     if (offline == null || offline.getUniqueId() == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
     String playerName = offline.getName() != null ? offline.getName() : name;
@@ -1007,12 +750,13 @@ public final class ExortBrigadier {
               runSync(
                   () -> {
                     if (result.isEmpty()) {
-                      sender.sendMessage(
-                          plugin.getLang().tr("message.debug_player_none", playerName));
+                      sendMessage(
+                          sender, plugin.getLang().tr("message.debug_player_none", playerName));
                       return;
                     }
                     var data = result.get();
-                    sender.sendMessage(
+                    sendMessage(
+                        sender,
                         clickableDebugPlayer(
                             plugin
                                 .getLang()
@@ -1035,7 +779,7 @@ public final class ExortBrigadier {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     if (!(sender instanceof Player player)) {
-      sender.sendMessage(plugin.getLang().tr("message.only_player"));
+      sendMessage(sender, plugin.getLang().tr("message.only_player"));
       return 1;
     }
     String raw = StringArgumentType.getString(context, ARG_STORAGE_ID);
@@ -1046,7 +790,7 @@ public final class ExortBrigadier {
       Player online = Bukkit.getPlayerExact(raw);
       OfflinePlayer offline = online != null ? online : Bukkit.getOfflinePlayer(raw);
       if (offline == null || (offline.getName() == null && !offline.hasPlayedBefore())) {
-        sender.sendMessage(plugin.getLang().tr("message.debug_storage_invalid"));
+        sendMessage(sender, plugin.getLang().tr("message.debug_storage_invalid"));
         return 1;
       }
       String playerName = offline.getName() != null ? offline.getName() : raw;
@@ -1062,8 +806,8 @@ public final class ExortBrigadier {
                 runSync(
                     () -> {
                       if (result.isEmpty()) {
-                        sender.sendMessage(
-                            plugin.getLang().tr("message.debug_player_none", playerName));
+                        sendMessage(
+                            sender, plugin.getLang().tr("message.debug_player_none", playerName));
                         return;
                       }
                       openStorageById(result.get().storageId(), write, player, sender);
@@ -1097,19 +841,22 @@ public final class ExortBrigadier {
               runSync(
                   () -> {
                     if (open.optTier().isEmpty() || open.cache() == null) {
-                      feedback.sendMessage(
+                      sendMessage(
+                          feedback,
                           plugin.getLang().tr("message.debug_storage_missing", storageId));
                       return;
                     }
                     StorageTier tier = StorageTier.fromString(open.optTier().get()).orElse(null);
                     if (tier == null) {
-                      feedback.sendMessage(
+                      sendMessage(
+                          feedback,
                           plugin.getLang().tr("message.debug_storage_missing", storageId));
                       return;
                     }
                     if (!viewer.isOnline()) return;
                     plugin.getSessionManager().openDebugSession(viewer, open.cache(), tier, write);
-                    feedback.sendMessage(
+                    sendMessage(
+                        feedback,
                         plugin
                             .getLang()
                             .tr(
@@ -1123,31 +870,20 @@ public final class ExortBrigadier {
   }
 
   private void runSync(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      Bukkit.getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async command callback completes.
-    }
+    PluginTasks.runSyncIfEnabled(plugin, task);
   }
 
   private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
-    plugin.getLogger().log(Level.WARNING, "Failed to " + action, unwrap(err));
-    runSync(() -> sender.sendMessage(plugin.getLang().tr("message.operation_failed")));
+    ExortLog.log(plugin, Level.WARNING, "Failed to " + action, err);
+    runSync(() -> sendMessage(sender, plugin.getLang().tr("message.operation_failed")));
   }
 
-  private Throwable unwrap(Throwable err) {
-    if (err instanceof CompletionException && err.getCause() != null) {
-      return err.getCause();
-    }
-    return err;
+  private void sendMessage(CommandSender sender, String message) {
+    CommandFeedback.send(sender, message);
+  }
+
+  private void sendMessage(CommandSender sender, Component message) {
+    CommandFeedback.send(sender, message);
   }
 
   private record DebugStorageOpen(Optional<String> optTier, StorageCache cache) {}
@@ -1175,24 +911,24 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
     String tierArg = StringArgumentType.getString(context, ARG_TIER).toLowerCase(Locale.ROOT);
     var tierOpt = StorageTier.fromString(tierArg);
     if (tierOpt.isEmpty()) {
-      sender.sendMessage(plugin.getLang().tr("message.give_unknown"));
+      sendMessage(sender, plugin.getLang().tr("message.give_unknown"));
       return 1;
     }
     StorageTier tier = tierOpt.get();
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     CustomItems items = plugin.getCustomItems();
     sendGiveResult(
         sender,
         target,
         tier.displayName(),
         giveAmount,
-        deliverItems(target, () -> items.storageItem(tier, null), giveAmount));
+        CommandItemDelivery.deliver(target, () -> items.storageItem(tier, null), giveAmount));
     return 1;
   }
 
@@ -1202,17 +938,18 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.terminal");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getCustomItems().terminalItem(), giveAmount));
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getCustomItems().terminalItem(), giveAmount));
     return 1;
   }
 
@@ -1222,17 +959,18 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.crafting_terminal");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getCustomItems().craftingTerminalItem(), giveAmount));
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getCustomItems().craftingTerminalItem(), giveAmount));
     return 1;
   }
 
@@ -1242,17 +980,18 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.monitor");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getCustomItems().monitorItem(), giveAmount));
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getCustomItems().monitorItem(), giveAmount));
     return 1;
   }
 
@@ -1262,17 +1001,18 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.import_bus");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getCustomItems().importBusItem(), giveAmount));
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getCustomItems().importBusItem(), giveAmount));
     return 1;
   }
 
@@ -1282,17 +1022,18 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.export_bus");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getCustomItems().exportBusItem(), giveAmount));
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getCustomItems().exportBusItem(), giveAmount));
     return 1;
   }
 
@@ -1302,17 +1043,17 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.wire");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getCustomItems().wireItem(), giveAmount));
+        CommandItemDelivery.deliver(target, () -> plugin.getCustomItems().wireItem(), giveAmount));
     return 1;
   }
 
@@ -1322,49 +1063,28 @@ public final class ExortBrigadier {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sender.sendMessage(plugin.getLang().tr("message.player_not_found"));
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
       return 1;
     }
-    int giveAmount = clampGiveAmount(amount);
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = plugin.getLang().tr("item.wireless_terminal");
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
-        deliverItems(target, () -> plugin.getWirelessService().create(), giveAmount));
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getWirelessService().create(), giveAmount));
     return 1;
-  }
-
-  private int clampGiveAmount(int amount) {
-    return Math.max(1, Math.min(MAX_GIVE_AMOUNT, amount));
-  }
-
-  private int deliverItems(Player target, Supplier<ItemStack> itemFactory, int amount) {
-    int remaining = Math.max(0, amount);
-    int delivered = 0;
-    while (remaining > 0) {
-      ItemStack prototype = itemFactory.get();
-      if (prototype == null || prototype.getType().isAir()) break;
-      int stackSize = Math.max(1, prototype.getMaxStackSize());
-      int move = Math.min(stackSize, remaining);
-      ItemStack stack = prototype.clone();
-      stack.setAmount(move);
-      Map<Integer, ItemStack> leftovers = target.getInventory().addItem(stack);
-      int leftoverAmount = leftovers.values().stream().mapToInt(ItemStack::getAmount).sum();
-      delivered += move - leftoverAmount;
-      if (leftoverAmount > 0) break;
-      remaining -= move;
-    }
-    return delivered;
   }
 
   private void sendGiveResult(
       CommandSender sender, Player target, String itemName, int requested, int delivered) {
-    sender.sendMessage(
-        plugin.getLang().tr("message.give_success", delivered, itemName, target.getName()));
+    sendMessage(
+        sender, plugin.getLang().tr("message.give_success", delivered, itemName, target.getName()));
     if (delivered < requested) {
-      sender.sendMessage(
+      sendMessage(
+          sender,
           plugin.getLang().tr("message.give_partial", delivered, requested, target.getName()));
     }
   }
@@ -1450,7 +1170,7 @@ public final class ExortBrigadier {
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (sender.hasPermission("exort.storagenetwork.admin")) return true;
-    sender.sendMessage(plugin.getLang().tr("message.no_permission"));
+    sendMessage(sender, plugin.getLang().tr("message.no_permission"));
     return false;
   }
 

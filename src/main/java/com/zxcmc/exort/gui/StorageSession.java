@@ -146,88 +146,25 @@ public class StorageSession extends AbstractStorageSession {
   }
 
   private ItemStack sortButton() {
-    String title =
-        switch (sortMode) {
-          case AMOUNT -> lang.tr("gui.sort.amount");
-          case NAME -> lang.tr("gui.sort.name");
-          case ID -> lang.tr("gui.sort.id");
-          case CATEGORY -> lang.tr("gui.sort.category");
-        };
-    Component name = Component.text(title).decoration(TextDecoration.ITALIC, false);
-    List<Component> lore =
-        List.of(Component.text(lang.tr("gui.sort.hint")).decoration(TextDecoration.ITALIC, false));
-    return GuiItems.sortButton(name, lore, useFillers);
+    return StorageGuiControls.sortButton(lang, sortMode, useFillers);
   }
 
   private ItemStack searchButton() {
-    String title =
-        hasSearch()
-            ? lang.tr("gui.search.button") + ": " + searchQuery
-            : lang.tr("gui.search.button");
-    Component name = Component.text(title).decoration(TextDecoration.ITALIC, false);
-    List<Component> lore =
-        List.of(
-            Component.text(lang.tr("gui.search.hint")).decoration(TextDecoration.ITALIC, false),
-            Component.text(lang.tr("gui.search.hint_clear"))
-                .decoration(TextDecoration.ITALIC, false));
-    return GuiItems.searchButton(name, lore, useFillers);
+    return StorageGuiControls.searchButton(lang, hasSearch(), searchQuery, useFillers);
   }
 
   private ItemStack infoButton() {
-    long current = cache.effectiveTotal();
-    long max = Math.max(1, tier.maxItems());
-    double filled = Math.min(1.0, Math.max(0.0, (double) current / (double) max));
-    double free = 1.0 - filled;
-    Component title =
-        Component.text(
-                lang.tr("gui.info.used")
-                    + " "
-                    + formatNumber(current)
-                    + "/"
-                    + formatNumber(max)
-                    + " ")
-            .decoration(TextDecoration.ITALIC, false)
-            .append(
-                Component.text(
-                    "(" + FORMAT_PERCENT.format(filled * 100.0) + "%)", freeColor(free)));
-
-    List<Component> lore = new ArrayList<>();
-    lore.add(Component.text(tier.displayName()).decoration(TextDecoration.ITALIC, false));
-    if (showStorageId) {
-      lore.add(
-          Component.text(lang.tr("gui.info.storage_id", cache.getStorageId()))
-              .decoration(TextDecoration.ITALIC, false));
-    }
-    if (isInfoErrorActive() && infoErrorMessage != null && !infoErrorMessage.isBlank()) {
-      lore.add(
-          Component.text(infoErrorMessage)
-              .color(net.kyori.adventure.text.format.NamedTextColor.RED)
-              .decoration(TextDecoration.ITALIC, false));
-    }
-    if (readOnly) {
-      lore.add(
-          Component.text(lang.tr("gui.info.force_hint")).decoration(TextDecoration.ITALIC, false));
-      int remaining = infoConfirmRemaining();
-      if (remaining > 0) {
-        lore.add(
-            Component.text(lang.tr("gui.info.force_warning"))
-                .color(net.kyori.adventure.text.format.NamedTextColor.RED)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(
-            Component.text(lang.tr("gui.info.force_confirm", remaining))
-                .color(net.kyori.adventure.text.format.NamedTextColor.RED)
-                .decoration(TextDecoration.ITALIC, false));
-      } else if (isInfoBlocked()) {
-        lore.add(
-            Component.text(lang.tr("gui.info.force_blocked"))
-                .color(net.kyori.adventure.text.format.NamedTextColor.RED)
-                .decoration(TextDecoration.ITALIC, false));
-      }
-    }
-    if (isInfoErrorActive()) {
-      return GuiItems.infoErrorButton(title.decoration(TextDecoration.ITALIC, false), lore);
-    }
-    return GuiItems.infoButton(title.decoration(TextDecoration.ITALIC, false), lore, useFillers);
+    return StorageGuiControls.infoButton(
+        lang,
+        cache,
+        tier,
+        showStorageId,
+        readOnly,
+        isInfoErrorActive(),
+        infoErrorMessage,
+        infoConfirmRemaining(),
+        isInfoBlocked(),
+        useFillers);
   }
 
   private boolean isInfoErrorActive() {

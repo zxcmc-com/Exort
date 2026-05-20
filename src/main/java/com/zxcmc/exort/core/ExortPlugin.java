@@ -10,8 +10,10 @@ import com.zxcmc.exort.core.breaking.BreakSoundConfig;
 import com.zxcmc.exort.core.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.commands.ExortBrigadier;
+import com.zxcmc.exort.core.compat.ModePolicy;
 import com.zxcmc.exort.core.config.ConfigUpdater;
 import com.zxcmc.exort.core.db.Database;
+import com.zxcmc.exort.core.feedback.PlayerFeedback;
 import com.zxcmc.exort.core.i18n.ItemNameService;
 import com.zxcmc.exort.core.i18n.Lang;
 import com.zxcmc.exort.core.items.CustomItems;
@@ -28,8 +30,10 @@ import com.zxcmc.exort.core.listeners.SearchDialogListener;
 import com.zxcmc.exort.core.listeners.StorageListener;
 import com.zxcmc.exort.core.listeners.TerminalListener;
 import com.zxcmc.exort.core.listeners.WireListener;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.StorageMarker;
+import com.zxcmc.exort.core.metrics.ExortMetrics;
 import com.zxcmc.exort.core.network.NetworkGraphCache;
 import com.zxcmc.exort.core.protection.DebugRegionProtection;
 import com.zxcmc.exort.core.protection.RegionProtection;
@@ -69,11 +73,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bstats.bukkit.Metrics;
-import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -96,6 +96,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private SessionManager sessionManager;
   private StorageKeys keys;
   private Lang lang;
+  private PlayerFeedback playerFeedback;
   private ItemNameService itemNameService;
   private CustomItems customItems;
   private WirelessTerminalService wirelessService;
@@ -159,6 +160,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     Bukkit.getPluginManager().registerEvents(resourcePackService, this);
     resourcePackService.reload();
     lang = new Lang(this);
+    playerFeedback = new PlayerFeedback(lang);
     itemNameService = new ItemNameService(this);
     searchDialogService = new SearchDialogService(lang);
     keys = new StorageKeys(this);
@@ -178,8 +180,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     loadTestService = new LoadTestService(this, database, bossBarManager, lang);
     cacheDebugService = new CacheDebugService(this);
     worldEditDebugService = new WorldEditDebugService(this);
-    metrics = new Metrics(this, 28841);
-    registerMetricsCharts();
+    metrics = ExortMetrics.create(this);
 
     registerRuntime();
     registerBrigadierCommands();
@@ -257,6 +258,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return lang;
   }
 
+  public PlayerFeedback getPlayerFeedback() {
+    return playerFeedback;
+  }
+
   public CustomItems getCustomItems() {
     return customItems;
   }
@@ -311,60 +316,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return resourcePackService;
   }
 
-  private void registerMetricsCharts() {
-    if (metrics == null) return;
-    metrics.addCustomChart(
-        new SimplePie(
-            "mode",
-            () ->
-                "RESOURCE".equalsIgnoreCase(getConfig().getString("mode", "RESOURCE"))
-                    ? "resource"
-                    : "vanilla"));
-    metrics.addCustomChart(
-        new SimplePie(
-            "language", () -> getConfig().getString("language", "en_us").toLowerCase(Locale.ROOT)));
-    metrics.addCustomChart(
-        new SimplePie(
-            "wireless_enabled",
-            () -> getConfig().getBoolean("wireless.enabled", true) ? "enabled" : "disabled"));
-    metrics.addCustomChart(
-        new SimplePie(
-            "recipes_enabled",
-            () -> getConfig().getBoolean("recipes.enabled", true) ? "enabled" : "disabled"));
-    metrics.addCustomChart(
-        new SimplePie(
-            "worldguard_state",
-            () -> {
-              boolean enabled = getConfig().getBoolean("worldguard.enabled", true);
-              if (!enabled) return "disabled";
-              boolean present = getServer().getPluginManager().isPluginEnabled("WorldGuard");
-              return present ? "active" : "missing";
-            }));
-    metrics.addCustomChart(
-        new SimplePie(
-            "bus_storage_targets",
-            () ->
-                getConfig().getBoolean("bus.allowStorageTargets", true) ? "enabled" : "disabled"));
-    metrics.addCustomChart(
-        new SimplePie(
-            "default_sort_mode",
-            () -> getConfig().getString("defaultSortMode", "AMOUNT").toLowerCase(Locale.ROOT)));
-    metrics.addCustomChart(
-        new SimplePie(
-            "bus_default_import",
-            () ->
-                getConfig()
-                    .getString("bus.defaultMode.import", "WHITELIST")
-                    .toLowerCase(Locale.ROOT)));
-    metrics.addCustomChart(
-        new SimplePie(
-            "bus_default_export",
-            () ->
-                getConfig()
-                    .getString("bus.defaultMode.export", "WHITELIST")
-                    .toLowerCase(Locale.ROOT)));
-  }
-
   @Override
   public String getVersion() {
     return getPluginMeta().getVersion();
@@ -414,22 +365,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     String version = Bukkit.getMinecraftVersion();
     int[] parsed = parseVersion(version);
     if (parsed == null) {
-      getLogger()
-          .warning("Unable to parse Minecraft version '" + version + "'. Proceeding anyway.");
+      ExortLog.warn("Unable to parse Minecraft version '" + version + "'. Proceeding anyway.");
       return true;
     }
     if (compareVersions(parsed[0], parsed[1], parsed[2], MIN_MC_MAJOR, MIN_MC_MINOR, MIN_MC_PATCH)
         < 0) {
-      getLogger()
-          .severe(
-              "Minecraft "
-                  + MIN_MC_MAJOR
-                  + "."
-                  + MIN_MC_MINOR
-                  + "."
-                  + MIN_MC_PATCH
-                  + "+ is required. Current: "
-                  + version);
+      ExortLog.error(
+          "Minecraft "
+              + MIN_MC_MAJOR
+              + "."
+              + MIN_MC_MINOR
+              + "."
+              + MIN_MC_PATCH
+              + "+ is required. Current: "
+              + version);
       return false;
     }
     return true;
@@ -662,8 +611,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 "wire.hardCap",
                 getConfig().getInt("wireHardCap", Math.max(wireLimit * 2, wireLimit)));
     if (hardCapRaw < wireLimit) {
-      getLogger()
-          .warning("wireHardCap is ниже wireLimit; значение будет скорректировано до " + wireLimit);
+      ExortLog.warn("wireHardCap is below wireLimit; value will be adjusted to " + wireLimit);
     }
     wireHardCap = Math.max(wireLimit, hardCapRaw);
     if (networkGraphCache != null) {
@@ -1308,32 +1256,21 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   private void evaluateModePolicy() {
-    configuredMode = getConfig().getString("mode", "RESOURCE").toUpperCase(Locale.ROOT);
-    if (!configuredMode.equals("VANILLA") && !configuredMode.equals("RESOURCE")) {
-      getLogger().warning("Unknown mode '" + configuredMode + "' in config.yml; using RESOURCE.");
-      configuredMode = "RESOURCE";
+    String rawMode = getConfig().getString("mode", ModePolicy.DEFAULT_MODE);
+    ModePolicy policy = ModePolicy.evaluate(rawMode, isChorusUpdatesDisabled());
+    if (policy.unknownMode()) {
+      ExortLog.warn("Unknown mode '" + rawMode + "' in config.yml; using RESOURCE.");
     }
-    resourceMode = configuredMode.equals("RESOURCE");
-    modeFallbackReason = "";
-    if (!resourceMode || isChorusUpdatesDisabled()) return;
-    resourceMode = false;
-    modeFallbackReason = "Paper's block-updates.disable-chorus-plant-updates is not enabled.";
-    var console = Bukkit.getConsoleSender();
-    console.sendMessage(
-        Component.text(
-            "[Exort] Paper's block-updates.disable-chorus-plant-updates is not enabled.",
-            NamedTextColor.RED,
-            TextDecoration.BOLD));
-    console.sendMessage(
-        Component.text(
-            "It is HIGHLY recommended to enable this setting for improved performance and prevent"
-                + " bugs with chorus-plants which are used to display wires by default in RESOURCE"
-                + " mode.",
-            NamedTextColor.RED));
-    console.sendMessage(
-        Component.text(
-            "Until then, Exort effective mode is VANILLA and resource-pack delivery is disabled.",
-            NamedTextColor.RED));
+    configuredMode = policy.configuredMode();
+    resourceMode = policy.resourceMode();
+    modeFallbackReason = policy.fallbackReason();
+    if (modeFallbackReason.isBlank()) return;
+    ExortLog.warn(modeFallbackReason);
+    ExortLog.warn(
+        "It is HIGHLY recommended to enable this setting for improved performance and prevent bugs"
+            + " with chorus-plants which are used to display wires by default in RESOURCE mode.");
+    ExortLog.warn(
+        "Until then, Exort effective mode is VANILLA and resource-pack delivery is disabled.");
   }
 
   public boolean canEnableResourceMode() {
@@ -1393,13 +1330,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private void setupRegionProtection() {
     regionProtection = RegionProtection.allowAll();
     if (!getConfig().getBoolean("worldguard.enabled", true)) {
-      getLogger().info("[WorldGuard] Integration disabled by config.");
+      ExortLog.info("[WorldGuard] Integration disabled by config.");
       return;
     }
     boolean failClosed = getConfig().getBoolean("worldguard.failClosedOnError", false);
     var wg = getServer().getPluginManager().getPlugin("WorldGuard");
     if (wg == null || !wg.isEnabled()) {
-      getLogger().info("[WorldGuard] Integration disabled: plugin not found.");
+      ExortLog.info("[WorldGuard] Integration disabled: plugin not found.");
       registerWorldGuardEnableHook();
       return;
     }
@@ -1419,7 +1356,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (debug) {
       regionProtection = new DebugRegionProtection(regionProtection, getLogger(), true);
     }
-    getLogger().info("[WorldGuard] Integration enabled.");
+    ExortLog.success("[WorldGuard] Integration enabled.");
   }
 
   private void registerWorldGuardEnableHook() {
@@ -1603,7 +1540,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     try {
       cfg.load(tiersFile);
     } catch (Exception e) {
-      getLogger().warning("Failed to load storage-tiers.yml: " + e.getMessage());
+      ExortLog.warn("Failed to load storage-tiers.yml: " + e.getMessage());
     }
     return cfg;
   }
@@ -1611,18 +1548,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private Material resolveMaterial(String name, Material fallback) {
     if (name == null) {
       if (fallback != null) {
-        getLogger().warning("Invalid material 'null', falling back to " + fallback);
+        ExortLog.warn("Invalid material 'null', falling back to " + fallback);
       } else {
-        getLogger().warning("Invalid material 'null'");
+        ExortLog.warn("Invalid material 'null'");
       }
       return fallback;
     }
     String raw = name.trim();
     if (raw.isEmpty()) {
       if (fallback != null) {
-        getLogger().warning("Invalid material '" + name + "', falling back to " + fallback);
+        ExortLog.warn("Invalid material '" + name + "', falling back to " + fallback);
       } else {
-        getLogger().warning("Invalid material '" + name + "'");
+        ExortLog.warn("Invalid material '" + name + "'");
       }
       return fallback;
     }
@@ -1636,9 +1573,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       return Material.valueOf(id);
     } catch (IllegalArgumentException e) {
       if (fallback != null) {
-        getLogger().warning("Invalid material '" + name + "', falling back to " + fallback);
+        ExortLog.warn("Invalid material '" + name + "', falling back to " + fallback);
       } else {
-        getLogger().warning("Invalid material '" + name + "'");
+        ExortLog.warn("Invalid material '" + name + "'");
       }
       return fallback;
     }

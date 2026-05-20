@@ -1,5 +1,6 @@
 package com.zxcmc.exort.core.config;
 
+import com.zxcmc.exort.core.logging.ExortLog;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,9 +32,7 @@ public final class ConfigUpdater {
       try {
         userCfg.load(configFile);
       } catch (Exception e) {
-        plugin
-            .getLogger()
-            .warning("Failed to load existing config, using defaults: " + e.getMessage());
+        ExortLog.warn("Failed to load existing config, using defaults: " + e.getMessage());
       }
       try {
         userLines = readAllLines(configFile);
@@ -48,7 +47,7 @@ public final class ConfigUpdater {
         defaultCfg.load(new InputStreamReader(in, StandardCharsets.UTF_8));
       }
     } catch (Exception e) {
-      plugin.getLogger().severe("Failed to read default " + resourceName + ": " + e.getMessage());
+      ExortLog.error("Failed to read default " + resourceName + ": " + e.getMessage());
       return;
     }
 
@@ -70,7 +69,7 @@ public final class ConfigUpdater {
         new OutputStreamWriter(new FileOutputStream(configFile), StandardCharsets.UTF_8)) {
       writer.write(merged);
     } catch (IOException e) {
-      plugin.getLogger().severe("Failed to write merged config: " + e.getMessage());
+      ExortLog.error("Failed to write merged config: " + e.getMessage());
     }
   }
 
@@ -93,7 +92,7 @@ public final class ConfigUpdater {
         }
       }
     } catch (IOException e) {
-      plugin.getLogger().severe("Failed to read default config for merging: " + e.getMessage());
+      ExortLog.error("Failed to read default config for merging: " + e.getMessage());
     }
 
     List<String> rawTiersBody = existed ? extractSectionBody(userLines, "tiers") : null;

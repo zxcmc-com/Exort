@@ -1,5 +1,6 @@
 package com.zxcmc.exort.core.resourcepack;
 
+import com.zxcmc.exort.core.logging.ExortLog;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,7 +38,7 @@ public final class NexoPackBridge {
       Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
       return true;
     } catch (IOException e) {
-      plugin.getLogger().warning("Failed to copy resource pack to Nexo: " + e.getMessage());
+      ExortLog.warn("Failed to copy resource pack to Nexo: " + e.getMessage());
       return false;
     }
   }
@@ -51,9 +52,7 @@ public final class NexoPackBridge {
     try {
       Files.delete(target.toPath());
     } catch (IOException e) {
-      plugin
-          .getLogger()
-          .warning("Failed to remove Exort resource pack from Nexo: " + e.getMessage());
+      ExortLog.warn("Failed to remove Exort resource pack from Nexo: " + e.getMessage());
     }
   }
 }

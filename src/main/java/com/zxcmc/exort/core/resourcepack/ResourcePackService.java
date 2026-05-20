@@ -1,6 +1,7 @@
 package com.zxcmc.exort.core.resourcepack;
 
 import com.zxcmc.exort.core.ExortPlugin;
+import com.zxcmc.exort.core.logging.ExortLog;
 import io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent;
 import java.io.IOException;
 import java.net.URI;
@@ -48,7 +49,7 @@ public final class ResourcePackService implements Listener {
 
   public ResourcePackService(ExortPlugin plugin) {
     this.plugin = plugin;
-    this.selfHost = new SelfHostPackServer(plugin);
+    this.selfHost = new SelfHostPackServer();
   }
 
   public synchronized void reload() {
@@ -110,7 +111,7 @@ public final class ResourcePackService implements Listener {
                 null,
                 null,
                 null));
-        plugin.getLogger().warning("Resource-pack hosting is NEXO, but Nexo is not enabled.");
+        ExortLog.warn("Resource-pack hosting is NEXO, but Nexo is not enabled.");
         return;
       }
       setReady(
@@ -145,7 +146,7 @@ public final class ResourcePackService implements Listener {
                 null,
                 null,
                 null));
-        plugin.getLogger().warning("Failed to start resource-pack self-hosting: " + e.getMessage());
+        ExortLog.warn("Failed to start resource-pack self-hosting: " + e.getMessage());
       }
       return;
     }
@@ -326,19 +327,17 @@ public final class ResourcePackService implements Listener {
 
   private void logReadyState(State ready) {
     if (ready.effective() == ResourcePackHosting.NEXO) {
-      plugin.getLogger().info("Resource-pack delivery is managed by Nexo.");
+      ExortLog.info("Resource-pack delivery is managed by Nexo.");
       return;
     }
     if (ready.dispatchReady()) {
-      plugin
-          .getLogger()
-          .info(
-              "Resource-pack delivery is ready via "
-                  + ready.effective()
-                  + " ("
-                  + ready.effectiveDelivery()
-                  + "): "
-                  + ready.url());
+      ExortLog.success(
+          "Resource-pack delivery is ready via "
+              + ready.effective()
+              + " ("
+              + ready.effectiveDelivery()
+              + "): "
+              + ready.url());
     }
   }
 
@@ -349,9 +348,7 @@ public final class ResourcePackService implements Listener {
             () -> {
               int sent = sendAll();
               if (sent > 0) {
-                plugin
-                    .getLogger()
-                    .info("Sent Exort resource pack to " + sent + " online player(s).");
+                ExortLog.info("Sent Exort resource pack to " + sent + " online player(s).");
               }
             },
             20L);
@@ -366,7 +363,7 @@ public final class ResourcePackService implements Listener {
       send(player, current, ResourcePackCallback.noOp());
       return true;
     } catch (RuntimeException e) {
-      plugin.getLogger().warning("Cannot send Exort resource pack: " + e.getMessage());
+      ExortLog.warn("Cannot send Exort resource pack: " + e.getMessage());
       return false;
     }
   }
@@ -400,27 +397,28 @@ public final class ResourcePackService implements Listener {
   public List<String> statusLines() {
     State current = state.get();
     List<String> lines = new ArrayList<>();
-    lines.add("Resource pack status: " + current.status());
-    lines.add("Configured hosting: " + current.configured());
-    lines.add("Effective hosting: " + current.effective());
-    lines.add("Configured delivery: " + current.configuredDelivery());
-    lines.add("Effective delivery: " + current.effectiveDelivery());
+    var lang = plugin.getLang();
+    lines.add(lang.tr("message.pack_status.status", current.status()));
+    lines.add(lang.tr("message.pack_status.configured_hosting", current.configured()));
+    lines.add(lang.tr("message.pack_status.effective_hosting", current.effective()));
+    lines.add(lang.tr("message.pack_status.configured_delivery", current.configuredDelivery()));
+    lines.add(lang.tr("message.pack_status.effective_delivery", current.effectiveDelivery()));
     if (current.pack() != null && current.pack().available()) {
-      lines.add("Raw pack: " + current.pack().rawFile().getPath());
-      lines.add("Pack: " + current.pack().outputFile().getPath());
-      lines.add("Obfuscated: " + current.pack().obfuscated());
+      lines.add(lang.tr("message.pack_status.raw_pack", current.pack().rawFile().getPath()));
+      lines.add(lang.tr("message.pack_status.pack", current.pack().outputFile().getPath()));
+      lines.add(lang.tr("message.pack_status.obfuscated", current.pack().obfuscated()));
     }
     if (current.sha1() != null && !current.sha1().isBlank()) {
-      lines.add("SHA-1: " + current.sha1());
+      lines.add(lang.tr("message.pack_status.sha1", current.sha1()));
     }
     if (current.url() != null) {
-      lines.add("URL: " + current.url());
+      lines.add(lang.tr("message.pack_status.url", current.url()));
     }
     if (current.note() != null && !current.note().isBlank()) {
-      lines.add("Note: " + current.note());
+      lines.add(lang.tr("message.pack_status.note", current.note()));
     }
     if (current.error() != null && !current.error().isBlank()) {
-      lines.add("Error: " + current.error());
+      lines.add(lang.tr("message.pack_status.error", current.error()));
     }
     return lines;
   }
@@ -498,7 +496,7 @@ public final class ResourcePackService implements Listener {
     } catch (TimeoutException e) {
       return null;
     } catch (ExecutionException e) {
-      plugin.getLogger().warning("Resource-pack status callback failed: " + e.getMessage());
+      ExortLog.warn("Resource-pack status callback failed: " + e.getMessage());
       return null;
     }
   }
@@ -546,7 +544,7 @@ public final class ResourcePackService implements Listener {
   }
 
   private Component requiredPackFailureMessage() {
-    return Component.text("Required Exort resource pack failed to load. Reconnect and accept it.");
+    return Component.text(plugin.getLang().tr("message.resource_pack.required_failure"));
   }
 
   private boolean isDirectHosting(ResourcePackHosting hosting) {

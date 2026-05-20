@@ -192,7 +192,7 @@ public class Lang {
         defaultsEn,
         "message.debug_cache_status_connections_empty",
         "No loaded terminals/monitors/buses are linked to this storage.");
-    put(defaultsEn, "message.version", "Exort v{0}");
+    put(defaultsEn, "message.version", "Exort Storage Network v{0} by phantomfighterxx");
     put(defaultsEn, "message.usage_lang", "Usage: /exort lang status | /exort lang refresh");
     put(
         defaultsEn,
@@ -218,6 +218,23 @@ public class Lang {
     put(defaultsEn, "message.pack_sent", "Resource pack request sent to {0}.");
     put(defaultsEn, "message.pack_sent_all", "Resource pack request sent to {0} player(s).");
     put(defaultsEn, "message.pack_unavailable", "Resource pack is not ready: {0}");
+    put(defaultsEn, "message.pack_service_not_started", "service not started");
+    put(defaultsEn, "message.pack_status.status", "Resource pack status: {0}");
+    put(defaultsEn, "message.pack_status.configured_hosting", "Configured hosting: {0}");
+    put(defaultsEn, "message.pack_status.effective_hosting", "Effective hosting: {0}");
+    put(defaultsEn, "message.pack_status.configured_delivery", "Configured delivery: {0}");
+    put(defaultsEn, "message.pack_status.effective_delivery", "Effective delivery: {0}");
+    put(defaultsEn, "message.pack_status.raw_pack", "Raw pack: {0}");
+    put(defaultsEn, "message.pack_status.pack", "Pack: {0}");
+    put(defaultsEn, "message.pack_status.obfuscated", "Obfuscated: {0}");
+    put(defaultsEn, "message.pack_status.sha1", "SHA-1: {0}");
+    put(defaultsEn, "message.pack_status.url", "URL: {0}");
+    put(defaultsEn, "message.pack_status.note", "Note: {0}");
+    put(defaultsEn, "message.pack_status.error", "Error: {0}");
+    put(
+        defaultsEn,
+        "message.resource_pack.required_failure",
+        "Required Exort resource pack failed to load. Reconnect and accept it.");
     put(defaultsEn, "message.lang_status_header", "Language status:");
     put(defaultsEn, "message.lang_status_active", "Active: {0}");
     put(defaultsEn, "message.lang_status_server", "Server version: {0}");
@@ -322,6 +339,7 @@ public class Lang {
     put(defaultsEn, "message.wireless.out_of_range", "Wireless terminal is out of range.");
     put(defaultsEn, "message.wireless.missing_storage", "Linked storage not found.");
     put(defaultsEn, "message.wireless.empty", "Wireless terminal is out of charge.");
+    put(defaultsEn, "message.wireless.bound", "Wireless terminal linked.");
     put(
         defaultsEn,
         "message.wireless.self_store",
@@ -552,6 +570,23 @@ public class Lang {
     put(defaultsRu, "message.pack_sent", "Запрос ресурс-пака отправлен игроку {0}.");
     put(defaultsRu, "message.pack_sent_all", "Запрос ресурс-пака отправлен игрокам: {0}.");
     put(defaultsRu, "message.pack_unavailable", "Ресурс-пак не готов: {0}");
+    put(defaultsRu, "message.pack_service_not_started", "сервис не запущен");
+    put(defaultsRu, "message.pack_status.status", "Статус ресурс-пака: {0}");
+    put(defaultsRu, "message.pack_status.configured_hosting", "Хостинг в конфиге: {0}");
+    put(defaultsRu, "message.pack_status.effective_hosting", "Фактический хостинг: {0}");
+    put(defaultsRu, "message.pack_status.configured_delivery", "Доставка в конфиге: {0}");
+    put(defaultsRu, "message.pack_status.effective_delivery", "Фактическая доставка: {0}");
+    put(defaultsRu, "message.pack_status.raw_pack", "Исходный ресурс-пак: {0}");
+    put(defaultsRu, "message.pack_status.pack", "Готовый ресурс-пак: {0}");
+    put(defaultsRu, "message.pack_status.obfuscated", "Обфускация: {0}");
+    put(defaultsRu, "message.pack_status.sha1", "SHA-1: {0}");
+    put(defaultsRu, "message.pack_status.url", "URL: {0}");
+    put(defaultsRu, "message.pack_status.note", "Примечание: {0}");
+    put(defaultsRu, "message.pack_status.error", "Ошибка: {0}");
+    put(
+        defaultsRu,
+        "message.resource_pack.required_failure",
+        "Обязательный ресурс-пак Exort не загрузился. Перезайдите и примите его.");
     put(defaultsRu, "message.lang_status_header", "Статус языка:");
     put(defaultsRu, "message.lang_status_active", "Активный: {0}");
     put(defaultsRu, "message.lang_status_server", "Версия сервера: {0}");
@@ -659,6 +694,7 @@ public class Lang {
     put(defaultsRu, "message.wireless.out_of_range", "Беспроводной терминал вне радиуса действия.");
     put(defaultsRu, "message.wireless.missing_storage", "Связанное хранилище не найдено.");
     put(defaultsRu, "message.wireless.empty", "Беспроводной терминал разряжен.");
+    put(defaultsRu, "message.wireless.bound", "Беспроводной терминал привязан.");
     put(
         defaultsRu,
         "message.wireless.self_store",

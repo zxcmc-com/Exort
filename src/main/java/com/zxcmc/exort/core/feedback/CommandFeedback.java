@@ -1,0 +1,34 @@
+package com.zxcmc.exort.core.feedback;
+
+import com.zxcmc.exort.core.logging.ExortLog;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
+
+public final class CommandFeedback {
+  private static final PlainTextComponentSerializer PLAIN =
+      PlainTextComponentSerializer.plainText();
+  private static final Component PREFIX = Component.text("[Exort] ", ExortLog.prefixColor());
+
+  private CommandFeedback() {}
+
+  public static void send(CommandSender sender, String message) {
+    if (sender == null || message == null || message.isBlank()) {
+      return;
+    }
+    send(sender, Component.text(message, NamedTextColor.GRAY));
+  }
+
+  public static void send(CommandSender sender, Component message) {
+    if (sender == null || message == null) {
+      return;
+    }
+    if (sender instanceof ConsoleCommandSender) {
+      ExortLog.info(PLAIN.serialize(message));
+      return;
+    }
+    sender.sendMessage(PREFIX.append(message));
+  }
+}

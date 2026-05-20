@@ -2,6 +2,7 @@ package com.zxcmc.exort.core.resourcepack;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.zxcmc.exort.core.logging.ExortLog;
 import java.io.File;
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -12,19 +13,15 @@ import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
 
 final class SelfHostPackServer {
   private static final String PACK_PATH = "/exort.zip";
 
-  private final JavaPlugin plugin;
   private HttpServer server;
   private ExecutorService executor;
   private String url;
 
-  SelfHostPackServer(JavaPlugin plugin) {
-    this.plugin = plugin;
-  }
+  SelfHostPackServer() {}
 
   synchronized String start(File packFile, String bindHost, int port, String publicUrl)
       throws IOException {
@@ -101,13 +98,11 @@ final class SelfHostPackServer {
         return bracketIpv6(localHost.getHostAddress());
       }
     } catch (IOException e) {
-      plugin.getLogger().warning("Failed to infer resource-pack public host: " + e.getMessage());
+      ExortLog.warn("Failed to infer resource-pack public host: " + e.getMessage());
     }
-    plugin
-        .getLogger()
-        .warning(
-            "Resource-pack self-hosting could not infer a non-loopback public host. Set"
-                + " resourcePack.selfHost.publicUrl manually if clients cannot download the pack.");
+    ExortLog.warn(
+        "Resource-pack self-hosting could not infer a non-loopback public host. Set"
+            + " resourcePack.selfHost.publicUrl manually if clients cannot download the pack.");
     return "127.0.0.1";
   }
 
@@ -131,11 +126,8 @@ final class SelfHostPackServer {
         }
       }
     } catch (SocketException e) {
-      plugin
-          .getLogger()
-          .warning(
-              "Failed to inspect network interfaces for resource-pack self-hosting: "
-                  + e.getMessage());
+      ExortLog.warn(
+          "Failed to inspect network interfaces for resource-pack self-hosting: " + e.getMessage());
     }
     return null;
   }

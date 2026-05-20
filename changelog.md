@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2 — 2026-05-20
+- Moved transient wireless, terminal, and storage failure feedback from boss bars to action bars while keeping boss bars for persistent storage, wire, bus, monitor, and benchmark status.
+- Added a short duplicate cooldown for identical action-bar feedback so rapid wireless/terminal validation failures do not spam players.
+- Added localized wireless bind confirmation, resource-pack required-failure text, and `/exort pack status` labels.
+- Centralized colored `[Exort]` console status output and `/exort` command feedback.
+- Cleaned shared async scheduling, storage GUI control construction, storage placement rollback feedback, and command debug/item delivery helpers without changing player workflows.
+
 ## 0.10.1 — 2026-05-20
 - Fixed crafting-terminal recipe remainder routing by using Paper's server-side craft result matrix/overflow items, so server-defined remainders return to storage first and fall back to the player's inventory or a nearby drop.
 - Fixed bus GUI settings during `/exort reload` so mode/filter changes are written to the live marker immediately and cannot be overwritten by a stale asynchronous SQLite load.

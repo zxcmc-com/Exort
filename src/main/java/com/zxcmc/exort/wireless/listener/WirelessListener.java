@@ -2,18 +2,18 @@ package com.zxcmc.exort.wireless.listener;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.core.util.BlockInteractUtil;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Optional;
-import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
-import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -55,12 +55,7 @@ public class WirelessListener implements Listener {
       }
     }
     if (!service.isEnabled()) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.disabled"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.disabled");
       return;
     }
     if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
@@ -90,10 +85,7 @@ public class WirelessListener implements Listener {
     TerminalLinkFinder.StorageSearchResult link;
     if (TerminalMarker.isTerminal(plugin, block)) {
       if (!plugin.getRegionProtection().canUse(player, block)) {
-        plugin
-            .getBossBarManager()
-            .showError(
-                player, plugin.getLang().tr("message.no_permission"), plugin.getStoragePeekTicks());
+        feedbackError(player, "message.no_permission");
         return true;
       }
       link =
@@ -107,10 +99,7 @@ public class WirelessListener implements Listener {
               plugin.getStorageCarrier());
     } else if (StorageMarker.get(plugin, block).isPresent()) {
       if (!plugin.getRegionProtection().canUse(player, block)) {
-        plugin
-            .getBossBarManager()
-            .showError(
-                player, plugin.getLang().tr("message.no_permission"), plugin.getStoragePeekTicks());
+        feedbackError(player, "message.no_permission");
         return true;
       }
       StorageMarker.Data data = StorageMarker.get(plugin, block).get();
@@ -121,19 +110,11 @@ public class WirelessListener implements Listener {
       return false;
     }
     if (link.count() != 1 || link.data() == null || link.data().block() == null) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.missing_storage"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.missing_storage");
       return true;
     }
     if (!plugin.getRegionProtection().canUse(player, link.data().block())) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, plugin.getLang().tr("message.no_permission"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.no_permission");
       return true;
     }
     StorageTier tier = link.data().tier();
@@ -141,55 +122,33 @@ public class WirelessListener implements Listener {
     service.bind(player, stack, link.data().storageId(), tier, loc);
     updateHand(player, stack, hand);
     plugin.getBossBarManager().remove(player);
+    plugin.getPlayerFeedback().success(player, "message.wireless.bound");
     return true;
   }
 
   private void tryOpen(Player player, ItemStack stack, EquipmentSlot hand) {
     if (!service.isLinked(stack)) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.not_linked"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.not_linked");
       return;
     }
     if (service.currentCharge(stack) <= 0) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, plugin.getLang().tr("message.wireless.empty"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.empty");
       return;
     }
     if (!service.isOwner(player, stack)) {
       service.unbind(stack);
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.wrong_owner"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.wrong_owner");
       updateHand(player, stack, hand);
       return;
     }
     String storageId = service.storageId(stack);
     Location anchor = service.storageLocation(stack);
     if (storageId == null || anchor == null) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.missing_storage"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.missing_storage");
       return;
     }
     if (!anchor.isWorldLoaded()) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.missing_storage"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.missing_storage");
       return;
     }
     Block anchorBlock = anchor.getBlock();
@@ -197,21 +156,11 @@ public class WirelessListener implements Listener {
     if (!Carriers.matchesCarrier(anchorBlock, plugin.getStorageCarrier())
         || markerData.isEmpty()
         || !storageId.equals(markerData.get().storageId())) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.missing_storage"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.missing_storage");
       return;
     }
     if (!service.inRange(anchor, player.getLocation())) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.out_of_range"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.out_of_range");
       return;
     }
     plugin
@@ -228,24 +177,9 @@ public class WirelessListener implements Listener {
                 handleStorageLoadFailure(player, storageId, err);
                 return;
               }
-              runSyncIfEnabled(() -> completeWirelessOpen(player, hand, storageId, anchor, data));
+              PluginTasks.runSyncIfEnabled(
+                  plugin, () -> completeWirelessOpen(player, hand, storageId, anchor, data));
             });
-  }
-
-  private void runSyncIfEnabled(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      Bukkit.getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async storage load completes.
-    }
   }
 
   private void completeWirelessOpen(
@@ -258,38 +192,20 @@ public class WirelessListener implements Listener {
     ItemStack current = currentHandItem(player, hand);
     if (!service.isWireless(current)) return;
     if (!service.isEnabled()) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.disabled"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.disabled");
       return;
     }
     if (!service.isLinked(current)) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.not_linked"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.not_linked");
       return;
     }
     if (service.currentCharge(current) <= 0) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, plugin.getLang().tr("message.wireless.empty"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.empty");
       return;
     }
     if (!service.isOwner(player, current)) {
       service.unbind(current);
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.wrong_owner"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.wrong_owner");
       updateHand(player, current, hand);
       return;
     }
@@ -300,12 +216,7 @@ public class WirelessListener implements Listener {
       return;
     }
     if (storageId == null || anchor == null || !anchor.isWorldLoaded()) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.missing_storage"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.missing_storage");
       return;
     }
     Block anchorBlock = anchor.getBlock();
@@ -313,28 +224,15 @@ public class WirelessListener implements Listener {
     if (!Carriers.matchesCarrier(anchorBlock, plugin.getStorageCarrier())
         || markerData.isEmpty()
         || !storageId.equals(markerData.get().storageId())) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.missing_storage"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.missing_storage");
       return;
     }
     if (!plugin.getRegionProtection().canUse(player, anchorBlock)) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, plugin.getLang().tr("message.no_permission"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.no_permission");
       return;
     }
     if (!service.inRange(anchor, player.getLocation())) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player,
-              plugin.getLang().tr("message.wireless.out_of_range"),
-              plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.out_of_range");
       return;
     }
     if (!storageId.equals(openData.cache().getStorageId())) {
@@ -347,10 +245,7 @@ public class WirelessListener implements Listener {
         plugin.getSessionManager().openWirelessSession(player, openData.cache(), tier, anchor);
     if (!opened) return;
     if (player.getGameMode() != GameMode.CREATIVE && !service.consumeCharge(current)) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, plugin.getLang().tr("message.wireless.empty"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.wireless.empty");
       plugin.getSessionManager().forceCloseSession(player);
     }
     updateHand(player, current, hand);
@@ -371,28 +266,17 @@ public class WirelessListener implements Listener {
   }
 
   private void handleStorageLoadFailure(Player player, String storageId, Throwable err) {
-    plugin
-        .getLogger()
-        .log(Level.WARNING, "Failed to load wireless storage " + storageId, unwrap(err));
-    Bukkit.getScheduler()
-        .runTask(
-            plugin,
-            () -> {
-              if (player == null || !player.isOnline()) return;
-              plugin
-                  .getBossBarManager()
-                  .showError(
-                      player,
-                      plugin.getLang().tr("message.storage_load_failed"),
-                      plugin.getStoragePeekTicks());
-            });
+    ExortLog.log(plugin, Level.WARNING, "Failed to load wireless storage " + storageId, err);
+    PluginTasks.runSyncIfEnabled(
+        plugin,
+        () -> {
+          if (player == null || !player.isOnline()) return;
+          feedbackError(player, "message.storage_load_failed");
+        });
   }
 
-  private Throwable unwrap(Throwable err) {
-    if (err instanceof CompletionException && err.getCause() != null) {
-      return err.getCause();
-    }
-    return err;
+  private void feedbackError(Player player, String key) {
+    plugin.getPlayerFeedback().error(player, key);
   }
 
   private void updateHand(Player player, ItemStack stack, EquipmentSlot hand) {

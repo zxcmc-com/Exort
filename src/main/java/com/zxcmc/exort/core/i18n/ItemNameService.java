@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zxcmc.exort.core.ExortPlugin;
+import com.zxcmc.exort.core.logging.ExortLog;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -636,11 +637,9 @@ public class ItemNameService {
     if (updated != null && !updated.isEmpty()) {
       message += ", updated=[" + String.join(", ", updated) + "]";
     }
-    plugin.getLogger().info(message);
+    ExortLog.info(message);
     if (!indexAvailable) {
-      plugin
-          .getLogger()
-          .warning("Minecraft language index is not available. Using fallback item names.");
+      ExortLog.warn("Minecraft language index is not available. Using fallback item names.");
     }
   }
 

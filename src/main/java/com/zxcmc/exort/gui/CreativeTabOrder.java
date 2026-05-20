@@ -85,7 +85,7 @@ public final class CreativeTabOrder {
     try {
       return fromData();
     } catch (Exception e) {
-      plugin.getLogger().warning("[Exort] Failed to load creative tab order: " + e.getMessage());
+      plugin.getLogger().warning("Failed to load creative tab order: " + e.getMessage());
       return null;
     }
   }

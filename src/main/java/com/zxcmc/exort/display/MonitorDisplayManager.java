@@ -7,6 +7,7 @@ import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.DisplayMarker;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
@@ -753,24 +754,8 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         .whenComplete(
             (cache, err) -> {
               if (err != null) return;
-              runSyncIfEnabled(() -> refreshStorageMonitors(storageId));
+              PluginTasks.runSyncIfEnabled(plugin, () -> refreshStorageMonitors(storageId));
             });
-  }
-
-  private void runSyncIfEnabled(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      Bukkit.getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async storage load completes.
-    }
   }
 
   private void refreshStorageMonitors(String storageId) {

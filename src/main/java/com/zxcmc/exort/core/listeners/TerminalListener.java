@@ -4,15 +4,15 @@ import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.i18n.Lang;
 import com.zxcmc.exort.core.keys.StorageKeys;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.TerminalKind;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
-import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -72,6 +72,7 @@ public class TerminalListener implements Listener {
     }
     if (!plugin.getRegionProtection().canUse(event.getPlayer(), block)) {
       event.setCancelled(true);
+      feedbackError(event.getPlayer(), "message.no_permission");
       return;
     }
     if (plugin.getTerminalDisplayManager() != null) {
@@ -84,32 +85,17 @@ public class TerminalListener implements Listener {
         TerminalLinkFinder.find(
             block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
     if (storageData.count() == 0) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              event.getPlayer(),
-              lang.tr("message.no_storage_adjacent"),
-              plugin.getStoragePeekTicks());
+      feedbackError(event.getPlayer(), "message.no_storage_adjacent");
       event.setCancelled(true);
       return;
     }
     if (storageData.count() > 1) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              event.getPlayer(),
-              lang.tr("message.multiple_storages_adjacent"),
-              plugin.getStoragePeekTicks());
+      feedbackError(event.getPlayer(), "message.multiple_storages_adjacent");
       event.setCancelled(true);
       return;
     }
     if (storageData.data() == null) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              event.getPlayer(),
-              lang.tr("message.storage_missing_id"),
-              plugin.getStoragePeekTicks());
+      feedbackError(event.getPlayer(), "message.storage_missing_id");
       event.setCancelled(true);
       return;
     }
@@ -123,12 +109,8 @@ public class TerminalListener implements Listener {
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {
-                plugin
-                    .getLogger()
-                    .log(
-                        Level.WARNING,
-                        "Failed to persist storage tier for " + storageId,
-                        unwrap(err));
+                ExortLog.log(
+                    plugin, Level.WARNING, "Failed to persist storage tier for " + storageId, err);
               }
             });
     storageManager
@@ -139,7 +121,8 @@ public class TerminalListener implements Listener {
                 handleStorageLoadFailure(player, storageId, err);
                 return;
               }
-              runSyncIfEnabled(() -> completeOpen(player, block, storageId, cache));
+              PluginTasks.runSyncIfEnabled(
+                  plugin, () -> completeOpen(player, block, storageId, cache));
             });
   }
 
@@ -147,31 +130,22 @@ public class TerminalListener implements Listener {
     if (player == null || !player.isOnline()) return;
     if (!isOurTerminal(block)) return;
     if (!plugin.getRegionProtection().canUse(player, block)) {
-      plugin
-          .getBossBarManager()
-          .showError(player, lang.tr("message.no_permission"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.no_permission");
       return;
     }
     var storageData =
         TerminalLinkFinder.find(
             block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
     if (storageData.count() == 0) {
-      plugin
-          .getBossBarManager()
-          .showError(player, lang.tr("message.no_storage_adjacent"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.no_storage_adjacent");
       return;
     }
     if (storageData.count() > 1) {
-      plugin
-          .getBossBarManager()
-          .showError(
-              player, lang.tr("message.multiple_storages_adjacent"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.multiple_storages_adjacent");
       return;
     }
     if (storageData.data() == null || !storageId.equals(storageData.data().storageId())) {
-      plugin
-          .getBossBarManager()
-          .showError(player, lang.tr("message.storage_missing_id"), plugin.getStoragePeekTicks());
+      feedbackError(player, "message.storage_missing_id");
       return;
     }
     if (!storageId.equals(cache.getStorageId())) return;
@@ -188,40 +162,17 @@ public class TerminalListener implements Listener {
   }
 
   private void handleStorageLoadFailure(Player player, String storageId, Throwable err) {
-    plugin
-        .getLogger()
-        .log(Level.WARNING, "Failed to load terminal storage " + storageId, unwrap(err));
-    runSyncIfEnabled(
+    ExortLog.log(plugin, Level.WARNING, "Failed to load terminal storage " + storageId, err);
+    PluginTasks.runSyncIfEnabled(
+        plugin,
         () -> {
           if (player == null || !player.isOnline()) return;
-          plugin
-              .getBossBarManager()
-              .showError(
-                  player, lang.tr("message.storage_load_failed"), plugin.getStoragePeekTicks());
+          feedbackError(player, "message.storage_load_failed");
         });
   }
 
-  private void runSyncIfEnabled(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      Bukkit.getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async storage load completes.
-    }
-  }
-
-  private Throwable unwrap(Throwable err) {
-    if (err instanceof CompletionException && err.getCause() != null) {
-      return err.getCause();
-    }
-    return err;
+  private void feedbackError(Player player, String key) {
+    plugin.getPlayerFeedback().error(player, key);
   }
 
   private boolean isOurTerminal(Block block) {

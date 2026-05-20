@@ -21,8 +21,6 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletionException;
-import java.util.logging.Level;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -57,6 +55,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final StoragePlacementFailureHandler placementFailureHandler;
 
   public ItemPlaceBridgeListener(
       ExortPlugin plugin,
@@ -77,6 +76,7 @@ public class ItemPlaceBridgeListener implements Listener {
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.placementFailureHandler = new StoragePlacementFailureHandler(plugin, storageCarrier);
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -422,7 +422,8 @@ public class ItemPlaceBridgeListener implements Listener {
         .whenComplete(
             (cache, err) -> {
               if (err != null) {
-                reportStorageFailure(player, "load placed storage " + storageId, err);
+                placementFailureHandler.reportStorageFailure(
+                    player, "load placed storage " + storageId, err);
               }
             });
   }
@@ -440,69 +441,10 @@ public class ItemPlaceBridgeListener implements Listener {
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {
-                rollbackFailedPlacement(player, block, storageId, refund, shouldRefund, err);
+                placementFailureHandler.rollbackFailedPlacement(
+                    player, block, storageId, refund, shouldRefund, err);
               }
             });
-  }
-
-  private void rollbackFailedPlacement(
-      Player player,
-      Block block,
-      String storageId,
-      ItemStack refund,
-      boolean shouldRefund,
-      Throwable err) {
-    plugin
-        .getLogger()
-        .log(Level.WARNING, "Failed to persist storage tier for " + storageId, unwrap(err));
-    runSyncIfEnabled(
-        () -> {
-          boolean rolledBack =
-              StoragePlacementRollback.rollbackIfCurrent(
-                  plugin, block, storageCarrier, storageId, player, refund, shouldRefund);
-          if (!rolledBack) {
-            plugin
-                .getLogger()
-                .warning(
-                    "Could not roll back failed storage placement for "
-                        + storageId
-                        + "; block marker changed before the database failure was handled.");
-          }
-          showStorageFailure(player);
-        });
-  }
-
-  private void reportStorageFailure(Player player, String action, Throwable err) {
-    plugin.getLogger().log(Level.WARNING, "Failed to " + action, unwrap(err));
-    runSyncIfEnabled(() -> showStorageFailure(player));
-  }
-
-  private void showStorageFailure(Player player) {
-    if (player == null || !player.isOnline()) return;
-    plugin
-        .getBossBarManager()
-        .showError(
-            player,
-            plugin.getLang().tr("message.storage_load_failed"),
-            plugin.getStoragePeekTicks());
-  }
-
-  private void runSyncIfEnabled(Runnable task) {
-    if (!plugin.isEnabled()) return;
-    try {
-      plugin
-          .getServer()
-          .getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (plugin.isEnabled()) {
-                  task.run();
-                }
-              });
-    } catch (RuntimeException ignored) {
-      // The plugin may be disabling while an async database callback completes.
-    }
   }
 
   private boolean shouldRefundPlacementItem(Player player, ItemStack item) {
@@ -512,13 +454,6 @@ public class ItemPlaceBridgeListener implements Listener {
     return item.getItemMeta()
         .getPersistentDataContainer()
         .has(keys.storageId(), PersistentDataType.STRING);
-  }
-
-  private Throwable unwrap(Throwable err) {
-    if (err instanceof CompletionException && err.getCause() != null) {
-      return err.getCause();
-    }
-    return err;
   }
 
   private void consume(PlayerInteractEvent event) {

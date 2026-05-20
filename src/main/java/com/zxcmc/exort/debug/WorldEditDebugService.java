@@ -200,9 +200,7 @@ public final class WorldEditDebugService {
   }
 
   private Component prefix() {
-    return Component.text("[", NamedTextColor.DARK_GRAY)
-        .append(Component.text("Exort", NamedTextColor.AQUA))
-        .append(Component.text("] ", NamedTextColor.DARK_GRAY));
+    return Component.text("[Exort] ", NamedTextColor.AQUA);
   }
 
   public static final class Summary {
