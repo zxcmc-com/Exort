@@ -6,6 +6,7 @@ import io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConf
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -35,9 +36,9 @@ public final class ResourcePackService implements Listener {
   private static final UUID PACK_ID =
       UUID.nameUUIDFromBytes("zxcmc:exort:resource-pack".getBytes(StandardCharsets.UTF_8));
 
-  // Filled in a future release when the immutable official HTTPS pack is published.
-  private static final String OFFICIAL_PACK_URL = "";
-  private static final String OFFICIAL_PACK_SHA1 = "";
+  private static final String OFFICIAL_PACK_METADATA_URL =
+      "https://exort.zxcmc.com/resource-pack/exort/latest.json";
+  private static final Duration OFFICIAL_PACK_METADATA_TIMEOUT = Duration.ofSeconds(10);
 
   private final ExortPlugin plugin;
   private final SelfHostPackServer selfHost;
@@ -77,7 +78,7 @@ public final class ResourcePackService implements Listener {
 
     ResourcePackHosting effective = resolveHosting(configured);
     if (effective == ResourcePackHosting.EXORT) {
-      readyOfficialPack(configured, deliverySettings);
+      resolveOfficialPack(configured, deliverySettings, currentGeneration);
       return;
     }
 
@@ -235,7 +236,8 @@ public final class ResourcePackService implements Listener {
         plugin.getConfig().getBoolean("resourcePack.sendOnlineOnReady", false));
   }
 
-  private void readyOfficialPack(ResourcePackHosting configured, DeliverySettings settings) {
+  private void resolveOfficialPack(
+      ResourcePackHosting configured, DeliverySettings settings, long currentGeneration) {
     if (!officialPackConfigured()) {
       state.set(
           State.error(
@@ -250,18 +252,72 @@ public final class ResourcePackService implements Listener {
               "Publish immutable HTTPS pack metadata before enabling EXORT hosting."));
       return;
     }
-    setReady(
-        configured,
-        ResourcePackHosting.EXORT,
-        settings,
-        null,
-        OFFICIAL_PACK_URL,
-        OFFICIAL_PACK_SHA1,
-        "Official Exort pack via external HTTPS hosting");
+    state.set(State.resolving(configured, settings.configuredDelivery()));
+    Bukkit.getScheduler()
+        .runTaskAsynchronously(
+            plugin,
+            () -> {
+              try {
+                OfficialPackMetadata metadata =
+                    OfficialPackMetadata.fetch(
+                        OFFICIAL_PACK_METADATA_URL, OFFICIAL_PACK_METADATA_TIMEOUT);
+                if (generation.get() != currentGeneration) {
+                  return;
+                }
+                setReady(
+                    configured,
+                    ResourcePackHosting.EXORT,
+                    settings,
+                    null,
+                    metadata.url(),
+                    metadata.sha1(),
+                    officialPackNote(metadata));
+              } catch (IOException | RuntimeException e) {
+                if (generation.get() != currentGeneration) {
+                  return;
+                }
+                state.set(
+                    State.error(
+                        configured,
+                        ResourcePackHosting.EXORT,
+                        settings.configuredDelivery(),
+                        ResourcePackDelivery.MANUAL,
+                        "Official Exort resource-pack metadata is unavailable: " + e.getMessage(),
+                        null,
+                        null,
+                        null,
+                        "Checked " + OFFICIAL_PACK_METADATA_URL));
+                ExortLog.warn(
+                    "Official Exort resource-pack metadata is unavailable: " + e.getMessage());
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                if (generation.get() != currentGeneration) {
+                  return;
+                }
+                state.set(
+                    State.error(
+                        configured,
+                        ResourcePackHosting.EXORT,
+                        settings.configuredDelivery(),
+                        ResourcePackDelivery.MANUAL,
+                        "Official Exort resource-pack metadata lookup was interrupted",
+                        null,
+                        null,
+                        null,
+                        "Checked " + OFFICIAL_PACK_METADATA_URL));
+              }
+            });
   }
 
   private boolean officialPackConfigured() {
-    return !OFFICIAL_PACK_URL.isBlank() && isSha1(OFFICIAL_PACK_SHA1);
+    return isHttpsUrl(OFFICIAL_PACK_METADATA_URL);
+  }
+
+  private String officialPackNote(OfficialPackMetadata metadata) {
+    if (metadata.version() == null || metadata.version().isBlank()) {
+      return "Official Exort pack via external HTTPS hosting";
+    }
+    return "Official Exort pack " + metadata.version() + " via external HTTPS hosting";
   }
 
   private void setReady(
@@ -557,10 +613,23 @@ public final class ResourcePackService implements Listener {
     if (url == null || url.isBlank() || !isSha1(sha1)) {
       return false;
     }
+    return isHttpUrl(url);
+  }
+
+  private boolean isHttpUrl(String url) {
     try {
       URI uri = URI.create(url);
       String scheme = uri.getScheme();
       return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
+  private boolean isHttpsUrl(String url) {
+    try {
+      URI uri = URI.create(url);
+      return "https".equalsIgnoreCase(uri.getScheme());
     } catch (IllegalArgumentException e) {
       return false;
     }
@@ -644,6 +713,26 @@ public final class ResourcePackService implements Listener {
           null,
           pack.outputSha1(),
           null,
+          null,
+          false,
+          false,
+          null,
+          30,
+          false);
+    }
+
+    static State resolving(
+        ResourcePackHosting configured, ResourcePackDelivery configuredDelivery) {
+      return new State(
+          "RESOLVING",
+          configured,
+          ResourcePackHosting.EXORT,
+          configuredDelivery,
+          ResourcePackDelivery.MANUAL,
+          null,
+          null,
+          null,
+          "Resolving official Exort resource-pack metadata",
           null,
           false,
           false,

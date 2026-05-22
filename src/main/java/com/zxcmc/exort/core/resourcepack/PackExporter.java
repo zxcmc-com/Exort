@@ -43,12 +43,28 @@ public final class PackExporter {
 
   public static Result exportPack(JavaPlugin plugin, boolean obfuscate) {
     File packDir = new File(plugin.getDataFolder(), "pack");
+    Path source = getCodeSourcePath(plugin);
+    if (source == null) {
+      plugin
+          .getLogger()
+          .warning("Cannot resolve plugin code source; resource pack export skipped.");
+      return Result.empty(new File(packDir, RAW_OUTPUT_NAME), new File(packDir, OUTPUT_NAME));
+    }
+    return exportPack(source, RESOURCE_ROOT, packDir, obfuscate, plugin.getLogger());
+  }
+
+  static Result exportPack(
+      Path source,
+      String resourceRoot,
+      File packDir,
+      boolean obfuscate,
+      java.util.logging.Logger logger) {
     if (!packDir.exists()) {
       packDir.mkdirs();
     }
     File rawFile = new File(packDir, RAW_OUTPUT_NAME);
     File outputFile = new File(packDir, OUTPUT_NAME);
-    int entryCount = exportRawPack(plugin, RESOURCE_ROOT, rawFile);
+    int entryCount = exportRawPack(logger, source, resourceRoot, rawFile);
     if (entryCount <= 0) {
       return Result.empty(rawFile, outputFile);
     }
@@ -66,27 +82,17 @@ public final class PackExporter {
           entryCount,
           obfuscate);
     } catch (IOException e) {
-      plugin.getLogger().log(Level.WARNING, "Failed to finalize " + OUTPUT_NAME, e);
+      logger.log(Level.WARNING, "Failed to finalize " + OUTPUT_NAME, e);
       return Result.empty(rawFile, outputFile);
     }
   }
 
-  private static int exportRawPack(JavaPlugin plugin, String resourceRoot, File outFile) {
+  private static int exportRawPack(
+      java.util.logging.Logger logger, Path source, String resourceRoot, File outFile) {
     if (!resourceRoot.endsWith("/")) resourceRoot = resourceRoot + "/";
-    File dataDir = plugin.getDataFolder();
-    if (!dataDir.exists()) {
-      dataDir.mkdirs();
-    }
     File tmpFile = new File(outFile.getParentFile(), outFile.getName() + ".tmp");
     Map<String, byte[]> entries = new TreeMap<>();
     int count = 0;
-    Path source = getCodeSourcePath(plugin);
-    if (source == null) {
-      plugin
-          .getLogger()
-          .warning("Cannot resolve plugin code source; resource pack export skipped.");
-      return 0;
-    }
     try (ZipOutputStream zos =
         new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(tmpFile)))) {
       if (Files.isDirectory(source)) {
@@ -120,13 +126,13 @@ public final class PackExporter {
         zos.closeEntry();
       }
     } catch (IOException e) {
-      plugin.getLogger().log(Level.WARNING, "Failed to generate " + RAW_OUTPUT_NAME, e);
+      logger.log(Level.WARNING, "Failed to generate " + RAW_OUTPUT_NAME, e);
       return 0;
     }
     try {
       Files.move(tmpFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     } catch (IOException e) {
-      plugin.getLogger().log(Level.WARNING, "Failed to finalize " + RAW_OUTPUT_NAME, e);
+      logger.log(Level.WARNING, "Failed to finalize " + RAW_OUTPUT_NAME, e);
       return 0;
     }
     return count;

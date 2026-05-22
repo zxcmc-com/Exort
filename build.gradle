@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.10.3'
+version = '0.10.4'
 description = 'Exort Storage Network'
 
 base {
@@ -121,6 +121,19 @@ tasks.register('googleJavaFormatCheck', JavaExec) {
         include 'test/java/**/*.java'
         exclude '**/CreativeTabData.java'
     }.files
+}
+
+tasks.register('exportResourcePack', JavaExec) {
+    group = 'build'
+    description = 'Exports the standalone Exort resource pack to build/exort-resource-pack.'
+    dependsOn tasks.named('classes')
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    mainClass = 'com.zxcmc.exort.core.resourcepack.ResourcePackCli'
+    args file('src/main/resources').absolutePath
+    args layout.buildDirectory.dir('exort-resource-pack').get().asFile.absolutePath
+    args 'true'
+    inputs.dir file('src/main/resources/pack')
+    outputs.file layout.buildDirectory.file('exort-resource-pack/exort.zip')
 }
 
 tasks.withType(JavaCompile).configureEach {

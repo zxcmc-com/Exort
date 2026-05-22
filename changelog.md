@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.4 — 2026-05-22
+- Completed `EXORT` resource-pack hosting through the official HTTPS metadata endpoint at `exort.zxcmc.com`; `resourcePack.hosting: AUTO` now resolves in order: enabled Nexo integration first, official Exort hosting second, and Exort self-hosting as the fallback.
+- Added standalone resource-pack export support through the Gradle `exportResourcePack` task and CLI entry point, producing the bundled Exort resource pack outside a running server.
+
 ## 0.10.3 — 2026-05-21
 - Fixed immediate visual refresh for one-wire storage links so newly placed terminals, crafting terminals, monitors, and buses show their cable connection/active state without `/exort reload`.
 - Fixed shelf inventory visuals after bus moves so shelves no longer keep a phantom last item after Exort extracts it.
