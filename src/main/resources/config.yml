@@ -8,10 +8,10 @@ language: en_us
 mode: RESOURCE
 
 # Resource pack delivery is used only when the effective mode is RESOURCE.
-# AUTO uses Nexo when it is enabled, otherwise an official Exort pack if configured,
-# otherwise Exort self-hosts the pack.
+# AUTO uses Nexo when installed, then ItemsAdder when installed, then an official Exort pack
+# if configured, otherwise Exort self-hosts the pack.
 resourcePack:
-  # AUTO | EXORT | NEXO | SELFHOST | LOBFILE | DISABLED
+  # AUTO | EXORT | NEXO | ITEMSADDER | SELFHOST | LOBFILE | DISABLED
   hosting: AUTO
   # AUTO uses the login configuration phase when Exort can safely deliver the pack directly,
   # or JOIN when server.properties already defines another resource pack.

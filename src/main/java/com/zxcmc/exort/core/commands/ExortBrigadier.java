@@ -14,6 +14,7 @@ import com.zxcmc.exort.core.items.CustomItems;
 import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.task.PluginTasks;
 import com.zxcmc.exort.debug.CacheDebugService;
+import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.storage.StorageCache;
@@ -114,8 +115,22 @@ public final class ExortBrigadier {
                                         ctx, StringArgumentType.getString(ctx, ARG_VERBOSE_MODE)))))
             .then(Commands.literal("stop").executes(this::worldEditVerboseStop));
 
+    LiteralArgumentBuilder<CommandSourceStack> pickVerbose =
+        Commands.literal("pick")
+            .then(
+                Commands.literal("start")
+                    .executes(ctx -> pickVerboseStart(ctx, null))
+                    .then(
+                        Commands.argument(ARG_VERBOSE_MODE, StringArgumentType.word())
+                            .suggests(this::suggestVerboseModes)
+                            .executes(
+                                ctx ->
+                                    pickVerboseStart(
+                                        ctx, StringArgumentType.getString(ctx, ARG_VERBOSE_MODE)))))
+            .then(Commands.literal("stop").executes(this::pickVerboseStop));
+
     LiteralArgumentBuilder<CommandSourceStack> verbose =
-        Commands.literal("verbose").then(cacheVerbose).then(worldEditVerbose);
+        Commands.literal("verbose").then(cacheVerbose).then(worldEditVerbose).then(pickVerbose);
 
     LiteralArgumentBuilder<CommandSourceStack> debug =
         Commands.literal("debug")
@@ -445,6 +460,31 @@ public final class ExortBrigadier {
     CommandSender sender = sender(context.getSource());
     plugin.getWorldEditDebugService().stop(sender);
     sendMessage(sender, plugin.getLang().tr("message.debug_worldedit_stopped"));
+    return 1;
+  }
+
+  private int pickVerboseStart(CommandContext<CommandSourceStack> context, String rawMode) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    var mode = PickDebugService.Mode.fromString(rawMode);
+    if (rawMode != null && mode == null) {
+      sendMessage(sender, plugin.getLang().tr("message.debug_pick_mode_invalid", rawMode));
+      return 0;
+    }
+    plugin.getPickDebugService().start(sender, mode);
+    String modeName =
+        (mode == null ? plugin.getPickDebugService().getMode() : mode)
+            .name()
+            .toLowerCase(Locale.ROOT);
+    sendMessage(sender, plugin.getLang().tr("message.debug_pick_started", modeName));
+    return 1;
+  }
+
+  private int pickVerboseStop(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    plugin.getPickDebugService().stop(sender);
+    sendMessage(sender, plugin.getLang().tr("message.debug_pick_stopped"));
     return 1;
   }
 

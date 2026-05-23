@@ -9,12 +9,14 @@ import com.zxcmc.exort.core.marker.BusMarker;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Optional;
+import java.util.logging.Level;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
 public final class BusService {
+  private final ExortPlugin plugin;
   private final BusRegistry registry;
   private final BusEngine engine;
 
@@ -30,6 +32,7 @@ public final class BusService {
       int maxOperationsPerChunk,
       boolean allowStorageTargets,
       WirelessTerminalService wirelessService) {
+    this.plugin = plugin;
     this.registry = new BusRegistry(plugin, database);
     this.engine =
         new BusEngine(
@@ -51,9 +54,18 @@ public final class BusService {
   }
 
   public void stop() {
-    engine.stop();
-    registry.flushSettings();
-    registry.clear();
+    try {
+      engine.stop();
+    } catch (RuntimeException | LinkageError e) {
+      plugin.getLogger().log(Level.SEVERE, "Failed to stop bus engine cleanly.", e);
+    }
+    try {
+      registry.flushSettings();
+    } catch (RuntimeException | LinkageError e) {
+      plugin.getLogger().log(Level.SEVERE, "Failed to flush bus settings during shutdown.", e);
+    } finally {
+      registry.clear();
+    }
   }
 
   public void pauseForCraft(String storageId) {

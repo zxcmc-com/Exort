@@ -33,6 +33,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 public final class ResourcePackService implements Listener {
+  private static final String PROVIDER_NOTE_PREFIX = "provider:";
   private static final UUID PACK_ID =
       UUID.nameUUIDFromBytes("zxcmc:exort:resource-pack".getBytes(StandardCharsets.UTF_8));
 
@@ -57,7 +58,6 @@ public final class ResourcePackService implements Listener {
     long currentGeneration = generation.incrementAndGet();
     configurationAttempts.clear();
     selfHost.stop();
-    NexoPackBridge.removeIfPresent(plugin);
 
     ResourcePackHosting configured =
         ResourcePackHosting.fromConfig(
@@ -67,16 +67,20 @@ public final class ResourcePackService implements Listener {
             plugin.getConfig().getString("resourcePack.delivery", "AUTO"));
     DeliverySettings deliverySettings = readDeliverySettings(configuredDelivery);
 
+    if (configured == ResourcePackHosting.DISABLED) {
+      ResourcePackProviderBridge.removeAll(plugin);
+      state.set(State.disabled("resourcePack.hosting is DISABLED", configured, configuredDelivery));
+      return;
+    }
     if (!plugin.isResourceMode()) {
       state.set(State.disabled("Effective mode is VANILLA", configured, configuredDelivery));
       return;
     }
-    if (configured == ResourcePackHosting.DISABLED) {
-      state.set(State.disabled("resourcePack.hosting is DISABLED", configured, configuredDelivery));
-      return;
-    }
 
     ResourcePackHosting effective = resolveHosting(configured);
+    if (!isProviderHosting(effective)) {
+      ResourcePackProviderBridge.removeOtherProviderHandoffs(plugin, effective);
+    }
     if (effective == ResourcePackHosting.EXORT) {
       resolveOfficialPack(configured, deliverySettings, currentGeneration);
       return;
@@ -95,24 +99,33 @@ public final class ResourcePackService implements Listener {
               pack,
               null,
               null,
+              null,
               null));
       return;
     }
 
-    if (effective == ResourcePackHosting.NEXO) {
-      if (!NexoPackBridge.copyIfPresent(plugin, pack.rawFile())) {
+    if (isProviderHosting(effective)) {
+      ResourcePackProviderBridge.removeOtherProviderHandoffs(plugin, effective);
+      ResourcePackProviderBridge.HandoffResult handoff =
+          ResourcePackProviderBridge.handoff(plugin, effective, pack.rawFile());
+      if (!handoff.success()) {
         state.set(
             State.error(
                 configured,
                 effective,
                 configuredDelivery,
                 ResourcePackDelivery.MANUAL,
-                "Nexo is not available",
+                handoff.error(),
                 pack,
+                handoff.targetPath(),
                 null,
                 null,
                 null));
-        ExortLog.warn("Resource-pack hosting is NEXO, but Nexo is not enabled.");
+        ExortLog.warn(
+            "Resource-pack hosting is "
+                + effective
+                + ", but provider handoff failed: "
+                + handoff.error());
         return;
       }
       setReady(
@@ -120,9 +133,10 @@ public final class ResourcePackService implements Listener {
           effective,
           deliverySettings,
           pack,
+          handoff.targetPath(),
           null,
           pack.rawSha1(),
-          "Resource-pack delivery is managed by Nexo; use Nexo's delivery commands/settings.");
+          providerManagedNote(effective));
       return;
     }
 
@@ -134,7 +148,7 @@ public final class ResourcePackService implements Listener {
                 plugin.getConfig().getString("resourcePack.selfHost.bindHost", "0.0.0.0"),
                 plugin.getConfig().getInt("resourcePack.selfHost.port", 0),
                 plugin.getConfig().getString("resourcePack.selfHost.publicUrl", ""));
-        setReady(configured, effective, deliverySettings, pack, url, pack.outputSha1(), null);
+        setReady(configured, effective, deliverySettings, pack, null, url, pack.outputSha1(), null);
       } catch (IOException e) {
         state.set(
             State.error(
@@ -144,6 +158,7 @@ public final class ResourcePackService implements Listener {
                 ResourcePackDelivery.MANUAL,
                 e.getMessage(),
                 pack,
+                null,
                 null,
                 null,
                 null));
@@ -165,6 +180,7 @@ public final class ResourcePackService implements Listener {
                 pack,
                 null,
                 null,
+                null,
                 null));
         plugin
             .getLogger()
@@ -182,7 +198,14 @@ public final class ResourcePackService implements Listener {
                     return;
                   }
                   setReady(
-                      configured, effective, deliverySettings, pack, url, pack.outputSha1(), null);
+                      configured,
+                      effective,
+                      deliverySettings,
+                      pack,
+                      null,
+                      url,
+                      pack.outputSha1(),
+                      null);
                 } catch (IOException | RuntimeException e) {
                   if (generation.get() != currentGeneration) {
                     return;
@@ -195,6 +218,7 @@ public final class ResourcePackService implements Listener {
                           ResourcePackDelivery.MANUAL,
                           e.getMessage(),
                           pack,
+                          null,
                           null,
                           null,
                           null));
@@ -217,13 +241,36 @@ public final class ResourcePackService implements Listener {
     if (configured != ResourcePackHosting.AUTO) {
       return configured;
     }
-    if (NexoPackBridge.isNexoEnabled(plugin)) {
+    return resolveAutoHosting(
+        ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.NEXO),
+        ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.ITEMSADDER),
+        officialPackConfigured());
+  }
+
+  static ResourcePackHosting resolveAutoHosting(
+      boolean nexoInstalled, boolean itemsAdderInstalled, boolean officialConfigured) {
+    if (nexoInstalled) {
       return ResourcePackHosting.NEXO;
     }
-    if (officialPackConfigured()) {
+    if (itemsAdderInstalled) {
+      return ResourcePackHosting.ITEMSADDER;
+    }
+    if (officialConfigured) {
       return ResourcePackHosting.EXORT;
     }
     return ResourcePackHosting.SELFHOST;
+  }
+
+  private boolean isProviderHosting(ResourcePackHosting hosting) {
+    return hosting == ResourcePackHosting.NEXO || hosting == ResourcePackHosting.ITEMSADDER;
+  }
+
+  private String providerManagedNote(ResourcePackHosting hosting) {
+    return PROVIDER_NOTE_PREFIX + providerDisplayName(hosting);
+  }
+
+  private String providerDisplayName(ResourcePackHosting hosting) {
+    return hosting == ResourcePackHosting.NEXO ? "Nexo" : "ItemsAdder";
   }
 
   private DeliverySettings readDeliverySettings(ResourcePackDelivery configuredDelivery) {
@@ -249,6 +296,7 @@ public final class ResourcePackService implements Listener {
               null,
               null,
               null,
+              null,
               "Publish immutable HTTPS pack metadata before enabling EXORT hosting."));
       return;
     }
@@ -269,6 +317,7 @@ public final class ResourcePackService implements Listener {
                     ResourcePackHosting.EXORT,
                     settings,
                     null,
+                    null,
                     metadata.url(),
                     metadata.sha1(),
                     officialPackNote(metadata));
@@ -283,6 +332,7 @@ public final class ResourcePackService implements Listener {
                         settings.configuredDelivery(),
                         ResourcePackDelivery.MANUAL,
                         "Official Exort resource-pack metadata is unavailable: " + e.getMessage(),
+                        null,
                         null,
                         null,
                         null,
@@ -301,6 +351,7 @@ public final class ResourcePackService implements Listener {
                         settings.configuredDelivery(),
                         ResourcePackDelivery.MANUAL,
                         "Official Exort resource-pack metadata lookup was interrupted",
+                        null,
                         null,
                         null,
                         null,
@@ -325,6 +376,7 @@ public final class ResourcePackService implements Listener {
       ResourcePackHosting effective,
       DeliverySettings settings,
       PackExporter.Result pack,
+      String handoffTarget,
       String url,
       String sha1,
       String note) {
@@ -337,6 +389,7 @@ public final class ResourcePackService implements Listener {
             settings.configuredDelivery(),
             effectiveDelivery,
             pack,
+            handoffTarget,
             url,
             sha1,
             mergeNotes(note, autoDeliveryNote(settings, dispatchReady, effectiveDelivery)),
@@ -383,7 +436,11 @@ public final class ResourcePackService implements Listener {
 
   private void logReadyState(State ready) {
     if (ready.effective() == ResourcePackHosting.NEXO) {
-      ExortLog.info("Resource-pack delivery is managed by Nexo.");
+      ExortLog.info("Resource-pack delivery is managed by Nexo: " + ready.handoffTarget());
+      return;
+    }
+    if (ready.effective() == ResourcePackHosting.ITEMSADDER) {
+      ExortLog.info("Resource-pack delivery is managed by ItemsAdder: " + ready.handoffTarget());
       return;
     }
     if (ready.dispatchReady()) {
@@ -464,14 +521,18 @@ public final class ResourcePackService implements Listener {
       lines.add(lang.tr("message.pack_status.pack", current.pack().outputFile().getPath()));
       lines.add(lang.tr("message.pack_status.obfuscated", current.pack().obfuscated()));
     }
+    if (current.handoffTarget() != null && !current.handoffTarget().isBlank()) {
+      lines.add(lang.tr("message.pack_status.handoff", current.handoffTarget()));
+    }
     if (current.sha1() != null && !current.sha1().isBlank()) {
       lines.add(lang.tr("message.pack_status.sha1", current.sha1()));
     }
     if (current.url() != null) {
       lines.add(lang.tr("message.pack_status.url", current.url()));
     }
-    if (current.note() != null && !current.note().isBlank()) {
-      lines.add(lang.tr("message.pack_status.note", current.note()));
+    String note = displayNote(current);
+    if (note != null && !note.isBlank()) {
+      lines.add(lang.tr("message.pack_status.note", note));
     }
     if (current.error() != null && !current.error().isBlank()) {
       lines.add(lang.tr("message.pack_status.error", current.error()));
@@ -491,8 +552,9 @@ public final class ResourcePackService implements Listener {
     if (current.error() != null && !current.error().isBlank()) {
       return current.error();
     }
-    if (current.note() != null && !current.note().isBlank()) {
-      return current.note();
+    String note = displayNote(current);
+    if (note != null && !note.isBlank()) {
+      return note;
     }
     if ("READY".equals(current.status())) {
       return "direct resource-pack sending is unavailable for " + current.effective();
@@ -603,6 +665,15 @@ public final class ResourcePackService implements Listener {
     return Component.text(plugin.getLang().tr("message.resource_pack.required_failure"));
   }
 
+  private String displayNote(State current) {
+    String note = current.note();
+    if (note == null || !note.startsWith(PROVIDER_NOTE_PREFIX)) {
+      return note;
+    }
+    String provider = note.substring(PROVIDER_NOTE_PREFIX.length());
+    return plugin.getLang().tr("message.pack_status.provider_note", provider);
+  }
+
   private boolean isDirectHosting(ResourcePackHosting hosting) {
     return hosting == ResourcePackHosting.EXORT
         || hosting == ResourcePackHosting.SELFHOST
@@ -669,6 +740,7 @@ public final class ResourcePackService implements Listener {
       ResourcePackDelivery configuredDelivery,
       ResourcePackDelivery effectiveDelivery,
       PackExporter.Result pack,
+      String handoffTarget,
       String url,
       String sha1,
       String note,
@@ -686,6 +758,7 @@ public final class ResourcePackService implements Listener {
           ResourcePackHosting.DISABLED,
           configuredDelivery,
           ResourcePackDelivery.MANUAL,
+          null,
           null,
           null,
           null,
@@ -711,6 +784,7 @@ public final class ResourcePackService implements Listener {
           ResourcePackDelivery.MANUAL,
           pack,
           null,
+          null,
           pack.outputSha1(),
           null,
           null,
@@ -732,6 +806,7 @@ public final class ResourcePackService implements Listener {
           null,
           null,
           null,
+          null,
           "Resolving official Exort resource-pack metadata",
           null,
           false,
@@ -747,6 +822,7 @@ public final class ResourcePackService implements Listener {
         ResourcePackDelivery configuredDelivery,
         ResourcePackDelivery effectiveDelivery,
         PackExporter.Result pack,
+        String handoffTarget,
         String url,
         String sha1,
         String note,
@@ -762,6 +838,7 @@ public final class ResourcePackService implements Listener {
           configuredDelivery,
           effectiveDelivery,
           pack,
+          handoffTarget,
           url,
           sha1,
           note,
@@ -780,6 +857,7 @@ public final class ResourcePackService implements Listener {
         ResourcePackDelivery effectiveDelivery,
         String error,
         PackExporter.Result pack,
+        String handoffTarget,
         String url,
         String sha1,
         String note) {
@@ -790,6 +868,7 @@ public final class ResourcePackService implements Listener {
           configuredDelivery,
           effectiveDelivery,
           pack,
+          handoffTarget,
           url,
           sha1,
           note,
