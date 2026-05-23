@@ -64,7 +64,8 @@ public class Lang {
         "message.usage_debug",
         "Usage: /exort debug player <player> | /exort debug storage <storageId> [write] | /exort"
             + " debug cache status <storageId|player> | /exort debug verbose cache start [mode]"
-            + " [storage <uuid>] | /exort debug verbose cache stop | /exort debug benchmark start"
+            + " [storage <uuid>] | /exort debug verbose cache stop | /exort debug verbose pick"
+            + " start [mode] | /exort debug verbose pick stop | /exort debug benchmark start"
             + " [players] [seconds] | /exort debug benchmark stop");
     put(
         defaultsEn,
@@ -80,8 +81,9 @@ public class Lang {
         "message.help_debug",
         "/{0} debug player <player> | /{0} debug storage <id> [write] | /{0} debug cache status"
             + " <id|player> | /{0} debug verbose cache start [mode] [storage <uuid>] | /{0} debug"
-            + " verbose cache stop | /{0} debug benchmark start [players] [seconds] | /{0} debug"
-            + " benchmark stop - debug access");
+            + " verbose cache stop | /{0} debug verbose pick start [mode] | /{0} debug verbose"
+            + " pick stop | /{0} debug benchmark start [players] [seconds] | /{0} debug benchmark"
+            + " stop - debug access");
     put(
         defaultsEn,
         "message.help_give",
@@ -159,6 +161,12 @@ public class Lang {
         defaultsEn,
         "message.debug_worldedit_mode_invalid",
         "Invalid WorldEdit debug mode: {0}. Use compact/normal/full.");
+    put(defaultsEn, "message.debug_pick_started", "Pick verbose logging enabled (mode: {0}).");
+    put(defaultsEn, "message.debug_pick_stopped", "Pick verbose logging disabled.");
+    put(
+        defaultsEn,
+        "message.debug_pick_mode_invalid",
+        "Invalid pick verbose mode: {0}. Use compact/normal/full.");
     put(defaultsEn, "message.debug_cache_status_header", "Cache status for {0}:");
     put(defaultsEn, "message.debug_cache_status_cache_unloaded", "Cache: not loaded.");
     put(
@@ -227,9 +235,15 @@ public class Lang {
     put(defaultsEn, "message.pack_status.raw_pack", "Raw pack: {0}");
     put(defaultsEn, "message.pack_status.pack", "Pack: {0}");
     put(defaultsEn, "message.pack_status.obfuscated", "Obfuscated: {0}");
+    put(defaultsEn, "message.pack_status.handoff", "Provider handoff: {0}");
     put(defaultsEn, "message.pack_status.sha1", "SHA-1: {0}");
     put(defaultsEn, "message.pack_status.url", "URL: {0}");
     put(defaultsEn, "message.pack_status.note", "Note: {0}");
+    put(
+        defaultsEn,
+        "message.pack_status.provider_note",
+        "Resource-pack handoff is ready for {0}; the provider includes it during startup/pack"
+            + " generation. If {0} was already enabled, restart or reload that provider manually.");
     put(defaultsEn, "message.pack_status.error", "Error: {0}");
     put(
         defaultsEn,
@@ -409,7 +423,8 @@ public class Lang {
         "message.usage_debug",
         "Использование: /exort debug player <игрок> | /exort debug storage <id> [write] | /exort"
             + " debug cache status <uuid|игрок> | /exort debug verbose cache start [mode] [storage"
-            + " <uuid>] | /exort debug verbose cache stop | /exort debug benchmark start [игроки]"
+            + " <uuid>] | /exort debug verbose cache stop | /exort debug verbose pick start [mode]"
+            + " | /exort debug verbose pick stop | /exort debug benchmark start [игроки]"
             + " [секунды] | /exort debug benchmark stop");
     put(
         defaultsRu,
@@ -425,8 +440,9 @@ public class Lang {
         "message.help_debug",
         "/{0} debug player <игрок> | /{0} debug storage <id> [write] | /{0} debug cache status"
             + " <uuid|игрок> | /{0} debug verbose cache start [mode] [storage <uuid>] | /{0} debug"
-            + " verbose cache stop | /{0} debug benchmark start [игроки] [секунды] | /{0} debug"
-            + " benchmark stop - отладка");
+            + " verbose cache stop | /{0} debug verbose pick start [mode] | /{0} debug verbose"
+            + " pick stop | /{0} debug benchmark start [игроки] [секунды] | /{0} debug benchmark"
+            + " stop - отладка");
     put(
         defaultsRu,
         "message.help_give",
@@ -505,6 +521,12 @@ public class Lang {
         defaultsRu,
         "message.debug_worldedit_mode_invalid",
         "Неверный режим лога WorldEdit: {0}. Используйте compact/normal/full.");
+    put(defaultsRu, "message.debug_pick_started", "Подробный лог pick включен (режим: {0}).");
+    put(defaultsRu, "message.debug_pick_stopped", "Подробный лог pick выключен.");
+    put(
+        defaultsRu,
+        "message.debug_pick_mode_invalid",
+        "Неверный режим лога pick: {0}. Используйте compact/normal/full.");
     put(defaultsRu, "message.debug_cache_status_header", "Статус кэша для {0}:");
     put(defaultsRu, "message.debug_cache_status_cache_unloaded", "Кэш: не загружен.");
     put(
@@ -579,9 +601,16 @@ public class Lang {
     put(defaultsRu, "message.pack_status.raw_pack", "Исходный ресурс-пак: {0}");
     put(defaultsRu, "message.pack_status.pack", "Готовый ресурс-пак: {0}");
     put(defaultsRu, "message.pack_status.obfuscated", "Обфускация: {0}");
+    put(defaultsRu, "message.pack_status.handoff", "Передача провайдеру: {0}");
     put(defaultsRu, "message.pack_status.sha1", "SHA-1: {0}");
     put(defaultsRu, "message.pack_status.url", "URL: {0}");
     put(defaultsRu, "message.pack_status.note", "Примечание: {0}");
+    put(
+        defaultsRu,
+        "message.pack_status.provider_note",
+        "Передача ресурс-пака для {0} готова; провайдер включит ресурсы Exort при запуске"
+            + " или генерации пака. Если {0} уже был включён, перезапустите или перезагрузите"
+            + " этот провайдер вручную.");
     put(defaultsRu, "message.pack_status.error", "Ошибка: {0}");
     put(
         defaultsRu,

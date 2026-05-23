@@ -26,6 +26,7 @@ import com.zxcmc.exort.core.listeners.InventoryRefreshListener;
 import com.zxcmc.exort.core.listeners.ItemPlaceBridgeListener;
 import com.zxcmc.exort.core.listeners.MonitorListener;
 import com.zxcmc.exort.core.listeners.PickListener;
+import com.zxcmc.exort.core.listeners.ProtocolLibPickBridge;
 import com.zxcmc.exort.core.listeners.SearchDialogListener;
 import com.zxcmc.exort.core.listeners.StorageListener;
 import com.zxcmc.exort.core.listeners.TerminalListener;
@@ -48,6 +49,7 @@ import com.zxcmc.exort.core.ui.BossBarManager;
 import com.zxcmc.exort.core.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
+import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.BusDisplayManager;
 import com.zxcmc.exort.display.DisplayRefreshService;
@@ -130,10 +132,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private RecipeService recipeService;
   private LoadTestService loadTestService;
   private CacheDebugService cacheDebugService;
+  private PickDebugService pickDebugService;
   private WorldEditDebugService worldEditDebugService;
   private Metrics metrics;
   private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
+  private ProtocolLibPickBridge protocolLibPickBridge;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
@@ -179,6 +183,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     bossBarManager = new BossBarManager(this, storageManager, lang);
     loadTestService = new LoadTestService(this, database, bossBarManager, lang);
     cacheDebugService = new CacheDebugService(this);
+    pickDebugService = new PickDebugService(this);
     worldEditDebugService = new WorldEditDebugService(this);
     metrics = ExortMetrics.create(this);
 
@@ -212,6 +217,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       worldEditIntegration.shutdown();
       worldEditIntegration = null;
     }
+    stopProtocolLibPickBridge();
     if (resourcePackService != null) {
       resourcePackService.stop();
       resourcePackService = null;
@@ -284,6 +290,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   public WorldEditDebugService getWorldEditDebugService() {
     return worldEditDebugService;
+  }
+
+  public PickDebugService getPickDebugService() {
+    return pickDebugService;
   }
 
   public int getInventoryRefreshEpoch() {
@@ -444,6 +454,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (resourcePackService != null) {
       resourcePackService.reload();
     }
+  }
+
+  private void stopProtocolLibPickBridge() {
+    if (protocolLibPickBridge == null) {
+      return;
+    }
+    protocolLibPickBridge.unregister();
+    protocolLibPickBridge = null;
   }
 
   private CompletableFuture<ItemNameService.Status> registerRuntime() {
@@ -618,6 +636,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       networkGraphCache.invalidateAll();
     }
 
+    stopProtocolLibPickBridge();
     HandlerList.unregisterAll(this);
     if (resourcePackService != null) {
       Bukkit.getPluginManager().registerEvents(resourcePackService, this);
@@ -1145,18 +1164,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             new WireListener(
                 this, keys, wireLimit, wireHardCap, wireMaterial, wirePeekTicks, storageCarrier),
             this);
-    Bukkit.getPluginManager()
-        .registerEvents(
-            new PickListener(
-                this,
-                customItems,
-                keys,
-                wireMaterial,
-                storageCarrier,
-                terminalCarrier,
-                monitorCarrier,
-                busCarrier),
-            this);
+    var pickListener =
+        new PickListener(
+            this,
+            customItems,
+            keys,
+            wireMaterial,
+            storageCarrier,
+            terminalCarrier,
+            monitorCarrier,
+            busCarrier);
+    Bukkit.getPluginManager().registerEvents(pickListener, this);
+    protocolLibPickBridge = ProtocolLibPickBridge.tryRegister(this, pickListener);
     Bukkit.getPluginManager()
         .registerEvents(
             new ItemPlaceBridgeListener(

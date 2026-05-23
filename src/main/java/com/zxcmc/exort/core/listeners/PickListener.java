@@ -13,14 +13,19 @@ import com.zxcmc.exort.core.marker.TerminalKind;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTier;
+import io.papermc.paper.event.player.PlayerPickBlockEvent;
+import io.papermc.paper.event.player.PlayerPickEntityEvent;
 import io.papermc.paper.event.player.PlayerPickItemEvent;
 import java.util.Optional;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -56,12 +61,52 @@ public class PickListener implements Listener {
     this.busCarrier = busCarrier;
   }
 
+  @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+  public void onPickDebug(PlayerPickItemEvent event) {
+    debug("event " + describePickEvent(event));
+  }
+
   @EventHandler(ignoreCancelled = true)
   public void onPick(PlayerPickItemEvent event) {
-    Player player = event.getPlayer();
-    Block target = player.getTargetBlockExact(8, FluidCollisionMode.NEVER);
-    if (target == null) return;
+    Block target = pickEventBlock(event);
+    if (target == null) {
+      debug("miss event=" + event.getClass().getSimpleName() + " target=null");
+      return;
+    }
 
+    PickTarget pick = resolveTarget(target);
+    if (pick == null) {
+      debug("miss event=" + event.getClass().getSimpleName() + " target=" + describeBlock(target));
+      return;
+    }
+    applyEventPick(event, pick);
+  }
+
+  private Block pickEventBlock(PlayerPickItemEvent event) {
+    if (event instanceof PlayerPickBlockEvent blockEvent) {
+      return blockEvent.getBlock();
+    }
+    return event.getPlayer().getTargetBlockExact(8, FluidCollisionMode.NEVER);
+  }
+
+  boolean handleDirectPick(Player player, Block target, String source) {
+    if (player == null || target == null) {
+      return false;
+    }
+    PickTarget pick = resolveTarget(target);
+    if (pick == null) {
+      debug("direct miss source=" + source + " target=" + describeBlock(target));
+      return false;
+    }
+    applyDirectPick(player, pick, source);
+    return true;
+  }
+
+  String describeDebugBlock(Block block) {
+    return describeBlock(block);
+  }
+
+  private PickTarget resolveTarget(Block target) {
     ItemStack desired = null;
     String type = null;
     String expectedTier = null;
@@ -82,7 +127,7 @@ public class PickListener implements Listener {
       type = "monitor";
     } else if (isBus(target)) {
       var data = BusMarker.get(plugin, target).orElse(null);
-      if (data == null) return;
+      if (data == null) return null;
       if (data.type() == BusType.EXPORT) {
         desired = customItems.exportBusItem();
         type = "export_bus";
@@ -92,7 +137,7 @@ public class PickListener implements Listener {
       }
     } else if (isStorage(target)) {
       var tierOpt = readTier(target);
-      if (tierOpt.isEmpty()) return;
+      if (tierOpt.isEmpty()) return null;
       StorageTier tier = tierOpt.get();
       desired = customItems.storageItem(tier, null);
       type = "storage";
@@ -101,42 +146,121 @@ public class PickListener implements Listener {
       desired = customItems.storageCoreItem();
       type = "storage_core";
     } else {
-      return;
+      return null;
     }
+    return new PickTarget(desired, type, expectedTier);
+  }
 
+  private void applyEventPick(PlayerPickItemEvent event, PickTarget pick) {
+    Player player = event.getPlayer();
     int held = player.getInventory().getHeldItemSlot();
-    int existingSlot = findExisting(player.getInventory(), type, expectedTier);
+    int existingSlot = findExisting(player.getInventory(), pick.type(), pick.expectedTier());
     if (existingSlot >= 0) {
       if (existingSlot <= 8) {
-        // Already on hotbar: just select that slot
         event.setSourceSlot(existingSlot);
         event.setTargetSlot(existingSlot);
       } else {
         int empty = findEmptyHotbar(player.getInventory(), held);
         if (empty >= 0) {
-          // Move into first empty hotbar slot
           event.setSourceSlot(existingSlot);
           event.setTargetSlot(empty);
         } else {
-          // All hotbar slots filled: swap with active slot
           event.setSourceSlot(existingSlot);
           event.setTargetSlot(held);
         }
       }
+      debug(
+          "handled event="
+              + event.getClass().getSimpleName()
+              + " result="
+              + pick.type()
+              + tierSuffix(pick.expectedTier())
+              + " sourceSlot="
+              + event.getSourceSlot()
+              + " targetSlot="
+              + event.getTargetSlot());
       return;
     }
 
-    // No existing stack. In creative, provide a fresh stack; otherwise block vanilla pick.
     event.setCancelled(true);
-    if (player.getGameMode() == GameMode.CREATIVE && desired != null) {
-      ItemStack give = desired.clone();
+    if (player.getGameMode() == GameMode.CREATIVE && pick.item() != null) {
+      ItemStack give = pick.item().clone();
       give.setAmount(1);
       int empty = findEmptyHotbar(player.getInventory(), held);
       int targetSlot = empty >= 0 ? empty : held;
       player.getInventory().setItem(targetSlot, give);
       player.getInventory().setHeldItemSlot(targetSlot);
       player.updateInventory();
+      debug(
+          "handled creative event="
+              + event.getClass().getSimpleName()
+              + " result="
+              + pick.type()
+              + tierSuffix(pick.expectedTier())
+              + " targetSlot="
+              + targetSlot);
     }
+  }
+
+  private void applyDirectPick(Player player, PickTarget pick, String source) {
+    int held = player.getInventory().getHeldItemSlot();
+    int existingSlot = findExisting(player.getInventory(), pick.type(), pick.expectedTier());
+    if (existingSlot >= 0 && existingSlot <= 8) {
+      player.getInventory().setHeldItemSlot(existingSlot);
+      debug(
+          "handled direct source="
+              + source
+              + " result="
+              + pick.type()
+              + tierSuffix(pick.expectedTier())
+              + " sourceSlot="
+              + existingSlot
+              + " targetSlot="
+              + existingSlot);
+      return;
+    }
+
+    if (player.getGameMode() != GameMode.CREATIVE || pick.item() == null) {
+      debug(
+          "handled direct source="
+              + source
+              + " result="
+              + pick.type()
+              + tierSuffix(pick.expectedTier())
+              + " creative=false existingSlot="
+              + existingSlot);
+      return;
+    }
+
+    int targetSlot;
+    ItemStack give;
+    if (existingSlot >= 9) {
+      targetSlot = chooseDirectTargetSlot(player.getInventory(), held);
+      ItemStack existing = player.getInventory().getItem(existingSlot);
+      give = existing != null ? existing.clone() : pick.item().clone();
+    } else {
+      targetSlot = chooseDirectTargetSlot(player.getInventory(), held);
+      give = pick.item().clone();
+    }
+    give.setAmount(1);
+    player.getInventory().setItem(targetSlot, give);
+    player.getInventory().setHeldItemSlot(targetSlot);
+    player.updateInventory();
+    debug(
+        "handled direct source="
+            + source
+            + " result="
+            + pick.type()
+            + tierSuffix(pick.expectedTier())
+            + " sourceSlot="
+            + existingSlot
+            + " targetSlot="
+            + targetSlot);
+  }
+
+  private int chooseDirectTargetSlot(PlayerInventory inv, int held) {
+    int empty = findEmptyHotbar(inv, held);
+    return empty >= 0 ? empty : held;
   }
 
   private boolean isTerminal(Block block) {
@@ -193,14 +317,12 @@ public class PickListener implements Listener {
   }
 
   private int findEmptyHotbar(PlayerInventory inv, int startSlot) {
-    // search from current slot to end
     for (int i = startSlot; i <= 8; i++) {
       ItemStack stack = inv.getItem(i);
       if (stack == null || stack.getType() == Material.AIR) {
         return i;
       }
     }
-    // wrap around to the beginning
     for (int i = 0; i < startSlot; i++) {
       ItemStack stack = inv.getItem(i);
       if (stack == null || stack.getType() == Material.AIR) {
@@ -209,4 +331,115 @@ public class PickListener implements Listener {
     }
     return -1;
   }
+
+  private void debug(String message) {
+    var service = plugin.getPickDebugService();
+    if (service != null) {
+      service.record(message);
+    }
+  }
+
+  private String describePickEvent(PlayerPickItemEvent event) {
+    StringBuilder builder =
+        new StringBuilder(event.getClass().getSimpleName())
+            .append(" player=")
+            .append(event.getPlayer().getName())
+            .append(" cancelled=")
+            .append(event.isCancelled())
+            .append(" sourceSlot=")
+            .append(event.getSourceSlot())
+            .append(" targetSlot=")
+            .append(event.getTargetSlot())
+            .append(" includeData=")
+            .append(event.isIncludeData());
+    if (event instanceof PlayerPickBlockEvent blockEvent) {
+      builder.append(" block=").append(describeBlock(blockEvent.getBlock()));
+    } else if (event instanceof PlayerPickEntityEvent entityEvent) {
+      builder.append(" entity=").append(describeEntity(entityEvent.getEntity()));
+    }
+    builder
+        .append(" playerTarget=")
+        .append(describeBlock(event.getPlayer().getTargetBlockExact(8, FluidCollisionMode.NEVER)));
+    return builder.toString();
+  }
+
+  private String describeBlock(Block block) {
+    if (block == null) {
+      return "null";
+    }
+    return block.getWorld().getName()
+        + "@"
+        + block.getX()
+        + ","
+        + block.getY()
+        + ","
+        + block.getZ()
+        + ":"
+        + block.getType()
+        + markers(block);
+  }
+
+  private String describeEntity(Entity entity) {
+    if (entity == null) {
+      return "null";
+    }
+    Location loc = entity.getLocation();
+    return entity.getType()
+        + "@"
+        + loc.getWorld().getName()
+        + ","
+        + loc.getBlockX()
+        + ","
+        + loc.getBlockY()
+        + ","
+        + loc.getBlockZ()
+        + " tags="
+        + entity.getScoreboardTags();
+  }
+
+  private String markers(Block block) {
+    StringBuilder builder = new StringBuilder("[");
+    boolean any = false;
+    var storage = StorageMarker.get(plugin, block).orElse(null);
+    if (storage != null) {
+      builder.append("storage:").append(storage.tier().key());
+      any = true;
+    }
+    if (StorageCoreMarker.isCore(plugin, block)) {
+      if (any) builder.append(",");
+      builder.append("core");
+      any = true;
+    }
+    if (TerminalMarker.isTerminal(plugin, block)) {
+      if (any) builder.append(",");
+      builder.append("terminal:").append(TerminalMarker.kind(plugin, block).name());
+      any = true;
+    }
+    if (MonitorMarker.isMonitor(plugin, block)) {
+      if (any) builder.append(",");
+      builder.append("monitor");
+      any = true;
+    }
+    var bus = BusMarker.get(plugin, block).orElse(null);
+    if (bus != null) {
+      if (any) builder.append(",");
+      builder.append("bus:").append(bus.type().name());
+      any = true;
+    }
+    if (WireMarker.isWire(plugin, block)) {
+      if (any) builder.append(",");
+      builder.append("wire");
+      any = true;
+    }
+    if (!any) {
+      builder.append("none");
+    }
+    return builder.append("]").toString();
+  }
+
+  private String tierSuffix(String expectedTier) {
+    return expectedTier == null ? "" : ":" + expectedTier;
+  }
+
+  private record PickTarget(ItemStack item, String type, String expectedTier) {}
 }

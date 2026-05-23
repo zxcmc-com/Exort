@@ -20,7 +20,15 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
-    Nexo:
+    ProtocolLib:
       load: BEFORE
+      required: false
+      join-classpath: false
+    Nexo:
+      load: AFTER
+      required: false
+      join-classpath: false
+    ItemsAdder:
+      load: AFTER
       required: false
       join-classpath: false

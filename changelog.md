@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0 — 2026-05-23
+- Added ItemsAdder resource-pack integration alongside the existing Nexo path: `resourcePack.hosting: AUTO` now prefers Nexo, then ItemsAdder, before official Exort hosting and self-hosting.
+- The ItemsAdder handoff now uses IA-friendly item-atlas texture aliases for Exort block/display models, avoiding black-and-purple missing textures in provider-generated packs.
+- Exort now prepares provider input at startup so provider-managed packs can include Exort assets without an Exort-side runtime rebuild.
+- Fixed creative middle-click picking for Exort `BARRIER` carriers on servers with ItemsAdder by adding an optional ProtocolLib packet bridge for `PICK_ITEM_FROM_BLOCK`; Exort now reapplies its own pick result after ItemsAdder handles barrier packets.
+- Fixed a rare middle-click target race by resolving Paper pick-block events from the event block instead of the player's current raycast, preventing carrier blocks from being picked when the crosshair moves during event handling.
+- Hardened shutdown for bus settings: a bus-engine stop or bus-settings flush failure is now logged without aborting the rest of Exort disable cleanup.
+- Added `/exort debug verbose pick start|stop` for live Paper pick-block diagnostics, including detected target blocks, marker state, and Exort pick results.
+
 ## 0.10.4 — 2026-05-22
 - Completed `EXORT` resource-pack hosting through the official HTTPS metadata endpoint at `exort.zxcmc.com`; `resourcePack.hosting: AUTO` now resolves in order: enabled Nexo integration first, official Exort hosting second, and Exort self-hosting as the fallback.
 - Added standalone resource-pack export support through the Gradle `exportResourcePack` task and CLI entry point, producing the bundled Exort resource pack outside a running server.

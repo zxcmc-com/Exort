@@ -34,9 +34,11 @@ class LangTest {
             "message.pack_status.raw_pack",
             "message.pack_status.pack",
             "message.pack_status.obfuscated",
+            "message.pack_status.handoff",
             "message.pack_status.sha1",
             "message.pack_status.url",
             "message.pack_status.note",
+            "message.pack_status.provider_note",
             "message.pack_status.error",
             "message.resource_pack.required_failure");
 
