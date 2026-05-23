@@ -40,15 +40,16 @@ public final class BreakSessionManager {
     session.touch(playerId, tick);
   }
 
-  public void detachPlayer(UUID playerId) {
+  public BreakSession detachPlayer(UUID playerId) {
     BlockKey key = playerSessions.remove(playerId);
-    if (key == null) return;
+    if (key == null) return null;
     BreakSession session = sessions.get(key);
-    if (session == null) return;
+    if (session == null) return null;
     session.players.removeIf(state -> state.playerId.equals(playerId));
     if (session.players.isEmpty()) {
-      sessions.remove(key);
+      return sessions.remove(key);
     }
+    return null;
   }
 
   public void clearPlayerMapping(UUID playerId) {
@@ -76,11 +77,14 @@ public final class BreakSessionManager {
 
   public static final class PlayerState {
     public final UUID playerId;
+    public final long startedTick;
     public long lastSwingTick;
+    public boolean followUpSwing;
 
-    private PlayerState(UUID playerId, long lastSwingTick) {
+    private PlayerState(UUID playerId, long tick) {
       this.playerId = playerId;
-      this.lastSwingTick = lastSwingTick;
+      this.startedTick = tick;
+      this.lastSwingTick = tick;
     }
   }
 
@@ -90,6 +94,7 @@ public final class BreakSessionManager {
     public final BreakSettings settings;
     public final List<PlayerState> players = new ArrayList<>();
     public double progress = 0.0;
+    public int lastBreakAnimationStage = Integer.MIN_VALUE;
     public final BreakSoundTracker soundTracker = new BreakSoundTracker();
 
     private BreakSession(Block block, BreakType type, BreakSettings settings) {
@@ -101,11 +106,23 @@ public final class BreakSessionManager {
     public void touch(UUID playerId, long now) {
       for (PlayerState state : players) {
         if (state.playerId.equals(playerId)) {
+          if (now > state.startedTick) {
+            state.followUpSwing = true;
+          }
           state.lastSwingTick = now;
           return;
         }
       }
       players.add(new PlayerState(playerId, now));
+    }
+
+    public boolean hasFollowUpSwing() {
+      for (PlayerState state : players) {
+        if (state.followUpSwing) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }

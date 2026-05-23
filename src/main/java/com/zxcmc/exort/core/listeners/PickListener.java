@@ -16,7 +16,11 @@ import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
 import io.papermc.paper.event.player.PlayerPickEntityEvent;
 import io.papermc.paper.event.player.PlayerPickItemEvent;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -27,6 +31,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -41,6 +46,7 @@ public class PickListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Map<UUID, RecentPick> recentPicks = new HashMap<>();
 
   public PickListener(
       ExortPlugin plugin,
@@ -79,7 +85,15 @@ public class PickListener implements Listener {
       debug("miss event=" + event.getClass().getSimpleName() + " target=" + describeBlock(target));
       return;
     }
+    if (isDuplicatePick(event.getPlayer(), target, "event " + event.getClass().getSimpleName())) {
+      return;
+    }
     applyEventPick(event, pick);
+  }
+
+  @EventHandler
+  public void onQuit(PlayerQuitEvent event) {
+    recentPicks.remove(event.getPlayer().getUniqueId());
   }
 
   private Block pickEventBlock(PlayerPickItemEvent event) {
@@ -89,7 +103,7 @@ public class PickListener implements Listener {
     return event.getPlayer().getTargetBlockExact(8, FluidCollisionMode.NEVER);
   }
 
-  boolean handleDirectPick(Player player, Block target, String source) {
+  public boolean handleDirectPick(Player player, Block target, String source) {
     if (player == null || target == null) {
       return false;
     }
@@ -98,12 +112,32 @@ public class PickListener implements Listener {
       debug("direct miss source=" + source + " target=" + describeBlock(target));
       return false;
     }
+    if (isDuplicatePick(player, target, "direct " + source)) {
+      return true;
+    }
     applyDirectPick(player, pick, source);
     return true;
   }
 
-  String describeDebugBlock(Block block) {
+  public boolean isPickTargetBlock(Block block) {
+    return resolveTarget(block) != null;
+  }
+
+  public String describeDebugBlock(Block block) {
     return describeBlock(block);
+  }
+
+  private boolean isDuplicatePick(Player player, Block target, String source) {
+    int tick = Bukkit.getCurrentTick();
+    RecentPick current = new RecentPick(BlockKey.of(target), tick);
+    RecentPick previous = recentPicks.put(player.getUniqueId(), current);
+    if (previous != null
+        && previous.block().equals(current.block())
+        && tick - previous.tick() <= 1) {
+      debug("duplicate pick skipped source=" + source + " target=" + describeBlock(target));
+      return true;
+    }
+    return false;
   }
 
   private PickTarget resolveTarget(Block target) {
@@ -440,6 +474,14 @@ public class PickListener implements Listener {
   private String tierSuffix(String expectedTier) {
     return expectedTier == null ? "" : ":" + expectedTier;
   }
+
+  private record BlockKey(UUID worldId, int x, int y, int z) {
+    static BlockKey of(Block block) {
+      return new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
+    }
+  }
+
+  private record RecentPick(BlockKey block, int tick) {}
 
   private record PickTarget(ItemStack item, String type, String expectedTier) {}
 }

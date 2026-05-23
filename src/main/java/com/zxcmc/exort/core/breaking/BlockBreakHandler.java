@@ -41,6 +41,7 @@ public final class BlockBreakHandler {
   private final ItemHologramManager hologramManager;
   private final WireDisplayManager wireDisplayManager;
   private final DisplayRefreshService displayRefreshService;
+  private final BreakAnimationSender breakAnimationSender;
 
   public BlockBreakHandler(
       ExortPlugin plugin,
@@ -52,7 +53,8 @@ public final class BlockBreakHandler {
       Material busCarrier,
       ItemHologramManager hologramManager,
       WireDisplayManager wireDisplayManager,
-      DisplayRefreshService displayRefreshService) {
+      DisplayRefreshService displayRefreshService,
+      BreakAnimationSender breakAnimationSender) {
     this.plugin = plugin;
     this.customItems = customItems;
     this.wireMaterial = wireMaterial;
@@ -63,12 +65,27 @@ public final class BlockBreakHandler {
     this.hologramManager = hologramManager;
     this.wireDisplayManager = wireDisplayManager;
     this.displayRefreshService = displayRefreshService;
+    this.breakAnimationSender =
+        breakAnimationSender == null ? BreakAnimationSender.NOOP : breakAnimationSender;
   }
 
   public enum BreakResult {
     BROKEN,
     DENIED,
     IGNORED
+  }
+
+  public void preloadStorageForBreakStart(Player player, Block block) {
+    if (block == null) return;
+    var marker = StorageMarker.get(plugin, block);
+    if (marker.isEmpty() || !Carriers.matchesCarrier(block, storageCarrier)) {
+      return;
+    }
+    String storageId = marker.get().storageId();
+    if (plugin.getStorageManager().getLoadedCache(storageId).isPresent()) {
+      return;
+    }
+    preloadStorageForBreak(player, storageId, false);
   }
 
   public BreakResult handleBreak(Player player, Block block, boolean checkRegion) {
@@ -83,6 +100,7 @@ public final class BlockBreakHandler {
         return BreakResult.DENIED;
       }
       TerminalKind kind = TerminalMarker.kind(plugin, block);
+      playBreakParticles(block, BreakType.TERMINAL);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
         dropItemSafe(
@@ -117,6 +135,7 @@ public final class BlockBreakHandler {
       if (isRegionDenied(player, block, checkRegion)) {
         return BreakResult.DENIED;
       }
+      playBreakParticles(block, BreakType.MONITOR);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
         dropItemSafe(block, customItems.monitorItem());
@@ -148,6 +167,7 @@ public final class BlockBreakHandler {
         return BreakResult.DENIED;
       }
       var data = BusMarker.get(plugin, block).orElse(null);
+      playBreakParticles(block, BreakType.BUS);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
         if (data != null && data.type() == BusType.EXPORT) {
@@ -185,6 +205,7 @@ public final class BlockBreakHandler {
       if (isRegionDenied(player, block, checkRegion)) {
         return BreakResult.DENIED;
       }
+      playBreakParticles(block, BreakType.WIRE);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
         dropItemSafe(block, customItems.wireItem());
@@ -218,6 +239,7 @@ public final class BlockBreakHandler {
       if (isRegionDenied(player, block, checkRegion)) {
         return BreakResult.DENIED;
       }
+      playBreakParticles(block, BreakType.STORAGE);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
         dropItemSafe(block, customItems.storageCoreItem());
@@ -246,9 +268,10 @@ public final class BlockBreakHandler {
     StorageTier tier = marker.get().tier();
     StorageCache cache = plugin.getStorageManager().getLoadedCache(storageId).orElse(null);
     if (cache == null) {
-      preloadStorageForBreak(player, storageId);
+      preloadStorageForBreak(player, storageId, true);
       return BreakResult.DENIED;
     }
+    playBreakParticles(block, BreakType.STORAGE);
     block.setType(Material.AIR);
     long amount = cache.effectiveTotal();
     ItemStack drop = customItems.storageItem(tier, storageId, amount);
@@ -289,6 +312,10 @@ public final class BlockBreakHandler {
     }
   }
 
+  private void playBreakParticles(Block block, BreakType type) {
+    breakAnimationSender.breakBlock(block, type);
+  }
+
   private void refreshWireNeighbors(Block block) {
     for (var face :
         new BlockFace[] {
@@ -325,8 +352,8 @@ public final class BlockBreakHandler {
     return checkRegion && (player == null || !plugin.getRegionProtection().canBreak(player, block));
   }
 
-  private void preloadStorageForBreak(Player player, String storageId) {
-    if (player != null && player.isOnline()) {
+  private void preloadStorageForBreak(Player player, String storageId, boolean warnPlayer) {
+    if (warnPlayer && player != null && player.isOnline()) {
       plugin.getPlayerFeedback().warn(player, "message.storage_loading");
     }
     plugin

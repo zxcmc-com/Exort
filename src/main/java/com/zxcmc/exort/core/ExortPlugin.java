@@ -5,8 +5,11 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.bus.listener.BusListener;
 import com.zxcmc.exort.core.breaking.BlockBreakHandler;
+import com.zxcmc.exort.core.breaking.BreakAnimationSender;
 import com.zxcmc.exort.core.breaking.BreakConfig;
+import com.zxcmc.exort.core.breaking.BreakParticleSender;
 import com.zxcmc.exort.core.breaking.BreakSoundConfig;
+import com.zxcmc.exort.core.breaking.CompositeBreakAnimationSender;
 import com.zxcmc.exort.core.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.commands.ExortBrigadier;
@@ -26,7 +29,6 @@ import com.zxcmc.exort.core.listeners.InventoryRefreshListener;
 import com.zxcmc.exort.core.listeners.ItemPlaceBridgeListener;
 import com.zxcmc.exort.core.listeners.MonitorListener;
 import com.zxcmc.exort.core.listeners.PickListener;
-import com.zxcmc.exort.core.listeners.ProtocolLibPickBridge;
 import com.zxcmc.exort.core.listeners.SearchDialogListener;
 import com.zxcmc.exort.core.listeners.StorageListener;
 import com.zxcmc.exort.core.listeners.TerminalListener;
@@ -39,6 +41,7 @@ import com.zxcmc.exort.core.network.NetworkGraphCache;
 import com.zxcmc.exort.core.protection.DebugRegionProtection;
 import com.zxcmc.exort.core.protection.RegionProtection;
 import com.zxcmc.exort.core.protection.WorldGuardProtection;
+import com.zxcmc.exort.core.protocol.ProtocolLibEnhancements;
 import com.zxcmc.exort.core.recipes.CraftingRules;
 import com.zxcmc.exort.core.recipes.RecipeService;
 import com.zxcmc.exort.core.resourcepack.ResourcePackService;
@@ -52,6 +55,7 @@ import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.BusDisplayManager;
+import com.zxcmc.exort.display.DisplayBreakAnimationSender;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
@@ -137,7 +141,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private Metrics metrics;
   private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
-  private ProtocolLibPickBridge protocolLibPickBridge;
+  private ProtocolLibEnhancements protocolLibEnhancements;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
@@ -217,7 +221,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       worldEditIntegration.shutdown();
       worldEditIntegration = null;
     }
-    stopProtocolLibPickBridge();
+    stopProtocolEnhancements();
     if (resourcePackService != null) {
       resourcePackService.stop();
       resourcePackService = null;
@@ -239,6 +243,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       customBlockBreaker.shutdown();
       customBlockBreaker = null;
     }
+    DisplayBreakAnimationSender.clearStaleOverlays();
     if (database != null) {
       database.close();
     }
@@ -456,12 +461,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     }
   }
 
-  private void stopProtocolLibPickBridge() {
-    if (protocolLibPickBridge == null) {
+  private void stopProtocolEnhancements() {
+    if (protocolLibEnhancements == null) {
       return;
     }
-    protocolLibPickBridge.unregister();
-    protocolLibPickBridge = null;
+    protocolLibEnhancements.unregister();
+    protocolLibEnhancements = null;
   }
 
   private CompletableFuture<ItemNameService.Status> registerRuntime() {
@@ -636,7 +641,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       networkGraphCache.invalidateAll();
     }
 
-    stopProtocolLibPickBridge();
+    stopProtocolEnhancements();
+    if (customBlockBreaker != null) {
+      customBlockBreaker.shutdown();
+      customBlockBreaker = null;
+    }
+    protocolLibEnhancements = ProtocolLibEnhancements.tryCreate(this);
+    BreakAnimationSender breakAnimationSender = createBreakAnimationSender(resourceNs);
     HandlerList.unregisterAll(this);
     if (resourcePackService != null) {
       Bukkit.getPluginManager().registerEvents(resourcePackService, this);
@@ -701,7 +712,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 ns)
             : "";
     String wireEntityName = lang.tr("item.wire");
-
     wireDisplayManager =
         new WireDisplayManager(
             this,
@@ -1105,7 +1115,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             busCarrier,
             hologramManager,
             wireDisplayManager,
-            displayRefreshService);
+            displayRefreshService,
+            breakAnimationSender);
     var breakConfig = BreakConfig.fromConfig(getConfig(), getLogger());
     breakSoundConfig = BreakSoundConfig.fromConfig(getConfig());
     customBlockBreaker =
@@ -1114,6 +1125,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             breakHandler,
             breakConfig,
             breakSoundConfig,
+            breakAnimationSender,
             wireMaterial,
             storageCarrier,
             terminalCarrier,
@@ -1175,7 +1187,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             monitorCarrier,
             busCarrier);
     Bukkit.getPluginManager().registerEvents(pickListener, this);
-    protocolLibPickBridge = ProtocolLibPickBridge.tryRegister(this, pickListener);
+    if (protocolLibEnhancements != null) {
+      protocolLibEnhancements.registerPickBridge(pickListener);
+    }
     Bukkit.getPluginManager()
         .registerEvents(
             new ItemPlaceBridgeListener(
@@ -1597,6 +1611,61 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       }
       return fallback;
     }
+  }
+
+  private BreakAnimationSender createBreakAnimationSender(String resourceNamespace) {
+    DisplayBreakAnimationSender.clearStaleOverlays();
+    if (resourceMode) {
+      List<BreakAnimationSender> senders = new ArrayList<>();
+      if (getConfig().getBoolean("resourceMode.breakOverlay.enabled", true)) {
+        Material base =
+            resolveMaterial(
+                getConfig().getString("resourceMode.breakOverlay.displayBaseMaterial", "PAPER"),
+                Material.PAPER);
+        senders.add(
+            new DisplayBreakAnimationSender(
+                this,
+                base,
+                resourceNamespace,
+                getConfig().getString("resourceMode.breakOverlay.modelPrefix", "breaking/stage_"),
+                getConfig().getDouble("resourceMode.breakOverlay.displayScale", 1.001)));
+      }
+      if (getConfig().getBoolean("resourceMode.breakParticles.enabled", true)) {
+        senders.add(createResourceBreakParticleSender("resourceMode.breakParticles"));
+      }
+      return CompositeBreakAnimationSender.of(senders);
+    }
+
+    if (!getConfig().getBoolean("vanillaMode.breakParticles.enabled", true)) {
+      return BreakAnimationSender.NOOP;
+    }
+    return createVanillaBreakParticleSender("vanillaMode.breakParticles");
+  }
+
+  private BreakAnimationSender createVanillaBreakParticleSender(String path) {
+    return BreakParticleSender.vanilla(this, readBreakParticleSettings(path));
+  }
+
+  private BreakAnimationSender createResourceBreakParticleSender(String path) {
+    Material material =
+        resolveMaterial(
+            getConfig().getString(path + ".material", "NETHERITE_BLOCK"), Material.NETHERITE_BLOCK);
+    if (material == null || !material.isBlock()) {
+      ExortLog.warn(
+          "Invalid RESOURCE break particle block material '"
+              + getConfig().getString(path + ".material")
+              + "', falling back to NETHERITE_BLOCK");
+      material = Material.NETHERITE_BLOCK;
+    }
+    return BreakParticleSender.resource(this, readBreakParticleSettings(path), material);
+  }
+
+  private BreakParticleSender.Settings readBreakParticleSettings(String path) {
+    double range = Math.max(0.0, getConfig().getDouble(path + ".range", 16.0));
+    int count = Math.max(0, getConfig().getInt(path + ".count", 3));
+    double spread = Math.max(0.0, getConfig().getDouble(path + ".spread", 0.31));
+    double speed = Math.max(0.0, getConfig().getDouble(path + ".speed", 0.004));
+    return new BreakParticleSender.Settings(range, count, spread, speed);
   }
 
   private String normalizeModelId(String raw, String namespace) {

@@ -440,7 +440,10 @@ public final class ResourcePackProviderBridge {
     }
 
     static TextureKey parse(String key) {
-      int namespaceEnd = key == null ? -1 : key.indexOf(':');
+      if (key == null) {
+        return null;
+      }
+      int namespaceEnd = key.indexOf(':');
       if (namespaceEnd <= 0 || namespaceEnd == key.length() - 1) {
         return null;
       }

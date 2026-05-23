@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.1 — 2026-05-24
+- Storage blocks now begin cache loading as soon as custom breaking starts, reducing late `storage is loading, try again` denials after long survival-mode breaks.
+- Added mode-aware custom-breaking feedback: RESOURCE mode shows a temporary subtly darkened world-aligned crack overlay plus netherite-block break particles, while VANILLA mode emits compact pack-free block particles.
+- Break particles now also play on successful instant creative breaks, including BARRIER carrier blocks.
+- Fixed custom block breaking sounds so the final break sound plays only after the block is actually broken.
+- Matched custom block hit sounds to visible breaking stages so faster tools produce faster feedback and quick taps do not advance past the first break stage.
+- Added optional ProtocolLib enhancement: creative middle-click now also handles Exort display entities.
+- Restored vanilla breaking behavior for RESOURCE-mode wires so `CHORUS_PLANT` wire blocks no longer use Exort's slower custom break loop.
+- Made resource-pack provider texture-key parsing explicitly null-safe for invalid provider aliases.
+
 ## 0.11.0 — 2026-05-23
 - Added ItemsAdder resource-pack integration alongside the existing Nexo path: `resourcePack.hosting: AUTO` now prefers Nexo, then ItemsAdder, before official Exort hosting and self-hosting.
 - The ItemsAdder handoff now uses IA-friendly item-atlas texture aliases for Exort block/display models, avoiding black-and-purple missing textures in provider-generated packs.

@@ -13,24 +13,6 @@ public final class BreakSoundService {
     return soundConfig != null && soundConfig.enabled();
   }
 
-  public BreakSoundEvent handleTick(
-      Block block,
-      BreakType type,
-      BreakSoundTracker tracker,
-      long tick,
-      double progress,
-      double delta) {
-    if (!enabled()) return BreakSoundEvent.NONE;
-    BreakSoundEvent event = tracker.update(soundConfig, tick, progress, delta);
-    if (event == BreakSoundEvent.HIT || event == BreakSoundEvent.BOTH) {
-      playHit(block, type);
-    }
-    if (event == BreakSoundEvent.BREAK || event == BreakSoundEvent.BOTH) {
-      playBreak(block, type);
-    }
-    return event;
-  }
-
   public void playHit(Block block, BreakType type) {
     if (!enabled()) return;
     playSound(

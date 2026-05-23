@@ -39,6 +39,15 @@ resourcePack:
     # API key for LOBFILE hosting. Keep empty unless hosting is set to LOBFILE.
     apiKey: ""
 
+# Optional ProtocolLib enhancements. Exort remains fully usable without ProtocolLib installed.
+protocolLib:
+  enabled: true
+  pickBridge:
+    # Fix creative middle-click for Exort carrier blocks when another plugin consumes Paper events.
+    enabled: true
+    # Also handle middle-clicks that target Exort ItemDisplay/TextDisplay visuals.
+    entityPick: true
+
 # Enable WorldGuard integration (region protection checks).
 worldguard:
   enabled: true
@@ -95,6 +104,17 @@ bus:
 
 # Vanilla mode settings (used when mode: VANILLA). Carrier is always BARRIER.
 vanillaMode:
+  breakParticles:
+    # Pack-free fallback for custom breaking progress and final block destruction in VANILLA mode.
+    enabled: true
+    # Viewer range in blocks.
+    range: 16
+    # Particle count emitted when the break stage changes or the block is destroyed.
+    count: 3
+    # Random particle position spread from block center.
+    spread: 0.31
+    # Particle velocity multiplier.
+    speed: 0.004
   wire:
     # Vanilla model for the wire display (uses minecraft namespace automatically).
     modelId: black_stained_glass
@@ -206,6 +226,25 @@ vanillaMode:
 resourceMode:
   # Namespace for all resource models (wire/storage/terminal/monitor). Example: exort
   namespace: exort
+  breakOverlay:
+    # RESOURCE-mode visual crack overlay for custom breaking progress.
+    enabled: true
+    displayBaseMaterial: PAPER
+    modelPrefix: breaking/stage_
+    displayScale: 1.001
+  breakParticles:
+    # Extra block particles emitted when the custom break stage changes or the block is destroyed.
+    enabled: true
+    # Block material used for RESOURCE break particles.
+    material: NETHERITE_BLOCK
+    # Viewer range in blocks.
+    range: 16
+    # Particle count emitted when the break stage changes or the block is destroyed.
+    count: 3
+    # Random particle position spread from block center.
+    spread: 0.31
+    # Particle velocity multiplier.
+    speed: 0.004
   wire:
     # Optional item_model for the wire item (inventory/hand). Example: center
     itemModel: wire/center

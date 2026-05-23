@@ -5,8 +5,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 public final class BreakSoundConfig {
   private static final double RANGE = 16.0;
-  private static final int INTERVAL_TICKS = 4;
-  private static final int PRE_BREAK_TICKS = 8;
   private static final float PITCH = 0.8f;
 
   private final boolean enabled;
@@ -40,14 +38,6 @@ public final class BreakSoundConfig {
 
   public double range() {
     return RANGE;
-  }
-
-  public int intervalTicks() {
-    return INTERVAL_TICKS;
-  }
-
-  public int preBreakTicks() {
-    return PRE_BREAK_TICKS;
   }
 
   public float volume() {
