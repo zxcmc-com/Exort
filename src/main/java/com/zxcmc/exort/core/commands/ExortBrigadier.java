@@ -8,6 +8,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.zxcmc.exort.core.ExortPlugin;
+import com.zxcmc.exort.core.compat.PaperChorusPlantUpdates;
 import com.zxcmc.exort.core.feedback.CommandFeedback;
 import com.zxcmc.exort.core.i18n.Lang;
 import com.zxcmc.exort.core.items.CustomItems;
@@ -22,9 +23,11 @@ import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
@@ -311,7 +314,14 @@ public final class ExortBrigadier {
                     .then(
                         Commands.argument(ARG_MODE, StringArgumentType.word())
                             .suggests(this::suggestModes)
-                            .executes(this::modeSet))));
+                            .executes(this::modeSet)))
+            .then(
+                Commands.literal("fix")
+                    .executes(this::usageMode)
+                    .then(
+                        Commands.argument(ARG_MODE, StringArgumentType.word())
+                            .suggests(this::suggestResourceMode)
+                            .executes(this::modeFix))));
 
     root.then(
         Commands.literal("pack")
@@ -643,6 +653,82 @@ public final class ExortBrigadier {
       sendMessage(sender(context.getSource()), plugin.getLang().tr("message.mode_invalid", raw));
       return 1;
     }
+    setMode(sender, normalized);
+    return 1;
+  }
+
+  private int modeFix(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    String raw = StringArgumentType.getString(context, ARG_MODE);
+    String normalized = raw.toUpperCase(Locale.ROOT);
+    if (!normalized.equals("RESOURCE")) {
+      sendMessage(sender, plugin.getLang().tr("message.mode_fix_resource_only"));
+      return 1;
+    }
+
+    PaperChorusPlantUpdates.Status status = plugin.chorusPlantUpdateStatus();
+    if (status.state() == PaperChorusPlantUpdates.State.MISSING) {
+      sendMessage(
+          sender, plugin.getLang().tr("message.mode_fix_paper_missing", status.file().getPath()));
+      return 1;
+    }
+    if (status.state() == PaperChorusPlantUpdates.State.ERROR) {
+      sendPaperFixError(sender, status.file().getPath(), status.accessDenied(), status.error());
+      return 1;
+    }
+    if (status.disabled()) {
+      setMode(sender, "RESOURCE");
+      return 1;
+    }
+
+    PaperChorusPlantUpdates.FixResult result = plugin.disableChorusPlantUpdatesInPaperConfig();
+    if (result.state() == PaperChorusPlantUpdates.State.MISSING) {
+      sendMessage(
+          sender, plugin.getLang().tr("message.mode_fix_paper_missing", result.file().getPath()));
+      return 1;
+    }
+    if (result.state() == PaperChorusPlantUpdates.State.ERROR) {
+      sendPaperFixError(sender, result.file().getPath(), result.accessDenied(), result.error());
+      return 1;
+    }
+    if (!result.changed()) {
+      setMode(sender, "RESOURCE");
+      return 1;
+    }
+
+    plugin.getConfig().set("mode", "RESOURCE");
+    plugin.saveConfig();
+    notifyModeFixRestart(sender, result.file().getPath());
+    scheduleRestartAfterModeFix();
+    return 1;
+  }
+
+  private void sendPaperFixError(
+      CommandSender sender, String paperConfigPath, boolean accessDenied, String reason) {
+    if (accessDenied) {
+      sendMessage(
+          sender,
+          plugin
+              .getLang()
+              .tr(
+                  "message.mode_fix_paper_access_denied",
+                  paperConfigPath,
+                  PaperChorusPlantUpdates.SETTING_PATH));
+      return;
+    }
+    sendMessage(
+        sender,
+        plugin
+            .getLang()
+            .tr(
+                "message.mode_fix_paper_error",
+                paperConfigPath,
+                reason,
+                PaperChorusPlantUpdates.SETTING_PATH));
+  }
+
+  private void setMode(CommandSender sender, String normalized) {
     plugin.getConfig().set("mode", normalized);
     plugin.saveConfig();
     plugin
@@ -669,7 +755,58 @@ public final class ExortBrigadier {
                     }
                   });
             });
-    return 1;
+  }
+
+  private void notifyModeFixRestart(CommandSender sender, String paperConfigPath) {
+    sendToSenderAndPlayers(
+        sender,
+        plugin
+            .getLang()
+            .tr(
+                "message.mode_fix_paper_changed",
+                PaperChorusPlantUpdates.SETTING_PATH,
+                paperConfigPath));
+    sendToSenderAndPlayers(sender, plugin.getLang().tr("message.mode_fix_exort_changed"));
+    sendToSenderAndPlayers(sender, plugin.getLang().tr("message.mode_fix_restart_scheduled"));
+  }
+
+  private void sendToSenderAndPlayers(CommandSender sender, String message) {
+    sendMessage(sender, message);
+    Set<UUID> skippedPlayers = new HashSet<>();
+    if (sender instanceof Player player) {
+      skippedPlayers.add(player.getUniqueId());
+    }
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      if (skippedPlayers.contains(player.getUniqueId())) {
+        continue;
+      }
+      sendMessage(player, message);
+    }
+  }
+
+  private void scheduleRestartAfterModeFix() {
+    Bukkit.getScheduler().runTaskLater(plugin, this::restartWithStopFallback, 200L);
+  }
+
+  private void restartWithStopFallback() {
+    if (!plugin.isEnabled()) {
+      return;
+    }
+    boolean restarted = false;
+    try {
+      restarted = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "restart");
+    } catch (RuntimeException e) {
+      ExortLog.log(plugin, Level.WARNING, "Failed to dispatch restart; falling back to stop.", e);
+    }
+    if (restarted) {
+      return;
+    }
+    ExortLog.warn("Restart command was unavailable or failed; falling back to stop.");
+    try {
+      Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop");
+    } catch (RuntimeException e) {
+      ExortLog.log(plugin, Level.SEVERE, "Failed to dispatch stop after restart fallback.", e);
+    }
   }
 
   private int packStatus(CommandContext<CommandSourceStack> context) {
@@ -1178,6 +1315,16 @@ public final class ExortBrigadier {
   private CompletableFuture<Suggestions> suggestModes(
       CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
     List<String> options = List.of("VANILLA", "RESOURCE");
+    List<String> matches =
+        StringUtil.copyPartialMatches(
+            builder.getRemaining().toUpperCase(Locale.ROOT), options, new ArrayList<>());
+    matches.forEach(builder::suggest);
+    return builder.buildFuture();
+  }
+
+  private CompletableFuture<Suggestions> suggestResourceMode(
+      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    List<String> options = List.of("RESOURCE");
     List<String> matches =
         StringUtil.copyPartialMatches(
             builder.getRemaining().toUpperCase(Locale.ROOT), options, new ArrayList<>());

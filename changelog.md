@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.2 — 2026-05-24
+- Fixed custom breaking so holding left-click on another still-present block and moving the crosshair onto an Exort carrier starts Exort breaking, without reacting to placement swings or immediately breaking an Exort carrier revealed behind a just-broken block.
+- Added `/exort mode fix RESOURCE`: when Paper chorus plant updates are still enabled, Exort now sets `mode: RESOURCE`, enables `block-updates.disable-chorus-plant-updates` in `config/paper-global.yml`, warns players, and restarts the server after 10 seconds with a `stop` fallback.
+
 ## 0.11.1 — 2026-05-24
 - Storage blocks now begin cache loading as soon as custom breaking starts, reducing late `storage is loading, try again` denials after long survival-mode breaks.
 - Added mode-aware custom-breaking feedback: RESOURCE mode shows a temporary subtly darkened world-aligned crack overlay plus netherite-block break particles, while VANILLA mode emits compact pack-free block particles.
