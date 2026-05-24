@@ -98,7 +98,8 @@ public class Lang {
     put(
         defaultsEn,
         "message.help_mode",
-        "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> - switch mode");
+        "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> | /{0} mode fix RESOURCE -"
+            + " switch or fix mode");
     put(
         defaultsEn,
         "message.help_pack",
@@ -205,7 +206,8 @@ public class Lang {
     put(
         defaultsEn,
         "message.usage_mode",
-        "Usage: /exort mode info | /exort mode set <VANILLA | RESOURCE>");
+        "Usage: /exort mode info | /exort mode set <VANILLA | RESOURCE> | /exort mode fix"
+            + " RESOURCE");
     put(
         defaultsEn,
         "message.usage_pack",
@@ -217,6 +219,30 @@ public class Lang {
     put(defaultsEn, "message.mode_set", "Configured mode set to {0}; effective mode: {1}.");
     put(defaultsEn, "message.mode_fallback", "Mode fallback reason: {0}");
     put(defaultsEn, "message.mode_invalid", "Unknown mode: {0}");
+    put(defaultsEn, "message.mode_fix_resource_only", "Mode fix currently supports RESOURCE only.");
+    put(
+        defaultsEn,
+        "message.mode_fix_paper_missing",
+        "Cannot fix RESOURCE mode: Paper config file was not found at {0}.");
+    put(
+        defaultsEn,
+        "message.mode_fix_paper_error",
+        "Cannot fix RESOURCE mode: failed to read or update {0}: {1}. Set {2}: true manually"
+            + " in this file and restart the server.");
+    put(
+        defaultsEn,
+        "message.mode_fix_paper_access_denied",
+        "Cannot fix RESOURCE mode: Exort cannot write {0}. Check file permissions, or set {1}:"
+            + " true manually and restart the server.");
+    put(
+        defaultsEn,
+        "message.mode_fix_paper_changed",
+        "Paper config updated: {0} set to true in {1}.");
+    put(
+        defaultsEn,
+        "message.mode_fix_exort_changed",
+        "Exort config updated: mode set to RESOURCE.");
+    put(defaultsEn, "message.mode_fix_restart_scheduled", "Server restart will run in 10 seconds.");
     put(
         defaultsEn,
         "message.mode_blocked",
@@ -454,7 +480,8 @@ public class Lang {
     put(
         defaultsRu,
         "message.help_mode",
-        "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> - сменить режим");
+        "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> | /{0} mode fix RESOURCE -"
+            + " сменить или исправить режим");
     put(
         defaultsRu,
         "message.help_pack",
@@ -571,7 +598,8 @@ public class Lang {
     put(
         defaultsRu,
         "message.usage_mode",
-        "Использование: /exort mode info | /exort mode set <VANILLA | RESOURCE>");
+        "Использование: /exort mode info | /exort mode set <VANILLA | RESOURCE> | /exort mode"
+            + " fix RESOURCE");
     put(
         defaultsRu,
         "message.usage_pack",
@@ -583,6 +611,36 @@ public class Lang {
     put(defaultsRu, "message.mode_set", "Режим в конфиге установлен: {0}; фактический режим: {1}.");
     put(defaultsRu, "message.mode_fallback", "Причина fallback режима: {0}");
     put(defaultsRu, "message.mode_invalid", "Неизвестный режим: {0}");
+    put(
+        defaultsRu,
+        "message.mode_fix_resource_only",
+        "Исправление режима сейчас поддерживает только RESOURCE.");
+    put(
+        defaultsRu,
+        "message.mode_fix_paper_missing",
+        "Нельзя исправить режим RESOURCE: файл конфигурации Paper не найден по пути {0}.");
+    put(
+        defaultsRu,
+        "message.mode_fix_paper_error",
+        "Нельзя исправить режим RESOURCE: не удалось прочитать или обновить {0}: {1}. Вручную"
+            + " установите {2}: true в этом файле и перезапустите сервер.");
+    put(
+        defaultsRu,
+        "message.mode_fix_paper_access_denied",
+        "Нельзя исправить режим RESOURCE: Exort не может записать {0}. Проверьте права доступа к"
+            + " файлу или вручную установите {1}: true и перезапустите сервер.");
+    put(
+        defaultsRu,
+        "message.mode_fix_paper_changed",
+        "Конфиг Paper обновлен: {0} установлен в true в {1}.");
+    put(
+        defaultsRu,
+        "message.mode_fix_exort_changed",
+        "Конфиг Exort обновлен: mode установлен в RESOURCE.");
+    put(
+        defaultsRu,
+        "message.mode_fix_restart_scheduled",
+        "Рестарт сервера будет выполнен через 10 секунд.");
     put(
         defaultsRu,
         "message.mode_blocked",

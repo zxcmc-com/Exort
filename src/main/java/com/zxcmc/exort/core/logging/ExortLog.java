@@ -29,6 +29,10 @@ public final class ExortLog {
     send(message, ANSI_YELLOW);
   }
 
+  public static void warnCommand(String before, String command, String after) {
+    send(before + ANSI_AQUA + command + ANSI_YELLOW + after, ANSI_YELLOW);
+  }
+
   public static void error(String message) {
     send(message, ANSI_RED);
   }

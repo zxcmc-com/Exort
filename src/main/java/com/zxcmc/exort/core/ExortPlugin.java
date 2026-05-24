@@ -14,6 +14,7 @@ import com.zxcmc.exort.core.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.commands.ExortBrigadier;
 import com.zxcmc.exort.core.compat.ModePolicy;
+import com.zxcmc.exort.core.compat.PaperChorusPlantUpdates;
 import com.zxcmc.exort.core.config.ConfigUpdater;
 import com.zxcmc.exort.core.db.Database;
 import com.zxcmc.exort.core.feedback.PlayerFeedback;
@@ -94,6 +95,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ExortPlugin extends JavaPlugin implements ExortApi {
+  static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
+  private static final String CHORUS_FIX_COMMAND_BEFORE = "To fix this automatically, run ";
+  private static final String CHORUS_FIX_COMMAND_AFTER =
+      ". This command will update the Paper option, set Exort mode to RESOURCE, notify players,"
+          + " and restart the server after 10 seconds.";
+
   private static final int MIN_MC_MAJOR = 1;
   private static final int MIN_MC_MINOR = 21;
   private static final int MIN_MC_PATCH = 7;
@@ -1298,10 +1305,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     modeFallbackReason = policy.fallbackReason();
     if (modeFallbackReason.isBlank()) return;
     ExortLog.warn(modeFallbackReason);
-    ExortLog.warn(
+    ExortLog.warn(chorusFallbackHelpLines().get(0));
+    ExortLog.warnCommand(
+        CHORUS_FIX_COMMAND_BEFORE, MODE_FIX_RESOURCE_COMMAND, CHORUS_FIX_COMMAND_AFTER);
+    ExortLog.warn(chorusFallbackHelpLines().get(2));
+  }
+
+  static List<String> chorusFallbackHelpLines() {
+    return List.of(
         "It is HIGHLY recommended to enable this setting for improved performance and prevent bugs"
-            + " with chorus-plants which are used to display wires by default in RESOURCE mode.");
-    ExortLog.warn(
+            + " with chorus-plants which are used to display wires by default in RESOURCE mode.",
+        CHORUS_FIX_COMMAND_BEFORE + MODE_FIX_RESOURCE_COMMAND + CHORUS_FIX_COMMAND_AFTER,
         "Until then, Exort effective mode is VANILLA and resource-pack delivery is disabled.");
   }
 
@@ -1321,6 +1335,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return modeFallbackReason;
   }
 
+  public PaperChorusPlantUpdates.Status chorusPlantUpdateStatus() {
+    return PaperChorusPlantUpdates.read(serverRoot());
+  }
+
+  public PaperChorusPlantUpdates.FixResult disableChorusPlantUpdatesInPaperConfig() {
+    return PaperChorusPlantUpdates.disable(serverRoot());
+  }
+
   private int refreshInventory(Inventory inventory, boolean inStorage) {
     if (inventory == null || customItems == null) return 0;
     int changed = 0;
@@ -1338,25 +1360,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   private boolean isChorusUpdatesDisabled() {
-    File serverRoot =
-        getDataFolder().getParentFile() != null
-            ? getDataFolder().getParentFile().getParentFile()
-            : null;
-    File paperConfig =
-        serverRoot != null
-            ? new File(new File(serverRoot, "config"), "paper-global.yml")
-            : new File("config/paper-global.yml");
-    if (!paperConfig.isFile()) {
-      paperConfig =
-          serverRoot != null
-              ? new File(serverRoot, "paper-global.yml")
-              : new File("paper-global.yml");
-    }
-    if (!paperConfig.isFile()) {
-      return false;
-    }
-    YamlConfiguration paper = YamlConfiguration.loadConfiguration(paperConfig);
-    return paper.getBoolean("block-updates.disable-chorus-plant-updates", false);
+    return chorusPlantUpdateStatus().disabled();
+  }
+
+  private File serverRoot() {
+    File pluginsDir = getDataFolder().getParentFile();
+    return pluginsDir != null ? pluginsDir.getParentFile() : null;
   }
 
   private void setupRegionProtection() {

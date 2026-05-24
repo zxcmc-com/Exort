@@ -8,8 +8,11 @@ import com.zxcmc.exort.core.marker.StorageCoreMarker;
 import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.marker.TerminalMarker;
 import com.zxcmc.exort.core.marker.WireMarker;
+import io.papermc.paper.event.player.PlayerArmSwingEvent;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
@@ -19,9 +22,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDamageEvent;
-import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 
 public final class CustomBlockBreaker implements Listener, Runnable {
   private static final int MAX_SWING_TICKS = 5;
@@ -38,6 +43,9 @@ public final class CustomBlockBreaker implements Listener, Runnable {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final BreakSessionManager sessionManager = new BreakSessionManager();
+  private final Map<UUID, DamageIntent> vanillaDamageIntents = new HashMap<>();
+  private final Map<UUID, Long> rightClickTicks = new HashMap<>();
+  private final Map<UUID, Long> pendingSwingTicks = new HashMap<>();
   private int taskId = -1;
   private long tick = 0;
 
@@ -77,20 +85,65 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     }
     clearAllBreakAnimations();
     sessionManager.clear();
+    vanillaDamageIntents.clear();
+    rightClickTicks.clear();
+    pendingSwingTicks.clear();
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
   public void onBlockDamage(BlockDamageEvent event) {
     Block block = event.getBlock();
-    Player player = event.getPlayer();
     BreakType type = resolveType(block);
-    if (type == BreakType.NONE) return;
-    if (!plugin.getRegionProtection().canBreak(player, block)) {
-      event.setCancelled(true);
+    if (type == BreakType.NONE) {
+      rememberVanillaDamageIntent(event.getPlayer(), block);
       return;
     }
+    clearVanillaDamageIntent(event.getPlayer());
     event.setCancelled(true);
+    tryStartOrContinueBreaking(event.getPlayer(), block, type);
+  }
 
+  @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+  public void onBlockBreak(BlockBreakEvent event) {
+    clearVanillaDamageIntentIfSource(event.getPlayer(), event.getBlock());
+  }
+
+  @EventHandler(priority = EventPriority.MONITOR)
+  public void onInteract(PlayerInteractEvent event) {
+    if (event.getHand() != EquipmentSlot.HAND) return;
+    if (!event.getAction().isRightClick()) return;
+    UUID playerId = event.getPlayer().getUniqueId();
+    rightClickTicks.put(playerId, tick);
+    clearVanillaDamageIntent(event.getPlayer());
+    stopBreaking(event.getPlayer());
+  }
+
+  @EventHandler(ignoreCancelled = true)
+  public void onSwing(PlayerArmSwingEvent event) {
+    if (event.getHand() != EquipmentSlot.HAND) return;
+    pendingSwingTicks.put(event.getPlayer().getUniqueId(), tick);
+  }
+
+  private void tryStartOrContinueBreaking(Player player) {
+    Block target = player.getTargetBlockExact((int) DEFAULT_REACH, FluidCollisionMode.NEVER);
+    if (target == null) {
+      stopBreaking(player);
+      return;
+    }
+    BreakType type = resolveType(target);
+    if (type == BreakType.NONE) {
+      stopBreaking(player);
+      return;
+    }
+    tryStartOrContinueBreaking(player, target, type);
+  }
+
+  private void tryStartOrContinueBreaking(Player player, Block block, BreakType type) {
+    clearVanillaDamageIntent(player);
+    if (!plugin.getRegionProtection().canBreak(player, block)) {
+      stopBreaking(player);
+      return;
+    }
     if (player.getGameMode() == GameMode.CREATIVE) {
       stopBreaking(player);
       if (breakHandler.handleBreak(player, block, false) == BlockBreakHandler.BreakResult.BROKEN) {
@@ -98,43 +151,22 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       }
       return;
     }
-
-    BreakSettings settings = settingsFor(type);
-    startBreaking(player, block, type, settings);
-  }
-
-  @EventHandler(ignoreCancelled = true)
-  public void onSwing(PlayerAnimationEvent event) {
-    Player player = event.getPlayer();
-    BreakSessionManager.BlockKey key = sessionManager.getPlayerSession(player.getUniqueId());
-    Block target = player.getTargetBlockExact((int) DEFAULT_REACH, FluidCollisionMode.NEVER);
-    if (target == null) {
-      stopBreaking(player);
-      return;
-    }
-    if (key == null) {
-      return;
-    }
-    BreakSessionManager.BreakSession session = sessionManager.getSession(key);
-    if (session == null) return;
-    if (target.getWorld() != session.block.getWorld()
-        || target.getX() != session.block.getX()
-        || target.getY() != session.block.getY()
-        || target.getZ() != session.block.getZ()) {
-      stopBreaking(player);
-      return;
-    }
-    session.touch(player.getUniqueId(), tick);
+    startBreaking(player, block, type, settingsFor(type));
   }
 
   @EventHandler
   public void onQuit(PlayerQuitEvent event) {
     stopBreaking(event.getPlayer());
+    clearVanillaDamageIntent(event.getPlayer());
+    rightClickTicks.remove(event.getPlayer().getUniqueId());
+    pendingSwingTicks.remove(event.getPlayer().getUniqueId());
   }
 
   @Override
   public void run() {
     tick++;
+    expireTransientPlayerState();
+    processPendingSwings();
     if (sessionManager.sessions().isEmpty()) return;
 
     Iterator<Map.Entry<BreakSessionManager.BlockKey, BreakSessionManager.BreakSession>> it =
@@ -234,6 +266,66 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     }
   }
 
+  private void rememberVanillaDamageIntent(Player player, Block block) {
+    if (player == null || block == null || block.getType().isAir()) return;
+    vanillaDamageIntents.put(
+        player.getUniqueId(), new DamageIntent(block, block.getType(), tick, tick));
+  }
+
+  private boolean touchVanillaDamageIntent(Player player) {
+    UUID playerId = player.getUniqueId();
+    DamageIntent intent = vanillaDamageIntents.get(playerId);
+    if (intent == null) return false;
+    if (!intent.isActive(tick)) {
+      vanillaDamageIntents.remove(playerId);
+      return false;
+    }
+    intent.lastSwingTick = tick;
+    return tick > intent.startedTick;
+  }
+
+  private void clearVanillaDamageIntent(Player player) {
+    if (player != null) {
+      vanillaDamageIntents.remove(player.getUniqueId());
+    }
+  }
+
+  private void clearVanillaDamageIntentIfSource(Player player, Block block) {
+    if (player == null || block == null) return;
+    UUID playerId = player.getUniqueId();
+    DamageIntent intent = vanillaDamageIntents.get(playerId);
+    if (intent != null && intent.isSource(block)) {
+      vanillaDamageIntents.remove(playerId);
+    }
+  }
+
+  private boolean isRightClickSwing(Player player) {
+    Long rightClickTick = rightClickTicks.get(player.getUniqueId());
+    return rightClickTick != null && tick - rightClickTick <= 1;
+  }
+
+  private void processPendingSwings() {
+    Iterator<Map.Entry<UUID, Long>> it = pendingSwingTicks.entrySet().iterator();
+    while (it.hasNext()) {
+      Map.Entry<UUID, Long> entry = it.next();
+      it.remove();
+      if (tick - entry.getValue() > MAX_SWING_TICKS) continue;
+      Player player = Bukkit.getPlayer(entry.getKey());
+      if (player == null || !player.isOnline()) continue;
+      if (isRightClickSwing(player)) continue;
+      boolean hasSession = sessionManager.getPlayerSession(player.getUniqueId()) != null;
+      boolean canRetarget = touchVanillaDamageIntent(player);
+      if (!hasSession && !canRetarget) continue;
+      tryStartOrContinueBreaking(player);
+    }
+  }
+
+  private void expireTransientPlayerState() {
+    vanillaDamageIntents.entrySet().removeIf(entry -> !entry.getValue().isActive(tick));
+    rightClickTicks.entrySet().removeIf(entry -> tick - entry.getValue() > MAX_SWING_TICKS);
+    pendingSwingTicks.entrySet().removeIf(entry -> tick - entry.getValue() > MAX_SWING_TICKS);
+  }
+
   private boolean updateBreakAnimation(BreakSessionManager.BreakSession session) {
     int stage = BreakAnimationStages.stageForProgress(session.progress);
     if (!session.hasFollowUpSwing() && stage > 0) {
@@ -274,26 +366,26 @@ public final class CustomBlockBreaker implements Listener, Runnable {
 
   private BreakType resolveType(Block block) {
     if (block == null) return BreakType.NONE;
-    if (MonitorMarker.isMonitor(plugin, block) && Carriers.matchesCarrier(block, monitorCarrier)) {
+    if (Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block)) {
       return BreakType.MONITOR;
     }
-    if (TerminalMarker.isTerminal(plugin, block)
-        && Carriers.matchesCarrier(block, terminalCarrier)) {
+    if (Carriers.matchesCarrier(block, terminalCarrier)
+        && TerminalMarker.isTerminal(plugin, block)) {
       return BreakType.TERMINAL;
     }
-    if (BusMarker.isBus(plugin, block) && Carriers.matchesCarrier(block, busCarrier)) {
+    if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       return BreakType.BUS;
     }
-    if (StorageMarker.get(plugin, block).isPresent()
-        && Carriers.matchesCarrier(block, storageCarrier)) {
+    if (Carriers.matchesCarrier(block, storageCarrier)
+        && StorageMarker.get(plugin, block).isPresent()) {
       return BreakType.STORAGE;
     }
-    if (StorageCoreMarker.isCore(plugin, block) && Carriers.matchesCarrier(block, storageCarrier)) {
+    if (Carriers.matchesCarrier(block, storageCarrier) && StorageCoreMarker.isCore(plugin, block)) {
       return BreakType.STORAGE;
     }
     if (wireMaterial == Carriers.CARRIER_BARRIER
-        && WireMarker.isWire(plugin, block)
-        && Carriers.matchesCarrier(block, wireMaterial)) {
+        && Carriers.matchesCarrier(block, wireMaterial)
+        && WireMarker.isWire(plugin, block)) {
       return BreakType.WIRE;
     }
     return BreakType.NONE;
@@ -308,5 +400,30 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       case WIRE -> breakConfig.wire();
       default -> breakConfig.storage();
     };
+  }
+
+  private static final class DamageIntent {
+    private final Block block;
+    private final Material material;
+    private final long startedTick;
+    private long lastSwingTick;
+
+    private DamageIntent(Block block, Material material, long startedTick, long lastSwingTick) {
+      this.block = block;
+      this.material = material;
+      this.startedTick = startedTick;
+      this.lastSwingTick = lastSwingTick;
+    }
+
+    private boolean isActive(long now) {
+      return now - lastSwingTick <= MAX_SWING_TICKS && block.getType() == material;
+    }
+
+    private boolean isSource(Block other) {
+      if (other == null || other.getWorld() != block.getWorld()) return false;
+      return other.getX() == block.getX()
+          && other.getY() == block.getY()
+          && other.getZ() == block.getZ();
+    }
   }
 }
