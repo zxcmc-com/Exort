@@ -42,11 +42,30 @@ resourcePack:
 # Optional ProtocolLib enhancements. Exort remains fully usable without ProtocolLib installed.
 protocolLib:
   enabled: true
+  placementGuard:
+    # Prefer per-player fake guard entities when ProtocolLib is installed. Exort falls back to
+    # Paper entities automatically if ProtocolLib is missing or incompatible.
+    enabled: true
   pickBridge:
     # Fix creative middle-click for Exort carrier blocks when another plugin consumes Paper events.
     enabled: true
     # Also handle middle-clicks that target Exort ItemDisplay/TextDisplay visuals.
     entityPick: true
+
+# Prevent client-side ghost block placement/sound when right-clicking Exort blocks while holding
+# placeable vanilla items. Uses small invisible armor stands per affected player, placed inside the
+# current and briefly predicted block cells where vanilla would try to place the held item.
+placementGuard:
+  enabled: true
+  # How often online players are checked. 1 tick gives the cleanest client-side behavior.
+  pollIntervalTicks: 1
+  # Max distance for the crosshair check.
+  targetRangeBlocks: 5
+  # Minecraft's minimum living-entity scale is 0.0625. Keep this at the minimum to avoid stealing
+  # the vanilla block outline while still blocking client-side placement.
+  guardScale: 0.0625
+  # Extra inset from the chosen far corner of the placement cell.
+  cornerInset: 0.01
 
 # Enable WorldGuard integration (region protection checks).
 worldguard:

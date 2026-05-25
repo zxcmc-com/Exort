@@ -39,9 +39,16 @@ import com.zxcmc.exort.core.marker.ChunkMarkerStore;
 import com.zxcmc.exort.core.marker.StorageMarker;
 import com.zxcmc.exort.core.metrics.ExortMetrics;
 import com.zxcmc.exort.core.network.NetworkGraphCache;
+import com.zxcmc.exort.core.placement.ExortBlockTargetResolver;
+import com.zxcmc.exort.core.placement.FailoverPlacementGuardBackend;
+import com.zxcmc.exort.core.placement.PaperEntityPlacementGuardBackend;
+import com.zxcmc.exort.core.placement.PlacementGuardBackend;
+import com.zxcmc.exort.core.placement.ProtocolLibPlacementGuardBackend;
+import com.zxcmc.exort.core.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.core.protection.DebugRegionProtection;
 import com.zxcmc.exort.core.protection.RegionProtection;
 import com.zxcmc.exort.core.protection.WorldGuardProtection;
+import com.zxcmc.exort.core.protocol.ProtocolLibCompatibility;
 import com.zxcmc.exort.core.protocol.ProtocolLibEnhancements;
 import com.zxcmc.exort.core.recipes.CraftingRules;
 import com.zxcmc.exort.core.recipes.RecipeService;
@@ -149,6 +156,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
   private ProtocolLibEnhancements protocolLibEnhancements;
+  private RightClickPlacementGuard placementGuard;
   private final AtomicInteger inventoryRefreshEpoch = new AtomicInteger();
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
@@ -228,6 +236,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       worldEditIntegration.shutdown();
       worldEditIntegration = null;
     }
+    stopPlacementGuard();
     stopProtocolEnhancements();
     if (resourcePackService != null) {
       resourcePackService.stop();
@@ -476,6 +485,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     protocolLibEnhancements = null;
   }
 
+  private void stopPlacementGuard() {
+    if (placementGuard == null) {
+      return;
+    }
+    placementGuard.stop();
+    placementGuard = null;
+  }
+
   private CompletableFuture<ItemNameService.Status> registerRuntime() {
     reloadDefaultSortMode();
     String langCode = getConfig().getString("language", "en_us");
@@ -648,6 +665,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       networkGraphCache.invalidateAll();
     }
 
+    stopPlacementGuard();
     stopProtocolEnhancements();
     if (customBlockBreaker != null) {
       customBlockBreaker.shutdown();
@@ -1211,6 +1229,26 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 busCarrier),
             this);
     Bukkit.getPluginManager().registerEvents(new MonitorListener(this, monitorCarrier), this);
+    if (getConfig().getBoolean("placementGuard.enabled", true)) {
+      double guardScale = getConfig().getDouble("placementGuard.guardScale", 0.0625);
+      PlacementGuardBackend placementGuardBackend = createPlacementGuardBackend(guardScale);
+      placementGuard =
+          new RightClickPlacementGuard(
+              this,
+              customItems,
+              customBlockBreaker,
+              new ExortBlockTargetResolver(
+                  this, wireMaterial, storageCarrier, terminalCarrier, monitorCarrier, busCarrier),
+              placementGuardBackend,
+              getConfig().getInt("placementGuard.pollIntervalTicks", 1),
+              getConfig().getInt("placementGuard.targetRangeBlocks", 5),
+              guardScale,
+              getConfig().getDouble("placementGuard.cornerInset", 0.01));
+      Bukkit.getPluginManager().registerEvents(placementGuard, this);
+      placementGuard.start();
+    } else if (protocolLibEnhancements != null) {
+      protocolLibEnhancements.markPlacementGuardDisabledByConfig();
+    }
     Bukkit.getPluginManager().registerEvents(new InventoryRefreshListener(this), this);
     boolean blockVanilla = getConfig().getBoolean("crafting.blockVanilla", true);
     boolean allowExternal = getConfig().getBoolean("crafting.allowExternal", true);
@@ -1284,6 +1322,54 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     scheduleFlushTask();
     scheduleCacheEviction();
     return langFuture;
+  }
+
+  private PlacementGuardBackend createPlacementGuardBackend(double guardScale) {
+    boolean protocolGuardEnabled =
+        getConfig().getBoolean("protocolLib.enabled", true)
+            && getConfig().getBoolean("protocolLib.placementGuard.enabled", true);
+    PaperEntityPlacementGuardBackend paperBackend =
+        new PaperEntityPlacementGuardBackend(this, guardScale);
+    if (!protocolGuardEnabled) {
+      if (protocolLibEnhancements != null) {
+        protocolLibEnhancements.markPlacementGuardDisabledByConfig();
+      }
+      return paperBackend;
+    }
+    if (protocolGuardEnabled && protocolLibEnhancements != null) {
+      var packets = protocolLibEnhancements.tryCreatePlacementGuardPackets(guardScale);
+      if (packets != null) {
+        final FailoverPlacementGuardBackend[] holder = new FailoverPlacementGuardBackend[1];
+        ProtocolLibPlacementGuardBackend protocolBackend =
+            new ProtocolLibPlacementGuardBackend(
+                packets,
+                reason -> {
+                  protocolLibEnhancements.markPlacementGuardRuntimeFallback(reason);
+                  holder[0].switchToPaperFallback(reason);
+                });
+        FailoverPlacementGuardBackend failoverBackend =
+            new FailoverPlacementGuardBackend(protocolBackend, paperBackend);
+        holder[0] = failoverBackend;
+        return failoverBackend;
+      }
+    }
+    if (protocolGuardEnabled && protocolLibEnhancements == null) {
+      ExortLog.warn(protocolLibPlacementGuardUnavailableMessage());
+    }
+    return paperBackend;
+  }
+
+  private String protocolLibPlacementGuardUnavailableMessage() {
+    var protocolLib = Bukkit.getPluginManager().getPlugin("ProtocolLib");
+    if (protocolLib == null) {
+      return "[ProtocolLib] Placement guard is enabled but ProtocolLib is not installed; using"
+          + " Paper entity placement guard.";
+    }
+    String version = protocolLib.getPluginMeta().getVersion();
+    return "[ProtocolLib] Placement guard is enabled but ProtocolLib "
+        + version
+        + " is unavailable; using Paper entity placement guard. "
+        + ProtocolLibCompatibility.failureAdvice(Bukkit.getMinecraftVersion(), version);
   }
 
   public long getStoragePeekTicks() {

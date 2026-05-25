@@ -35,6 +35,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
@@ -51,6 +52,8 @@ public final class ExortBrigadier {
   private static final String ARG_SECONDS = "seconds";
   private static final String ARG_VERBOSE_MODE = "verboseMode";
   private static final int MAX_GIVE_AMOUNT = 512;
+  private static final float GIVE_SOUND_VOLUME = 0.2F;
+  private static final float GIVE_SOUND_PITCH = 1.0F;
 
   private final ExortPlugin plugin;
   private final DebugCacheStatusRenderer cacheStatusRenderer;
@@ -212,6 +215,17 @@ public final class ExortBrigadier {
                                                         ctx,
                                                         IntegerArgumentType.getInteger(
                                                             ctx, ARG_AMOUNT))))))
+                    .then(
+                        Commands.literal("storage_core")
+                            .executes(ctx -> giveStorageCore(ctx, 1))
+                            .then(
+                                Commands.argument(
+                                        ARG_AMOUNT, IntegerArgumentType.integer(1, MAX_GIVE_AMOUNT))
+                                    .executes(
+                                        ctx ->
+                                            giveStorageCore(
+                                                ctx,
+                                                IntegerArgumentType.getInteger(ctx, ARG_AMOUNT)))))
                     .then(
                         Commands.literal("terminal")
                             .executes(ctx -> giveTerminal(ctx, 1))
@@ -1109,6 +1123,27 @@ public final class ExortBrigadier {
     return 1;
   }
 
+  private int giveStorageCore(CommandContext<CommandSourceStack> context, int amount) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    String playerName = StringArgumentType.getString(context, ARG_PLAYER);
+    Player target = Bukkit.getPlayerExact(playerName);
+    if (target == null) {
+      sendMessage(sender, plugin.getLang().tr("message.player_not_found"));
+      return 1;
+    }
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
+    String label = plugin.getLang().tr("item.storage_core");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        CommandItemDelivery.deliver(
+            target, () -> plugin.getCustomItems().storageCoreItem(), giveAmount));
+    return 1;
+  }
+
   private int giveTerminal(CommandContext<CommandSourceStack> context, int amount) {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
@@ -1256,13 +1291,26 @@ public final class ExortBrigadier {
   }
 
   private void sendGiveResult(
-      CommandSender sender, Player target, String itemName, int requested, int delivered) {
+      CommandSender sender,
+      Player target,
+      String itemName,
+      int requested,
+      CommandItemDelivery.Result result) {
+    if (result.total() > 0) {
+      target.playSound(
+          target.getLocation(), Sound.ENTITY_ITEM_PICKUP, GIVE_SOUND_VOLUME, GIVE_SOUND_PITCH);
+    }
     sendMessage(
-        sender, plugin.getLang().tr("message.give_success", delivered, itemName, target.getName()));
-    if (delivered < requested) {
+        sender,
+        plugin.getLang().tr("message.give_success", result.total(), itemName, target.getName()));
+    if (result.dropped() > 0) {
+      sendMessage(
+          sender, plugin.getLang().tr("message.give_dropped", result.dropped(), target.getName()));
+    }
+    if (result.total() < requested) {
       sendMessage(
           sender,
-          plugin.getLang().tr("message.give_partial", delivered, requested, target.getName()));
+          plugin.getLang().tr("message.give_partial", result.total(), requested, target.getName()));
     }
   }
 

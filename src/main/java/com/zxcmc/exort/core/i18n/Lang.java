@@ -41,13 +41,14 @@ public class Lang {
         "message.give_usage",
         "Usage: /exort give <player> storage <tier> [amount] | terminal [amount] |"
             + " crafting_terminal [amount] | monitor [amount] | import_bus [amount] | export_bus"
-            + " [amount] | wire [amount]");
+            + " [amount] | wire [amount] | storage_core [amount] | wireless_terminal [amount]");
     put(defaultsEn, "message.give_unknown", "Unknown item type.");
     put(defaultsEn, "message.give_success", "Gave {0}x {1} to {2}.");
     put(
         defaultsEn,
-        "message.give_partial",
-        "Only {0} of {1} item(s) could fit in {2}'s inventory.");
+        "message.give_dropped",
+        "{1}'s inventory was full; dropped {0} item(s) nearby.");
+    put(defaultsEn, "message.give_partial", "Only {0} of {1} item(s) could be created for {2}.");
     put(defaultsEn, "message.reload", "Config reloaded.");
     put(defaultsEn, "message.debug_player_none", "No storage history for {0}.");
     put(defaultsEn, "message.debug_player_active", "{0} is viewing: {1} ({2}) at {3} {4} {5} {6}");
@@ -72,7 +73,7 @@ public class Lang {
         "message.usage_give",
         "Usage: /exort give <player> storage <tier> [amount] | terminal [amount] |"
             + " crafting_terminal [amount] | monitor [amount] | import_bus [amount] | export_bus"
-            + " [amount] | wire [amount]");
+            + " [amount] | wire [amount] | storage_core [amount] | wireless_terminal [amount]");
     put(defaultsEn, "message.usage_reload", "Usage: /exort reload");
     put(defaultsEn, "message.unknown_subcommand", "Unknown subcommand.");
     put(defaultsEn, "message.help_header", "Exort commands:");
@@ -89,7 +90,7 @@ public class Lang {
         "message.help_give",
         "/{0} give <player> storage <tier> [amount] | terminal [amount] | crafting_terminal"
             + " [amount] | monitor [amount] | import_bus [amount] | export_bus [amount] | wire"
-            + " [amount] - give items");
+            + " [amount] | storage_core [amount] | wireless_terminal [amount] - give items");
     put(defaultsEn, "message.help_reload", "/{0} reload - reload config and language");
     put(
         defaultsEn,
@@ -127,12 +128,13 @@ public class Lang {
         "Benchmark model: players {0}, chunks {1}, storages/chunk {2}, buses/chunk {3},"
             + " monitors/chunk {4}, est ops/tick {5} (global {6}, chunk {7}), db/tick {8}, monitor"
             + " updates {9}/t{10}, wire {11}/{12} miss {13}% cover {14}%, duration {15}s (warmup"
-            + " {16}s), jitter {17}%");
+            + " {16}s), jitter {17}%, guard players {18}, guard entities {19}/{20}, guard churn"
+            + " {21}/tick");
     put(
         defaultsEn,
         "message.debug_load_hints",
         "Benchmark hints: dominant {0}; CPU {1}%, WIRE {2}%, DISPLAYS {3}%, DB {4}%, WIRELESS"
-            + " {5}%.");
+            + " {5}%, GUARDS {6}%.");
     put(defaultsEn, "message.debug_load_grade_good", "GOOD");
     put(defaultsEn, "message.debug_load_grade_warn", "OK");
     put(defaultsEn, "message.debug_load_grade_poor", "POOR");
@@ -414,13 +416,17 @@ public class Lang {
         "message.give_usage",
         "Использование: /exort give <игрок> storage <tier> [кол-во] | terminal [кол-во] |"
             + " crafting_terminal [кол-во] | monitor [кол-во] | import_bus [кол-во] | export_bus"
-            + " [кол-во] | wire [кол-во]");
+            + " [кол-во] | wire [кол-во] | storage_core [кол-во] | wireless_terminal [кол-во]");
     put(defaultsRu, "message.give_unknown", "Неизвестный тип предмета.");
     put(defaultsRu, "message.give_success", "Выдано {0}x {1} игроку {2}.");
     put(
         defaultsRu,
+        "message.give_dropped",
+        "Инвентарь игрока {1} был заполнен, {0} предметов сброшено рядом.");
+    put(
+        defaultsRu,
         "message.give_partial",
-        "В инвентарь игрока {2} поместилось только {0} из {1} предметов.");
+        "Для игрока {2} удалось создать только {0} из {1} предметов.");
     put(defaultsRu, "message.reload", "Конфигурация перезагружена.");
     put(defaultsRu, "message.debug_player_none", "Нет данных о хранилищах для {0}.");
     put(
@@ -457,7 +463,7 @@ public class Lang {
         "message.usage_give",
         "Использование: /exort give <игрок> storage <tier> [кол-во] | terminal [кол-во] |"
             + " crafting_terminal [кол-во] | monitor [кол-во] | import_bus [кол-во] | export_bus"
-            + " [кол-во] | wire [кол-во]");
+            + " [кол-во] | wire [кол-во] | storage_core [кол-во] | wireless_terminal [кол-во]");
     put(defaultsRu, "message.usage_reload", "Использование: /exort reload");
     put(defaultsRu, "message.unknown_subcommand", "Неизвестная подкоманда.");
     put(defaultsRu, "message.help_header", "Команды Exort:");
@@ -473,8 +479,8 @@ public class Lang {
         defaultsRu,
         "message.help_give",
         "/{0} give <игрок> storage <tier> [кол-во] | terminal [кол-во] | crafting_terminal [кол-во]"
-            + " | monitor [кол-во] | import_bus [кол-во] | export_bus [кол-во] | wire [кол-во] -"
-            + " выдать предметы");
+            + " | monitor [кол-во] | import_bus [кол-во] | export_bus [кол-во] | wire [кол-во]"
+            + " | storage_core [кол-во] | wireless_terminal [кол-во] - выдать предметы");
     put(defaultsRu, "message.help_reload", "/{0} reload - перезагрузить конфиг и язык");
     put(defaultsRu, "message.help_lang", "/{0} lang status | /{0} lang refresh - словари языка");
     put(
@@ -513,12 +519,13 @@ public class Lang {
         "Модель бенчмарка: игроков {0}, чанков {1}, хранилищ/чанк {2}, шин/чанк {3}, мониторов/чанк"
             + " {4}, оценка оп/тик {5} (глобал {6}, чанк {7}), БД/тик {8}, обновления мониторов"
             + " {9}/t{10}, кабель {11}/{12} miss {13}% cover {14}%, длительность {15}с (прогрев"
-            + " {16}с), джиттер {17}%");
+            + " {16}с), джиттер {17}%, guard-игроков {18}, guard-сущностей {19}/{20},"
+            + " пересоздание guard {21}/тик");
     put(
         defaultsRu,
         "message.debug_load_hints",
         "Подсказки: доминирующая нагрузка — {0}; CPU {1}%, кабель {2}%, мониторы {3}%, БД {4}%,"
-            + " wireless {5}%.");
+            + " wireless {5}%, guard {6}%.");
     put(defaultsRu, "message.debug_load_grade_good", "ОТЛИЧНО");
     put(defaultsRu, "message.debug_load_grade_warn", "НОРМА");
     put(defaultsRu, "message.debug_load_grade_poor", "СЛАБО");

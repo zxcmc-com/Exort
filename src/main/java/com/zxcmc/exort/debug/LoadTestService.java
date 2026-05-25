@@ -18,8 +18,11 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.boss.BarColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
@@ -32,6 +35,7 @@ public final class LoadTestService {
   private static final int BUS_FILTER_SLOTS = 10;
   private static final int MAX_DB_POSITIONS = 64;
   private static final String BENCHMARK_TAG = "exort_benchmark";
+  private static final String BENCHMARK_GUARD_TAG = "exort_benchmark_guard";
   // Hardcoded benchmark model parameters (no config overrides).
   private static final int DEFAULT_PLAYERS = 25;
   private static final int DEFAULT_CHUNKS_PER_PLAYER = 4;
@@ -60,6 +64,10 @@ public final class LoadTestService {
   private static final int DEFAULT_PROGRESS_INTERVAL_TICKS = 20;
   private static final int DEFAULT_MONITOR_INTERVAL_TICKS = 20;
   private static final int DEFAULT_WARMUP_SECONDS = 5;
+  private static final int DEFAULT_GUARDS_PER_PLAYER = 2;
+  private static final int DEFAULT_GUARD_ROW_LENGTH = 12;
+  private static final int MAX_GUARD_ARMOR_STANDS = 4096;
+  private static final double GUARD_ARMOR_STAND_SCALE = 0.0625;
   private static final DecimalFormat ONE_DECIMAL =
       new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
   private static final DecimalFormat TWO_DECIMALS =
@@ -123,7 +131,12 @@ public final class LoadTestService {
   private boolean loadChunks;
   private int busCountPerChunk;
   private int monitorCountPerChunk;
+  private int guardPlayers;
+  private int effectiveGuardPlayers;
+  private int targetGuardEntities;
+  private int guardChurnPerTick;
   private List<UUID> displayEntities;
+  private List<GuardSimulationState> guardStates;
   private List<ChunkTicket> loadedChunks;
   private World benchmarkWorld;
   private Random jitterRandom;
@@ -160,8 +173,10 @@ public final class LoadTestService {
     this.msptSamples = new double[tickMs.length];
     this.jitterRandom = new Random(System.nanoTime());
     prepareChunks(sender);
+    cleanupTaggedBenchmarkEntitiesAll();
     prepareDbPositions(simulatedPlayers);
-    prepareDisplaySamples(sender);
+    prepareDisplaySamples();
+    prepareGuardSimulation();
     String summary = summaryLine();
     CommandFeedback.send(sender, summary);
     sendToConsoleIfNeeded(summary);
@@ -185,7 +200,9 @@ public final class LoadTestService {
       sendToConsoleIfNeeded(lang.tr("message.debug_load_stopped"));
     }
     cleanupDbPositions();
+    cleanupGuardSimulation();
     cleanupDisplays();
+    cleanupTaggedBenchmarkEntitiesAll();
     cleanupChunks();
     if (ownerId != null) {
       Player player = Bukkit.getPlayer(ownerId);
@@ -218,6 +235,7 @@ public final class LoadTestService {
     simulateDb(ops);
     simulateCacheMaintenance(elapsed);
     simulateWirelessChecks();
+    simulateGuardChurn();
 
     if (elapsed % Math.max(1, progressIntervalTicks) == 0L) {
       sendProgress((int) elapsed);
@@ -486,13 +504,15 @@ public final class LoadTestService {
                 * (long) Math.max(1, wirelessRangeChunks)
                 * (long) Math.max(1, cpuIterationsPerOp / 12)
             : 0L;
-    long total = cpuCost + wireCost + monitorCost + dbCost + wirelessCost;
+    long guardCost = (long) Math.max(0, guardChurnPerTick) * (long) Math.max(1, cpuIterationsPerOp);
+    long total = cpuCost + wireCost + monitorCost + dbCost + wirelessCost + guardCost;
     if (total <= 0) return null;
     int cpuPct = (int) Math.round(cpuCost * 100.0 / total);
     int wirePct = (int) Math.round(wireCost * 100.0 / total);
     int monitorPct = (int) Math.round(monitorCost * 100.0 / total);
     int dbPct = (int) Math.round(dbCost * 100.0 / total);
     int wirelessPct = (int) Math.round(wirelessCost * 100.0 / total);
+    int guardPct = (int) Math.round(guardCost * 100.0 / total);
     String dominant = "CPU";
     long max = cpuCost;
     if (wireCost > max) {
@@ -508,10 +528,21 @@ public final class LoadTestService {
       dominant = "DB";
     }
     if (wirelessCost > max) {
+      max = wirelessCost;
       dominant = "WIRELESS";
     }
+    if (guardCost > max) {
+      dominant = "GUARDS";
+    }
     return lang.tr(
-        "message.debug_load_hints", dominant, cpuPct, wirePct, monitorPct, dbPct, wirelessPct);
+        "message.debug_load_hints",
+        dominant,
+        cpuPct,
+        wirePct,
+        monitorPct,
+        dbPct,
+        wirelessPct,
+        guardPct);
   }
 
   private String summaryLine() {
@@ -537,7 +568,15 @@ public final class LoadTestService {
         ONE_DECIMAL.format(Math.max(0.0, wireScanCoverage * 100.0)),
         Math.max(1, durationTicks / 20),
         Math.max(0, warmupTicks / 20),
-        ONE_DECIMAL.format(Math.max(0.0, opsJitterPercent * 100.0)));
+        ONE_DECIMAL.format(Math.max(0.0, opsJitterPercent * 100.0)),
+        guardPlayers,
+        targetGuardEntities,
+        requestedGuardEntities(),
+        guardChurnPerTick);
+  }
+
+  private long requestedGuardEntities() {
+    return (long) Math.max(0, guardPlayers) * (long) DEFAULT_GUARDS_PER_PLAYER;
   }
 
   private void simulateWireScan(int ops) {
@@ -633,27 +672,17 @@ public final class LoadTestService {
     }
   }
 
-  private boolean prepareDisplaySamples(CommandSender sender) {
+  private boolean prepareDisplaySamples() {
     cleanupDisplays();
     if (!simulateDisplays) return true;
-    cleanupTaggedDisplaysAll();
-    if (!(sender instanceof Player player)) return true;
     int chunks = Math.max(1, simulatedPlayers * chunksPerPlayer);
     int target = monitorCountPerChunk * chunks;
     int count = Math.max(0, Math.min(displaySampleLimit, target));
     if (count <= 0) return true;
     displayEntities = new ArrayList<>(count * 2);
-    Location anchor = player.getLocation().clone();
-    int maxY = player.getWorld().getMaxHeight() - 3;
-    int minY = player.getWorld().getMinHeight() + 3;
-    int safeY = Math.min(maxY, Math.max(minY, anchor.getWorld().getHighestBlockYAt(anchor) + 5));
-    anchor.setY(safeY);
-    int side = (int) Math.ceil(Math.sqrt(count));
-    double spacing = 0.3;
     for (int i = 0; i < count; i++) {
-      int row = i / side;
-      int col = i % side;
-      Location base = anchor.clone().add(col * spacing, row * spacing, 0);
+      Location base = benchmarkLocation(i, 0.25);
+      if (base == null) break;
       ItemDisplay item =
           base.getWorld()
               .spawn(
@@ -708,7 +737,169 @@ public final class LoadTestService {
     displayEntities = null;
   }
 
-  private void cleanupTaggedDisplays(World world) {
+  private void prepareGuardSimulation() {
+    cleanupGuardSimulation();
+    guardPlayers = Math.max(0, simulatedPlayers);
+    int maxPlayersByEntityCap = Math.max(1, MAX_GUARD_ARMOR_STANDS / DEFAULT_GUARDS_PER_PLAYER);
+    effectiveGuardPlayers = Math.min(guardPlayers, maxPlayersByEntityCap);
+    targetGuardEntities = effectiveGuardPlayers * DEFAULT_GUARDS_PER_PLAYER;
+    guardChurnPerTick = targetGuardEntities;
+    if (effectiveGuardPlayers <= 0 || benchmarkWorld == null) {
+      effectiveGuardPlayers = 0;
+      targetGuardEntities = 0;
+      guardChurnPerTick = 0;
+      return;
+    }
+    guardStates = new ArrayList<>(effectiveGuardPlayers);
+    for (int i = 0; i < effectiveGuardPlayers; i++) {
+      int initialPosition = i % DEFAULT_GUARD_ROW_LENGTH;
+      int initialDirection = initialPosition == DEFAULT_GUARD_ROW_LENGTH - 1 ? -1 : 1;
+      GuardSimulationState state = new GuardSimulationState(i, initialPosition, initialDirection);
+      spawnGuardPair(state);
+      guardStates.add(state);
+    }
+  }
+
+  private void simulateGuardChurn() {
+    if (guardStates == null || guardStates.isEmpty()) return;
+    for (GuardSimulationState state : guardStates) {
+      removeGuardPair(state);
+      advanceGuardState(state);
+      spawnGuardPair(state);
+    }
+  }
+
+  private void advanceGuardState(GuardSimulationState state) {
+    int next = state.rowPosition + state.direction;
+    if (next < 0 || next >= DEFAULT_GUARD_ROW_LENGTH) {
+      state.direction = -state.direction;
+      next = state.rowPosition + state.direction;
+    }
+    state.rowPosition = Math.max(0, Math.min(DEFAULT_GUARD_ROW_LENGTH - 1, next));
+  }
+
+  private void spawnGuardPair(GuardSimulationState state) {
+    normalizeGuardDirection(state);
+    state.currentGuard =
+        spawnBenchmarkGuard(guardLocation(state.playerIndex, state.rowPosition, 0));
+    int predictedPosition = state.rowPosition + state.direction;
+    state.predictedGuard =
+        spawnBenchmarkGuard(guardLocation(state.playerIndex, predictedPosition, 1));
+  }
+
+  private void normalizeGuardDirection(GuardSimulationState state) {
+    int predictedPosition = state.rowPosition + state.direction;
+    if (predictedPosition < 0 || predictedPosition >= DEFAULT_GUARD_ROW_LENGTH) {
+      state.direction = -state.direction;
+    }
+  }
+
+  private UUID spawnBenchmarkGuard(Location location) {
+    if (location == null || location.getWorld() == null) return null;
+    ArmorStand guard =
+        location
+            .getWorld()
+            .spawn(
+                location,
+                ArmorStand.class,
+                entity -> {
+                  entity.setPersistent(false);
+                  entity.setInvulnerable(true);
+                  entity.setSilent(true);
+                  entity.setVisible(false);
+                  entity.setGravity(false);
+                  entity.setNoPhysics(true);
+                  entity.setVisibleByDefault(false);
+                  entity.setSmall(true);
+                  entity.setMarker(false);
+                  AttributeInstance scale = entity.getAttribute(Attribute.SCALE);
+                  if (scale != null) {
+                    scale.setBaseValue(GUARD_ARMOR_STAND_SCALE);
+                  }
+                  entity.setBasePlate(false);
+                  entity.setArms(false);
+                  entity.setAI(false);
+                  entity.setCanTick(false);
+                  entity.setCollidable(false);
+                  entity.setCanPickupItems(false);
+                  entity.setRemoveWhenFarAway(false);
+                  entity.addScoreboardTag(BENCHMARK_TAG);
+                  entity.addScoreboardTag(BENCHMARK_GUARD_TAG);
+                });
+    return guard.getUniqueId();
+  }
+
+  private Location guardLocation(int playerIndex, int rowPosition, int guardSlot) {
+    if (benchmarkWorld == null) return null;
+    ChunkTicket ticket = benchmarkTicket(playerIndex);
+    int chunkCount = loadedChunks == null || loadedChunks.isEmpty() ? 1 : loadedChunks.size();
+    int lane = playerIndex / chunkCount;
+    double x =
+        ticket.x() * 16.0 + 2.5 + Math.max(0, Math.min(DEFAULT_GUARD_ROW_LENGTH - 1, rowPosition));
+    double y = safeBenchmarkY(benchmarkWorld, (lane / 12) * 0.15 + guardSlot * 0.02);
+    double z = ticket.z() * 16.0 + 2.5 + (lane % DEFAULT_GUARD_ROW_LENGTH);
+    return new Location(benchmarkWorld, x, y, z);
+  }
+
+  private Location benchmarkLocation(int index, double yOffset) {
+    if (benchmarkWorld == null) return null;
+    ChunkTicket ticket = benchmarkTicket(index);
+    int chunkCount = loadedChunks == null || loadedChunks.isEmpty() ? 1 : loadedChunks.size();
+    int lane = index / chunkCount;
+    double x = ticket.x() * 16.0 + 2.0 + ((lane * 3) % 12);
+    double y = safeBenchmarkY(benchmarkWorld, yOffset + (lane / 16) * 0.1);
+    double z = ticket.z() * 16.0 + 2.0 + (((lane / 4) * 3) % 12);
+    return new Location(benchmarkWorld, x, y, z);
+  }
+
+  private ChunkTicket benchmarkTicket(int index) {
+    if (loadedChunks != null && !loadedChunks.isEmpty()) {
+      return loadedChunks.get(Math.floorMod(index, loadedChunks.size()));
+    }
+    Location spawn = benchmarkWorld.getSpawnLocation();
+    return new ChunkTicket(benchmarkWorld.getUID(), spawn.getBlockX() >> 4, spawn.getBlockZ() >> 4);
+  }
+
+  private double safeBenchmarkY(World world, double offset) {
+    double y = world.getSpawnLocation().getY() + 8.0 + offset;
+    return Math.min(world.getMaxHeight() - 4.0, Math.max(world.getMinHeight() + 4.0, y));
+  }
+
+  private void cleanupGuardSimulation() {
+    if (guardStates == null) {
+      guardPlayers = 0;
+      effectiveGuardPlayers = 0;
+      targetGuardEntities = 0;
+      guardChurnPerTick = 0;
+      return;
+    }
+    for (GuardSimulationState state : guardStates) {
+      removeGuardPair(state);
+    }
+    guardStates.clear();
+    guardStates = null;
+    guardPlayers = 0;
+    effectiveGuardPlayers = 0;
+    targetGuardEntities = 0;
+    guardChurnPerTick = 0;
+  }
+
+  private void removeGuardPair(GuardSimulationState state) {
+    removeEntity(state.currentGuard);
+    removeEntity(state.predictedGuard);
+    state.currentGuard = null;
+    state.predictedGuard = null;
+  }
+
+  private void removeEntity(UUID entityId) {
+    if (entityId == null) return;
+    Entity entity = Bukkit.getEntity(entityId);
+    if (entity != null) {
+      entity.remove();
+    }
+  }
+
+  private void cleanupTaggedBenchmarkEntities(World world) {
     if (world == null) return;
     for (Entity entity : world.getEntities()) {
       if (entity.getScoreboardTags().contains(BENCHMARK_TAG)) {
@@ -717,9 +908,9 @@ public final class LoadTestService {
     }
   }
 
-  private void cleanupTaggedDisplaysAll() {
+  private void cleanupTaggedBenchmarkEntitiesAll() {
     for (World world : Bukkit.getWorlds()) {
-      cleanupTaggedDisplays(world);
+      cleanupTaggedBenchmarkEntities(world);
     }
   }
 
@@ -917,6 +1108,20 @@ public final class LoadTestService {
       z += dz;
     }
     return positions;
+  }
+
+  private static final class GuardSimulationState {
+    private final int playerIndex;
+    private int rowPosition;
+    private int direction;
+    private UUID currentGuard;
+    private UUID predictedGuard;
+
+    GuardSimulationState(int playerIndex, int rowPosition, int direction) {
+      this.playerIndex = playerIndex;
+      this.rowPosition = rowPosition;
+      this.direction = direction;
+    }
   }
 
   private record ChunkPos(int x, int z) {}

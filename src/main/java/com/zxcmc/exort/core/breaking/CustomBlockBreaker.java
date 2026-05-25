@@ -90,6 +90,16 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     pendingSwingTicks.clear();
   }
 
+  public void handlePlacementGuardAttack(Player player, Block block) {
+    if (player == null || block == null) return;
+    BreakType type = resolveType(block);
+    if (type == BreakType.NONE) {
+      stopBreaking(player);
+      return;
+    }
+    tryStartOrContinueBreaking(player, block, type);
+  }
+
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
   public void onBlockDamage(BlockDamageEvent event) {
     Block block = event.getBlock();
