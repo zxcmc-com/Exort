@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.3 — 2026-05-25
+- Fixed client-side ghost placement and placement sounds when right-clicking Exort blocks or cables with placeable vanilla items, while keeping Shift+RMB placement and the target block outline available.
+- Placement guard now prefers per-player ProtocolLib fake ArmorStand packets when enabled and automatically falls back to Paper entities when ProtocolLib is unavailable, incompatible, or fails during runtime packet sends.
+- ProtocolLib integration now records per-feature capability diagnostics for pick bridging, entity picking, and placement guard packets; update advice is logged only when the installed ProtocolLib version is below the tested advisory minimum.
+- `/exort give` now drops inventory overflow near the target player instead of leaving part of the requested admin item grant undelivered.
+- `/exort give` now plays the vanilla item-pickup sound for the target player when items are granted or dropped nearby.
+- Added `/exort give <player> storage_core [amount]` and updated give-command help to list all supported admin item ids.
+- Expanded `/exort debug benchmark start` with distributed placement-guard ArmorStand churn, using the simulated player count to model players moving their crosshair across rows of Exort blocks.
+
 ## 0.11.2 — 2026-05-24
 - Fixed custom breaking so holding left-click on another still-present block and moving the crosshair onto an Exort carrier starts Exort breaking, without reacting to placement swings or immediately breaking an Exort carrier revealed behind a just-broken block.
 - Added `/exort mode fix RESOURCE`: when Paper chorus plant updates are still enabled, Exort now sets `mode: RESOURCE`, enables `block-updates.disable-chorus-plant-updates` in `config/paper-global.yml`, warns players, and restarts the server after 10 seconds with a `stop` fallback.
