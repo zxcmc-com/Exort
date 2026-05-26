@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.4 — 2026-05-26
+- Fixed WorldEdit/FAWE overlap `//move` and repeated `//undo`/`//redo` handling so Exort markers from one edit no longer erase or overwrite marker state restored by another edit.
+- WorldEdit/FAWE `//move` now preserves original storage UUIDs and moved-storage last-location records, including multiple storages and cross-chunk moves; copy/paste storage operations still clone storage data.
+- WorldEdit/FAWE marker transport now keeps paste, move, and undo/redo command state isolated, prefers carried Exort NBT, and uses command sidecar data only for matching markerless carrier writes.
+- Chunk sanity now keeps physically valid marker roots on configured carriers, clears only impossible marker roots whose carrier block is gone, removes stale or wrong-type display entities before refresh, and invalidates network caches after repairs.
+- `/exort reload` and chunk sanity now repair full-face `CHORUS_PLANT` carriers as Exort wires, restoring wire markers and displays for markerless resource-mode cables.
+- WorldEdit/FAWE display refresh now runs after all chunks in a marker flush are applied and repeats on two short deferred passes, reducing missing Exort textures after overlap moves.
+- WorldEdit/FAWE full debug now reports marker source, marker sections, move offset, history use, refresh passes, and chunk sanity summaries.
+
 ## 0.11.3 — 2026-05-25
 - Fixed client-side ghost placement and placement sounds when right-clicking Exort blocks or cables with placeable vanilla items, while keeping Shift+RMB placement and the target block outline available.
 - Placement guard now prefers per-player ProtocolLib fake ArmorStand packets when enabled and automatically falls back to Paper entities when ProtocolLib is unavailable, incompatible, or fails during runtime packet sends.

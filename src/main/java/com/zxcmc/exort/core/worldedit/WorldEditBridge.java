@@ -52,10 +52,12 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -64,10 +66,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -124,6 +128,11 @@ public final class WorldEditBridge implements Listener {
   private static final int CLIPBOARD_PATCH_ATTEMPTS = 100;
   private static final long HISTORY_TTL_MS = TimeUnit.MINUTES.toMillis(10);
   private static final long PASTE_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+  private static final long HISTORY_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+  private static final long MOVE_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+  private static final long OPERATION_STORAGE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
+  private static final int HISTORY_STACK_LIMIT = 16;
+  private static final long[] DEFERRED_REFRESH_DELAYS_TICKS = {2L, 10L};
 
   private static final Map<Class<?>, TranslateAccessor> TRANSLATE_ACCESSORS =
       new ConcurrentHashMap<>();
@@ -140,10 +149,18 @@ public final class WorldEditBridge implements Listener {
 
   private final ExortPlugin plugin;
   private final Queue<PendingUpdate> updates = new ConcurrentLinkedQueue<>();
-  private final Map<HistoryKey, HistoryEntry> markerHistory = new ConcurrentHashMap<>();
+  private final Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> undoMarkerHistory =
+      new ConcurrentHashMap<>();
+  private final Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> redoMarkerHistory =
+      new ConcurrentHashMap<>();
   private final Map<UUID, PendingClipboardPatch> clipboardPatches = new ConcurrentHashMap<>();
   private final Map<UUID, PendingPasteCommand> pendingPasteCommands = new ConcurrentHashMap<>();
+  private final Map<UUID, PendingHistoryCommand> pendingHistoryCommands = new ConcurrentHashMap<>();
+  private final Map<UUID, PendingMovePatch> pendingMovePatches = new ConcurrentHashMap<>();
+  private final Map<Long, Set<String>> operationRemovedStorageIds = new ConcurrentHashMap<>();
+  private final Map<Long, Long> operationStorageSeenMs = new ConcurrentHashMap<>();
   private final Set<BukkitTask> clipboardPatchTasks = ConcurrentHashMap.newKeySet();
+  private final AtomicLong operationIds = new AtomicLong();
   private BukkitTask flushTask;
   private long tickCounter;
 
@@ -275,6 +292,14 @@ public final class WorldEditBridge implements Listener {
       task.cancel();
     }
     clipboardPatchTasks.clear();
+    undoMarkerHistory.clear();
+    redoMarkerHistory.clear();
+    clipboardPatches.clear();
+    pendingPasteCommands.clear();
+    pendingHistoryCommands.clear();
+    pendingMovePatches.clear();
+    operationRemovedStorageIds.clear();
+    operationStorageSeenMs.clear();
   }
 
   private void startFlushTask() {
@@ -305,10 +330,25 @@ public final class WorldEditBridge implements Listener {
     Extent extent = event.getExtent();
     if (containsMarkerExtent(extent)) return;
     Actor actor = event.getActor();
-    boolean pasteCommandPending = hasPendingPasteCommand(actor);
-    PendingPastePatch pastePatch = resolvePendingPastePatch(actor);
+    UUID actorId = actor == null ? null : actor.getUniqueId();
+    HistoryAction historyAction = resolvePendingHistoryCommand(actor);
+    boolean pasteCommandPending = historyAction == null && hasPendingPasteCommand(actor);
+    PendingPastePatch pastePatch = pasteCommandPending ? resolvePendingPastePatch(actor) : null;
+    PendingMovePatch movePatch =
+        historyAction == null && !pasteCommandPending ? resolvePendingMovePatch(actor) : null;
     FacingTransform clipboardTransform = pasteCommandPending ? resolveClipboardFacing(actor) : null;
-    event.setExtent(new MarkerExtent(extent, world, this, clipboardTransform, pastePatch));
+    long operationId = operationIds.incrementAndGet();
+    event.setExtent(
+        new MarkerExtent(
+            extent,
+            world,
+            this,
+            operationId,
+            actorId,
+            historyAction,
+            clipboardTransform,
+            pastePatch,
+            movePatch));
   }
 
   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -318,6 +358,11 @@ public final class WorldEditBridge implements Listener {
     }
     String command = event.getMessage();
     Player player = event.getPlayer();
+    HistoryAction historyAction = parseHistoryAction(command);
+    if (historyAction != null) {
+      rememberHistoryCommand(player.getUniqueId(), historyAction);
+      return;
+    }
     if (isClipboardCopyCommand(command)) {
       Actor actor = wrapBukkitActor(player);
       PendingClipboardPatch patch = actor == null ? null : captureClipboardPatch(actor);
@@ -332,9 +377,16 @@ public final class WorldEditBridge implements Listener {
       rememberPasteCommand(player.getUniqueId(), parsePasteCommand(command));
       return;
     }
+    if (isMoveCommand(command)) {
+      Actor actor = wrapBukkitActor(player);
+      PendingMovePatch patch = actor == null ? null : captureMovePatch(actor, command, player);
+      rememberMovePatch(player.getUniqueId(), patch);
+      return;
+    }
     if (isClipboardClearCommand(command)) {
       clipboardPatches.remove(player.getUniqueId());
       pendingPasteCommands.remove(player.getUniqueId());
+      pendingMovePatches.remove(player.getUniqueId());
     }
   }
 
@@ -347,10 +399,29 @@ public final class WorldEditBridge implements Listener {
       clearClipboardPatch(event.getActor());
       return;
     }
+    HistoryAction historyAction = parseHistoryAction(event.getArguments());
+    if (historyAction != null) {
+      Actor actor = event.getActor();
+      if (actor != null && actor.getUniqueId() != null) {
+        rememberHistoryCommand(actor.getUniqueId(), historyAction);
+      }
+      return;
+    }
     if (isClipboardPasteCommand(event.getArguments())) {
       Actor actor = event.getActor();
       if (actor != null && actor.getUniqueId() != null) {
         rememberPasteCommand(actor.getUniqueId(), parsePasteCommand(event.getArguments()));
+      }
+      return;
+    }
+    if (isMoveCommand(event.getArguments())) {
+      Actor actor = event.getActor();
+      if (actor != null
+          && actor.getUniqueId() != null
+          && !pendingMovePatches.containsKey(actor.getUniqueId())) {
+        Player player = Bukkit.getPlayer(actor.getUniqueId());
+        rememberMovePatch(
+            actor.getUniqueId(), captureMovePatch(actor, event.getArguments(), player));
       }
       return;
     }
@@ -372,9 +443,35 @@ public final class WorldEditBridge implements Listener {
 
   private void rememberPasteCommand(UUID actorId, PendingPasteCommand pasteCommand) {
     if (actorId == null || pasteCommand == null) return;
+    pendingMovePatches.remove(actorId);
+    pendingHistoryCommands.remove(actorId);
     pendingPasteCommands.put(actorId, pasteCommand);
     Bukkit.getScheduler()
         .runTaskLater(plugin, () -> pendingPasteCommands.remove(actorId, pasteCommand), 100L);
+  }
+
+  private void rememberMovePatch(UUID actorId, PendingMovePatch movePatch) {
+    if (actorId == null) return;
+    pendingPasteCommands.remove(actorId);
+    pendingHistoryCommands.remove(actorId);
+    if (movePatch == null || movePatch.destinationMarkers().isEmpty()) {
+      pendingMovePatches.remove(actorId);
+      return;
+    }
+    pendingMovePatches.put(actorId, movePatch);
+    Bukkit.getScheduler()
+        .runTaskLater(plugin, () -> pendingMovePatches.remove(actorId, movePatch), 100L);
+  }
+
+  private void rememberHistoryCommand(UUID actorId, HistoryAction action) {
+    if (actorId == null || action == null) return;
+    pendingPasteCommands.remove(actorId);
+    pendingMovePatches.remove(actorId);
+    PendingHistoryCommand command =
+        new PendingHistoryCommand(action, System.currentTimeMillis(), 3);
+    pendingHistoryCommands.put(actorId, command);
+    Bukkit.getScheduler()
+        .runTaskLater(plugin, () -> pendingHistoryCommands.remove(actorId, command), 100L);
   }
 
   private static boolean isClipboardCopyCommand(String arguments) {
@@ -392,6 +489,19 @@ public final class WorldEditBridge implements Listener {
   private static boolean isClipboardClearCommand(String arguments) {
     String command = commandName(arguments);
     return "clearclipboard".equals(command) || "clearclipboard".equals(command.replace("-", ""));
+  }
+
+  private static HistoryAction parseHistoryAction(String arguments) {
+    String command = commandName(arguments);
+    return switch (command) {
+      case "undo" -> HistoryAction.UNDO;
+      case "redo" -> HistoryAction.REDO;
+      default -> null;
+    };
+  }
+
+  private static boolean isMoveCommand(String arguments) {
+    return "move".equals(commandName(arguments));
   }
 
   private static String commandName(String arguments) {
@@ -447,6 +557,115 @@ public final class WorldEditBridge implements Listener {
     return space < 0 ? "" : command.substring(space + 1).trim();
   }
 
+  private static BlockVector3 parseMoveVector(String arguments, Player player) {
+    int distance = 1;
+    boolean distanceSet = false;
+    BlockFace direction = null;
+    String remainder = commandRemainder(arguments);
+    if (!remainder.isBlank()) {
+      for (String token : remainder.split("\\s+")) {
+        if (token.isBlank() || token.startsWith("-")) {
+          continue;
+        }
+        if (!distanceSet) {
+          try {
+            distance = Integer.parseInt(token);
+            distanceSet = true;
+            continue;
+          } catch (NumberFormatException ignored) {
+            // Token may be a direction, for example //move north.
+          }
+        }
+        if (direction == null) {
+          direction = directionToken(token, player);
+          if (direction != null) {
+            continue;
+          }
+        }
+        break;
+      }
+    }
+    if (direction == null) {
+      direction = directionFromPlayer(player);
+    }
+    return vectorFor(direction, distance);
+  }
+
+  private static BlockFace directionToken(String token, Player player) {
+    if (token == null) return null;
+    return switch (token.toLowerCase(Locale.ROOT)) {
+      case "n", "north" -> BlockFace.NORTH;
+      case "s", "south" -> BlockFace.SOUTH;
+      case "e", "east" -> BlockFace.EAST;
+      case "w", "west" -> BlockFace.WEST;
+      case "u", "up" -> BlockFace.UP;
+      case "d", "down" -> BlockFace.DOWN;
+      case "me", "forward", "forwards" -> directionFromPlayer(player);
+      case "back", "backward", "backwards" -> opposite(directionFromPlayer(player));
+      case "left" -> rotateLeft(directionFromPlayer(player));
+      case "right" -> rotateRight(directionFromPlayer(player));
+      default -> null;
+    };
+  }
+
+  private static BlockFace directionFromPlayer(Player player) {
+    if (player == null) return BlockFace.SOUTH;
+    float pitch = player.getLocation().getPitch();
+    if (pitch <= -60.0f) return BlockFace.UP;
+    if (pitch >= 60.0f) return BlockFace.DOWN;
+    float yaw = player.getLocation().getYaw() % 360.0f;
+    if (yaw < 0.0f) yaw += 360.0f;
+    if (yaw < 45.0f || yaw >= 315.0f) return BlockFace.SOUTH;
+    if (yaw < 135.0f) return BlockFace.WEST;
+    if (yaw < 225.0f) return BlockFace.NORTH;
+    return BlockFace.EAST;
+  }
+
+  private static BlockFace opposite(BlockFace face) {
+    return switch (face) {
+      case NORTH -> BlockFace.SOUTH;
+      case SOUTH -> BlockFace.NORTH;
+      case EAST -> BlockFace.WEST;
+      case WEST -> BlockFace.EAST;
+      case UP -> BlockFace.DOWN;
+      case DOWN -> BlockFace.UP;
+      default -> BlockFace.SOUTH;
+    };
+  }
+
+  private static BlockFace rotateLeft(BlockFace face) {
+    return switch (face) {
+      case NORTH -> BlockFace.WEST;
+      case WEST -> BlockFace.SOUTH;
+      case SOUTH -> BlockFace.EAST;
+      case EAST -> BlockFace.NORTH;
+      default -> face;
+    };
+  }
+
+  private static BlockFace rotateRight(BlockFace face) {
+    return switch (face) {
+      case NORTH -> BlockFace.EAST;
+      case EAST -> BlockFace.SOUTH;
+      case SOUTH -> BlockFace.WEST;
+      case WEST -> BlockFace.NORTH;
+      default -> face;
+    };
+  }
+
+  private static BlockVector3 vectorFor(BlockFace face, int distance) {
+    if (face == null || distance == 0) return BlockVector3.at(0, 0, 0);
+    return switch (face) {
+      case NORTH -> BlockVector3.at(0, 0, -distance);
+      case SOUTH -> BlockVector3.at(0, 0, distance);
+      case EAST -> BlockVector3.at(distance, 0, 0);
+      case WEST -> BlockVector3.at(-distance, 0, 0);
+      case UP -> BlockVector3.at(0, distance, 0);
+      case DOWN -> BlockVector3.at(0, -distance, 0);
+      default -> BlockVector3.at(0, 0, 0);
+    };
+  }
+
   private Actor wrapBukkitActor(Player player) {
     if (player == null) return null;
     Plugin worldEdit = Bukkit.getPluginManager().getPlugin("WorldEdit");
@@ -498,6 +717,7 @@ public final class WorldEditBridge implements Listener {
     if (actor == null || actor.getUniqueId() == null) return;
     clipboardPatches.remove(actor.getUniqueId());
     pendingPasteCommands.remove(actor.getUniqueId());
+    pendingMovePatches.remove(actor.getUniqueId());
   }
 
   private PendingPastePatch resolvePendingPastePatch(Actor actor) {
@@ -603,21 +823,117 @@ public final class WorldEditBridge implements Listener {
     pendingPasteCommands.replace(actorId, command, command.consume());
   }
 
+  private HistoryAction resolvePendingHistoryCommand(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return null;
+    UUID actorId = actor.getUniqueId();
+    PendingHistoryCommand command = pendingHistoryCommands.get(actorId);
+    if (command == null) return null;
+    long now = System.currentTimeMillis();
+    if (now - command.timestampMs() > HISTORY_COMMAND_TTL_MS) {
+      pendingHistoryCommands.remove(actorId);
+      return null;
+    }
+    consumeHistoryCommand(actorId, command);
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent(
+          "we history restore armed action=" + command.action().name().toLowerCase(Locale.ROOT),
+          NamedTextColor.DARK_GREEN);
+    }
+    return command.action();
+  }
+
+  private void consumeHistoryCommand(UUID actorId, PendingHistoryCommand command) {
+    if (actorId == null || command == null) return;
+    if (command.usesRemaining() <= 1) {
+      pendingHistoryCommands.remove(actorId, command);
+      return;
+    }
+    pendingHistoryCommands.replace(actorId, command, command.consume());
+  }
+
+  private PendingMovePatch resolvePendingMovePatch(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return null;
+    UUID actorId = actor.getUniqueId();
+    PendingMovePatch patch = pendingMovePatches.get(actorId);
+    if (patch == null) return null;
+    long now = System.currentTimeMillis();
+    if (now - patch.timestampMs() > MOVE_COMMAND_TTL_MS) {
+      pendingMovePatches.remove(actorId);
+      return null;
+    }
+    if (patch.usesRemaining() <= 1) {
+      pendingMovePatches.remove(actorId, patch);
+    } else {
+      pendingMovePatches.replace(actorId, patch, patch.consume());
+    }
+    return patch;
+  }
+
   private PendingClipboardPatch captureClipboardPatch(Actor actor) {
-    if (actor == null) return null;
+    Map<BlockVector3, LinCompoundTag> markers = captureSelectionMarkers(actor);
+    if (markers.isEmpty()) {
+      return null;
+    }
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent("we clipboard capture markers=" + markers.size(), NamedTextColor.BLUE);
+    }
+    return new PendingClipboardPatch(markers);
+  }
+
+  private PendingMovePatch captureMovePatch(Actor actor, String command, Player player) {
+    BlockVector3 vector = parseMoveVector(command, player);
+    if (vector.equals(BlockVector3.at(0, 0, 0))) {
+      return null;
+    }
+    Map<BlockVector3, LinCompoundTag> markers = captureSelectionMarkers(actor);
+    if (markers.isEmpty()) {
+      return null;
+    }
+    Map<Long, MarkerSnapshot> destinationMarkers = new HashMap<>();
+    for (Map.Entry<BlockVector3, LinCompoundTag> entry : markers.entrySet()) {
+      MarkerSnapshot snapshot = parseSnapshot(entry.getValue());
+      if (snapshot == null) {
+        continue;
+      }
+      BlockVector3 destination = entry.getKey().add(vector);
+      destinationMarkers.put(blockKey(destination.x(), destination.y(), destination.z()), snapshot);
+    }
+    if (destinationMarkers.isEmpty()) {
+      return null;
+    }
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent(
+          "we move sidecar markers="
+              + destinationMarkers.size()
+              + " offset="
+              + vector.x()
+              + ","
+              + vector.y()
+              + ","
+              + vector.z(),
+          NamedTextColor.DARK_GREEN);
+    }
+    return new PendingMovePatch(destinationMarkers, vector, System.currentTimeMillis(), 3);
+  }
+
+  private Map<BlockVector3, LinCompoundTag> captureSelectionMarkers(Actor actor) {
+    if (actor == null) return Map.of();
     LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
     com.sk89q.worldedit.world.World weWorld = session.getSelectionWorld();
     if (weWorld == null && actor instanceof com.sk89q.worldedit.entity.Player player) {
       weWorld = player.getWorld();
     }
-    if (weWorld == null) return null;
+    if (weWorld == null) return Map.of();
     World world = Bukkit.getWorld(weWorld.getName());
-    if (world == null) return null;
+    if (world == null) return Map.of();
     Region region;
     try {
       region = session.getSelection(weWorld).clone();
     } catch (IncompleteRegionException e) {
-      return null;
+      return Map.of();
     }
     Map<BlockVector3, LinCompoundTag> markers = new HashMap<>();
     BlockVector3 min = region.getMinimumPoint();
@@ -650,14 +966,7 @@ public final class WorldEditBridge implements Listener {
             });
       }
     }
-    if (markers.isEmpty()) {
-      return null;
-    }
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
-    if (debug != null && debug.isEnabled()) {
-      debug.recordEvent("we clipboard capture markers=" + markers.size(), NamedTextColor.BLUE);
-    }
-    return new PendingClipboardPatch(markers);
+    return markers;
   }
 
   private void scheduleClipboardPatch(Actor actor, PendingClipboardPatch patch) {
@@ -743,6 +1052,13 @@ public final class WorldEditBridge implements Listener {
 
   private void enqueue(MarkerUpdate update) {
     if (update == null) return;
+    operationStorageSeenMs.put(update.operationId(), System.currentTimeMillis());
+    String removedStorageId = update.removedStorageId();
+    if (removedStorageId != null && !removedStorageId.isBlank()) {
+      operationRemovedStorageIds
+          .computeIfAbsent(update.operationId(), ignored -> ConcurrentHashMap.newKeySet())
+          .add(removedStorageId);
+    }
     updates.add(new PendingUpdate(update));
     WorldEditDebugService debug = plugin.getWorldEditDebugService();
     if (debug != null && debug.isEnabled()) {
@@ -752,6 +1068,7 @@ public final class WorldEditBridge implements Listener {
 
   private void flushUpdates() {
     if (updates.isEmpty()) return;
+    purgeOperationStorageState(System.currentTimeMillis());
     Map<ChunkKey, ChunkUpdateBatch> batches = new HashMap<>();
     int processed = 0;
     tickCounter++;
@@ -773,18 +1090,10 @@ public final class WorldEditBridge implements Listener {
     }
     if (batches.isEmpty()) return;
 
-    DisplayRefreshService refreshService = plugin.getDisplayRefreshService();
-    BusService busService = plugin.getBusService();
     NetworkGraphCache graphCache = plugin.getNetworkGraphCache();
-    DisplayCleanupService cleanupService =
-        new DisplayCleanupService(
-            plugin,
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier(),
-            plugin.getTerminalCarrier(),
-            plugin.getMonitorCarrier(),
-            plugin.getBusCarrier());
-    boolean invalidated = false;
+    Map<Long, Set<String>> removedStorageIdsByOperation = removedStorageIdsByOperation(batches);
+    Set<ChunkKey> changedChunks = new HashSet<>();
+    Set<BlockRef> networkRefreshStarts = new HashSet<>();
     for (ChunkUpdateBatch batch : batches.values()) {
       World world = Bukkit.getWorld(batch.key.worldId());
       if (world == null) {
@@ -795,21 +1104,36 @@ public final class WorldEditBridge implements Listener {
         requeueBatch(batch);
         continue;
       }
-      Set<String> removedStorageIds = new HashSet<>();
-      for (PendingUpdate pending : batch.updates) {
-        String removedId = pending.update.removedStorageId();
-        if (removedId != null && !removedId.isBlank()) {
-          removedStorageIds.add(removedId);
-        }
-      }
-      Chunk chunk = world.getChunkAt(batch.key.chunkX(), batch.key.chunkZ());
-      Set<Block> networkRefreshStarts = new HashSet<>();
-      for (PendingUpdate pending : batch.updates) {
+      Iterable<PendingUpdate> updatesToApply = coalesceByBlock(batch.updates);
+      for (PendingUpdate pending : updatesToApply) {
         MarkerUpdate update = pending.update;
         MarkerSnapshot snapshot = update.snapshot();
         if (snapshot != null && snapshot.storage() != null && !update.storageCloneReady()) {
           String storageId = snapshot.storage().storageId();
-          if (storageId != null && !removedStorageIds.contains(storageId)) {
+          Set<String> removedStorageIds =
+              removedStorageIdsByOperation.getOrDefault(update.operationId(), Set.of());
+          boolean moveStorage =
+              storageId != null
+                  && (update.moveOperation() || removedStorageIds.contains(storageId));
+          if (moveStorage) {
+            WorldEditDebugService debug = plugin.getWorldEditDebugService();
+            if (debug != null && debug.isFull()) {
+              debug.recordEvent(
+                  "we storage move operation="
+                      + update.operationId()
+                      + " pos="
+                      + update.x()
+                      + ","
+                      + update.y()
+                      + ","
+                      + update.z()
+                      + " storage="
+                      + storageId
+                      + " reason="
+                      + (update.moveOperation() ? "command" : "removed"),
+                  NamedTextColor.DARK_GREEN);
+            }
+          } else if (storageId != null) {
             String newId = UUID.randomUUID().toString();
             var storageManager = plugin.getStorageManager();
             if (storageManager == null) {
@@ -828,13 +1152,32 @@ public final class WorldEditBridge implements Listener {
             MarkerSnapshot clonedSnapshot = withStorageId(snapshot, newId);
             MarkerUpdate clonedUpdate =
                 new MarkerUpdate(
+                    update.operationId(),
                     update.worldId(),
                     update.x(),
                     update.y(),
                     update.z(),
                     clonedSnapshot,
                     null,
-                    true);
+                    true,
+                    false);
+            WorldEditDebugService debug = plugin.getWorldEditDebugService();
+            if (debug != null && debug.isFull()) {
+              debug.recordEvent(
+                  "we storage clone operation="
+                      + update.operationId()
+                      + " pos="
+                      + update.x()
+                      + ","
+                      + update.y()
+                      + ","
+                      + update.z()
+                      + " source="
+                      + storageId
+                      + " target="
+                      + newId,
+                  NamedTextColor.LIGHT_PURPLE);
+            }
             storageManager
                 .cloneStorage(storageId, newId, snapshot.storage().tier())
                 .whenComplete(
@@ -868,26 +1211,152 @@ public final class WorldEditBridge implements Listener {
           if (debug != null && debug.isEnabled()) {
             debug.incUpdatesApplied();
           }
+          changedChunks.add(batch.key);
           if (shouldRefreshWireNetworkAfterUpdate(update)) {
-            networkRefreshStarts.add(world.getBlockAt(update.x(), update.y(), update.z()));
+            networkRefreshStarts.add(
+                new BlockRef(update.worldId(), update.x(), update.y(), update.z()));
           }
         }
       }
+    }
+    if (!changedChunks.isEmpty()) {
+      refreshAffectedChunks(changedChunks, networkRefreshStarts, "immediate");
+      scheduleDeferredRefresh(changedChunks, networkRefreshStarts);
+    }
+    if (!changedChunks.isEmpty() && graphCache != null) {
+      graphCache.invalidateAll();
+    }
+  }
+
+  private DisplayCleanupService newDisplayCleanupService() {
+    return new DisplayCleanupService(
+        plugin,
+        plugin.getWireMaterial(),
+        plugin.getStorageCarrier(),
+        plugin.getTerminalCarrier(),
+        plugin.getMonitorCarrier(),
+        plugin.getBusCarrier());
+  }
+
+  private void refreshAffectedChunks(
+      Set<ChunkKey> chunkKeys, Set<BlockRef> networkRefreshStarts, String reason) {
+    if (chunkKeys == null || chunkKeys.isEmpty()) {
+      return;
+    }
+    DisplayRefreshService refreshService = plugin.getDisplayRefreshService();
+    BusService busService = plugin.getBusService();
+    DisplayCleanupService cleanupService = newDisplayCleanupService();
+    int refreshedChunks = 0;
+    for (ChunkKey key : chunkKeys) {
+      World world = Bukkit.getWorld(key.worldId());
+      if (world == null || !world.isChunkLoaded(key.chunkX(), key.chunkZ())) {
+        continue;
+      }
+      Chunk chunk = world.getChunkAt(key.chunkX(), key.chunkZ());
       cleanupService.cleanupDisplays(chunk);
       if (refreshService != null) {
         refreshService.refreshChunk(chunk);
-        for (Block start : networkRefreshStarts) {
-          refreshService.refreshNetworkFrom(start);
-        }
       }
       if (busService != null) {
         busService.scanChunk(chunk);
       }
-      invalidated = true;
+      refreshedChunks++;
     }
-    if (invalidated && graphCache != null) {
-      graphCache.invalidateAll();
+    if (refreshService != null && networkRefreshStarts != null) {
+      for (BlockRef ref : networkRefreshStarts) {
+        Block block = ref.block();
+        if (block == null) {
+          continue;
+        }
+        refreshService.refreshNetworkFrom(block);
+      }
     }
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isFull()) {
+      debug.recordEvent(
+          "we refresh pass reason="
+              + reason
+              + " chunks="
+              + refreshedChunks
+              + " starts="
+              + (networkRefreshStarts == null ? 0 : networkRefreshStarts.size()),
+          NamedTextColor.BLUE);
+    }
+  }
+
+  private void scheduleDeferredRefresh(
+      Set<ChunkKey> chunkKeys, Set<BlockRef> networkRefreshStarts) {
+    Set<ChunkKey> chunks = Set.copyOf(chunkKeys);
+    Set<BlockRef> starts =
+        networkRefreshStarts == null || networkRefreshStarts.isEmpty()
+            ? Set.of()
+            : Set.copyOf(networkRefreshStarts);
+    for (long delay : DEFERRED_REFRESH_DELAYS_TICKS) {
+      try {
+        Bukkit.getScheduler()
+            .runTaskLater(
+                plugin,
+                () -> {
+                  if (!plugin.isEnabled()) {
+                    return;
+                  }
+                  refreshAffectedChunks(chunks, starts, "deferred_" + delay + "t");
+                },
+                delay);
+      } catch (RuntimeException ignored) {
+        // The plugin may be disabling while a WorldEdit flush finishes.
+      }
+    }
+  }
+
+  private Map<Long, Set<String>> removedStorageIdsByOperation(
+      Map<ChunkKey, ChunkUpdateBatch> batches) {
+    Map<Long, Set<String>> removedStorageIdsByOperation = new HashMap<>();
+    for (ChunkUpdateBatch batch : batches.values()) {
+      for (PendingUpdate pending : batch.updates) {
+        MarkerUpdate update = pending.update;
+        Set<String> knownRemoved = operationRemovedStorageIds.get(update.operationId());
+        if (knownRemoved != null && !knownRemoved.isEmpty()) {
+          removedStorageIdsByOperation
+              .computeIfAbsent(update.operationId(), ignored -> new HashSet<>())
+              .addAll(knownRemoved);
+        }
+        String removedId = update.removedStorageId();
+        if (removedId != null && !removedId.isBlank()) {
+          removedStorageIdsByOperation
+              .computeIfAbsent(update.operationId(), ignored -> new HashSet<>())
+              .add(removedId);
+        }
+      }
+    }
+    return removedStorageIdsByOperation;
+  }
+
+  private void purgeOperationStorageState(long nowMs) {
+    for (Map.Entry<Long, Long> entry : operationStorageSeenMs.entrySet()) {
+      long lastSeenMs = entry.getValue();
+      if (nowMs - lastSeenMs <= OPERATION_STORAGE_TTL_MS) {
+        continue;
+      }
+      long operationId = entry.getKey();
+      if (operationStorageSeenMs.remove(operationId, lastSeenMs)) {
+        operationRemovedStorageIds.remove(operationId);
+      }
+    }
+  }
+
+  private static Iterable<PendingUpdate> coalesceByBlock(Iterable<PendingUpdate> pendingUpdates) {
+    Map<Long, PendingUpdate> latest = new LinkedHashMap<>();
+    for (PendingUpdate pending : pendingUpdates) {
+      if (pending == null || pending.update == null) {
+        continue;
+      }
+      MarkerUpdate update = pending.update;
+      long key = blockKey(update.x(), update.y(), update.z());
+      latest.remove(key);
+      latest.put(key, pending);
+    }
+    return latest.values();
   }
 
   private void requeueBatch(ChunkUpdateBatch batch) {
@@ -912,15 +1381,7 @@ public final class WorldEditBridge implements Listener {
     Block block = world.getBlockAt(update.x(), update.y(), update.z());
     MarkerSnapshot snapshot = update.snapshot();
     if (snapshot == null) {
-      ItemHologramManager hologramManager = plugin.getHologramManager();
-      if (hologramManager != null) {
-        if (StorageMarker.get(plugin, block).isPresent()) {
-          hologramManager.unregisterStorage(block);
-        }
-        if (TerminalMarker.isTerminal(plugin, block)) {
-          hologramManager.unregisterTerminal(block);
-        }
-      }
+      removeExistingBlockState(block);
       ChunkMarkerStore.clearBlock(plugin, block);
       return true;
     }
@@ -943,15 +1404,19 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.wire() && !Carriers.matchesCarrier(block, plugin.getWireMaterial())) {
       return false;
     }
+    removeExistingBlockState(block);
     ChunkMarkerStore.clearBlock(plugin, block);
     if (snapshot.storage() != null && Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
       StorageTier tier = StorageTier.fromString(snapshot.storage().tier()).orElse(null);
       if (tier != null) {
-        StorageMarker.set(
-            plugin, block, snapshot.storage().storageId(), tier, parseFacing(snapshot.storage()));
+        String storageId = snapshot.storage().storageId();
+        StorageMarker.set(plugin, block, storageId, tier, parseFacing(snapshot.storage()));
         ItemHologramManager hologramManager = plugin.getHologramManager();
         if (hologramManager != null) {
           hologramManager.registerStorage(block);
+        }
+        if (update.moveOperation()) {
+          updateMovedStorageLocation(storageId, block);
         }
       }
     }
@@ -1001,10 +1466,48 @@ public final class WorldEditBridge implements Listener {
     return true;
   }
 
+  private void removeExistingBlockState(Block block) {
+    DisplayRefreshService displayRefreshService = plugin.getDisplayRefreshService();
+    if (displayRefreshService != null) {
+      displayRefreshService.removeBlockDisplays(block);
+    }
+    ItemHologramManager hologramManager = plugin.getHologramManager();
+    if (hologramManager != null) {
+      if (StorageMarker.get(plugin, block).isPresent() || StorageCoreMarker.isCore(plugin, block)) {
+        hologramManager.unregisterStorage(block);
+      }
+      if (TerminalMarker.isTerminal(plugin, block)) {
+        hologramManager.unregisterTerminal(block);
+      }
+    }
+    if (BusMarker.isBus(plugin, block) && plugin.getBusService() != null) {
+      plugin.getBusService().unregisterBus(block);
+    }
+  }
+
+  private void updateMovedStorageLocation(String storageId, Block block) {
+    if (storageId == null || storageId.isBlank() || block == null || block.getWorld() == null) {
+      return;
+    }
+    plugin
+        .getDatabase()
+        .updatePlayerLastStorageLocation(
+            storageId, block.getWorld().getName(), block.getX(), block.getY(), block.getZ())
+        .whenComplete(
+            (ignored, err) -> {
+              if (err != null) {
+                plugin
+                    .getLogger()
+                    .log(
+                        Level.WARNING,
+                        "Failed to update moved WorldEdit storage location for " + storageId,
+                        unwrap(err));
+              }
+            });
+  }
+
   private static boolean shouldRefreshWireNetworkAfterUpdate(MarkerUpdate update) {
-    if (update == null) return false;
-    MarkerSnapshot snapshot = update.snapshot();
-    return snapshot == null || !snapshot.wire();
+    return update != null;
   }
 
   private static TerminalKind parseTerminalKind(TerminalData data) {
@@ -1135,7 +1638,69 @@ public final class WorldEditBridge implements Listener {
       exort.put(SECTION_WIRE, wireTag.build());
       any = true;
     }
-    return any ? exort.build() : null;
+    if (!any) return null;
+    LinCompoundTag tag = exort.build();
+    MarkerSnapshot snapshot = parseSnapshot(tag);
+    if (snapshot == null) return null;
+    if (matchesWorldCarrier(block, snapshot) && primaryMarkerCount(snapshot) == 1) {
+      return tag;
+    }
+    boolean cleared = false;
+    if (!isCarrierCandidate(block)) {
+      ChunkMarkerStore.clearBlock(plugin, block);
+      cleared = true;
+    }
+    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    if (debug != null && debug.isFull()) {
+      debug.recordEvent(
+          "we snapshot stale pos="
+              + block.getX()
+              + ","
+              + block.getY()
+              + ","
+              + block.getZ()
+              + " base="
+              + block.getType().getKey()
+              + " sections="
+              + snapshotSections(snapshot)
+              + " action="
+              + (cleared ? "clear" : "skip"),
+          cleared ? NamedTextColor.RED : NamedTextColor.GOLD);
+    }
+    return null;
+  }
+
+  private boolean matchesWorldCarrier(Block block, MarkerSnapshot snapshot) {
+    if (block == null || snapshot == null) return false;
+    if (snapshot.storage() != null && !Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+      return false;
+    }
+    if (snapshot.storageCore() && !Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+      return false;
+    }
+    if (snapshot.terminal() != null
+        && !Carriers.matchesCarrier(block, plugin.getTerminalCarrier())) {
+      return false;
+    }
+    if (snapshot.monitor() != null && !Carriers.matchesCarrier(block, plugin.getMonitorCarrier())) {
+      return false;
+    }
+    if (snapshot.bus() != null && !Carriers.matchesCarrier(block, plugin.getBusCarrier())) {
+      return false;
+    }
+    return !snapshot.wire() || Carriers.matchesCarrier(block, plugin.getWireMaterial());
+  }
+
+  private boolean isCarrierCandidate(Block block) {
+    if (block == null) return false;
+    Material type = block.getType();
+    return type == plugin.getStorageCarrier()
+        || type == plugin.getTerminalCarrier()
+        || type == plugin.getMonitorCarrier()
+        || type == plugin.getBusCarrier()
+        || type == plugin.getWireMaterial()
+        || type == Carriers.CARRIER_BARRIER
+        || type == Carriers.CHORUS_MATERIAL;
   }
 
   private static LinCompoundTag buildExortTag(MarkerSnapshot snapshot) {
@@ -1313,12 +1878,50 @@ public final class WorldEditBridge implements Listener {
     return new MarkerSnapshot(storage, terminal, bus, monitor, wire, storageCore);
   }
 
+  private static int primaryMarkerCount(MarkerSnapshot snapshot) {
+    if (snapshot == null) return 0;
+    int count = 0;
+    if (snapshot.storage() != null) count++;
+    if (snapshot.storageCore()) count++;
+    if (snapshot.terminal() != null) count++;
+    if (snapshot.bus() != null) count++;
+    if (snapshot.monitor() != null) count++;
+    if (snapshot.wire()) count++;
+    return count;
+  }
+
+  private static String snapshotSections(MarkerSnapshot snapshot) {
+    if (snapshot == null) return "none";
+    StringBuilder sections = new StringBuilder();
+    appendSection(sections, snapshot.storage() != null, SECTION_STORAGE);
+    appendSection(sections, snapshot.storageCore(), SECTION_STORAGE_CORE);
+    appendSection(sections, snapshot.terminal() != null, SECTION_TERMINAL);
+    appendSection(sections, snapshot.bus() != null, SECTION_BUS);
+    appendSection(sections, snapshot.monitor() != null, SECTION_MONITOR);
+    appendSection(sections, snapshot.wire(), SECTION_WIRE);
+    return sections.isEmpty() ? "none" : sections.toString();
+  }
+
+  private static void appendSection(StringBuilder builder, boolean present, String section) {
+    if (!present) return;
+    if (!builder.isEmpty()) {
+      builder.append(',');
+    }
+    builder.append(section);
+  }
+
   private static final class MarkerExtent extends AbstractDelegateExtent {
     private final World world;
     private final WorldEditBridge bridge;
+    private final long operationId;
+    private final UUID actorId;
+    private final HistoryAction historyAction;
     private final FacingTransform facingTransform;
     private final PendingPastePatch pastePatch;
+    private final PendingMovePatch movePatch;
+    private final boolean moveOperation;
     private final Map<ChunkKey, ChunkSnapshot> snapshots = new ConcurrentHashMap<>();
+    private final Set<Long> rememberedHistory = ConcurrentHashMap.newKeySet();
     private final Map<BaseBlock, MarkerSnapshot> carried =
         Collections.synchronizedMap(new IdentityHashMap<>());
 
@@ -1326,12 +1929,21 @@ public final class WorldEditBridge implements Listener {
         Extent extent,
         World world,
         WorldEditBridge bridge,
+        long operationId,
+        UUID actorId,
+        HistoryAction historyAction,
         FacingTransform clipboardTransform,
-        PendingPastePatch pastePatch) {
+        PendingPastePatch pastePatch,
+        PendingMovePatch movePatch) {
       super(extent);
       this.world = world;
       this.bridge = bridge;
+      this.operationId = operationId;
+      this.actorId = actorId;
+      this.historyAction = historyAction;
       this.pastePatch = pastePatch;
+      this.movePatch = movePatch;
+      this.moveOperation = movePatch != null;
       Transform transform = resolveTransform(extent);
       this.facingTransform =
           clipboardTransform != null
@@ -1393,6 +2005,7 @@ public final class WorldEditBridge implements Listener {
       LinCompoundTag exort = readExort(root);
       MarkerSnapshot parsed = parseSnapshot(exort);
       boolean fromClipboard = parsed != null;
+      String markerSource = parsed != null ? "nbt" : "none";
       boolean carriedHit = false;
       if (parsed == null && base != null) {
         parsed = carried.remove(base);
@@ -1400,6 +2013,7 @@ public final class WorldEditBridge implements Listener {
           exort = buildExortTag(parsed);
           fromClipboard = true;
           carriedHit = true;
+          markerSource = "carried";
         }
       }
       boolean sidecarHit = false;
@@ -1410,12 +2024,7 @@ public final class WorldEditBridge implements Listener {
           exort = buildExortTag(parsed);
           fromClipboard = true;
           sidecarHit = true;
-        }
-      }
-      if (parsed == null && existingSnapshot != null && base != null) {
-        if (matchesCarrier(base, existingSnapshot)) {
-          parsed = existingSnapshot;
-          exort = existingTag;
+          markerSource = "paste_sidecar";
         }
       }
       if (parsed != null && fromClipboard && facingTransform != null) {
@@ -1423,6 +2032,30 @@ public final class WorldEditBridge implements Listener {
         exort = buildExortTag(parsed);
       }
       boolean markerPresent = existingTag != null;
+      boolean historyHit = false;
+      if (parsed == null && base != null && actorId != null && historyAction != null) {
+        MarkerSnapshot history =
+            bridge.peekHistory(
+                actorId, historyAction, world.getUID(), resolved.x(), resolved.y(), resolved.z());
+        if (history != null && matchesCarrier(base, history)) {
+          bridge.consumeHistory(
+              actorId, historyAction, world.getUID(), resolved.x(), resolved.y(), resolved.z());
+          parsed = history;
+          exort = buildExortTag(parsed);
+          historyHit = true;
+          markerSource = historyAction == HistoryAction.REDO ? "redo_history" : "undo_history";
+        }
+      }
+      boolean moveHit = false;
+      if (parsed == null && base != null && movePatch != null) {
+        MarkerSnapshot moved = movePatch.get(resolved);
+        if (moved != null && matchesCarrier(base, moved)) {
+          parsed = moved;
+          exort = buildExortTag(parsed);
+          moveHit = true;
+          markerSource = "move_sidecar";
+        }
+      }
       WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
       if (debug != null && debug.isFull()) {
         String baseType = base == null ? "null" : base.getBlockType().getId();
@@ -1441,35 +2074,49 @@ public final class WorldEditBridge implements Listener {
                 + (exort != null)
                 + " parsed="
                 + (parsed != null)
+                + " source="
+                + markerSource
+                + " sections="
+                + snapshotSections(parsed)
                 + " carried="
                 + carriedHit
                 + " sidecar="
                 + sidecarHit
+                + " move="
+                + moveHit
+                + " commandMove="
+                + moveOperation
+                + " history="
+                + historyHit
+                + " historyAction="
+                + (historyAction == null ? "none" : historyAction.name().toLowerCase(Locale.ROOT))
                 + " markerPresent="
                 + markerPresent
                 + " fromClipboard="
-                + fromClipboard,
+                + fromClipboard
+                + " moveOffset="
+                + (movePatch == null ? "none" : movePatch.offsetText()),
             NamedTextColor.YELLOW);
-      }
-      if (parsed == null && !markerPresent && base != null) {
-        MarkerSnapshot history =
-            bridge.consumeHistory(world.getUID(), resolved.x(), resolved.y(), resolved.z());
-        if (history != null && matchesCarrier(base, history)) {
-          parsed = history;
-          exort = buildExortTag(parsed);
-          markerPresent = true;
-        }
       }
       if (parsed == null && !markerPresent) {
         return super.setBlock(position, block);
       }
       String removedStorageId = null;
-      if (parsed == null && existingSnapshot != null) {
-        if (existingSnapshot.storage() != null) {
+      if (existingSnapshot != null) {
+        boolean markerChanged = parsed == null || !existingSnapshot.equals(parsed);
+        if (markerChanged && existingSnapshot.storage() != null) {
           removedStorageId = existingSnapshot.storage().storageId();
         }
-        bridge.rememberHistory(
-            world.getUID(), resolved.x(), resolved.y(), resolved.z(), existingSnapshot);
+        if (rememberedHistory.add(key)) {
+          bridge.rememberHistory(
+              actorId,
+              historyAction,
+              world.getUID(),
+              resolved.x(),
+              resolved.y(),
+              resolved.z(),
+              existingSnapshot);
+        }
       }
       BaseBlock toSet = base;
       if (parsed != null) {
@@ -1506,20 +2153,17 @@ public final class WorldEditBridge implements Listener {
         }
       }
       if (result) {
-        if (parsed == null) {
-          snapshot.remove(key);
-        } else {
-          snapshot.put(key, exort);
-        }
         bridge.enqueue(
             new MarkerUpdate(
+                operationId,
                 world.getUID(),
                 resolved.x(),
                 resolved.y(),
                 resolved.z(),
                 parsed,
                 removedStorageId,
-                false));
+                false,
+                moveOperation));
       }
       return result;
     }
@@ -2323,21 +2967,108 @@ public final class WorldEditBridge implements Listener {
         snapshot.storageCore());
   }
 
-  private void rememberHistory(UUID worldId, int x, int y, int z, MarkerSnapshot snapshot) {
-    if (snapshot == null) return;
-    markerHistory.put(
-        new HistoryKey(worldId, x, y, z), new HistoryEntry(snapshot, System.currentTimeMillis()));
+  private void rememberHistory(
+      UUID actorId,
+      HistoryAction activeAction,
+      UUID worldId,
+      int x,
+      int y,
+      int z,
+      MarkerSnapshot snapshot) {
+    if (actorId == null || snapshot == null) return;
+    long now = System.currentTimeMillis();
+    HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
+    Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> targetHistory;
+    if (activeAction == HistoryAction.UNDO) {
+      targetHistory = redoMarkerHistory;
+    } else {
+      targetHistory = undoMarkerHistory;
+      if (activeAction == null) {
+        redoMarkerHistory.remove(key);
+      }
+    }
+    ConcurrentLinkedDeque<HistoryEntry> stack =
+        targetHistory.computeIfAbsent(key, ignored -> new ConcurrentLinkedDeque<>());
+    stack.addFirst(new HistoryEntry(snapshot, now));
+    pruneHistoryStack(targetHistory, key, stack, now);
   }
 
-  private MarkerSnapshot consumeHistory(UUID worldId, int x, int y, int z) {
-    HistoryKey key = new HistoryKey(worldId, x, y, z);
-    HistoryEntry entry = markerHistory.remove(key);
+  private MarkerSnapshot peekHistory(
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+    if (actorId == null || action == null) return null;
+    HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
+    HistoryEntry entry = peekValidHistory(historyFor(action), key);
     if (entry == null) return null;
-    long now = System.currentTimeMillis();
-    if (now - entry.timestampMs() > HISTORY_TTL_MS) {
-      return null;
-    }
     return entry.snapshot();
+  }
+
+  private MarkerSnapshot consumeHistory(
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+    if (actorId == null || action == null) return null;
+    HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
+    HistoryEntry entry = pollValidHistory(historyFor(action), key);
+    if (entry == null) return null;
+    return entry.snapshot();
+  }
+
+  private Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> historyFor(HistoryAction action) {
+    return action == HistoryAction.REDO ? redoMarkerHistory : undoMarkerHistory;
+  }
+
+  private HistoryEntry peekValidHistory(
+      Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history, HistoryKey key) {
+    Deque<HistoryEntry> stack = history.get(key);
+    if (stack == null) return null;
+    long now = System.currentTimeMillis();
+    while (true) {
+      HistoryEntry entry = stack.peekFirst();
+      if (entry == null) {
+        history.remove(key, stack);
+        return null;
+      }
+      if (now - entry.timestampMs() <= HISTORY_TTL_MS) {
+        return entry;
+      }
+      stack.pollFirst();
+    }
+  }
+
+  private HistoryEntry pollValidHistory(
+      Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history, HistoryKey key) {
+    Deque<HistoryEntry> stack = history.get(key);
+    if (stack == null) return null;
+    long now = System.currentTimeMillis();
+    while (true) {
+      HistoryEntry entry = stack.pollFirst();
+      if (entry == null) {
+        history.remove(key, stack);
+        return null;
+      }
+      if (stack.isEmpty()) {
+        history.remove(key, stack);
+      }
+      if (now - entry.timestampMs() <= HISTORY_TTL_MS) {
+        return entry;
+      }
+    }
+  }
+
+  private void pruneHistoryStack(
+      Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history,
+      HistoryKey key,
+      Deque<HistoryEntry> stack,
+      long now) {
+    while (true) {
+      HistoryEntry entry = stack.peekLast();
+      if (entry == null) {
+        history.remove(key, stack);
+        return;
+      }
+      if (stack.size() <= HISTORY_STACK_LIMIT && now - entry.timestampMs() <= HISTORY_TTL_MS) {
+        return;
+      }
+      stack.pollLast();
+    }
   }
 
   private static String rotateFacing(String facing, FacingTransform transform) {
@@ -2402,6 +3133,11 @@ public final class WorldEditBridge implements Listener {
     BlockFace apply(BlockFace face);
   }
 
+  private enum HistoryAction {
+    UNDO,
+    REDO
+  }
+
   private record MarkerSnapshot(
       StorageData storage,
       TerminalData terminal,
@@ -2423,6 +3159,12 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
+  private record PendingHistoryCommand(HistoryAction action, long timestampMs, int usesRemaining) {
+    PendingHistoryCommand consume() {
+      return new PendingHistoryCommand(action, timestampMs, usesRemaining - 1);
+    }
+  }
+
   private record PendingPastePatch(Map<Long, MarkerSnapshot> destinationMarkers) {
     private PendingPastePatch {
       destinationMarkers = destinationMarkers == null ? Map.of() : Map.copyOf(destinationMarkers);
@@ -2431,6 +3173,30 @@ public final class WorldEditBridge implements Listener {
     MarkerSnapshot get(BlockVector3 position) {
       if (position == null) return null;
       return destinationMarkers.get(blockKey(position.x(), position.y(), position.z()));
+    }
+  }
+
+  private record PendingMovePatch(
+      Map<Long, MarkerSnapshot> destinationMarkers,
+      BlockVector3 offset,
+      long timestampMs,
+      int usesRemaining) {
+    private PendingMovePatch {
+      destinationMarkers = destinationMarkers == null ? Map.of() : Map.copyOf(destinationMarkers);
+      offset = offset == null ? BlockVector3.at(0, 0, 0) : offset;
+    }
+
+    PendingMovePatch consume() {
+      return new PendingMovePatch(destinationMarkers, offset, timestampMs, usesRemaining - 1);
+    }
+
+    MarkerSnapshot get(BlockVector3 position) {
+      if (position == null) return null;
+      return destinationMarkers.get(blockKey(position.x(), position.y(), position.z()));
+    }
+
+    String offsetText() {
+      return offset.x() + "," + offset.y() + "," + offset.z();
     }
   }
 
@@ -2460,24 +3226,36 @@ public final class WorldEditBridge implements Listener {
     return state.with((Property) property, resolved);
   }
 
-  private record HistoryKey(UUID worldId, int x, int y, int z) {}
+  private record HistoryKey(UUID actorId, UUID worldId, int x, int y, int z) {}
 
   private record HistoryEntry(MarkerSnapshot snapshot, long timestampMs) {}
 
   private record MarkerUpdate(
+      long operationId,
       UUID worldId,
       int x,
       int y,
       int z,
       MarkerSnapshot snapshot,
       String removedStorageId,
-      boolean storageCloneReady) {
+      boolean storageCloneReady,
+      boolean moveOperation) {
     int chunkX() {
       return x >> 4;
     }
 
     int chunkZ() {
       return z >> 4;
+    }
+  }
+
+  private record BlockRef(UUID worldId, int x, int y, int z) {
+    Block block() {
+      World world = Bukkit.getWorld(worldId);
+      if (world == null || !world.isChunkLoaded(x >> 4, z >> 4)) {
+        return null;
+      }
+      return world.getBlockAt(x, y, z);
     }
   }
 
@@ -2494,11 +3272,11 @@ public final class WorldEditBridge implements Listener {
     private final Map<Long, LinCompoundTag> data;
 
     private ChunkSnapshot(Map<Long, LinCompoundTag> data) {
-      this.data = data;
+      this.data = data == null || data.isEmpty() ? Map.of() : Map.copyOf(data);
     }
 
     static ChunkSnapshot empty() {
-      return new ChunkSnapshot(new HashMap<>());
+      return new ChunkSnapshot(Map.of());
     }
 
     boolean isEmpty() {
@@ -2507,18 +3285,6 @@ public final class WorldEditBridge implements Listener {
 
     LinCompoundTag get(long key) {
       return data.get(key);
-    }
-
-    void put(long key, LinCompoundTag tag) {
-      if (tag == null) {
-        data.remove(key);
-      } else {
-        data.put(key, tag);
-      }
-    }
-
-    void remove(long key) {
-      data.remove(key);
     }
   }
 

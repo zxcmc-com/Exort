@@ -443,6 +443,34 @@ public class Database implements AutoCloseable {
         executor);
   }
 
+  public CompletableFuture<Void> updatePlayerLastStorageLocation(
+      String storageId, String world, int x, int y, int z) {
+    Objects.requireNonNull(storageId, "storageId");
+    Objects.requireNonNull(world, "world");
+    long now = Instant.now().getEpochSecond();
+    return CompletableFuture.runAsync(
+        () -> {
+          String sql =
+              "UPDATE players SET last_world = ?, last_x = ?, last_y = ?, last_z = ?, updated_at ="
+                  + " ? WHERE last_storage_id = ?";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, world);
+            ps.setInt(2, x);
+            ps.setInt(3, y);
+            ps.setInt(4, z);
+            ps.setLong(5, now);
+            ps.setString(6, storageId);
+            ps.executeUpdate();
+          } catch (SQLException e) {
+            plugin
+                .getLogger()
+                .log(Level.SEVERE, "Failed to update last storage location for " + storageId, e);
+            throw new CompletionException(e);
+          }
+        },
+        executor);
+  }
+
   public CompletableFuture<Optional<PlayerLastStorage>> getPlayerLastStorage(UUID playerId) {
     Objects.requireNonNull(playerId, "playerId");
     return CompletableFuture.supplyAsync(

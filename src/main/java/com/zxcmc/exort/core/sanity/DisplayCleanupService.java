@@ -21,10 +21,25 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
 
 public final class DisplayCleanupService {
+  private static final String TYPE_WIRE = "wire";
+  private static final String TYPE_STORAGE = "storage";
+  private static final String TYPE_TERMINAL = "terminal";
+  private static final String TYPE_MONITOR = "monitor";
+  private static final String TYPE_BUS = "bus";
+  private static final String TYPE_MONITOR_ITEM = "monitor_item";
+  private static final String TYPE_MONITOR_TEXT = "monitor_text";
   private static final String[] DISPLAY_TYPES =
       new String[] {
-        "wire", "storage", "terminal", "monitor", "bus", "monitor_item", "monitor_text"
+        TYPE_WIRE,
+        TYPE_STORAGE,
+        TYPE_TERMINAL,
+        TYPE_MONITOR,
+        TYPE_BUS,
+        TYPE_MONITOR_ITEM,
+        TYPE_MONITOR_TEXT
       };
+  private static final Set<String> MARKER_BACKED_DISPLAY_TYPES =
+      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS);
   private final ExortPlugin plugin;
   private final Material wireCarrier;
   private final Material storageCarrier;
@@ -82,20 +97,90 @@ public final class DisplayCleanupService {
         continue;
       }
       Block block = ent.getLocation().getBlock();
-      boolean keep =
-          (Carriers.matchesCarrier(block, wireCarrier) && WireMarker.isWire(plugin, block))
-              || (Carriers.matchesCarrier(block, storageCarrier)
-                  && (StorageMarker.get(plugin, block).isPresent()
-                      || StorageCoreMarker.isCore(plugin, block)))
-              || (Carriers.matchesCarrier(block, terminalCarrier)
-                  && TerminalMarker.isTerminal(plugin, block))
-              || (Carriers.matchesCarrier(block, monitorCarrier)
-                  && MonitorMarker.isMonitor(plugin, block))
-              || (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block));
+      if (isTaggedWireDisplay(tags)) {
+        if (!isValidWireBlock(block)) {
+          display.remove();
+        }
+        continue;
+      }
+      String markerBackedType = markerBackedDisplayType(tags);
+      if (markerBackedType != null) {
+        if (!isCurrentMarkerBackedDisplay(display, block, markerBackedType)) {
+          display.remove();
+        }
+        continue;
+      }
+      if (isUntypedDisplay(tags) && !isCurrentLegacyWireDisplay(display, block)) {
+        display.remove();
+        continue;
+      }
+      boolean keep = isValidAnyDisplayBlock(block);
       if (!keep) {
         display.remove();
       }
     }
+  }
+
+  private boolean isTaggedWireDisplay(Set<String> tags) {
+    return tags.contains(DisplayTags.WIRE_CENTER_TAG)
+        || tags.stream().anyMatch(tag -> tag.startsWith(DisplayTags.WIRE_CONNECTION_PREFIX));
+  }
+
+  private boolean isUntypedDisplay(Set<String> tags) {
+    return tags.contains(DisplayTags.DISPLAY_TAG) && !tags.contains(DisplayTags.HOLOGRAM_TAG);
+  }
+
+  private boolean isCurrentLegacyWireDisplay(Display display, Block block) {
+    if (!isValidWireBlock(block)) {
+      return false;
+    }
+    UUID expected = DisplayMarker.get(plugin, TYPE_WIRE, block).orElse(null);
+    return expected != null && expected.equals(display.getUniqueId());
+  }
+
+  private String markerBackedDisplayType(Set<String> tags) {
+    for (String type : MARKER_BACKED_DISPLAY_TYPES) {
+      if (tags.contains(type)) {
+        return type;
+      }
+    }
+    return null;
+  }
+
+  private boolean isCurrentMarkerBackedDisplay(Display display, Block block, String type) {
+    if (!isValidMarkerBackedBlock(block, type)) {
+      return false;
+    }
+    UUID expected = DisplayMarker.get(plugin, type, block).orElse(null);
+    return expected != null && expected.equals(display.getUniqueId());
+  }
+
+  private boolean isValidWireBlock(Block block) {
+    return Carriers.matchesCarrier(block, wireCarrier) && WireMarker.isWire(plugin, block);
+  }
+
+  private boolean isValidMarkerBackedBlock(Block block, String type) {
+    return switch (type) {
+      case TYPE_STORAGE ->
+          Carriers.matchesCarrier(block, storageCarrier)
+              && (StorageMarker.get(plugin, block).isPresent()
+                  || StorageCoreMarker.isCore(plugin, block));
+      case TYPE_TERMINAL ->
+          Carriers.matchesCarrier(block, terminalCarrier)
+              && TerminalMarker.isTerminal(plugin, block);
+      case TYPE_MONITOR ->
+          Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block);
+      case TYPE_BUS -> Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
+      default -> false;
+    };
+  }
+
+  private boolean isValidAnyDisplayBlock(Block block) {
+    return isValidWireBlock(block)
+        || isValidMarkerBackedBlock(block, TYPE_STORAGE)
+        || isValidMarkerBackedBlock(block, TYPE_TERMINAL)
+        || isValidMarkerBackedBlock(block, TYPE_MONITOR)
+        || isValidMarkerBackedBlock(block, TYPE_BUS);
   }
 
   private void loadMonitorDisplayIds(Chunk chunk, Set<UUID> monitorItems, Set<UUID> monitorTexts) {
@@ -103,8 +188,8 @@ public final class DisplayCleanupService {
         plugin,
         chunk,
         (block, root) -> {
-          DisplayMarker.get(plugin, "monitor_item", block).ifPresent(monitorItems::add);
-          DisplayMarker.get(plugin, "monitor_text", block).ifPresent(monitorTexts::add);
+          DisplayMarker.get(plugin, TYPE_MONITOR_ITEM, block).ifPresent(monitorItems::add);
+          DisplayMarker.get(plugin, TYPE_MONITOR_TEXT, block).ifPresent(monitorTexts::add);
         });
   }
 

@@ -45,8 +45,6 @@ public class WireDisplayManager {
   private static final int ALL_MASK = 0b11_1111;
   private static final Quaternionf MIRROR_Y_180 = new Quaternionf().rotateY((float) Math.PI);
   private static final List<Rotation> ROTATIONS = generateRotations();
-  private static final String TAG_WIRE_CENTER = "exort_wire_center";
-  private static final String TAG_WIRE_CONN_PREFIX = "exort_wire_conn_";
 
   private final Plugin plugin;
   private final boolean enabled;
@@ -271,9 +269,9 @@ public class WireDisplayManager {
     }
     int mask = connectionsMask(wire);
 
-    ItemDisplay center = findTaggedDisplay(wire, TAG_WIRE_CENTER);
+    ItemDisplay center = findTaggedDisplay(wire, DisplayTags.WIRE_CENTER_TAG);
     if (center == null || center.isDead()) {
-      center = spawnTaggedDisplay(wire, displayCenter, MIRROR_Y_180, TAG_WIRE_CENTER);
+      center = spawnTaggedDisplay(wire, displayCenter, MIRROR_Y_180, DisplayTags.WIRE_CENTER_TAG);
     } else {
       applySettings(center);
       applyModel(center, displayCenter);
@@ -283,7 +281,7 @@ public class WireDisplayManager {
 
     for (BlockFace face : FACES) {
       boolean connected = (mask & bit(face)) != 0;
-      String tag = TAG_WIRE_CONN_PREFIX + face.name().toLowerCase();
+      String tag = DisplayTags.WIRE_CONNECTION_PREFIX + face.name().toLowerCase();
       ItemDisplay display = findTaggedDisplay(wire, tag);
       if (!connected) {
         if (display != null && !display.isDead()) {
@@ -310,8 +308,8 @@ public class WireDisplayManager {
       var tags = display.getScoreboardTags();
       if (!tags.contains(DisplayTags.DISPLAY_TAG)) continue;
       if (!display.getLocation().getBlock().equals(wire)) continue;
-      if (tags.contains(TAG_WIRE_CENTER)
-          || tags.stream().anyMatch(tag -> tag.startsWith(TAG_WIRE_CONN_PREFIX))) {
+      if (tags.contains(DisplayTags.WIRE_CENTER_TAG)
+          || tags.stream().anyMatch(tag -> tag.startsWith(DisplayTags.WIRE_CONNECTION_PREFIX))) {
         display.remove();
       }
     }

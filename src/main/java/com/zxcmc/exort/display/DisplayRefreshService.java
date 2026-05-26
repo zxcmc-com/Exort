@@ -91,6 +91,21 @@ public final class DisplayRefreshService {
     }
   }
 
+  public void removeBlockDisplays(Block block) {
+    if (block == null) return;
+    removeWireDisplay(block);
+    removeStorageDisplay(block);
+    removeTerminalDisplay(block);
+    removeMonitorDisplay(block);
+    removeBusDisplay(block);
+  }
+
+  public void removeWireDisplay(Block block) {
+    if (wireDisplayManager != null) {
+      wireDisplayManager.removeWire(block);
+    }
+  }
+
   public void refreshNetworkFrom(Block block) {
     if (block == null || block.getWorld() == null) return;
     var wireMaterial = plugin.getWireMaterial();
