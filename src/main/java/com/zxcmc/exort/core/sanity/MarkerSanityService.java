@@ -82,7 +82,7 @@ public final class MarkerSanityService {
             skippedRoots[0]++;
             return;
           }
-          if (!state.matchesAnyConfiguredCarrier()) {
+          if (!state.validOrMigratableCarrier()) {
             clearImpossibleMarkerRoot(block, state);
             clearedRoots[0]++;
             return;
@@ -224,9 +224,15 @@ public final class MarkerSanityService {
     boolean hadMonitor = MonitorMarker.isMonitor(plugin, block);
     boolean hadBus = BusMarker.isBus(plugin, block);
     boolean hadWire = WireMarker.isWire(plugin, block);
-    boolean matchesCarrier = matchesAnyConfiguredCarrier(block);
+    boolean validOrMigratableCarrier = validOrMigratableCarrier(block, hadWire);
     return new MarkerRootState(
-        hadStorage, hadStorageCore, hadTerminal, hadMonitor, hadBus, hadWire, matchesCarrier);
+        hadStorage,
+        hadStorageCore,
+        hadTerminal,
+        hadMonitor,
+        hadBus,
+        hadWire,
+        validOrMigratableCarrier);
   }
 
   private void clearImpossibleMarkerRoot(Block block, MarkerRootState state) {
@@ -264,6 +270,26 @@ public final class MarkerSanityService {
         || Carriers.matchesCarrier(block, terminalCarrier)
         || Carriers.matchesCarrier(block, monitorCarrier)
         || Carriers.matchesCarrier(block, busCarrier);
+  }
+
+  private boolean validOrMigratableCarrier(Block block, boolean hadWire) {
+    return validOrMigratableCarrier(
+        matchesAnyConfiguredCarrier(block),
+        hadWire,
+        Carriers.isBarrier(block),
+        Carriers.isChorusCarrier(block));
+  }
+
+  static boolean validOrMigratableCarrier(
+      boolean matchesAnyConfiguredCarrier,
+      boolean hadWire,
+      boolean isBarrier,
+      boolean isFullChorus) {
+    return matchesAnyConfiguredCarrier || isMigratableWireCarrier(hadWire, isBarrier, isFullChorus);
+  }
+
+  static boolean isMigratableWireCarrier(boolean hadWire, boolean isBarrier, boolean isFullChorus) {
+    return hadWire && (isBarrier || isFullChorus);
   }
 
   private Throwable unwrap(Throwable err) {
@@ -386,7 +412,7 @@ public final class MarkerSanityService {
       boolean hadMonitor,
       boolean hadBus,
       boolean hadWire,
-      boolean matchesAnyConfiguredCarrier) {
+      boolean validOrMigratableCarrier) {
     boolean hasPrimaryMarker() {
       return hadStorage || hadStorageCore || hadTerminal || hadMonitor || hadBus || hadWire;
     }

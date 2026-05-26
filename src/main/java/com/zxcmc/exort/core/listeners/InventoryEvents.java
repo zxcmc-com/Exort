@@ -2,6 +2,7 @@ package com.zxcmc.exort.core.listeners;
 
 import com.zxcmc.exort.bus.BusSession;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.core.commands.ExortGiveMenu;
 import com.zxcmc.exort.gui.CraftingSession;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.gui.StorageSession;
@@ -25,6 +26,10 @@ public class InventoryEvents implements Listener {
 
   @EventHandler
   public void onClick(InventoryClickEvent event) {
+    if (event.getView().getTopInventory().getHolder() instanceof ExortGiveMenu menu) {
+      menu.handleClick(event);
+      return;
+    }
     if (event.getView().getTopInventory().getHolder() instanceof StorageSession session) {
       if (event.getWhoClicked() instanceof Player player) {
         sessionManager.clearPendingSearchIfParent(player, session);
@@ -72,6 +77,10 @@ public class InventoryEvents implements Listener {
 
   @EventHandler
   public void onDrag(InventoryDragEvent event) {
+    if (event.getView().getTopInventory().getHolder() instanceof ExortGiveMenu menu) {
+      menu.handleDrag(event);
+      return;
+    }
     if (!(event.getView().getTopInventory().getHolder() instanceof StorageSession
         || event.getView().getTopInventory().getHolder() instanceof CraftingSession
         || event.getView().getTopInventory().getHolder() instanceof BusSession)) {

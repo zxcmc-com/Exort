@@ -41,6 +41,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 
 public final class ExortBrigadier {
+  private static final String PERMISSION_ADMIN = "exort.storagenetwork.admin";
+  private static final String PERMISSION_GIVE = "exort.storagenetwork.give";
   private static final String ARG_PLAYER = "player";
   private static final String ARG_STORAGE_ID = "storageId";
   private static final String ARG_TIER = "tier";
@@ -66,7 +68,7 @@ public final class ExortBrigadier {
   public LiteralCommandNode<CommandSourceStack> build() {
     LiteralArgumentBuilder<CommandSourceStack> root =
         Commands.literal("exort")
-            .requires(source -> sender(source).hasPermission("exort.storagenetwork.admin"))
+            .requires(source -> hasAnyPermission(sender(source)))
             .executes(this::help);
     LiteralArgumentBuilder<CommandSourceStack> cacheVerbose =
         Commands.literal("cache")
@@ -140,6 +142,7 @@ public final class ExortBrigadier {
 
     LiteralArgumentBuilder<CommandSourceStack> debug =
         Commands.literal("debug")
+            .requires(source -> hasAdminPermission(sender(source)))
             .executes(this::usageDebug)
             .then(
                 Commands.literal("player")
@@ -195,7 +198,8 @@ public final class ExortBrigadier {
 
     root.then(
         Commands.literal("give")
-            .executes(this::usageGive)
+            .requires(source -> hasGivePermission(sender(source)))
+            .executes(this::openGiveMenu)
             .then(
                 Commands.argument(ARG_PLAYER, StringArgumentType.word())
                     .suggests(this::suggestPlayers)
@@ -305,10 +309,14 @@ public final class ExortBrigadier {
                                                 IntegerArgumentType.getInteger(
                                                     ctx, ARG_AMOUNT)))))));
 
-    root.then(Commands.literal("reload").executes(this::reload));
+    root.then(
+        Commands.literal("reload")
+            .requires(source -> hasAdminPermission(sender(source)))
+            .executes(this::reload));
 
     root.then(
         Commands.literal("lang")
+            .requires(source -> hasAdminPermission(sender(source)))
             .executes(this::usageLang)
             .then(Commands.literal("status").executes(this::langStatus))
             .then(
@@ -321,6 +329,7 @@ public final class ExortBrigadier {
 
     root.then(
         Commands.literal("mode")
+            .requires(source -> hasAdminPermission(sender(source)))
             .executes(this::usageMode)
             .then(Commands.literal("info").executes(this::modeInfo))
             .then(
@@ -339,6 +348,7 @@ public final class ExortBrigadier {
 
     root.then(
         Commands.literal("pack")
+            .requires(source -> hasAdminPermission(sender(source)))
             .executes(this::usagePack)
             .then(Commands.literal("status").executes(this::packStatus))
             .then(Commands.literal("rebuild").executes(this::packRebuild))
@@ -355,23 +365,33 @@ public final class ExortBrigadier {
                                         ctx,
                                         StringArgumentType.getString(ctx, ARG_PACK_TARGET))))));
 
-    root.then(Commands.literal("version").executes(this::version));
+    root.then(
+        Commands.literal("version")
+            .requires(source -> hasAdminPermission(sender(source)))
+            .executes(this::version));
 
     return root.build();
   }
 
   private int help(CommandContext<CommandSourceStack> context) {
-    if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
+    if (!hasAnyPermission(sender)) {
+      sendMessage(sender, plugin.getLang().tr("message.no_permission"));
+      return 0;
+    }
     Lang lang = plugin.getLang();
     sendMessage(sender, lang.tr("message.help_header"));
-    sendMessage(sender, lang.tr("message.help_debug", "exort"));
+    if (hasAdminPermission(sender)) {
+      sendMessage(sender, lang.tr("message.help_debug", "exort"));
+    }
     sendMessage(sender, lang.tr("message.help_give", "exort"));
-    sendMessage(sender, lang.tr("message.help_reload", "exort"));
-    sendMessage(sender, lang.tr("message.help_lang", "exort"));
-    sendMessage(sender, lang.tr("message.help_mode", "exort"));
-    sendMessage(sender, lang.tr("message.help_pack", "exort"));
-    sendMessage(sender, lang.tr("message.help_version", "exort"));
+    if (hasAdminPermission(sender)) {
+      sendMessage(sender, lang.tr("message.help_reload", "exort"));
+      sendMessage(sender, lang.tr("message.help_lang", "exort"));
+      sendMessage(sender, lang.tr("message.help_mode", "exort"));
+      sendMessage(sender, lang.tr("message.help_pack", "exort"));
+      sendMessage(sender, lang.tr("message.help_version", "exort"));
+    }
     return 1;
   }
 
@@ -526,8 +546,24 @@ public final class ExortBrigadier {
   }
 
   private int usageGive(CommandContext<CommandSourceStack> context) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     sendMessage(sender(context.getSource()), plugin.getLang().tr("message.give_usage"));
+    return 1;
+  }
+
+  private int openGiveMenu(CommandContext<CommandSourceStack> context) {
+    if (!ensureGivePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    if (!(sender instanceof Player player)) {
+      sendMessage(sender, plugin.getLang().tr("message.only_player"));
+      return 1;
+    }
+    try {
+      new ExortGiveMenu(plugin).open(player);
+    } catch (IllegalStateException e) {
+      ExortLog.log(plugin, Level.WARNING, "Failed to open Exort give menu", e);
+      sendMessage(sender, plugin.getLang().tr("message.operation_failed"));
+    }
     return 1;
   }
 
@@ -1097,7 +1133,7 @@ public final class ExortBrigadier {
   }
 
   private int giveStorage(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1124,7 +1160,7 @@ public final class ExortBrigadier {
   }
 
   private int giveStorageCore(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1145,7 +1181,7 @@ public final class ExortBrigadier {
   }
 
   private int giveTerminal(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1166,7 +1202,7 @@ public final class ExortBrigadier {
   }
 
   private int giveCraftingTerminal(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1187,7 +1223,7 @@ public final class ExortBrigadier {
   }
 
   private int giveMonitor(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1208,7 +1244,7 @@ public final class ExortBrigadier {
   }
 
   private int giveImportBus(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1229,7 +1265,7 @@ public final class ExortBrigadier {
   }
 
   private int giveExportBus(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1250,7 +1286,7 @@ public final class ExortBrigadier {
   }
 
   private int giveWire(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1270,7 +1306,7 @@ public final class ExortBrigadier {
   }
 
   private int giveWireless(CommandContext<CommandSourceStack> context, int amount) {
-    if (!ensurePermission(context)) return 0;
+    if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
@@ -1404,12 +1440,31 @@ public final class ExortBrigadier {
 
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
-    if (sender.hasPermission("exort.storagenetwork.admin")) return true;
+    if (hasAdminPermission(sender)) return true;
     sendMessage(sender, plugin.getLang().tr("message.no_permission"));
     return false;
   }
 
-  private CommandSender sender(CommandSourceStack source) {
+  private boolean ensureGivePermission(CommandContext<CommandSourceStack> context) {
+    CommandSender sender = sender(context.getSource());
+    if (hasGivePermission(sender)) return true;
+    sendMessage(sender, plugin.getLang().tr("message.no_permission"));
+    return false;
+  }
+
+  private static boolean hasAnyPermission(CommandSender sender) {
+    return hasGivePermission(sender);
+  }
+
+  private static boolean hasGivePermission(CommandSender sender) {
+    return hasAdminPermission(sender) || sender.hasPermission(PERMISSION_GIVE);
+  }
+
+  private static boolean hasAdminPermission(CommandSender sender) {
+    return sender.hasPermission(PERMISSION_ADMIN);
+  }
+
+  private static CommandSender sender(CommandSourceStack source) {
     return source.getSender();
   }
 }

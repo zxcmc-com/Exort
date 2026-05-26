@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.5 — 2026-05-26
+- Fixed realtime switching from RESOURCE to VANILLA so marked `CHORUS_PLANT` wires migrate to `BARRIER` carriers during the first `/exort mode set VANILLA` or `/exort reload`, instead of losing their marker until a second reload.
+- Added `exort.storagenetwork.give` for give-only staff access to `/exort give`, including the existing parameterized item-give command; `exort.storagenetwork.admin` includes it as a child permission.
+- Added `/exort give` as a single-page item menu for Exort admin items. The menu also accepts unwanted Exort custom items as trash, while protecting initialized storage items.
+- Added an enabled-by-default startup update check that compares the running plugin version with GitHub master `build.gradle`, logs available updates, confirms current versions, and stays silent on network or parsing failures.
+
 ## 0.11.4 — 2026-05-26
 - Fixed WorldEdit/FAWE overlap `//move` and repeated `//undo`/`//redo` handling so Exort markers from one edit no longer erase or overwrite marker state restored by another edit.
 - WorldEdit/FAWE `//move` now preserves original storage UUIDs and moved-storage last-location records, including multiple storages and cross-chunk moves; copy/paste storage operations still clone storage data.
