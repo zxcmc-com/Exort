@@ -57,6 +57,7 @@ import com.zxcmc.exort.core.sanity.ChunkSanityService;
 import com.zxcmc.exort.core.sanity.DisplayCleanupService;
 import com.zxcmc.exort.core.sanity.MarkerSanityService;
 import com.zxcmc.exort.core.ui.BossBarManager;
+import com.zxcmc.exort.core.update.UpdateChecker;
 import com.zxcmc.exort.core.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
@@ -176,6 +177,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     saveDefaultConfig();
     ConfigUpdater.update(this, "config.yml");
     reloadConfig();
+    new UpdateChecker(this).checkAsync();
     ensureStorageTiersFile();
     ensureRecipesFile();
     evaluateModePolicy();

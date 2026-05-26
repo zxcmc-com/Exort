@@ -39,9 +39,10 @@ public class Lang {
     put(
         defaultsEn,
         "message.give_usage",
-        "Usage: /exort give <player> storage <tier> [amount] | terminal [amount] |"
-            + " crafting_terminal [amount] | monitor [amount] | import_bus [amount] | export_bus"
-            + " [amount] | wire [amount] | storage_core [amount] | wireless_terminal [amount]");
+        "Usage: /exort give | /exort give <player> storage <tier> [amount] | terminal"
+            + " [amount] | crafting_terminal [amount] | monitor [amount] | import_bus [amount]"
+            + " | export_bus [amount] | wire [amount] | storage_core [amount] |"
+            + " wireless_terminal [amount]");
     put(defaultsEn, "message.give_unknown", "Unknown item type.");
     put(defaultsEn, "message.give_success", "Gave {0}x {1} to {2}.");
     put(
@@ -71,9 +72,10 @@ public class Lang {
     put(
         defaultsEn,
         "message.usage_give",
-        "Usage: /exort give <player> storage <tier> [amount] | terminal [amount] |"
-            + " crafting_terminal [amount] | monitor [amount] | import_bus [amount] | export_bus"
-            + " [amount] | wire [amount] | storage_core [amount] | wireless_terminal [amount]");
+        "Usage: /exort give | /exort give <player> storage <tier> [amount] | terminal"
+            + " [amount] | crafting_terminal [amount] | monitor [amount] | import_bus [amount]"
+            + " | export_bus [amount] | wire [amount] | storage_core [amount] |"
+            + " wireless_terminal [amount]");
     put(defaultsEn, "message.usage_reload", "Usage: /exort reload");
     put(defaultsEn, "message.unknown_subcommand", "Unknown subcommand.");
     put(defaultsEn, "message.help_header", "Exort commands:");
@@ -88,9 +90,10 @@ public class Lang {
     put(
         defaultsEn,
         "message.help_give",
-        "/{0} give <player> storage <tier> [amount] | terminal [amount] | crafting_terminal"
-            + " [amount] | monitor [amount] | import_bus [amount] | export_bus [amount] | wire"
-            + " [amount] | storage_core [amount] | wireless_terminal [amount] - give items");
+        "/{0} give - open item menu; /{0} give <player> storage <tier> [amount] | terminal"
+            + " [amount] | crafting_terminal [amount] | monitor [amount] | import_bus [amount]"
+            + " | export_bus [amount] | wire [amount] | storage_core [amount] |"
+            + " wireless_terminal [amount] - give items");
     put(defaultsEn, "message.help_reload", "/{0} reload - reload config and language");
     put(
         defaultsEn,
@@ -414,9 +417,10 @@ public class Lang {
     put(
         defaultsRu,
         "message.give_usage",
-        "Использование: /exort give <игрок> storage <tier> [кол-во] | terminal [кол-во] |"
-            + " crafting_terminal [кол-во] | monitor [кол-во] | import_bus [кол-во] | export_bus"
-            + " [кол-во] | wire [кол-во] | storage_core [кол-во] | wireless_terminal [кол-во]");
+        "Использование: /exort give | /exort give <игрок> storage <tier> [кол-во] |"
+            + " terminal [кол-во] | crafting_terminal [кол-во] | monitor [кол-во] | import_bus"
+            + " [кол-во] | export_bus [кол-во] | wire [кол-во] | storage_core [кол-во] |"
+            + " wireless_terminal [кол-во]");
     put(defaultsRu, "message.give_unknown", "Неизвестный тип предмета.");
     put(defaultsRu, "message.give_success", "Выдано {0}x {1} игроку {2}.");
     put(
@@ -461,9 +465,10 @@ public class Lang {
     put(
         defaultsRu,
         "message.usage_give",
-        "Использование: /exort give <игрок> storage <tier> [кол-во] | terminal [кол-во] |"
-            + " crafting_terminal [кол-во] | monitor [кол-во] | import_bus [кол-во] | export_bus"
-            + " [кол-во] | wire [кол-во] | storage_core [кол-во] | wireless_terminal [кол-во]");
+        "Использование: /exort give | /exort give <игрок> storage <tier> [кол-во] |"
+            + " terminal [кол-во] | crafting_terminal [кол-во] | monitor [кол-во] | import_bus"
+            + " [кол-во] | export_bus [кол-во] | wire [кол-во] | storage_core [кол-во] |"
+            + " wireless_terminal [кол-во]");
     put(defaultsRu, "message.usage_reload", "Использование: /exort reload");
     put(defaultsRu, "message.unknown_subcommand", "Неизвестная подкоманда.");
     put(defaultsRu, "message.help_header", "Команды Exort:");
@@ -478,9 +483,10 @@ public class Lang {
     put(
         defaultsRu,
         "message.help_give",
-        "/{0} give <игрок> storage <tier> [кол-во] | terminal [кол-во] | crafting_terminal [кол-во]"
-            + " | monitor [кол-во] | import_bus [кол-во] | export_bus [кол-во] | wire [кол-во]"
-            + " | storage_core [кол-во] | wireless_terminal [кол-во] - выдать предметы");
+        "/{0} give - открыть меню предметов; /{0} give <игрок> storage <tier> [кол-во] |"
+            + " terminal [кол-во] | crafting_terminal [кол-во] | monitor [кол-во] | import_bus"
+            + " [кол-во] | export_bus [кол-во] | wire [кол-во] | storage_core [кол-во] |"
+            + " wireless_terminal [кол-во] - выдать предметы");
     put(defaultsRu, "message.help_reload", "/{0} reload - перезагрузить конфиг и язык");
     put(defaultsRu, "message.help_lang", "/{0} lang status | /{0} lang refresh - словари языка");
     put(

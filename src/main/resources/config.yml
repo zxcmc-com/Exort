@@ -7,6 +7,11 @@ language: en_us
 # - RESOURCE: uses carriers with your custom models from a resource pack namespace.
 mode: RESOURCE
 
+# Check GitHub master build.gradle for a newer Exort version on startup.
+# Network and parsing failures are ignored silently.
+updateCheck:
+  enabled: true
+
 # Resource pack delivery is used only when the effective mode is RESOURCE.
 # AUTO uses Nexo when installed, then ItemsAdder when installed, then an official Exort pack
 # if configured, otherwise Exort self-hosts the pack.
