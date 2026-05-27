@@ -1,62 +1,139 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.logging.ExortLog;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
-import com.zxcmc.exort.core.text.ExortText;
-import com.zxcmc.exort.core.text.GuiOverlayGlyphs;
+import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.PlayerFeedback;
+import com.zxcmc.exort.gui.session.GuiRenderScheduler;
+import com.zxcmc.exort.gui.session.GuiSearchCoordinator;
+import com.zxcmc.exort.gui.session.GuiSessionRegistry;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.text.ExortText;
+import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.*;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class SessionManager {
-  private final Map<UUID, GuiSession> byPlayer = new HashMap<>();
-  private final Map<String, LinkedHashSet<GuiSession>> byStorage = new HashMap<>();
-  private final Map<TerminalPos, Set<GuiSession>> byTerminal = new HashMap<>();
-  private final Map<UUID, SearchableSession> pendingSearch = new HashMap<>();
-  private final Set<UUID> switchingToSearch = new HashSet<>();
+  private final GuiSessionRegistry registry = new GuiSessionRegistry();
+  private final GuiRenderScheduler renderScheduler;
+  private final GuiSearchCoordinator searchCoordinator = new GuiSearchCoordinator();
   private final Map<String, CraftingState> craftingStates = new HashMap<>();
-  private final Map<String, UUID> forcedWriters = new HashMap<>();
-  private final Set<String> pendingRenders = new HashSet<>();
-  private final Map<String, SortEvent> pendingSortEvents = new HashMap<>();
-  private final ExortPlugin plugin;
+  private final JavaPlugin plugin;
+  private final Database database;
+  private final StorageManager storageManager;
+  private final StorageKeys keys;
+  private final Lang lang;
+  private final ItemNameService itemNameService;
+  private final SearchDialogService searchDialogService;
+  private final Supplier<BossBarManager> bossBarManager;
+  private final Supplier<PlayerFeedback> playerFeedback;
+  private final Supplier<WirelessTerminalService> wirelessService;
+  private final Supplier<BusService> busService;
+  private final Supplier<CraftingRules> craftingRules;
+  private final BooleanSupplier resourceMode;
+  private final BooleanSupplier dialogSupported;
+  private final IntSupplier wireLimit;
+  private final IntSupplier wireHardCap;
+  private final Supplier<Material> wireMaterial;
+  private final Supplier<Material> storageCarrier;
+  private final Supplier<Material> terminalCarrier;
+  private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
+  private final Supplier<GuiOverlayConfig> overlayConfigSource;
+  private GuiRuntimeConfig runtimeConfig;
+  private GuiOverlayConfig overlayConfig;
   private int sessionTaskId = -1;
-  private int renderTaskId = -1;
 
-  public SessionManager(ExortPlugin plugin) {
-    this.plugin = plugin;
+  public SessionManager(SessionManagerDependencies dependencies) {
+    this.plugin = dependencies.plugin();
+    this.database = dependencies.database();
+    this.storageManager = dependencies.storageManager();
+    this.keys = dependencies.keys();
+    this.lang = dependencies.lang();
+    this.itemNameService = dependencies.itemNameService();
+    this.searchDialogService = dependencies.searchDialogService();
+    this.bossBarManager = dependencies.bossBarManager();
+    this.playerFeedback = dependencies.playerFeedback();
+    this.wirelessService = dependencies.wirelessService();
+    this.busService = dependencies.busService();
+    this.craftingRules = dependencies.craftingRules();
+    this.resourceMode = dependencies.resourceMode();
+    this.dialogSupported = dependencies.dialogSupported();
+    this.wireLimit = dependencies.wireLimit();
+    this.wireHardCap = dependencies.wireHardCap();
+    this.wireMaterial = dependencies.wireMaterial();
+    this.storageCarrier = dependencies.storageCarrier();
+    this.terminalCarrier = dependencies.terminalCarrier();
+    this.runtimeConfigSource = dependencies.runtimeConfig();
+    this.overlayConfigSource = dependencies.overlayConfig();
+    this.runtimeConfig = runtimeConfigSource.get();
+    this.overlayConfig = overlayConfigSource.get();
+    this.renderScheduler =
+        new GuiRenderScheduler(
+            registry, task -> Bukkit.getScheduler().runTask(plugin, task).getTaskId());
   }
 
-  public ExortPlugin getPlugin() {
+  public JavaPlugin plugin() {
     return plugin;
   }
 
+  public BossBarManager bossBarManager() {
+    return bossBarManager.get();
+  }
+
+  public PlayerFeedback playerFeedback() {
+    return playerFeedback.get();
+  }
+
+  public WirelessTerminalService wirelessService() {
+    return wirelessService.get();
+  }
+
+  public BusService busService() {
+    return busService.get();
+  }
+
+  public Lang lang() {
+    return lang;
+  }
+
   public void reconfigure() {
+    runtimeConfig = runtimeConfigSource.get();
+    overlayConfig = overlayConfigSource.get();
     restartSessionWatcher();
   }
 
   private void startSessionWatcher() {
     if (sessionTaskId != -1) return;
-    long intervalTicks =
-        Math.max(1L, plugin.getConfig().getLong("session.deviceCheckIntervalTicks", 5L));
+    long intervalTicks = runtimeConfig.sessionDeviceCheckIntervalTicks();
     sessionTaskId =
         Bukkit.getScheduler()
             .scheduleSyncRepeatingTask(
                 plugin,
                 () -> {
-                  WirelessTerminalService tickWireless = plugin.getWirelessService();
-                  Material tickStorageCarrier = plugin.getStorageCarrier();
-                  Material tickTerminalCarrier = plugin.getTerminalCarrier();
+                  WirelessTerminalService tickWireless = wirelessService.get();
+                  Material tickStorageCarrier = storageCarrier.get();
+                  Material tickTerminalCarrier = terminalCarrier.get();
                   double maxDeviceDistanceSquared = maxDeviceDistanceSquared();
-                  List<GuiSession> snapshot = new ArrayList<>(byPlayer.values());
+                  List<GuiSession> snapshot = new ArrayList<>(registry.allSessions());
                   List<WirelessCloseRequest> toClose = new ArrayList<>();
                   List<Player> physicalToClose = new ArrayList<>();
                   for (GuiSession session : snapshot) {
@@ -107,7 +184,7 @@ public class SessionManager {
                       if (player.isOnline()) {
                         forceCloseSession(player);
                         if (request.messageKey() != null) {
-                          plugin.getPlayerFeedback().error(player, request.messageKey());
+                          playerFeedback().error(player, request.messageKey());
                         }
                       } else {
                         closeSessionState(player, null);
@@ -192,41 +269,30 @@ public class SessionManager {
       boolean forceWrite,
       SessionType type,
       boolean wireless) {
-    if (byPlayer.containsKey(player.getUniqueId())) {
+    if (registry.containsViewer(player.getUniqueId())) {
       forceCloseSession(player);
     }
-    LinkedHashSet<GuiSession> sessions =
-        byStorage.computeIfAbsent(cache.getStorageId(), k -> new LinkedHashSet<>());
-    boolean readOnly = forceReadOnly || (!forceWrite && !sessions.isEmpty());
+    boolean readOnly =
+        forceReadOnly || (!forceWrite && registry.hasStorageSessions(cache.getStorageId()));
     if (forceWrite) {
-      forcedWriters.put(cache.getStorageId(), player.getUniqueId());
-      for (GuiSession session : sessions) {
-        session.setReadOnly(true);
-      }
+      registry.makeForcedWriter(cache.getStorageId(), player.getUniqueId());
     }
     // Close peek bossbar if any before opening full GUI bar
-    plugin.getBossBarManager().remove(player);
+    bossBarManager().remove(player);
     GuiSession session =
         createSession(type, player, cache, tier, terminal, storageLocation, readOnly, wireless);
-    byPlayer.put(player.getUniqueId(), session);
-    sessions.add(session);
-    if (terminal != null) {
-      TerminalPos pos = TerminalPos.of(terminal);
-      byTerminal.computeIfAbsent(pos, k -> new HashSet<>()).add(session);
-    }
+    registry.register(session);
     cache.viewerOpened();
     player.openInventory(session.getInventory());
     session.render();
     if (storageLocation != null) {
-      plugin
-          .getDatabase()
-          .updatePlayerLastStorage(
-              player.getUniqueId(),
-              cache.getStorageId(),
-              storageLocation.getWorld().getName(),
-              storageLocation.getBlockX(),
-              storageLocation.getBlockY(),
-              storageLocation.getBlockZ());
+      database.updatePlayerLastStorage(
+          player.getUniqueId(),
+          cache.getStorageId(),
+          storageLocation.getWorld().getName(),
+          storageLocation.getBlockX(),
+          storageLocation.getBlockY(),
+          storageLocation.getBlockZ());
     }
     return true;
   }
@@ -252,110 +318,85 @@ public class SessionManager {
 
   private boolean closeSessionState(Player player, GuiSession expectedSession) {
     if (player == null) return false;
-    if (expectedSession != null && byPlayer.get(player.getUniqueId()) != expectedSession) {
+    if (expectedSession != null && registry.sessionFor(player.getUniqueId()) != expectedSession) {
       return false;
     }
-    boolean changed = discardSearchState(player) != null;
-    GuiSession session = byPlayer.remove(player.getUniqueId());
-    if (session != null) {
-      changed = true;
-      LinkedHashSet<GuiSession> set = byStorage.get(session.getStorageId());
-      boolean wasWriter = !session.isReadOnly();
-      if (set != null) {
-        set.remove(session);
-        if (set.isEmpty()) {
-          byStorage.remove(session.getStorageId());
+    boolean changed = searchCoordinator.discard(player) != null;
+    GuiSessionRegistry.Removal removal = registry.unregister(player, expectedSession);
+    if (removal == null) {
+      return changed;
+    }
+    GuiSession session = removal.session();
+    changed = true;
+    session.getCache().viewerClosed();
+    session.onClose();
+    if (session.getCache().isDirty() && !session.getCache().hasViewers()) {
+      storageManager.flush(session.getCache());
+    }
+    if (session.type() == SessionType.CRAFTING) {
+      if (!registry.hasCraftingSessions(session.getStorageId())) {
+        CraftingState state = craftingStates.get(session.getStorageId());
+        if (state != null) {
+          state.clear();
         }
       }
-      UUID forced = forcedWriters.get(session.getStorageId());
-      if (forced != null && forced.equals(session.getViewer().getUniqueId())) {
-        forcedWriters.remove(session.getStorageId());
-        promoteWriter(session.getStorageId());
-      } else if (wasWriter && (forced == null || set == null || set.isEmpty())) {
-        promoteWriter(session.getStorageId());
-      }
-      Block term = session.getTerminalBlock();
-      if (term != null) {
-        TerminalPos pos = TerminalPos.of(term);
-        Set<GuiSession> termSet = byTerminal.get(pos);
-        if (termSet != null) {
-          termSet.remove(session);
-          if (termSet.isEmpty()) {
-            byTerminal.remove(pos);
-          }
-        }
-      }
-      session.getCache().viewerClosed();
-      session.onClose();
-      if (session.getCache().isDirty() && !session.getCache().hasViewers()) {
-        plugin.getStorageManager().flush(session.getCache());
-      }
-      if (session.type() == SessionType.CRAFTING) {
-        if (!hasCraftingSessions(session.getStorageId())) {
-          CraftingState state = craftingStates.get(session.getStorageId());
-          if (state != null) {
-            state.clear();
-          }
-        }
-      }
-      if (set != null && !set.isEmpty()) {
-        renderStorage(session.getStorageId(), SortEvent.DEPOSIT);
-      }
+    }
+    if (removal.storageStillOpen()) {
+      renderStorage(session.getStorageId(), SortEvent.DEPOSIT);
     }
     return changed;
   }
 
   public GuiSession sessionFor(Player player) {
-    return byPlayer.get(player.getUniqueId());
+    return registry.sessionFor(player.getUniqueId());
   }
 
   public boolean openSearch(Player player, SearchableSession parent) {
     if (parent == null) return false;
-    if (!plugin.isDialogSupported()) {
-      plugin.getPlayerFeedback().error(player, "error.search.dialogs_unsupported");
+    if (!dialogSupported.getAsBoolean()) {
+      playerFeedback().error(player, "error.search.dialogs_unsupported");
       return false;
     }
-    SearchableSession existing = pendingSearch.get(player.getUniqueId());
+    SearchableSession existing = searchCoordinator.pendingFor(player);
     if (existing != null) {
       closeSearch(player, false);
     }
-    pendingSearch.put(player.getUniqueId(), parent);
-    switchingToSearch.add(player.getUniqueId());
+    searchCoordinator.begin(player, parent);
     Bukkit.getScheduler()
         .runTask(
             plugin,
             () -> {
               try {
                 if (!player.isOnline()) {
-                  discardSearchState(player);
+                  searchCoordinator.discard(player);
                   return;
                 }
-                if (pendingSearch.get(player.getUniqueId()) != parent) {
+                if (!searchCoordinator.isPending(player, parent)) {
                   return;
                 }
-                if (byPlayer.get(player.getUniqueId()) != parent) {
-                  discardSearchState(player);
+                if (registry.sessionFor(player.getUniqueId()) != parent) {
+                  searchCoordinator.discard(player);
                   return;
                 }
                 if (!isSessionValid(parent)) {
                   forceCloseSession(player);
                   return;
                 }
-                player.showDialog(plugin.getSearchDialogService().buildDialog());
+                player.showDialog(searchDialogService.buildDialog());
               } finally {
                 Bukkit.getScheduler()
-                    .runTask(plugin, () -> switchingToSearch.remove(player.getUniqueId()));
+                    .runTask(plugin, () -> searchCoordinator.clearSwitching(player));
               }
             });
     return true;
   }
 
   public boolean isSwitchingToSearch(Player player) {
-    return switchingToSearch.contains(player.getUniqueId());
+    return searchCoordinator.isSwitching(player);
   }
 
   public void closeSearch(Player player, boolean reopenParent) {
-    SearchableSession parent = discardSearchState(player);
+    SearchableSession parent = searchCoordinator.discard(player);
     if (parent == null) return;
     closeDialogQuietly(player);
     if (!reopenParent) return;
@@ -363,11 +404,11 @@ public class SessionManager {
   }
 
   public boolean hasPendingSearch(Player player) {
-    return pendingSearch.containsKey(player.getUniqueId());
+    return searchCoordinator.hasPending(player);
   }
 
   public void handleSearchInput(Player player, String query) {
-    SearchableSession parent = discardSearchState(player);
+    SearchableSession parent = searchCoordinator.discard(player);
     if (parent == null) return;
     if (query == null || query.isBlank()) {
       parent.clearSearch();
@@ -378,16 +419,13 @@ public class SessionManager {
   }
 
   public void cancelSearch(Player player) {
-    SearchableSession parent = discardSearchState(player);
+    SearchableSession parent = searchCoordinator.discard(player);
     if (parent == null) return;
     reopenParentSearchFallback(player, parent);
   }
 
   public void clearPendingSearchIfParent(Player player, GuiSession parent) {
-    if (player == null) return;
-    if (!(parent instanceof SearchableSession searchable)) return;
-    if (pendingSearch.get(player.getUniqueId()) != searchable) return;
-    discardSearchState(player);
+    searchCoordinator.discardIfParent(player, parent);
   }
 
   private void reopenParentSearchFallback(Player player, SearchableSession parent) {
@@ -396,8 +434,8 @@ public class SessionManager {
             plugin,
             () -> {
               if (!player.isOnline()) return;
-              if (pendingSearch.containsKey(player.getUniqueId())) return;
-              GuiSession current = byPlayer.get(player.getUniqueId());
+              if (searchCoordinator.hasPending(player)) return;
+              GuiSession current = registry.sessionFor(player.getUniqueId());
               if (current != parent) return;
               if (!isSessionValid(parent)) {
                 forceCloseSession(player);
@@ -409,41 +447,38 @@ public class SessionManager {
   }
 
   public Set<GuiSession> sessionsForStorage(String storageId) {
-    Set<GuiSession> sessions = byStorage.get(storageId);
-    return sessions == null ? Set.of() : Set.copyOf(sessions);
+    return registry.sessionsForStorage(storageId);
   }
 
   public Collection<GuiSession> allSessions() {
-    return Collections.unmodifiableCollection(byPlayer.values());
+    return registry.allSessions();
   }
 
   public void closeSessionsForTerminal(Block block) {
-    TerminalPos pos = TerminalPos.of(block);
-    Set<GuiSession> sessions = byTerminal.getOrDefault(pos, Collections.emptySet());
-    for (GuiSession session : new ArrayList<>(sessions)) {
+    for (GuiSession session : registry.sessionsForTerminal(block)) {
       forceCloseSession(session.getViewer());
     }
   }
 
   public void revalidateSessions() {
-    for (GuiSession session : new ArrayList<>(byPlayer.values())) {
+    for (GuiSession session : registry.allSessions()) {
       var termBlock = session.getTerminalBlock();
       if (termBlock == null) {
         continue;
       }
-      if (termBlock.getType() != plugin.getTerminalCarrier()) {
+      if (termBlock.getType() != terminalCarrier.get()) {
         forceCloseSession(session.getViewer());
         continue;
       }
       var link =
           TerminalLinkFinder.find(
               termBlock,
-              plugin.getKeys(),
+              keys,
               plugin,
-              plugin.getWireLimit(),
-              plugin.getWireHardCap(),
-              plugin.getWireMaterial(),
-              plugin.getStorageCarrier());
+              wireLimit.getAsInt(),
+              wireHardCap.getAsInt(),
+              wireMaterial.get(),
+              storageCarrier.get());
       if (link.count() != 1
           || link.data() == null
           || !session.getStorageId().equals(link.data().storageId())) {
@@ -453,92 +488,36 @@ public class SessionManager {
   }
 
   public void renderStorage(String storageId) {
-    renderStorage(storageId, SortEvent.NONE);
+    renderScheduler.request(storageId);
   }
 
   public void renderStorage(String storageId, SortEvent event) {
-    if (storageId == null) return;
-    if (event != SortEvent.NONE) {
-      pendingSortEvents.put(storageId, event);
-    }
-    pendingRenders.add(storageId);
-    scheduleRenderFlush();
+    renderScheduler.request(storageId, event);
   }
 
   public boolean isModeratorLocked(String storageId, UUID viewerId) {
-    UUID forced = forcedWriters.get(storageId);
-    return forced != null && !forced.equals(viewerId);
+    return registry.isModeratorLocked(storageId, viewerId);
   }
 
   public boolean forceWriterFromInfo(GuiSession session) {
-    if (session == null) return false;
-    String storageId = session.getStorageId();
-    if (isModeratorLocked(storageId, session.getViewer().getUniqueId())) {
+    if (!registry.forceWriter(session)) {
       return false;
     }
-    LinkedHashSet<GuiSession> set = byStorage.get(storageId);
-    if (set == null || set.isEmpty()) return false;
-    for (GuiSession s : set) {
-      s.setReadOnly(s != session);
-    }
-    session.setReadOnly(false);
-    renderStorage(storageId, SortEvent.NONE);
+    renderStorage(session.getStorageId(), SortEvent.NONE);
     return true;
   }
 
   public void updateSortMode(StorageCache cache, SortMode mode) {
     if (cache == null || mode == null) return;
     cache.setSortMode(mode);
-    plugin.getDatabase().setStorageSortMode(cache.getStorageId(), mode.name());
-    Set<GuiSession> sessions = byStorage.getOrDefault(cache.getStorageId(), new LinkedHashSet<>());
-    for (GuiSession session : sessions) {
+    database.setStorageSortMode(cache.getStorageId(), mode.name());
+    for (GuiSession session : registry.sessionsForStorage(cache.getStorageId())) {
       session.onSortEvent(SortEvent.DEPOSIT);
       if (session instanceof AbstractStorageSession storageSession) {
         storageSession.setSortMode(mode);
       }
     }
     renderStorage(cache.getStorageId(), SortEvent.NONE);
-  }
-
-  private void promoteWriter(String storageId) {
-    LinkedHashSet<GuiSession> set = byStorage.get(storageId);
-    if (set == null || set.isEmpty()) return;
-    GuiSession next = set.iterator().next();
-    next.setReadOnly(false);
-    next.render();
-  }
-
-  private void scheduleRenderFlush() {
-    if (renderTaskId != -1) return;
-    renderTaskId =
-        Bukkit.getScheduler()
-            .runTask(
-                plugin,
-                () -> {
-                  renderTaskId = -1;
-                  flushRenders();
-                })
-            .getTaskId();
-  }
-
-  private void flushRenders() {
-    if (pendingRenders.isEmpty()) {
-      pendingSortEvents.clear();
-      return;
-    }
-    Set<String> storageIds = new HashSet<>(pendingRenders);
-    Map<String, SortEvent> sortEvents = new HashMap<>(pendingSortEvents);
-    pendingRenders.clear();
-    pendingSortEvents.clear();
-    for (String storageId : storageIds) {
-      Set<GuiSession> sessions = byStorage.getOrDefault(storageId, new LinkedHashSet<>());
-      if (sessions.isEmpty()) continue;
-      SortEvent event = sortEvents.getOrDefault(storageId, SortEvent.NONE);
-      for (GuiSession session : new ArrayList<>(sessions)) {
-        session.onSortEvent(event);
-        session.render();
-      }
-    }
   }
 
   private GuiSession createSession(
@@ -550,8 +529,7 @@ public class SessionManager {
       Location storageLocation,
       boolean readOnly,
       boolean wireless) {
-    long timeoutMs =
-        Math.max(0L, plugin.getConfig().getLong("crafting.confirmTimeoutSeconds", 10) * 1000L);
+    long timeoutMs = runtimeConfig.craftingConfirmTimeoutMs();
     if (type == SessionType.CRAFTING) {
       CraftingState state =
           craftingStates.computeIfAbsent(cache.getStorageId(), k -> new CraftingState());
@@ -559,16 +537,16 @@ public class SessionManager {
           player,
           cache,
           tier,
-          plugin.getLang(),
-          plugin.getItemNameService(),
+          lang,
+          itemNameService,
           terminal,
           storageLocation,
           this,
           readOnly,
           state,
-          plugin.getCraftingRules(),
+          craftingRules.get(),
           titleFor(SessionType.CRAFTING),
-          !plugin.isResourceMode(),
+          !resourceMode.getAsBoolean(),
           timeoutMs,
           cache.getSortMode(),
           wireless);
@@ -577,14 +555,14 @@ public class SessionManager {
         player,
         cache,
         tier,
-        plugin.getLang(),
-        plugin.getItemNameService(),
+        lang,
+        itemNameService,
         terminal,
         storageLocation,
         this,
         readOnly,
         titleFor(SessionType.STORAGE, wireless),
-        !plugin.isResourceMode(),
+        !resourceMode.getAsBoolean(),
         timeoutMs,
         cache.getSortMode(),
         wireless);
@@ -595,33 +573,19 @@ public class SessionManager {
   }
 
   private Component titleFor(SessionType type, boolean wireless) {
-    boolean resourceMode = plugin.isResourceMode();
-    String overlayKey =
-        type == SessionType.CRAFTING
-            ? "resourceMode.craftingTerminal.gui.overlayTexture"
-            : "resourceMode.terminal.gui.overlayTexture";
+    boolean resourceMode = this.resourceMode.getAsBoolean();
+    String overlayKey = GuiOverlayConfig.storageTerminalKey(type);
     String nameKey =
         type == SessionType.CRAFTING
             ? "item.crafting_terminal"
             : (wireless ? "item.wireless_terminal" : "item.terminal");
-    Component name = ExortText.plain(plugin.getLang().tr(nameKey));
+    Component name = ExortText.plain(lang.tr(nameKey));
     if (!resourceMode) {
       return name;
     }
-    String defaultOverlay = type == SessionType.CRAFTING ? "gui/crafting" : "gui/inventory";
-    return GuiOverlayGlyphs.overlay(
-            overlayKey, plugin.getConfig().getString(overlayKey, defaultOverlay), ExortLog::warn)
+    return GuiOverlayGlyphs.overlay(overlayKey, overlayConfig.storageTerminal(type), ExortLog::warn)
         .map(overlay -> ExortText.withPrefix(overlay, name))
         .orElse(name);
-  }
-
-  private boolean hasCraftingSessions(String storageId) {
-    LinkedHashSet<GuiSession> set = byStorage.get(storageId);
-    if (set == null || set.isEmpty()) return false;
-    for (GuiSession session : set) {
-      if (session.type() == SessionType.CRAFTING) return true;
-    }
-    return false;
   }
 
   private boolean isSessionValid(GuiSession session) {
@@ -629,18 +593,18 @@ public class SessionManager {
     if (termBlock == null) {
       return true;
     }
-    if (termBlock.getType() != plugin.getTerminalCarrier()) {
+    if (termBlock.getType() != terminalCarrier.get()) {
       return false;
     }
     var link =
         TerminalLinkFinder.find(
             termBlock,
-            plugin.getKeys(),
+            keys,
             plugin,
-            plugin.getWireLimit(),
-            plugin.getWireHardCap(),
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier());
+            wireLimit.getAsInt(),
+            wireHardCap.getAsInt(),
+            wireMaterial.get(),
+            storageCarrier.get());
     return link.count() == 1
         && link.data() != null
         && session.getStorageId().equals(link.data().storageId());
@@ -674,15 +638,7 @@ public class SessionManager {
   }
 
   private double maxDeviceDistanceSquared() {
-    double distance =
-        Math.max(1.0D, plugin.getConfig().getDouble("session.maxDeviceDistanceBlocks", 8.0D));
-    return distance * distance;
-  }
-
-  private SearchableSession discardSearchState(Player player) {
-    if (player == null) return null;
-    switchingToSearch.remove(player.getUniqueId());
-    return pendingSearch.remove(player.getUniqueId());
+    return runtimeConfig.sessionMaxDeviceDistanceSquared();
   }
 
   private void closeDialogQuietly(Player player) {
@@ -695,10 +651,4 @@ public class SessionManager {
   }
 
   private record WirelessCloseRequest(Player player, String messageKey) {}
-
-  private record TerminalPos(UUID world, int x, int y, int z) {
-    static TerminalPos of(Block block) {
-      return new TerminalPos(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
-    }
-  }
 }

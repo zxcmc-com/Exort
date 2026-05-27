@@ -1,7 +1,6 @@
 package com.zxcmc.exort.debug;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.text.ExortText;
+import com.zxcmc.exort.text.ExortText;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -12,6 +11,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 public final class CacheDebugService {
   public enum Mode {
@@ -50,7 +50,7 @@ public final class CacheDebugService {
   }
 
   private static final long SUMMARY_INTERVAL_TICKS = 200L;
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
   private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
   private volatile boolean consoleExplicit;
   private volatile Mode mode = Mode.NORMAL;
@@ -59,7 +59,7 @@ public final class CacheDebugService {
   private final Summary summary = new Summary();
   private final Object summaryLock = new Object();
 
-  public CacheDebugService(ExortPlugin plugin) {
+  public CacheDebugService(Plugin plugin) {
     this.plugin = plugin;
   }
 

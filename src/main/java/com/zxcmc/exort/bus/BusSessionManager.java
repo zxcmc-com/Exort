@@ -1,38 +1,70 @@
 package com.zxcmc.exort.bus;
 
 import com.zxcmc.exort.bus.resolver.BusTargetResolver;
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.logging.ExortLog;
-import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
-import com.zxcmc.exort.core.text.ExortText;
-import com.zxcmc.exort.core.text.GuiOverlayGlyphs;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.gui.GuiOverlayConfig;
+import com.zxcmc.exort.gui.GuiRuntimeConfig;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.text.ExortText;
+import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import java.util.*;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class BusSessionManager {
-  private final ExortPlugin plugin;
+  private final JavaPlugin plugin;
+  private final StorageKeys keys;
+  private final BossBarManager bossBarManager;
+  private final BooleanSupplier resourceMode;
+  private final Supplier<Material> busCarrier;
+  private final int wireLimit;
+  private final int wireHardCap;
+  private final Material wireMaterial;
+  private final Material storageCarrier;
+  private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
+  private final Supplier<GuiOverlayConfig> overlayConfigSource;
   private final BusService busService;
   private final Lang lang;
   private final Map<UUID, BusSession> byPlayer = new HashMap<>();
   private final Map<BusPos, Set<BusSession>> byBus = new HashMap<>();
+  private GuiRuntimeConfig runtimeConfig;
+  private GuiOverlayConfig overlayConfig;
   private int deviceTaskId = -1;
 
-  public BusSessionManager(ExortPlugin plugin, BusService busService, Lang lang) {
-    this.plugin = plugin;
+  public BusSessionManager(BusSessionDependencies dependencies, BusService busService, Lang lang) {
+    this.plugin = dependencies.plugin();
+    this.keys = dependencies.keys();
+    this.bossBarManager = dependencies.bossBarManager();
+    this.resourceMode = dependencies.resourceMode();
+    this.busCarrier = dependencies.busCarrier();
+    this.wireLimit = dependencies.wireLimit();
+    this.wireHardCap = dependencies.wireHardCap();
+    this.wireMaterial = dependencies.wireMaterial();
+    this.storageCarrier = dependencies.storageCarrier();
+    this.runtimeConfigSource = dependencies.runtimeConfig();
+    this.overlayConfigSource = dependencies.overlayConfig();
     this.busService = busService;
     this.lang = lang;
+    this.runtimeConfig = runtimeConfigSource.get();
+    this.overlayConfig = overlayConfigSource.get();
   }
 
   public void reconfigure() {
+    runtimeConfig = runtimeConfigSource.get();
+    overlayConfig = overlayConfigSource.get();
     restartDeviceWatcher();
   }
 
@@ -45,18 +77,17 @@ public class BusSessionManager {
 
   private void startDeviceWatcher() {
     if (deviceTaskId != -1) return;
-    long intervalTicks =
-        Math.max(1L, plugin.getConfig().getLong("session.deviceCheckIntervalTicks", 5L));
+    long intervalTicks = runtimeConfig.sessionDeviceCheckIntervalTicks();
     deviceTaskId =
         Bukkit.getScheduler()
             .scheduleSyncRepeatingTask(
                 plugin,
                 () -> {
-                  Material busCarrier = plugin.getBusCarrier();
+                  Material currentBusCarrier = busCarrier.get();
                   double maxDistanceSquared = maxDeviceDistanceSquared();
                   List<Player> toClose = new ArrayList<>();
                   for (BusSession session : new ArrayList<>(byPlayer.values())) {
-                    if (shouldCloseSession(session, busCarrier, maxDistanceSquared)) {
+                    if (shouldCloseSession(session, currentBusCarrier, maxDistanceSquared)) {
                       toClose.add(session.getViewer());
                     }
                   }
@@ -98,29 +129,27 @@ public class BusSessionManager {
             this,
             state,
             lang,
-            plugin.getBossBarManager(),
-            !plugin.isResourceMode(),
+            bossBarManager,
+            !resourceMode.getAsBoolean(),
             title,
             busBlock);
     byPlayer.put(player.getUniqueId(), session);
     byBus.computeIfAbsent(pos, k -> new HashSet<>()).add(session);
     state.viewerOpened();
-    plugin.getBossBarManager().remove(player);
+    bossBarManager.remove(player);
     player.openInventory(session.getInventory());
     session.render();
     return true;
   }
 
   private Component titleFor(BusType type) {
-    boolean resourceMode = plugin.isResourceMode();
-    String overlayKey = "resourceMode.bus.gui.overlayTexture";
+    boolean resourceMode = this.resourceMode.getAsBoolean();
     String nameKey = type == BusType.EXPORT ? "gui.bus.export_title" : "gui.bus.import_title";
     Component name = ExortText.plain(lang.tr(nameKey));
     if (!resourceMode) {
       return name;
     }
-    return GuiOverlayGlyphs.overlay(
-            overlayKey, plugin.getConfig().getString(overlayKey, "gui/bus"), ExortLog::warn)
+    return GuiOverlayGlyphs.overlay(GuiOverlayConfig.BUS_KEY, overlayConfig.bus(), ExortLog::warn)
         .map(overlay -> ExortText.withPrefix(overlay, name))
         .orElse(name);
   }
@@ -192,13 +221,7 @@ public class BusSessionManager {
     }
     var link =
         TerminalLinkFinder.find(
-            busBlock,
-            plugin.getKeys(),
-            plugin,
-            plugin.getWireLimit(),
-            plugin.getWireHardCap(),
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier());
+            busBlock, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
     boolean loop = busService.isLoopDisabled(state.pos());
     if (link.count() == 0 || link.data() == null) {
       return new BusLinkStatus(StorageState.NONE, null, null, null, loop);
@@ -265,8 +288,6 @@ public class BusSessionManager {
   }
 
   private double maxDeviceDistanceSquared() {
-    double distance =
-        Math.max(1.0D, plugin.getConfig().getDouble("session.maxDeviceDistanceBlocks", 8.0D));
-    return distance * distance;
+    return runtimeConfig.sessionMaxDeviceDistanceSquared();
   }
 }

@@ -1,6 +1,6 @@
 package com.zxcmc.exort.wireless.charge;
 
-import com.zxcmc.exort.core.keys.StorageKeys;
+import com.zxcmc.exort.keys.StorageKeys;
 import java.time.Instant;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;

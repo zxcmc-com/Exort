@@ -1,6 +1,6 @@
 package com.zxcmc.exort.wireless.bind;
 
-import com.zxcmc.exort.core.keys.StorageKeys;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessMeta;
 import java.util.Optional;

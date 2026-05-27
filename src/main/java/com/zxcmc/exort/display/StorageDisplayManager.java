@@ -1,9 +1,8 @@
 package com.zxcmc.exort.display;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.marker.StorageCoreMarker;
-import com.zxcmc.exort.core.marker.StorageMarker;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.marker.StorageCoreMarker;
+import com.zxcmc.exort.marker.StorageMarker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
@@ -17,6 +16,8 @@ import org.joml.Vector3f;
 
 /** RESOURCE/VANILLA display manager for storage blocks (carrier + ItemDisplay model). */
 public class StorageDisplayManager extends BaseCarrierDisplayManager {
+  private final String coreName;
+
   public StorageDisplayManager(
       Plugin plugin,
       Material carrierMaterial,
@@ -25,7 +26,8 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
       double displayScale,
       double offsetX,
       double offsetY,
-      double offsetZ) {
+      double offsetZ,
+      String coreName) {
     super(
         plugin,
         carrierMaterial,
@@ -36,6 +38,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
         offsetY,
         offsetZ,
         "storage");
+    this.coreName = coreName == null || coreName.isBlank() ? "Storage Core" : coreName;
   }
 
   @Override
@@ -87,9 +90,6 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
   }
 
   private String coreName() {
-    if (plugin instanceof ExortPlugin exort) {
-      return exort.getLang().tr("item.storage_core");
-    }
-    return "Storage Core";
+    return coreName;
   }
 }

@@ -1,0 +1,89 @@
+package com.zxcmc.exort.command;
+
+import com.zxcmc.exort.debug.CacheDebugService;
+import com.zxcmc.exort.debug.LoadTestService;
+import com.zxcmc.exort.debug.PickDebugService;
+import com.zxcmc.exort.debug.WorldEditDebugService;
+import com.zxcmc.exort.gui.SessionManager;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
+import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
+import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.wireless.WirelessTerminalService;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.IntSupplier;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
+import org.bukkit.Material;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public record ExortBrigadierDependencies(
+    JavaPlugin plugin,
+    Lang lang,
+    CustomItems customItems,
+    StorageKeys keys,
+    StorageManager storageManager,
+    Database database,
+    SessionManager sessionManager,
+    WirelessTerminalService wirelessService,
+    CacheDebugService cacheDebugService,
+    WorldEditDebugService worldEditDebugService,
+    PickDebugService pickDebugService,
+    LoadTestService loadTestService,
+    ItemNameService itemNameService,
+    Supplier<ResourcePackService> resourcePackService,
+    Runnable resourcePackReloader,
+    Supplier<CompletableFuture<ItemNameService.Status>> runtimeReloader,
+    Supplier<String> configuredLanguage,
+    Consumer<String> configuredLanguageSaver,
+    Consumer<String> configuredModeSaver,
+    Supplier<String> configuredMode,
+    Supplier<String> effectiveMode,
+    Supplier<String> modeFallbackReason,
+    Supplier<String> pluginVersion,
+    Supplier<PaperChorusPlantUpdates.Status> chorusPlantUpdateStatus,
+    Supplier<PaperChorusPlantUpdates.FixResult> chorusPlantUpdateDisabler,
+    LongSupplier cacheIdleUnloadSeconds,
+    IntSupplier wireLimit,
+    IntSupplier wireHardCap,
+    Supplier<Material> wireMaterial,
+    Supplier<Material> storageCarrier) {
+  public ExortBrigadierDependencies {
+    Objects.requireNonNull(plugin, "plugin");
+    Objects.requireNonNull(lang, "lang");
+    Objects.requireNonNull(customItems, "customItems");
+    Objects.requireNonNull(keys, "keys");
+    Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(database, "database");
+    Objects.requireNonNull(sessionManager, "sessionManager");
+    Objects.requireNonNull(wirelessService, "wirelessService");
+    Objects.requireNonNull(cacheDebugService, "cacheDebugService");
+    Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
+    Objects.requireNonNull(pickDebugService, "pickDebugService");
+    Objects.requireNonNull(loadTestService, "loadTestService");
+    Objects.requireNonNull(itemNameService, "itemNameService");
+    Objects.requireNonNull(resourcePackService, "resourcePackService");
+    Objects.requireNonNull(resourcePackReloader, "resourcePackReloader");
+    Objects.requireNonNull(runtimeReloader, "runtimeReloader");
+    Objects.requireNonNull(configuredLanguage, "configuredLanguage");
+    Objects.requireNonNull(configuredLanguageSaver, "configuredLanguageSaver");
+    Objects.requireNonNull(configuredModeSaver, "configuredModeSaver");
+    Objects.requireNonNull(configuredMode, "configuredMode");
+    Objects.requireNonNull(effectiveMode, "effectiveMode");
+    Objects.requireNonNull(modeFallbackReason, "modeFallbackReason");
+    Objects.requireNonNull(pluginVersion, "pluginVersion");
+    Objects.requireNonNull(chorusPlantUpdateStatus, "chorusPlantUpdateStatus");
+    Objects.requireNonNull(chorusPlantUpdateDisabler, "chorusPlantUpdateDisabler");
+    Objects.requireNonNull(cacheIdleUnloadSeconds, "cacheIdleUnloadSeconds");
+    Objects.requireNonNull(wireLimit, "wireLimit");
+    Objects.requireNonNull(wireHardCap, "wireHardCap");
+    Objects.requireNonNull(wireMaterial, "wireMaterial");
+    Objects.requireNonNull(storageCarrier, "storageCarrier");
+  }
+}

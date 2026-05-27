@@ -1,9 +1,9 @@
 package com.zxcmc.exort.display;
 
-import com.zxcmc.exort.core.breaking.BreakAnimationSender;
-import com.zxcmc.exort.core.breaking.BreakAnimationStages;
-import com.zxcmc.exort.core.breaking.BreakType;
-import com.zxcmc.exort.core.items.ItemModelUtil;
+import com.zxcmc.exort.breaking.BreakAnimationSender;
+import com.zxcmc.exort.breaking.BreakAnimationStages;
+import com.zxcmc.exort.breaking.BreakType;
+import com.zxcmc.exort.items.ItemModelUtil;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;

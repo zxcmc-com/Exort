@@ -1,7 +1,7 @@
 package com.zxcmc.exort.wireless.lore;
 
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.items.CustomItems;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.wireless.WirelessMeta;
 import java.util.ArrayList;
 import java.util.List;

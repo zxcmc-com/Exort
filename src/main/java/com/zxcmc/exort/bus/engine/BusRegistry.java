@@ -4,10 +4,9 @@ import com.zxcmc.exort.bus.BusFilterCodec;
 import com.zxcmc.exort.bus.BusPos;
 import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusState;
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.db.Database;
-import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.marker.ChunkMarkerStore;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkMarkerStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,17 +16,18 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
+import org.bukkit.plugin.Plugin;
 
 public final class BusRegistry {
   private static final int FILTER_SLOTS = 10;
 
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
   private final Database database;
   private final Map<BusPos, BusState> states = new ConcurrentHashMap<>();
   private volatile List<BusState> stateList = List.of();
   private volatile boolean stateListDirty;
 
-  public BusRegistry(ExortPlugin plugin, Database database) {
+  public BusRegistry(Plugin plugin, Database database) {
     this.plugin = plugin;
     this.database = database;
   }

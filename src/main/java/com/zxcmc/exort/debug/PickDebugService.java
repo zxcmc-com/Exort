@@ -1,7 +1,6 @@
 package com.zxcmc.exort.debug;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.text.ExortText;
+import com.zxcmc.exort.text.ExortText;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -31,8 +30,6 @@ public final class PickDebugService {
   private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
   private volatile boolean consoleExplicit;
   private volatile Mode mode = Mode.NORMAL;
-
-  public PickDebugService(ExortPlugin plugin) {}
 
   public boolean isEnabled() {
     return consoleExplicit || !viewers.isEmpty();

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 — 2026-05-28
+- Fixed item dictionary reload/status handling for nested YAML keys after `/exort lang set`, and refreshes item dictionaries automatically on plugin startup.
+- Fixed WorldEdit/FAWE integration lifecycle during `/exort reload` so the bridge is restored after listener cleanup.
+- Fixed standalone resource-pack export after the resource-pack implementation moved out of the old `core.resourcepack` package.
+- Sanitized the bStats language chart so it reports bounded locale-like categories instead of arbitrary config text.
+- Public storage-tier API calls now return immutable descriptors instead of internal storage-tier objects, and loaded tier definitions are immutable snapshots.
+- Reworked runtime configuration loading for storage, buses, wireless access, crafting, placement guard, display models, GUI overlays, resource/vanilla breaking visuals, WorldGuard, and benchmark defaults while preserving existing config keys and defaults.
+- Refactored terminal, crafting-terminal, and bus GUI internals for shared search, pagination, writer-lock, render scheduling, and overlay handling without changing the player-facing GUI behavior.
+- Reorganized source packages around feature, infrastructure, integration, platform, and shared feedback ownership; public command behavior, permissions, database format, PDC keys, resource-pack paths, and gameplay workflows are unchanged.
+
 ## 0.11.6 — 2026-05-27
 - Initialized storage items now show the same short storage UUID tail in lore as linked wireless terminals, while new uninitialized storage items stay unchanged.
 - Split custom break particle counts into stage-change and final-break settings, with stronger final break particles and no user-facing particle speed option.

@@ -2,8 +2,8 @@ package com.zxcmc.exort.gui;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
-import com.zxcmc.exort.core.items.ItemModelUtil;
-import com.zxcmc.exort.core.text.ExortText;
+import com.zxcmc.exort.items.ItemModelUtil;
+import com.zxcmc.exort.text.ExortText;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;

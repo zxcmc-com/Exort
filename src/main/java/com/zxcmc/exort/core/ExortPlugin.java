@@ -1,64 +1,28 @@
 package com.zxcmc.exort.core;
 
 import com.zxcmc.exort.api.ExortApi;
+import com.zxcmc.exort.api.model.StorageTierDescriptor;
+import com.zxcmc.exort.block.listener.BlockListener;
+import com.zxcmc.exort.block.listener.BlockListenerDependencies;
+import com.zxcmc.exort.block.listener.ItemPlaceBridgeDependencies;
+import com.zxcmc.exort.block.listener.ItemPlaceBridgeListener;
+import com.zxcmc.exort.breaking.BlockBreakHandler;
+import com.zxcmc.exort.breaking.BlockBreakHandlerDependencies;
+import com.zxcmc.exort.breaking.BreakAnimationSender;
+import com.zxcmc.exort.breaking.BreakConfig;
+import com.zxcmc.exort.breaking.BreakParticleSender;
+import com.zxcmc.exort.breaking.BreakSoundConfig;
+import com.zxcmc.exort.breaking.BreakVisualConfig;
+import com.zxcmc.exort.breaking.CompositeBreakAnimationSender;
+import com.zxcmc.exort.breaking.CustomBlockBreaker;
+import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.bus.BusSessionDependencies;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.bus.engine.BusEngineDependencies;
 import com.zxcmc.exort.bus.listener.BusListener;
-import com.zxcmc.exort.core.breaking.BlockBreakHandler;
-import com.zxcmc.exort.core.breaking.BreakAnimationSender;
-import com.zxcmc.exort.core.breaking.BreakConfig;
-import com.zxcmc.exort.core.breaking.BreakParticleSender;
-import com.zxcmc.exort.core.breaking.BreakSoundConfig;
-import com.zxcmc.exort.core.breaking.CompositeBreakAnimationSender;
-import com.zxcmc.exort.core.breaking.CustomBlockBreaker;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.commands.ExortBrigadier;
-import com.zxcmc.exort.core.compat.ModePolicy;
-import com.zxcmc.exort.core.compat.PaperChorusPlantUpdates;
-import com.zxcmc.exort.core.config.ConfigUpdater;
-import com.zxcmc.exort.core.db.Database;
-import com.zxcmc.exort.core.feedback.PlayerFeedback;
-import com.zxcmc.exort.core.i18n.ItemNameService;
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.items.CustomItems;
-import com.zxcmc.exort.core.keys.StorageKeys;
-import com.zxcmc.exort.core.listeners.BlockListener;
-import com.zxcmc.exort.core.listeners.ChunkSanityListener;
-import com.zxcmc.exort.core.listeners.CraftBlockerListener;
-import com.zxcmc.exort.core.listeners.InventoryEvents;
-import com.zxcmc.exort.core.listeners.InventoryRefreshListener;
-import com.zxcmc.exort.core.listeners.ItemPlaceBridgeListener;
-import com.zxcmc.exort.core.listeners.MonitorListener;
-import com.zxcmc.exort.core.listeners.PickListener;
-import com.zxcmc.exort.core.listeners.SearchDialogListener;
-import com.zxcmc.exort.core.listeners.StorageListener;
-import com.zxcmc.exort.core.listeners.TerminalListener;
-import com.zxcmc.exort.core.listeners.WireListener;
-import com.zxcmc.exort.core.logging.ExortLog;
-import com.zxcmc.exort.core.marker.ChunkMarkerStore;
-import com.zxcmc.exort.core.marker.StorageMarker;
-import com.zxcmc.exort.core.metrics.ExortMetrics;
-import com.zxcmc.exort.core.network.NetworkGraphCache;
-import com.zxcmc.exort.core.placement.ExortBlockTargetResolver;
-import com.zxcmc.exort.core.placement.FailoverPlacementGuardBackend;
-import com.zxcmc.exort.core.placement.PaperEntityPlacementGuardBackend;
-import com.zxcmc.exort.core.placement.PlacementGuardBackend;
-import com.zxcmc.exort.core.placement.ProtocolLibPlacementGuardBackend;
-import com.zxcmc.exort.core.placement.RightClickPlacementGuard;
-import com.zxcmc.exort.core.protection.DebugRegionProtection;
-import com.zxcmc.exort.core.protection.RegionProtection;
-import com.zxcmc.exort.core.protection.WorldGuardProtection;
-import com.zxcmc.exort.core.protocol.ProtocolLibCompatibility;
-import com.zxcmc.exort.core.protocol.ProtocolLibEnhancements;
-import com.zxcmc.exort.core.recipes.CraftingRules;
-import com.zxcmc.exort.core.recipes.RecipeService;
-import com.zxcmc.exort.core.resourcepack.ResourcePackService;
-import com.zxcmc.exort.core.sanity.ChunkSanityService;
-import com.zxcmc.exort.core.sanity.DisplayCleanupService;
-import com.zxcmc.exort.core.sanity.MarkerSanityService;
-import com.zxcmc.exort.core.ui.BossBarManager;
-import com.zxcmc.exort.core.update.UpdateChecker;
-import com.zxcmc.exort.core.worldedit.WorldEditIntegration;
+import com.zxcmc.exort.command.ExortBrigadier;
+import com.zxcmc.exort.command.ExortBrigadierDependencies;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.PickDebugService;
@@ -71,15 +35,80 @@ import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.display.StorageDisplayManager;
 import com.zxcmc.exort.display.TerminalDisplayManager;
 import com.zxcmc.exort.display.WireDisplayManager;
+import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.CreativeTabOrder;
+import com.zxcmc.exort.gui.GuiOverlayConfig;
+import com.zxcmc.exort.gui.GuiRuntimeConfig;
 import com.zxcmc.exort.gui.SearchDialogService;
 import com.zxcmc.exort.gui.SessionManager;
+import com.zxcmc.exort.gui.SessionManagerDependencies;
+import com.zxcmc.exort.gui.SortEvent;
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.gui.listener.InventoryEvents;
+import com.zxcmc.exort.gui.listener.SearchDialogListener;
+import com.zxcmc.exort.gui.listener.TerminalListener;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.config.ConfigUpdater;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.infra.metrics.ExortMetrics;
+import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
+import com.zxcmc.exort.infra.update.UpdateChecker;
+import com.zxcmc.exort.integration.protection.DebugRegionProtection;
+import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.protection.WorldGuardProtection;
+import com.zxcmc.exort.integration.protection.WorldGuardProtectionConfig;
+import com.zxcmc.exort.integration.protocol.ProtocolLibCompatibility;
+import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
+import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.items.listener.InventoryRefreshListener;
+import com.zxcmc.exort.items.listener.PickListener;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.ChunkMarkerStore;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.monitor.listener.MonitorListener;
+import com.zxcmc.exort.monitor.listener.MonitorListenerDependencies;
+import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.network.NetworkGraphCacheProvider;
+import com.zxcmc.exort.placement.ExortBlockTargetResolver;
+import com.zxcmc.exort.placement.FailoverPlacementGuardBackend;
+import com.zxcmc.exort.placement.PaperEntityPlacementGuardBackend;
+import com.zxcmc.exort.placement.PlacementGuardBackend;
+import com.zxcmc.exort.placement.PlacementGuardConfig;
+import com.zxcmc.exort.placement.ProtocolLibPlacementGuardBackend;
+import com.zxcmc.exort.placement.RightClickPlacementGuard;
+import com.zxcmc.exort.platform.ModePolicy;
+import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
+import com.zxcmc.exort.recipes.CraftingRules;
+import com.zxcmc.exort.recipes.CraftingRulesConfig;
+import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.recipes.listener.CraftBlockerListener;
+import com.zxcmc.exort.runtime.RuntimeDisplayConfig;
+import com.zxcmc.exort.runtime.RuntimeDisplayModelConfig;
+import com.zxcmc.exort.runtime.RuntimeHologramConfig;
+import com.zxcmc.exort.runtime.RuntimeItemModelConfig;
+import com.zxcmc.exort.runtime.RuntimeMonitorScreenConfig;
+import com.zxcmc.exort.runtime.RuntimeNetworkConfig;
+import com.zxcmc.exort.sanity.ChunkSanityService;
+import com.zxcmc.exort.sanity.DisplayCleanupService;
+import com.zxcmc.exort.sanity.MarkerSanityDependencies;
+import com.zxcmc.exort.sanity.MarkerSanityService;
+import com.zxcmc.exort.sanity.listener.ChunkSanityListener;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.listener.StorageListener;
+import com.zxcmc.exort.text.ExortText;
+import com.zxcmc.exort.wire.listener.WireListener;
+import com.zxcmc.exort.wire.listener.WireListenerDependencies;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.listener.WirelessCraftListener;
 import com.zxcmc.exort.wireless.listener.WirelessListener;
+import com.zxcmc.exort.wireless.listener.WirelessListenerDependencies;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.io.File;
 import java.sql.SQLException;
@@ -102,12 +131,13 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class ExortPlugin extends JavaPlugin implements ExortApi {
+public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCacheProvider {
   static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
   private static final String CHORUS_FIX_COMMAND_BEFORE = "To fix this automatically, run ";
   private static final String CHORUS_FIX_COMMAND_AFTER =
       ". This command will update the Paper option, set Exort mode to RESOURCE, notify players,"
           + " and restart the server after 10 seconds.";
+  private static final String VANILLA_NAMESPACE = "minecraft";
 
   private static final int MIN_MC_MAJOR = 1;
   private static final int MIN_MC_MINOR = 21;
@@ -174,53 +204,91 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       getServer().getPluginManager().disablePlugin(this);
       return;
     }
+    prepareConfigFiles();
+    new UpdateChecker(this).checkAsync();
+    evaluateModePolicy();
+    if (!initCoreServices()) {
+      return;
+    }
+    registerRuntime(true);
+    registerBrigadierCommands();
+  }
+
+  private void prepareConfigFiles() {
     saveDefaultConfig();
     ConfigUpdater.update(this, "config.yml");
     reloadConfig();
-    new UpdateChecker(this).checkAsync();
     ensureStorageTiersFile();
     ensureRecipesFile();
-    evaluateModePolicy();
-    resourcePackService = new ResourcePackService(this);
+  }
+
+  private boolean initCoreServices() {
+    lang = new Lang(this);
+    resourcePackService =
+        new ResourcePackService(this, this::isResourceMode, lang::tr, ExortText::configRichText);
     Bukkit.getPluginManager().registerEvents(resourcePackService, this);
     resourcePackService.reload();
-    lang = new Lang(this);
     playerFeedback = new PlayerFeedback(lang);
     itemNameService = new ItemNameService(this);
     searchDialogService = new SearchDialogService(lang);
     keys = new StorageKeys(this);
     networkGraphCache = new NetworkGraphCache(this);
-    database = new Database(this);
+    database = new Database(getLogger(), this::getDefaultSortModeName);
     File dbFile = new File(new File(getDataFolder(), "db"), "storage.db");
     try {
       database.init(dbFile);
     } catch (SQLException e) {
       getLogger().log(Level.SEVERE, "Failed to init database", e);
       getServer().getPluginManager().disablePlugin(this);
-      return;
+      return false;
     }
-    storageManager = new StorageManager(this, database);
-    sessionManager = new SessionManager(this);
+    storageManager =
+        new StorageManager(
+            database,
+            this,
+            this::isEnabled,
+            keys,
+            getLogger(),
+            this::getCacheDebugService,
+            this::getDefaultSortModeName,
+            database::setStorageSortMode,
+            cache -> cache.refreshCustomItems(customItems, wirelessService, true));
+    sessionManager =
+        new SessionManager(
+            new SessionManagerDependencies(
+                this,
+                database,
+                storageManager,
+                keys,
+                lang,
+                itemNameService,
+                searchDialogService,
+                () -> bossBarManager,
+                () -> playerFeedback,
+                () -> wirelessService,
+                () -> busService,
+                () -> craftingRules,
+                this::isResourceMode,
+                this::isDialogSupported,
+                this::getWireLimit,
+                this::getWireHardCap,
+                this::getWireMaterial,
+                this::getStorageCarrier,
+                this::getTerminalCarrier,
+                () -> GuiRuntimeConfig.fromConfig(getConfig()),
+                () -> GuiOverlayConfig.fromConfig(getConfig())));
     bossBarManager = new BossBarManager(this, storageManager, lang);
     loadTestService = new LoadTestService(this, database, bossBarManager, lang);
     cacheDebugService = new CacheDebugService(this);
-    pickDebugService = new PickDebugService(this);
+    pickDebugService = new PickDebugService();
     worldEditDebugService = new WorldEditDebugService(this);
     metrics = ExortMetrics.create(this);
-
-    registerRuntime();
-    registerBrigadierCommands();
+    return true;
   }
 
   @Override
   public void onDisable() {
-    if (flushTaskId != -1) {
-      Bukkit.getScheduler().cancelTask(flushTaskId);
-    }
-    if (cacheEvictTaskId != -1) {
-      Bukkit.getScheduler().cancelTask(cacheEvictTaskId);
-      cacheEvictTaskId = -1;
-    }
+    cancelRuntimeTasks();
     closeRuntimeSessions();
     if (storageManager != null) {
       storageManager.flushAllAndWait();
@@ -234,12 +302,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (metrics != null) {
       metrics.shutdown();
     }
-    if (worldEditIntegration != null) {
-      worldEditIntegration.shutdown();
-      worldEditIntegration = null;
-    }
-    stopPlacementGuard();
-    stopProtocolEnhancements();
+    stopReloadableRuntime();
     if (resourcePackService != null) {
       resourcePackService.stop();
       resourcePackService = null;
@@ -257,13 +320,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     if (busService != null) {
       busService.stop();
     }
-    if (customBlockBreaker != null) {
-      customBlockBreaker.shutdown();
-      customBlockBreaker = null;
-    }
     DisplayBreakAnimationSender.clearStaleOverlays();
     if (database != null) {
       database.close();
+    }
+  }
+
+  private void cancelRuntimeTasks() {
+    if (flushTaskId != -1) {
+      Bukkit.getScheduler().cancelTask(flushTaskId);
+      flushTaskId = -1;
+    }
+    if (cacheEvictTaskId != -1) {
+      Bukkit.getScheduler().cancelTask(cacheEvictTaskId);
+      cacheEvictTaskId = -1;
     }
   }
 
@@ -319,6 +389,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return pickDebugService;
   }
 
+  private void recordPickDebug(String message) {
+    if (pickDebugService != null) {
+      pickDebugService.record(message);
+    }
+  }
+
+  private void recordPickDebugFull(String message) {
+    if (pickDebugService != null) {
+      pickDebugService.recordFull(message);
+    }
+  }
+
   public int getInventoryRefreshEpoch() {
     return inventoryRefreshEpoch.get();
   }
@@ -355,13 +437,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   @Override
-  public Optional<StorageTier> getStorageTier(String key) {
-    return StorageTier.fromString(key);
+  public Optional<StorageTierDescriptor> getStorageTier(String key) {
+    return StorageTier.fromString(key).map(StorageTier::descriptor);
   }
 
   @Override
-  public Collection<StorageTier> getStorageTiers() {
-    return StorageTier.allTiers();
+  public Collection<StorageTierDescriptor> getStorageTiers() {
+    return StorageTier.allTiers().stream().map(StorageTier::descriptor).toList();
   }
 
   public void markMonitorPlaced(Block block) {
@@ -458,7 +540,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     ensureRecipesFile();
     evaluateModePolicy();
     reloadResourcePackService();
-    return registerRuntime();
+    return registerRuntime(false);
   }
 
   private void closeRuntimeSessions() {
@@ -495,191 +577,32 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     placementGuard = null;
   }
 
-  private CompletableFuture<ItemNameService.Status> registerRuntime() {
-    reloadDefaultSortMode();
-    String langCode = getConfig().getString("language", "en_us");
-    String normalized = itemNameService.normalizeLanguage(langCode);
-    if (lang == null) {
-      lang = new Lang(this);
+  private void stopWorldEditIntegration() {
+    if (worldEditIntegration == null) {
+      return;
     }
-    lang.reload(normalized);
-    if (searchDialogService != null) {
-      searchDialogService.invalidate();
-    }
-    CompletableFuture<ItemNameService.Status> langFuture = itemNameService.reload(normalized);
-    langFuture.thenAccept(
-        status -> {
-          if (!status.activeLanguage().equalsIgnoreCase(normalized)) {
-            lang.reload(status.activeLanguage());
-          }
-        });
-    CreativeTabOrder.init(this);
+    worldEditIntegration.shutdown();
+    worldEditIntegration = null;
+  }
 
-    // Carriers are always used; vanilla forces BARRIER carriers and minecraft namespace models.
-    String vanillaNs = "minecraft";
-    String resourceNs = getConfig().getString("resourceMode.namespace", "exort");
-    String wireItemModel;
-    String storageItemModel;
-    String terminalItemModel;
-    String craftingTerminalItemModel;
-    String monitorItemModel;
-    String wirelessItemModel;
-    String wirelessDisabledModel;
-    String importBusItemModel;
-    String exportBusItemModel;
-    if (resourceMode) {
-      wireMaterial = Carriers.CHORUS_MATERIAL;
-      storageCarrier = Carriers.CARRIER_BARRIER;
-      terminalCarrier = Carriers.CARRIER_BARRIER;
-      monitorCarrier = Carriers.CARRIER_BARRIER;
-      busCarrier = Carriers.CARRIER_BARRIER;
-      wireItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.wire.itemModel", "wire/center"), resourceNs);
-      storageItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.storage.itemModel", "storage/storage"),
-              resourceNs);
-      terminalItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.terminal.itemModel", "terminal/inventory"),
-              resourceNs);
-      craftingTerminalItemModel =
-          normalizeModelId(
-              getConfig()
-                  .getString("resourceMode.craftingTerminal.itemModel", "terminal/workbench"),
-              resourceNs);
-      monitorItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.monitor.itemModel", "terminal/monitor"),
-              resourceNs);
-      importBusItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.bus.import.itemModel", "bus/import"), resourceNs);
-      exportBusItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.bus.export.itemModel", "bus/export"), resourceNs);
-      wirelessItemModel =
-          normalizeModelId(
-              getConfig().getString("resourceMode.wirelessTerminal.itemModel", "terminal/wireless"),
-              resourceNs);
-      wirelessDisabledModel =
-          normalizeModelId(
-              getConfig()
-                  .getString(
-                      "resourceMode.wirelessTerminal.modelDisabledId",
-                      "terminal/wireless_disabled"),
-              resourceNs);
-    } else {
-      wireMaterial = Carriers.CARRIER_BARRIER;
-      storageCarrier = Carriers.CARRIER_BARRIER;
-      terminalCarrier = Carriers.CARRIER_BARRIER;
-      monitorCarrier = Carriers.CARRIER_BARRIER;
-      busCarrier = Carriers.CARRIER_BARRIER;
-      wireItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.wire.modelId", "black_stained_glass"), vanillaNs);
-      storageItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.storage.modelId", "vault"), vanillaNs);
-      terminalItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.terminal.modelId", "barrel"), vanillaNs);
-      craftingTerminalItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.craftingTerminal.modelId", "crafting_table"),
-              vanillaNs);
-      monitorItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.monitor.itemModel", "smooth_stone"), vanillaNs);
-      importBusItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.importBus.itemModel", "dispenser"), vanillaNs);
-      exportBusItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.exportBus.itemModel", "dropper"), vanillaNs);
-      wirelessItemModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.wirelessTerminal.modelId", "target"), vanillaNs);
-      wirelessDisabledModel =
-          normalizeModelId(
-              getConfig().getString("vanillaMode.wirelessTerminal.modelDisabledId", "target"),
-              vanillaNs);
-      resourceNs = vanillaNs; // reuse for display ids below
-    }
-    YamlConfiguration tiersConfig = loadStorageTiersConfig();
-    StorageTier.loadFromConfig(tiersConfig.getConfigurationSection("tiers"), getLogger());
-    storagePeekTicks = Math.max(1, getConfig().getLong("bossbar.storagePeekSeconds", 6) * 20L);
-    wirePeekTicks = Math.max(1, getConfig().getLong("bossbar.wirePeekSeconds", 6) * 20L);
-    var terminalConfig =
-        resourceMode
-            ? new ItemHologramManager.Config(false, 0.5, 0.95, 0.5, 0.35)
-            : new ItemHologramManager.Config(
-                getConfig().getBoolean("vanillaMode.terminalHologram.enabled", true),
-                getConfig().getDouble("vanillaMode.terminalHologram.offset.x", 0.5),
-                getConfig().getDouble("vanillaMode.terminalHologram.offset.y", 0.5),
-                getConfig().getDouble("vanillaMode.terminalHologram.offset.z", 0.83),
-                getConfig().getDouble("vanillaMode.terminalHologram.scale", 0.35));
-    String storageHologramBase =
-        resourceMode ? "resourceMode.storageHologram" : "vanillaMode.storageHologram";
-    var storageConfig =
-        new ItemHologramManager.Config(
-            getConfig().getBoolean(storageHologramBase + ".enabled", true),
-            getConfig().getDouble(storageHologramBase + ".offset.x", 0.5),
-            getConfig().getDouble(storageHologramBase + ".offset.y", 0.5),
-            getConfig().getDouble(storageHologramBase + ".offset.z", 0.5),
-            getConfig().getDouble(storageHologramBase + ".scale", 0.35));
-    String wirelessModel = wirelessItemModel;
-    String wirelessDisabledModelFinal = wirelessDisabledModel;
-    customItems =
-        new CustomItems(
-            keys,
-            lang,
-            wireItemModel,
-            storageItemModel,
-            terminalItemModel,
-            craftingTerminalItemModel,
-            monitorItemModel,
-            importBusItemModel,
-            exportBusItemModel,
-            wirelessModel,
-            wirelessDisabledModelFinal,
-            vanillaNs + ":target");
-    boolean wirelessEnabled = getConfig().getBoolean("wireless.enabled", true);
-    int wirelessRange = getConfig().getInt("wireless.rangeChunks", 3);
-    wirelessService =
-        new WirelessTerminalService(this, keys, customItems, wirelessEnabled, wirelessRange);
-    if (sessionManager != null) {
-      sessionManager.reconfigure();
-    }
-    int wireLimitRaw = getConfig().getInt("wire.limit", getConfig().getInt("wireLimit", 32));
-    wireLimit = Math.max(1, wireLimitRaw);
-    int hardCapRaw =
-        getConfig()
-            .getInt(
-                "wire.hardCap",
-                getConfig().getInt("wireHardCap", Math.max(wireLimit * 2, wireLimit)));
-    if (hardCapRaw < wireLimit) {
-      ExortLog.warn("wireHardCap is below wireLimit; value will be adjusted to " + wireLimit);
-    }
-    wireHardCap = Math.max(wireLimit, hardCapRaw);
-    if (networkGraphCache != null) {
-      networkGraphCache.invalidateAll();
-    }
-
+  private void stopReloadableRuntime() {
+    stopWorldEditIntegration();
     stopPlacementGuard();
     stopProtocolEnhancements();
     if (customBlockBreaker != null) {
       customBlockBreaker.shutdown();
       customBlockBreaker = null;
     }
-    protocolLibEnhancements = ProtocolLibEnhancements.tryCreate(this);
-    BreakAnimationSender breakAnimationSender = createBreakAnimationSender(resourceNs);
+  }
+
+  private void unregisterReloadableRuntimeListeners() {
     HandlerList.unregisterAll(this);
     if (resourcePackService != null) {
       Bukkit.getPluginManager().registerEvents(resourcePackService, this);
     }
-    setupRegionProtection();
+  }
+
+  private void resetReloadableDisplayState() {
     if (hologramManager != null) {
       hologramManager.stop();
     }
@@ -695,6 +618,87 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     monitorDisplayManager = null;
     busDisplayManager = null;
     sanityScanScheduled = false;
+  }
+
+  private RuntimeItemModelConfig configureRuntimeItemModels() {
+    RuntimeItemModelConfig itemModels =
+        RuntimeItemModelConfig.fromConfig(getConfig(), resourceMode);
+    wireMaterial = itemModels.wireMaterial();
+    storageCarrier = itemModels.storageCarrier();
+    terminalCarrier = itemModels.terminalCarrier();
+    monitorCarrier = itemModels.monitorCarrier();
+    busCarrier = itemModels.busCarrier();
+    return itemModels;
+  }
+
+  private CompletableFuture<ItemNameService.Status> registerRuntime(
+      boolean refreshItemDictionaries) {
+    reloadDefaultSortMode();
+    String langCode = getConfig().getString("language", "en_us");
+    String normalized = itemNameService.normalizeLanguage(langCode);
+    if (lang == null) {
+      lang = new Lang(this);
+    }
+    lang.reload(normalized);
+    if (searchDialogService != null) {
+      searchDialogService.invalidate();
+    }
+    CompletableFuture<ItemNameService.Status> langFuture =
+        refreshItemDictionaries
+            ? itemNameService.refresh(normalized)
+            : itemNameService.reload(normalized);
+    langFuture.thenAccept(
+        status -> {
+          if (!status.activeLanguage().equalsIgnoreCase(normalized)) {
+            lang.reload(status.activeLanguage());
+          }
+        });
+    CreativeTabOrder.init(this);
+
+    RuntimeItemModelConfig itemModels = configureRuntimeItemModels();
+    YamlConfiguration tiersConfig = loadStorageTiersConfig();
+    StorageTier.loadFromConfig(tiersConfig.getConfigurationSection("tiers"), getLogger());
+    RuntimeNetworkConfig networkConfig = RuntimeNetworkConfig.fromConfig(getConfig());
+    storagePeekTicks = networkConfig.storagePeekTicks();
+    wirePeekTicks = networkConfig.wirePeekTicks();
+    var hologramConfig = RuntimeHologramConfig.fromConfig(getConfig(), resourceMode);
+    customItems =
+        new CustomItems(
+            keys,
+            lang,
+            itemModels.wireItemModel(),
+            itemModels.storageItemModel(),
+            itemModels.terminalItemModel(),
+            itemModels.craftingTerminalItemModel(),
+            itemModels.monitorItemModel(),
+            itemModels.importBusItemModel(),
+            itemModels.exportBusItemModel(),
+            itemModels.wirelessItemModel(),
+            itemModels.wirelessDisabledModel(),
+            VANILLA_NAMESPACE + ":target");
+    WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(getConfig());
+    wirelessService =
+        new WirelessTerminalService(
+            lang, keys, customItems, wirelessConfig.enabled(), wirelessConfig.rangeChunks());
+    if (sessionManager != null) {
+      sessionManager.reconfigure();
+    }
+    wireLimit = networkConfig.wireLimit();
+    wireHardCap = networkConfig.wireHardCap();
+    if (networkConfig.wireHardCapAdjusted()) {
+      ExortLog.warn("wireHardCap is below wireLimit; value will be adjusted to " + wireLimit);
+    }
+    if (networkGraphCache != null) {
+      networkGraphCache.invalidateAll();
+    }
+
+    stopReloadableRuntime();
+    protocolLibEnhancements = ProtocolLibEnhancements.tryCreate(this, this::recordPickDebugFull);
+    BreakAnimationSender breakAnimationSender =
+        createBreakAnimationSender(itemModels.displayNamespace());
+    unregisterReloadableRuntimeListeners();
+    setupRegionProtection();
+    resetReloadableDisplayState();
     hologramManager =
         new ItemHologramManager(
             this,
@@ -704,40 +708,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             wireMaterial,
             storageCarrier,
             terminalCarrier,
-            terminalConfig,
-            storageConfig);
+            hologramConfig.terminal(),
+            hologramConfig.storage());
     hologramManager.start();
     Bukkit.getPluginManager().registerEvents(hologramManager, this);
 
-    Material base =
-        resourceMode
-            ? resolveMaterial(
-                getConfig().getString("resourceMode.wire.displayBaseMaterial", "PAPER"),
-                Material.PAPER)
-            : Material.PAPER;
-    double scale =
-        resourceMode ? getConfig().getDouble("resourceMode.wire.displayScale", 1.0) : 1.0;
-    double ox =
-        resourceMode ? getConfig().getDouble("resourceMode.wire.displayOffset.x", 0.5) : 0.5;
-    double oy =
-        resourceMode ? getConfig().getDouble("resourceMode.wire.displayOffset.y", 0.5) : 0.5;
-    double oz =
-        resourceMode ? getConfig().getDouble("resourceMode.wire.displayOffset.z", 0.5) : 0.5;
-    String ns =
-        resourceMode ? getConfig().getString("resourceMode.namespace", "exort") : "minecraft";
-    String center =
-        resourceMode
-            ? normalizeModelId(
-                getConfig().getString("resourceMode.wire.displayModelCenter", "wire/center"), ns)
-            : normalizeModelId(
-                getConfig().getString("vanillaMode.wire.modelId", "black_stained_glass"), ns);
-    String connection =
-        resourceMode
-            ? normalizeModelId(
-                getConfig()
-                    .getString("resourceMode.wire.displayModelConnection", "wire/connection"),
-                ns)
-            : "";
+    RuntimeDisplayConfig wireDisplay =
+        RuntimeDisplayConfig.fromConfig(
+            getConfig(), resourceMode, "resourceMode.wire", this::resolveMaterial);
+    String ns = itemModels.displayNamespace();
+    RuntimeDisplayModelConfig displayModels =
+        RuntimeDisplayModelConfig.fromConfig(getConfig(), resourceMode, ns);
     String wireEntityName = lang.tr("item.wire");
     wireDisplayManager =
         new WireDisplayManager(
@@ -749,110 +730,55 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             monitorCarrier,
             busCarrier,
             ns,
-            center,
-            connection,
+            displayModels.wireCenter(),
+            displayModels.wireConnection(),
             resourceMode,
-            base,
-            scale,
-            ox,
-            oy,
-            oz,
+            wireDisplay.displayBaseMaterial(),
+            wireDisplay.displayScale(),
+            wireDisplay.offsetX(),
+            wireDisplay.offsetY(),
+            wireDisplay.offsetZ(),
             wireEntityName);
     if (wireDisplayManager.isEnabled()) {
       Bukkit.getScheduler().runTask(this, wireDisplayManager::scanLoadedChunks);
     }
 
     // Storage display manager
-    Material storageBase =
-        resourceMode
-            ? resolveMaterial(
-                getConfig().getString("resourceMode.storage.displayBaseMaterial", "PAPER"),
-                Material.PAPER)
-            : Material.PAPER;
-    double storageScale =
-        resourceMode ? getConfig().getDouble("resourceMode.storage.displayScale", 1.0) : 1.0;
-    double sox =
-        resourceMode ? getConfig().getDouble("resourceMode.storage.displayOffset.x", 0.5) : 0.5;
-    double soy =
-        resourceMode ? getConfig().getDouble("resourceMode.storage.displayOffset.y", 0.5) : 0.5;
-    double soz =
-        resourceMode ? getConfig().getDouble("resourceMode.storage.displayOffset.z", 0.5) : 0.5;
-    String storageModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode ? "resourceMode.storage.modelId" : "vanillaMode.storage.modelId",
-                    resourceMode ? "storage/storage" : "vault"),
-            ns);
+    RuntimeDisplayConfig storageDisplay =
+        RuntimeDisplayConfig.fromConfig(
+            getConfig(), resourceMode, "resourceMode.storage", this::resolveMaterial);
     storageDisplayManager =
         new StorageDisplayManager(
-            this, storageCarrier, storageModel, storageBase, storageScale, sox, soy, soz);
+            this,
+            storageCarrier,
+            displayModels.storage(),
+            storageDisplay.displayBaseMaterial(),
+            storageDisplay.displayScale(),
+            storageDisplay.offsetX(),
+            storageDisplay.offsetY(),
+            storageDisplay.offsetZ(),
+            lang.tr("item.storage_core"));
     Bukkit.getScheduler().runTask(this, storageDisplayManager::scanLoadedChunks);
 
     // Terminal display manager
-    Material terminalBase =
-        resourceMode
-            ? resolveMaterial(
-                getConfig().getString("resourceMode.terminal.displayBaseMaterial", "PAPER"),
-                Material.PAPER)
-            : Material.PAPER;
-    double terminalScale =
-        resourceMode ? getConfig().getDouble("resourceMode.terminal.displayScale", 1.0) : 1.0;
-    double tox =
-        resourceMode ? getConfig().getDouble("resourceMode.terminal.displayOffset.x", 0.5) : 0.5;
-    double toy =
-        resourceMode ? getConfig().getDouble("resourceMode.terminal.displayOffset.y", 0.5) : 0.5;
-    double toz =
-        resourceMode ? getConfig().getDouble("resourceMode.terminal.displayOffset.z", 0.5) : 0.5;
-    String terminalModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode ? "resourceMode.terminal.modelId" : "vanillaMode.terminal.modelId",
-                    resourceMode ? "terminal/inventory" : "barrel"),
-            ns);
-    String terminalDisabledModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode
-                        ? "resourceMode.terminal.modelDisabledId"
-                        : "vanillaMode.terminal.modelId",
-                    resourceMode ? "terminal/inventory_disabled" : "barrel"),
-            ns);
-    String craftingTerminalModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode
-                        ? "resourceMode.craftingTerminal.modelId"
-                        : "vanillaMode.craftingTerminal.modelId",
-                    resourceMode ? "terminal/workbench" : "crafting_table"),
-            ns);
-    String craftingTerminalDisabledModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode
-                        ? "resourceMode.craftingTerminal.modelDisabledId"
-                        : "vanillaMode.craftingTerminal.modelId",
-                    resourceMode ? "terminal/workbench_disabled" : "crafting_table"),
-            ns);
+    RuntimeDisplayConfig terminalDisplay =
+        RuntimeDisplayConfig.fromConfig(
+            getConfig(), resourceMode, "resourceMode.terminal", this::resolveMaterial);
     String terminalEntityName = lang.tr("item.terminal");
     String craftingTerminalEntityName = lang.tr("item.crafting_terminal");
     terminalDisplayManager =
         new TerminalDisplayManager(
             this,
             terminalCarrier,
-            terminalModel,
-            terminalDisabledModel,
-            craftingTerminalModel,
-            craftingTerminalDisabledModel,
-            terminalBase,
-            terminalScale,
-            tox,
-            toy,
-            toz,
+            displayModels.terminal(),
+            displayModels.terminalDisabled(),
+            displayModels.craftingTerminal(),
+            displayModels.craftingTerminalDisabled(),
+            terminalDisplay.displayBaseMaterial(),
+            terminalDisplay.displayScale(),
+            terminalDisplay.offsetX(),
+            terminalDisplay.offsetY(),
+            terminalDisplay.offsetZ(),
             terminalEntityName,
             craftingTerminalEntityName,
             keys,
@@ -864,138 +790,11 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     Bukkit.getScheduler().runTask(this, terminalDisplayManager::scanLoadedChunks);
 
     // Monitor display manager
-    Material monitorBase =
-        resourceMode
-            ? resolveMaterial(
-                getConfig().getString("resourceMode.monitor.displayBaseMaterial", "PAPER"),
-                Material.PAPER)
-            : Material.PAPER;
-    double monitorScale =
-        resourceMode ? getConfig().getDouble("resourceMode.monitor.displayScale", 1.0) : 1.0;
-    double mox =
-        resourceMode ? getConfig().getDouble("resourceMode.monitor.displayOffset.x", 0.5) : 0.5;
-    double moy =
-        resourceMode ? getConfig().getDouble("resourceMode.monitor.displayOffset.y", 0.5) : 0.5;
-    double moz =
-        resourceMode ? getConfig().getDouble("resourceMode.monitor.displayOffset.z", 0.5) : 0.5;
-    String monitorModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode ? "resourceMode.monitor.modelId" : "vanillaMode.monitor.modelId",
-                    resourceMode ? "terminal/monitor" : "smooth_stone"),
-            ns);
-    String monitorDisabledModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode
-                        ? "resourceMode.monitor.modelDisabledId"
-                        : "vanillaMode.monitor.modelId",
-                    resourceMode ? "terminal/monitor_disabled" : "smooth_stone"),
-            ns);
-    String monitorItemPath =
-        (resourceMode ? "resourceMode.monitor.screenItem" : "vanillaMode.monitor.screenItem");
-    String monitorBlockPath =
-        (resourceMode ? "resourceMode.monitor.screenBlock" : "vanillaMode.monitor.screenBlock");
-    String monitorThinBlockPath =
-        (resourceMode
-            ? "resourceMode.monitor.screenThinBlock"
-            : "vanillaMode.monitor.screenThinBlock");
-    String monitorHorizontalBlockPath =
-        (resourceMode
-            ? "resourceMode.monitor.screenHorizontalBlock"
-            : "vanillaMode.monitor.screenHorizontalBlock");
-    String monitorFullBlockPath =
-        (resourceMode
-            ? "resourceMode.monitor.screenFullBlock"
-            : "vanillaMode.monitor.screenFullBlock");
-    double monitorItemY = resourceMode ? 0.56 : 0.62;
-    double monitorItemZ = resourceMode ? 0.93 : 0.99;
-    double monitorBlockY = resourceMode ? 0.56 : 0.62;
-    double monitorBlockZ = resourceMode ? 0.93 : 0.99;
-    double monitorThinY = resourceMode ? 0.56 : 0.62;
-    double monitorThinZ = resourceMode ? 0.93 : 0.99;
-    double monitorHorizontalY = resourceMode ? 0.55 : 0.61;
-    double monitorHorizontalZ = resourceMode ? 1.026 : 1.032;
-    double monitorFullY = resourceMode ? 0.56 : 0.62;
-    double monitorFullZ = resourceMode ? 0.815 : 0.875;
-    double monitorTextY = resourceMode ? 0.26 : 0.2;
-    double monitorTextZ = resourceMode ? 0.95 : 1.01;
-    double monitorTextScale = 0.55;
-    double monitorTextEmptyY = 0.41;
-    double monitorTextEmptyScale = resourceMode ? 0.7 : 0.8;
-    var itemScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig().getDouble(monitorItemPath + ".offset.x", 0.5),
-            getConfig().getDouble(monitorItemPath + ".offset.y", monitorItemY),
-            getConfig().getDouble(monitorItemPath + ".offset.z", monitorItemZ),
-            getConfig().getDouble(monitorItemPath + ".scale", 0.35));
-    var blockScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig().getDouble(monitorBlockPath + ".offset.x", 0.5),
-            getConfig().getDouble(monitorBlockPath + ".offset.y", monitorBlockY),
-            getConfig().getDouble(monitorBlockPath + ".offset.z", monitorBlockZ),
-            getConfig().getDouble(monitorBlockPath + ".scale", 0.6));
-    var thinBlockScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig().getDouble(monitorThinBlockPath + ".offset.x", 0.5),
-            getConfig().getDouble(monitorThinBlockPath + ".offset.y", monitorThinY),
-            getConfig().getDouble(monitorThinBlockPath + ".offset.z", monitorThinZ),
-            getConfig().getDouble(monitorThinBlockPath + ".scale", 0.3));
-    var horizontalBlockScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig().getDouble(monitorHorizontalBlockPath + ".offset.x", 0.5),
-            getConfig().getDouble(monitorHorizontalBlockPath + ".offset.y", monitorHorizontalY),
-            getConfig().getDouble(monitorHorizontalBlockPath + ".offset.z", monitorHorizontalZ),
-            getConfig().getDouble(monitorHorizontalBlockPath + ".scale", 0.4));
-    var fullBlockScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig().getDouble(monitorFullBlockPath + ".offset.x", 0.5),
-            getConfig().getDouble(monitorFullBlockPath + ".offset.y", monitorFullY),
-            getConfig().getDouble(monitorFullBlockPath + ".offset.z", monitorFullZ),
-            getConfig().getDouble(monitorFullBlockPath + ".scale", 0.58));
-    var textScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig()
-                .getDouble(
-                    (resourceMode
-                            ? "resourceMode.monitor.screenText"
-                            : "vanillaMode.monitor.screenText")
-                        + ".offset.x",
-                    0.51),
-            getConfig()
-                .getDouble(
-                    (resourceMode
-                            ? "resourceMode.monitor.screenText"
-                            : "vanillaMode.monitor.screenText")
-                        + ".offset.y",
-                    monitorTextY),
-            getConfig()
-                .getDouble(
-                    (resourceMode
-                            ? "resourceMode.monitor.screenText"
-                            : "vanillaMode.monitor.screenText")
-                        + ".offset.z",
-                    monitorTextZ),
-            getConfig()
-                .getDouble(
-                    (resourceMode
-                            ? "resourceMode.monitor.screenText"
-                            : "vanillaMode.monitor.screenText")
-                        + ".scale",
-                    monitorTextScale));
-    String textEmptyPath =
-        (resourceMode
-            ? "resourceMode.monitor.screenTextEmpty"
-            : "vanillaMode.monitor.screenTextEmpty");
-    var textEmptyScreenConfig =
-        new MonitorDisplayManager.ScreenConfig(
-            getConfig().getDouble(textEmptyPath + ".offset.x", textScreenConfig.offsetX()),
-            getConfig().getDouble(textEmptyPath + ".offset.y", monitorTextEmptyY),
-            getConfig().getDouble(textEmptyPath + ".offset.z", textScreenConfig.offsetZ()),
-            getConfig().getDouble(textEmptyPath + ".scale", monitorTextEmptyScale));
-    int textAlpha = 0;
+    RuntimeDisplayConfig monitorDisplay =
+        RuntimeDisplayConfig.fromConfig(
+            getConfig(), resourceMode, "resourceMode.monitor", this::resolveMaterial);
+    RuntimeMonitorScreenConfig monitorScreens =
+        RuntimeMonitorScreenConfig.fromConfig(getConfig(), resourceMode);
     String monitorName = lang.tr("item.monitor");
     monitorDisplayManager =
         new MonitorDisplayManager(
@@ -1003,74 +802,45 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             keys,
             storageManager,
             monitorCarrier,
-            monitorModel,
-            monitorDisabledModel,
-            monitorBase,
-            monitorScale,
-            mox,
-            moy,
-            moz,
+            displayModels.monitor(),
+            displayModels.monitorDisabled(),
+            monitorDisplay.displayBaseMaterial(),
+            monitorDisplay.displayScale(),
+            monitorDisplay.offsetX(),
+            monitorDisplay.offsetY(),
+            monitorDisplay.offsetZ(),
             monitorName,
             wireLimit,
             wireHardCap,
             wireMaterial,
             storageCarrier,
-            itemScreenConfig,
-            blockScreenConfig,
-            thinBlockScreenConfig,
-            horizontalBlockScreenConfig,
-            fullBlockScreenConfig,
-            textScreenConfig,
-            textEmptyScreenConfig,
-            textAlpha);
+            monitorScreens.item(),
+            monitorScreens.block(),
+            monitorScreens.thinBlock(),
+            monitorScreens.horizontalBlock(),
+            monitorScreens.fullBlock(),
+            monitorScreens.text(),
+            monitorScreens.textEmpty(),
+            monitorScreens.textBackgroundAlpha());
     Bukkit.getScheduler().runTask(this, monitorDisplayManager::start);
 
     // Bus display manager
-    Material busBase =
-        resourceMode
-            ? resolveMaterial(
-                getConfig().getString("resourceMode.bus.displayBaseMaterial", "PAPER"),
-                Material.PAPER)
-            : Material.PAPER;
-    double busScale =
-        resourceMode ? getConfig().getDouble("resourceMode.bus.displayScale", 1.0) : 1.0;
-    double box =
-        resourceMode ? getConfig().getDouble("resourceMode.bus.displayOffset.x", 0.5) : 0.5;
-    double boy =
-        resourceMode ? getConfig().getDouble("resourceMode.bus.displayOffset.y", 0.5) : 0.5;
-    double boz =
-        resourceMode ? getConfig().getDouble("resourceMode.bus.displayOffset.z", 0.5) : 0.5;
-    String importBusModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode
-                        ? "resourceMode.bus.import.modelId"
-                        : "vanillaMode.importBus.modelId",
-                    resourceMode ? "bus/import" : "dispenser"),
-            ns);
-    String exportBusModel =
-        normalizeModelId(
-            getConfig()
-                .getString(
-                    resourceMode
-                        ? "resourceMode.bus.export.modelId"
-                        : "vanillaMode.exportBus.modelId",
-                    resourceMode ? "bus/export" : "dropper"),
-            ns);
+    RuntimeDisplayConfig busDisplay =
+        RuntimeDisplayConfig.fromConfig(
+            getConfig(), resourceMode, "resourceMode.bus", this::resolveMaterial);
     String importBusName = lang.tr("item.import_bus");
     String exportBusName = lang.tr("item.export_bus");
     busDisplayManager =
         new BusDisplayManager(
             this,
             busCarrier,
-            importBusModel,
-            exportBusModel,
-            busBase,
-            busScale,
-            box,
-            boy,
-            boz,
+            displayModels.importBus(),
+            displayModels.exportBus(),
+            busDisplay.displayBaseMaterial(),
+            busDisplay.displayScale(),
+            busDisplay.offsetX(),
+            busDisplay.offsetY(),
+            busDisplay.offsetZ(),
             importBusName,
             exportBusName);
     Bukkit.getScheduler().runTask(this, busDisplayManager::scanLoadedChunks);
@@ -1078,6 +848,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     displayRefreshService =
         new DisplayRefreshService(
             this,
+            wireHardCap,
+            wireMaterial,
+            terminalCarrier,
+            monitorCarrier,
+            busCarrier,
+            storageCarrier,
             wireDisplayManager,
             storageDisplayManager,
             terminalDisplayManager,
@@ -1089,16 +865,35 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             new DisplayCleanupService(
                 this, wireMaterial, storageCarrier, terminalCarrier, monitorCarrier, busCarrier),
             new MarkerSanityService(
-                this,
-                displayRefreshService,
-                wireMaterial,
-                storageCarrier,
-                terminalCarrier,
-                monitorCarrier,
-                busCarrier),
-            displayRefreshService);
+                new MarkerSanityDependencies(
+                    this,
+                    displayRefreshService,
+                    this::getHologramManager,
+                    this::getBusService,
+                    storageManager,
+                    database,
+                    wireMaterial,
+                    storageCarrier,
+                    terminalCarrier,
+                    monitorCarrier,
+                    busCarrier)),
+            displayRefreshService,
+            this::getWorldEditDebugService,
+            () -> {
+              if (networkGraphCache != null) {
+                networkGraphCache.invalidateAll();
+              }
+            });
     // Unified sanity listener (handles carrier changes and display refresh)
-    var chunkSanityListener = new ChunkSanityListener(this, chunkSanityService);
+    var chunkSanityListener =
+        new ChunkSanityListener(
+            this,
+            chunkSanityService,
+            () -> {
+              if (networkGraphCache != null) {
+                networkGraphCache.invalidateAll();
+              }
+            });
     Bukkit.getPluginManager().registerEvents(chunkSanityListener, this);
 
     // Schedule sanity scan for loaded chunks to update carriers/displays if materials changed
@@ -1107,48 +902,65 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       Bukkit.getScheduler().runTask(this, chunkSanityService::scanLoadedChunks);
     }
 
-    int busActiveTicks = getConfig().getInt("bus.activeIntervalTicks", 5);
-    int busIdleTicks = getConfig().getInt("bus.idleIntervalTicks", 40);
-    int busItemsPerOp = getConfig().getInt("bus.itemsPerOperation", 1);
-    int busMaxOps = getConfig().getInt("bus.maxOperationsPerTick", 6000);
-    int busMaxOpsPerChunk = getConfig().getInt("bus.maxOperationsPerChunk", 600);
-    boolean allowStorageTargets = getConfig().getBoolean("bus.allowStorageTargets", true);
+    BusRuntimeConfig busRuntime = BusRuntimeConfig.fromConfig(getConfig());
+    var busDependencies =
+        new BusEngineDependencies(
+            this,
+            keys,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE));
     busService =
         new BusService(
-            this,
-            storageManager,
-            database,
-            busCarrier,
-            busActiveTicks,
-            busIdleTicks,
-            busItemsPerOp,
-            busMaxOps,
-            busMaxOpsPerChunk,
-            allowStorageTargets,
-            wirelessService);
+            busDependencies, storageManager, database, busCarrier, busRuntime, wirelessService);
     busService.start();
     Bukkit.getScheduler().runTask(this, busService::scanLoadedChunks);
-    busSessionManager = new BusSessionManager(this, busService, lang);
+    var busSessionDependencies =
+        new BusSessionDependencies(
+            this,
+            keys,
+            bossBarManager,
+            this::isResourceMode,
+            this::getBusCarrier,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            () -> GuiRuntimeConfig.fromConfig(getConfig()),
+            () -> GuiOverlayConfig.fromConfig(getConfig()));
+    busSessionManager = new BusSessionManager(busSessionDependencies, busService, lang);
     busSessionManager.reconfigure();
 
     breakHandler =
         new BlockBreakHandler(
-            this,
-            customItems,
-            wireMaterial,
-            storageCarrier,
-            terminalCarrier,
-            monitorCarrier,
-            busCarrier,
-            hologramManager,
-            wireDisplayManager,
-            displayRefreshService,
-            breakAnimationSender);
+            new BlockBreakHandlerDependencies(
+                this,
+                customItems,
+                wireMaterial,
+                storageCarrier,
+                terminalCarrier,
+                monitorCarrier,
+                busCarrier,
+                hologramManager,
+                wireDisplayManager,
+                displayRefreshService,
+                breakAnimationSender,
+                storageManager,
+                sessionManager,
+                this::getMonitorDisplayManager,
+                this::getBusSessionManager,
+                this::getBusService,
+                this::getNetworkGraphCache,
+                regionProtection,
+                playerFeedback));
     var breakConfig = BreakConfig.fromConfig(getConfig(), getLogger());
     breakSoundConfig = BreakSoundConfig.fromConfig(getConfig());
     customBlockBreaker =
         new CustomBlockBreaker(
             this,
+            regionProtection,
             breakHandler,
             breakConfig,
             breakSoundConfig,
@@ -1158,112 +970,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             terminalCarrier,
             monitorCarrier,
             busCarrier);
-    customBlockBreaker.start();
-    Bukkit.getPluginManager().registerEvents(customBlockBreaker, this);
-    Bukkit.getPluginManager()
-        .registerEvents(
-            new BlockListener(
-                this,
-                storageManager,
-                keys,
-                customItems,
-                wireMaterial,
-                hologramManager,
-                wireDisplayManager,
-                storageCarrier,
-                terminalCarrier,
-                monitorCarrier,
-                busCarrier,
-                breakHandler),
-            this);
-    Bukkit.getPluginManager()
-        .registerEvents(
-            new TerminalListener(
-                this,
-                storageManager,
-                sessionManager,
-                keys,
-                wireLimit,
-                wireHardCap,
-                wireMaterial,
-                storageCarrier,
-                terminalCarrier),
-            this);
-    Bukkit.getPluginManager()
-        .registerEvents(new BusListener(this, busSessionManager, busCarrier), this);
-    Bukkit.getPluginManager()
-        .registerEvents(new InventoryEvents(sessionManager, busSessionManager), this);
-    dialogSupported = detectDialogSupport();
-    Bukkit.getPluginManager()
-        .registerEvents(new SearchDialogListener(sessionManager, searchDialogService, this), this);
-    Bukkit.getPluginManager()
-        .registerEvents(new StorageListener(this, storagePeekTicks, storageCarrier), this);
-    Bukkit.getPluginManager()
-        .registerEvents(
-            new WireListener(
-                this, keys, wireLimit, wireHardCap, wireMaterial, wirePeekTicks, storageCarrier),
-            this);
-    var pickListener =
-        new PickListener(
-            this,
-            customItems,
-            keys,
-            wireMaterial,
-            storageCarrier,
-            terminalCarrier,
-            monitorCarrier,
-            busCarrier);
-    Bukkit.getPluginManager().registerEvents(pickListener, this);
-    if (protocolLibEnhancements != null) {
-      protocolLibEnhancements.registerPickBridge(pickListener);
-    }
-    Bukkit.getPluginManager()
-        .registerEvents(
-            new ItemPlaceBridgeListener(
-                this,
-                storageManager,
-                customItems,
-                keys,
-                wireMaterial,
-                storageCarrier,
-                terminalCarrier,
-                monitorCarrier,
-                busCarrier),
-            this);
-    Bukkit.getPluginManager().registerEvents(new MonitorListener(this, monitorCarrier), this);
-    if (getConfig().getBoolean("placementGuard.enabled", true)) {
-      double guardScale = getConfig().getDouble("placementGuard.guardScale", 0.0625);
-      PlacementGuardBackend placementGuardBackend = createPlacementGuardBackend(guardScale);
-      placementGuard =
-          new RightClickPlacementGuard(
-              this,
-              customItems,
-              customBlockBreaker,
-              new ExortBlockTargetResolver(
-                  this, wireMaterial, storageCarrier, terminalCarrier, monitorCarrier, busCarrier),
-              placementGuardBackend,
-              getConfig().getInt("placementGuard.pollIntervalTicks", 1),
-              getConfig().getInt("placementGuard.targetRangeBlocks", 5),
-              guardScale,
-              getConfig().getDouble("placementGuard.cornerInset", 0.01));
-      Bukkit.getPluginManager().registerEvents(placementGuard, this);
-      placementGuard.start();
-    } else if (protocolLibEnhancements != null) {
-      protocolLibEnhancements.markPlacementGuardDisabledByConfig();
-    }
-    Bukkit.getPluginManager().registerEvents(new InventoryRefreshListener(this), this);
-    boolean blockVanilla = getConfig().getBoolean("crafting.blockVanilla", true);
-    boolean allowExternal = getConfig().getBoolean("crafting.allowExternal", true);
-    if (recipeService != null) {
-      recipeService.unregisterAll();
-    }
-    craftingRules = new CraftingRules(keys, blockVanilla, allowExternal);
-    Bukkit.getPluginManager().registerEvents(new CraftBlockerListener(craftingRules), this);
-    recipeService = new RecipeService(this, customItems, wirelessService);
-    recipeService.reload();
-    Bukkit.getPluginManager()
-        .registerEvents(new WirelessListener(this, wirelessService, storageManager), this);
-    Bukkit.getPluginManager().registerEvents(new WirelessCraftListener(wirelessService), this);
+    registerRuntimeListeners();
     // Ensure terminals/monitors refresh after mode switch so displays don't stay disabled until
     // interaction.
     Bukkit.getScheduler()
@@ -1321,25 +1028,240 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 this);
       }
     }
-    scheduleFlushTask();
-    scheduleCacheEviction();
+    scheduleRuntimeTasks();
     return langFuture;
   }
 
-  private PlacementGuardBackend createPlacementGuardBackend(double guardScale) {
-    boolean protocolGuardEnabled =
-        getConfig().getBoolean("protocolLib.enabled", true)
-            && getConfig().getBoolean("protocolLib.placementGuard.enabled", true);
+  private void registerRuntimeListeners() {
+    customBlockBreaker.start();
+    Bukkit.getPluginManager().registerEvents(customBlockBreaker, this);
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new BlockListener(
+                new BlockListenerDependencies(
+                    this,
+                    storageManager,
+                    keys,
+                    customItems,
+                    wireMaterial,
+                    hologramManager,
+                    this::getHologramManager,
+                    wireDisplayManager,
+                    storageCarrier,
+                    terminalCarrier,
+                    monitorCarrier,
+                    busCarrier,
+                    breakHandler,
+                    regionProtection,
+                    playerFeedback,
+                    this::getDisplayRefreshService,
+                    this::getMonitorDisplayManager,
+                    this::getBusService,
+                    this::getNetworkGraphCache,
+                    () -> {
+                      if (sessionManager != null) {
+                        sessionManager.revalidateSessions();
+                      }
+                    },
+                    database::setStorageTier,
+                    this::getBreakSoundConfig,
+                    () -> BusRuntimeConfig.fromConfig(getConfig()))),
+            this);
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new TerminalListener(
+                this,
+                regionProtection,
+                playerFeedback,
+                block -> {
+                  if (terminalDisplayManager != null) {
+                    terminalDisplayManager.refresh(block);
+                  }
+                },
+                database::setStorageTier,
+                storageManager,
+                sessionManager,
+                keys,
+                wireLimit,
+                wireHardCap,
+                wireMaterial,
+                storageCarrier,
+                terminalCarrier),
+            this);
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new BusListener(
+                this,
+                regionProtection,
+                block -> {
+                  if (busDisplayManager != null) {
+                    busDisplayManager.refresh(block);
+                  }
+                },
+                busSessionManager,
+                busCarrier),
+            this);
+    Bukkit.getPluginManager()
+        .registerEvents(new InventoryEvents(sessionManager, busSessionManager), this);
+    dialogSupported = detectDialogSupport();
+    Bukkit.getPluginManager()
+        .registerEvents(new SearchDialogListener(sessionManager, searchDialogService, this), this);
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new StorageListener(
+                this, regionProtection, bossBarManager, storagePeekTicks, storageCarrier),
+            this);
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new WireListener(
+                new WireListenerDependencies(
+                    this,
+                    regionProtection,
+                    bossBarManager,
+                    keys,
+                    wireLimit,
+                    wireHardCap,
+                    wireMaterial,
+                    wirePeekTicks,
+                    storageCarrier)),
+            this);
+    var pickListener =
+        new PickListener(
+            this,
+            customItems,
+            keys,
+            this::recordPickDebug,
+            wireMaterial,
+            storageCarrier,
+            terminalCarrier,
+            monitorCarrier,
+            busCarrier);
+    Bukkit.getPluginManager().registerEvents(pickListener, this);
+    if (protocolLibEnhancements != null) {
+      protocolLibEnhancements.registerPickBridge(pickListener);
+    }
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new ItemPlaceBridgeListener(
+                new ItemPlaceBridgeDependencies(
+                    this,
+                    storageManager,
+                    customItems,
+                    keys,
+                    wireMaterial,
+                    storageCarrier,
+                    terminalCarrier,
+                    monitorCarrier,
+                    busCarrier,
+                    regionProtection,
+                    playerFeedback,
+                    this::getDisplayRefreshService,
+                    this::getHologramManager,
+                    this::getMonitorDisplayManager,
+                    this::getBusService,
+                    this::getNetworkGraphCache,
+                    () -> {
+                      if (sessionManager != null) {
+                        sessionManager.revalidateSessions();
+                      }
+                    },
+                    this::markMonitorPlaced,
+                    database::setStorageTier,
+                    this::getBreakSoundConfig,
+                    () -> BusRuntimeConfig.fromConfig(getConfig()))),
+            this);
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new MonitorListener(
+                new MonitorListenerDependencies(
+                    this,
+                    regionProtection,
+                    keys,
+                    bossBarManager,
+                    itemNameService,
+                    monitorCarrier,
+                    wireMaterial,
+                    storageCarrier,
+                    this::getWireLimit,
+                    this::getWireHardCap,
+                    () -> storagePeekTicks,
+                    this::isMonitorRecentlyPlaced,
+                    block -> {
+                      if (monitorDisplayManager != null) {
+                        monitorDisplayManager.refresh(block);
+                      }
+                    })),
+            this);
+    PlacementGuardConfig placementConfig = PlacementGuardConfig.fromConfig(getConfig());
+    if (placementConfig.enabled()) {
+      PlacementGuardBackend placementGuardBackend = createPlacementGuardBackend(placementConfig);
+      placementGuard =
+          new RightClickPlacementGuard(
+              this,
+              customItems,
+              customBlockBreaker,
+              new ExortBlockTargetResolver(
+                  this, wireMaterial, storageCarrier, terminalCarrier, monitorCarrier, busCarrier),
+              placementGuardBackend,
+              placementConfig.pollIntervalTicks(),
+              placementConfig.targetRangeBlocks(),
+              placementConfig.guardScale(),
+              placementConfig.cornerInset());
+      Bukkit.getPluginManager().registerEvents(placementGuard, this);
+      placementGuard.start();
+    } else if (protocolLibEnhancements != null) {
+      protocolLibEnhancements.markPlacementGuardDisabledByConfig();
+    }
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new InventoryRefreshListener(
+                this,
+                this::getInventoryRefreshEpoch,
+                this::refreshPlayerInventory,
+                this::refreshContainerInventory),
+            this);
+    CraftingRulesConfig craftingConfig = CraftingRulesConfig.fromConfig(getConfig());
+    if (recipeService != null) {
+      recipeService.unregisterAll();
+    }
+    craftingRules =
+        new CraftingRules(keys, craftingConfig.blockVanilla(), craftingConfig.allowExternal());
+    Bukkit.getPluginManager().registerEvents(new CraftBlockerListener(craftingRules), this);
+    recipeService = new RecipeService(this, customItems, wirelessService);
+    recipeService.reload();
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new WirelessListener(
+                new WirelessListenerDependencies(
+                    this,
+                    wirelessService,
+                    storageManager,
+                    customItems,
+                    regionProtection,
+                    bossBarManager,
+                    playerFeedback,
+                    database,
+                    sessionManager,
+                    keys,
+                    wireLimit,
+                    wireHardCap,
+                    wireMaterial,
+                    storageCarrier)),
+            this);
+    Bukkit.getPluginManager().registerEvents(new WirelessCraftListener(wirelessService), this);
+  }
+
+  private PlacementGuardBackend createPlacementGuardBackend(PlacementGuardConfig config) {
     PaperEntityPlacementGuardBackend paperBackend =
-        new PaperEntityPlacementGuardBackend(this, guardScale);
-    if (!protocolGuardEnabled) {
+        new PaperEntityPlacementGuardBackend(this, config.guardScale());
+    if (!config.protocolLibGuardEnabled()) {
       if (protocolLibEnhancements != null) {
         protocolLibEnhancements.markPlacementGuardDisabledByConfig();
       }
       return paperBackend;
     }
-    if (protocolGuardEnabled && protocolLibEnhancements != null) {
-      var packets = protocolLibEnhancements.tryCreatePlacementGuardPackets(guardScale);
+    if (protocolLibEnhancements != null) {
+      var packets = protocolLibEnhancements.tryCreatePlacementGuardPackets(config.guardScale());
       if (packets != null) {
         final FailoverPlacementGuardBackend[] holder = new FailoverPlacementGuardBackend[1];
         ProtocolLibPlacementGuardBackend protocolBackend =
@@ -1355,7 +1277,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
         return failoverBackend;
       }
     }
-    if (protocolGuardEnabled && protocolLibEnhancements == null) {
+    if (protocolLibEnhancements == null) {
       ExortLog.warn(protocolLibPlacementGuardUnavailableMessage());
     }
     return paperBackend;
@@ -1458,11 +1380,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   private void setupRegionProtection() {
     regionProtection = RegionProtection.allowAll();
-    if (!getConfig().getBoolean("worldguard.enabled", true)) {
+    WorldGuardProtectionConfig protectionConfig =
+        WorldGuardProtectionConfig.fromConfig(getConfig());
+    if (!protectionConfig.enabled()) {
       ExortLog.info("[WorldGuard] Integration disabled by config.");
       return;
     }
-    boolean failClosed = getConfig().getBoolean("worldguard.failClosedOnError", false);
+    boolean failClosed = protectionConfig.failClosedOnError();
     var wg = getServer().getPluginManager().getPlugin("WorldGuard");
     if (wg == null || !wg.isEnabled()) {
       ExortLog.info("[WorldGuard] Integration disabled: plugin not found.");
@@ -1481,8 +1405,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       regionProtection = failClosed ? RegionProtection.denyAll() : RegionProtection.allowAll();
       return;
     }
-    boolean debug = getConfig().getBoolean("worldguard.debug", false);
-    if (debug) {
+    if (protectionConfig.debug()) {
       regionProtection = new DebugRegionProtection(regionProtection, getLogger(), true);
     }
     ExortLog.success("[WorldGuard] Integration enabled.");
@@ -1512,10 +1435,50 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
               event
                   .registrar()
                   .register(
-                      new ExortBrigadier(this).build(),
+                      new ExortBrigadier(createBrigadierDependencies()).build(),
                       "Exort Storage Network admin commands",
                       List.of("esn", "vst"));
             });
+  }
+
+  private ExortBrigadierDependencies createBrigadierDependencies() {
+    return new ExortBrigadierDependencies(
+        this,
+        lang,
+        customItems,
+        keys,
+        storageManager,
+        database,
+        sessionManager,
+        wirelessService,
+        cacheDebugService,
+        worldEditDebugService,
+        pickDebugService,
+        loadTestService,
+        itemNameService,
+        this::getResourcePackService,
+        this::reloadResourcePackService,
+        this::reloadRuntime,
+        () -> getConfig().getString("language", "en_us"),
+        value -> {
+          getConfig().set("language", value);
+          saveConfig();
+        },
+        value -> {
+          getConfig().set("mode", value);
+          saveConfig();
+        },
+        this::getConfiguredMode,
+        this::getEffectiveMode,
+        this::getModeFallbackReason,
+        () -> getPluginMeta().getVersion(),
+        this::chorusPlantUpdateStatus,
+        this::disableChorusPlantUpdatesInPaperConfig,
+        () -> StorageRuntimeConfig.fromConfig(getConfig()).cacheIdleUnloadSeconds(),
+        this::getWireLimit,
+        this::getWireHardCap,
+        this::getWireMaterial,
+        this::getStorageCarrier);
   }
 
   public Material getWireMaterial() {
@@ -1574,6 +1537,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     return busSessionManager;
   }
 
+  @Override
   public NetworkGraphCache getNetworkGraphCache() {
     return networkGraphCache;
   }
@@ -1591,9 +1555,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   private void reloadDefaultSortMode() {
-    defaultSortModeName =
-        SortMode.fromString(getConfig().getString("defaultSortMode", SortMode.AMOUNT.name()))
-            .name();
+    defaultSortModeName = StorageRuntimeConfig.fromConfig(getConfig()).defaultSortModeName();
   }
 
   public ItemHologramManager getHologramManager() {
@@ -1627,14 +1589,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     saveResource("recipes.yml", false);
   }
 
+  private void scheduleRuntimeTasks() {
+    scheduleFlushTask();
+    scheduleCacheEviction();
+  }
+
   private void scheduleCacheEviction() {
     if (cacheEvictTaskId != -1) {
       Bukkit.getScheduler().cancelTask(cacheEvictTaskId);
       cacheEvictTaskId = -1;
     }
     if (storageManager == null) return;
-    long idleSeconds = getConfig().getLong("cache.idleUnloadSeconds", 300);
-    long checkSeconds = getConfig().getLong("cache.idleCheckSeconds", 60);
+    StorageRuntimeConfig storageConfig = StorageRuntimeConfig.fromConfig(getConfig());
+    long idleSeconds = storageConfig.cacheIdleUnloadSeconds();
+    long checkSeconds = storageConfig.cacheIdleCheckSeconds();
     if (idleSeconds <= 0 || checkSeconds <= 0) return;
     long idleMs = idleSeconds * 1000L;
     cacheEvictTaskId =
@@ -1652,7 +1620,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       flushTaskId = -1;
     }
     if (storageManager == null) return;
-    int flushSeconds = getConfig().getInt("flushIntervalSeconds", 10);
+    int flushSeconds = StorageRuntimeConfig.fromConfig(getConfig()).flushIntervalSeconds();
     if (flushSeconds <= 0) return;
     flushTaskId =
         Bukkit.getScheduler()
@@ -1711,71 +1679,40 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   private BreakAnimationSender createBreakAnimationSender(String resourceNamespace) {
+    BreakVisualConfig visualConfig = BreakVisualConfig.fromConfig(getConfig());
     DisplayBreakAnimationSender.clearStaleOverlays();
     if (resourceMode) {
       List<BreakAnimationSender> senders = new ArrayList<>();
-      if (getConfig().getBoolean("resourceMode.breakOverlay.enabled", true)) {
-        Material base =
-            resolveMaterial(
-                getConfig().getString("resourceMode.breakOverlay.displayBaseMaterial", "PAPER"),
-                Material.PAPER);
+      BreakVisualConfig.ResourceOverlayConfig overlay = visualConfig.resourceOverlay();
+      if (overlay.enabled()) {
+        Material base = resolveMaterial(overlay.displayBaseMaterial(), Material.PAPER);
         senders.add(
             new DisplayBreakAnimationSender(
-                this,
-                base,
-                resourceNamespace,
-                getConfig().getString("resourceMode.breakOverlay.modelPrefix", "breaking/stage_"),
-                getConfig().getDouble("resourceMode.breakOverlay.displayScale", 1.001)));
+                this, base, resourceNamespace, overlay.modelPrefix(), overlay.displayScale()));
       }
-      if (getConfig().getBoolean("resourceMode.breakParticles.enabled", true)) {
-        senders.add(createResourceBreakParticleSender("resourceMode.breakParticles"));
+      if (visualConfig.resourceParticles().enabled()) {
+        senders.add(createResourceBreakParticleSender(visualConfig.resourceParticles()));
       }
       return CompositeBreakAnimationSender.of(senders);
     }
 
-    if (!getConfig().getBoolean("vanillaMode.breakParticles.enabled", true)) {
+    if (!visualConfig.vanillaParticles().enabled()) {
       return BreakAnimationSender.NOOP;
     }
-    return createVanillaBreakParticleSender("vanillaMode.breakParticles");
+    return BreakParticleSender.vanilla(this, visualConfig.vanillaParticles().settings());
   }
 
-  private BreakAnimationSender createVanillaBreakParticleSender(String path) {
-    return BreakParticleSender.vanilla(this, readBreakParticleSettings(path));
-  }
-
-  private BreakAnimationSender createResourceBreakParticleSender(String path) {
-    Material material =
-        resolveMaterial(
-            getConfig().getString(path + ".material", "NETHERITE_BLOCK"), Material.NETHERITE_BLOCK);
+  private BreakAnimationSender createResourceBreakParticleSender(
+      BreakVisualConfig.ResourceParticleConfig particleConfig) {
+    Material material = resolveMaterial(particleConfig.materialName(), Material.NETHERITE_BLOCK);
     if (material == null || !material.isBlock()) {
       ExortLog.warn(
           "Invalid RESOURCE break particle block material '"
-              + getConfig().getString(path + ".material")
+              + particleConfig.materialName()
               + "', falling back to NETHERITE_BLOCK");
       material = Material.NETHERITE_BLOCK;
     }
-    return BreakParticleSender.resource(this, readBreakParticleSettings(path), material);
-  }
-
-  private BreakParticleSender.Settings readBreakParticleSettings(String path) {
-    double range = Math.max(0.0, getConfig().getDouble(path + ".range", 16.0));
-    int stageCount = Math.max(0, getConfig().getInt(path + ".count", 6));
-    int breakCount = Math.max(0, getConfig().getInt(path + ".breakCount", 30));
-    double spread = Math.max(0.0, getConfig().getDouble(path + ".spread", 0.31));
-    return new BreakParticleSender.Settings(range, stageCount, breakCount, spread);
-  }
-
-  private String normalizeModelId(String raw, String namespace) {
-    String ns = namespace == null || namespace.isBlank() ? "minecraft" : namespace.trim();
-    String id = raw == null ? "" : raw.trim();
-    if (id.isEmpty()) id = "unknown";
-    id = id.toLowerCase(Locale.ROOT);
-    int colon = id.indexOf(':');
-    if (colon >= 0 && colon + 1 < id.length()) {
-      id = id.substring(colon + 1);
-    }
-    id = ns + ":" + id;
-    return id;
+    return BreakParticleSender.resource(this, particleConfig.settings(), material);
   }
 
   // materialFromModel removed: item materials are always PAPER

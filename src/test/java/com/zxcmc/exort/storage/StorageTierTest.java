@@ -1,8 +1,10 @@
 package com.zxcmc.exort.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Collection;
 import java.util.logging.Logger;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -63,5 +65,43 @@ class StorageTierTest {
     var tier = StorageTier.fromString("BASIC");
     assertTrue(tier.isPresent());
     assertEquals(Material.CHEST, tier.get().displayMaterial());
+  }
+
+  @Test
+  void descriptorUsesPublicImmutableProjection() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("basic.maxItems", 128);
+    config.set("basic.material", "minecraft:chest");
+    config.set("basic.displayName", "Basic");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var descriptor = StorageTier.fromString("basic").orElseThrow().descriptor();
+    assertEquals("BASIC", descriptor.key());
+    assertEquals(128, descriptor.maxItems());
+    assertEquals("minecraft:chest", descriptor.displayMaterialKey());
+    assertEquals("Basic", descriptor.displayName());
+  }
+
+  @Test
+  void allTiersReturnsImmutableSnapshot() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("basic.maxItems", 128);
+    config.set("basic.material", "CHEST");
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    Collection<StorageTier> snapshot = StorageTier.allTiers();
+    assertEquals(1, snapshot.size());
+    assertThrows(UnsupportedOperationException.class, snapshot::clear);
+
+    YamlConfiguration replacement = new YamlConfiguration();
+    replacement.set("gold.maxItems", 256);
+    replacement.set("gold.material", "GOLD_BLOCK");
+    replacement.set("diamond.maxItems", 512);
+    replacement.set("diamond.material", "DIAMOND_BLOCK");
+    StorageTier.loadFromConfig(replacement, LOGGER);
+
+    assertEquals(1, snapshot.size());
+    assertEquals(2, StorageTier.allTiers().size());
   }
 }

@@ -1,6 +1,6 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.i18n.Lang;
 
 final class CategoryLabels {
   private CategoryLabels() {}

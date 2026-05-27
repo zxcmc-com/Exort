@@ -1,14 +1,15 @@
 package com.zxcmc.exort.storage;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.db.DbItem;
-import com.zxcmc.exort.core.items.CustomItems;
-import com.zxcmc.exort.core.items.ItemKeyUtil;
-import com.zxcmc.exort.core.keys.StorageKeys;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.infra.db.DbItem;
+import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.items.ItemKeyUtil;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.*;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -84,7 +85,8 @@ public class StorageCache {
 
   private final String storageId;
   private final StorageKeys keys;
-  private final ExortPlugin plugin;
+  private final Logger logger;
+  private final Supplier<CacheDebugService> cacheDebugService;
   private final Map<String, StorageItem> items = new HashMap<>();
   private final Set<String> dirtyKeys = new HashSet<>();
   private final Set<String> removedKeys = new HashSet<>();
@@ -103,10 +105,15 @@ public class StorageCache {
   private static final StackWalker TOUCH_WALKER =
       StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
-  public StorageCache(String storageId, StorageKeys keys, ExortPlugin plugin) {
+  public StorageCache(
+      String storageId,
+      StorageKeys keys,
+      Logger logger,
+      Supplier<CacheDebugService> cacheDebugService) {
     this.storageId = storageId;
     this.keys = keys;
-    this.plugin = plugin;
+    this.logger = logger;
+    this.cacheDebugService = cacheDebugService;
     this.lastAccessMs = System.currentTimeMillis();
   }
 
@@ -645,12 +652,10 @@ public class StorageCache {
   public synchronized void touch() {
     long now = System.currentTimeMillis();
     lastAccessMs = now;
-    if (plugin != null) {
-      var debug = plugin.getCacheDebugService();
-      if (debug != null && debug.shouldTrace(storageId)) {
-        lastTouchMs = now;
-        lastTouchSource = captureTouchSource();
-      }
+    var debug = cacheDebugService();
+    if (debug != null && debug.shouldTrace(storageId)) {
+      lastTouchMs = now;
+      lastTouchSource = captureTouchSource();
     }
   }
 
@@ -685,22 +690,19 @@ public class StorageCache {
   }
 
   private boolean isVerbose() {
-    return plugin != null
-        && plugin.getCacheDebugService() != null
-        && plugin.getCacheDebugService().isEnabled();
+    var debug = cacheDebugService();
+    return debug != null && debug.isEnabled();
   }
 
   private void log(CacheDebugService.EventType type, String message) {
-    if (plugin == null) return;
-    var debug = plugin.getCacheDebugService();
+    var debug = cacheDebugService();
     if (debug != null) {
       debug.record(type, storageId, message);
     }
   }
 
   private void log(CacheDebugService.EventType type, String message, long amount) {
-    if (plugin == null) return;
-    var debug = plugin.getCacheDebugService();
+    var debug = cacheDebugService();
     if (debug != null) {
       debug.record(type, storageId, message, amount);
     }
@@ -757,13 +759,15 @@ public class StorageCache {
   }
 
   private void logInvalidDbItem(DbItem item, String message) {
-    if (plugin == null) return;
+    if (logger == null) return;
     String key = item == null ? "<null>" : String.valueOf(item.key());
     long amount = item == null ? 0L : item.amount();
-    plugin
-        .getLogger()
-        .warning(
-            "Storage " + storageId + ": " + message + " (key=" + key + ", amount=" + amount + ")");
+    logger.warning(
+        "Storage " + storageId + ": " + message + " (key=" + key + ", amount=" + amount + ")");
+  }
+
+  private CacheDebugService cacheDebugService() {
+    return cacheDebugService == null ? null : cacheDebugService.get();
   }
 
   private static long saturatingAdd(long left, long right) {

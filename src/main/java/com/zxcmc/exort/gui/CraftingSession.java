@@ -1,9 +1,9 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.ItemNameService;
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.items.ItemKeyUtil;
-import com.zxcmc.exort.core.recipes.CraftingRules;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.items.ItemKeyUtil;
+import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -55,13 +55,10 @@ public class CraftingSession extends AbstractStorageSession {
   private final CraftingRules craftingRules;
   private final boolean useFillers;
   private final long confirmTimeoutMs;
+  private final InfoButtonState infoButtonState;
   private final Map<Integer, DisplayEntry> slotEntries = new HashMap<>();
   private long infoErrorUntilMs;
   private int infoErrorTaskId = -1;
-  private int infoConfirmRemaining;
-  private long infoConfirmLastAt;
-  private long infoBlockedUntilMs;
-  private boolean showStorageId;
 
   public CraftingSession(
       Player viewer,
@@ -98,6 +95,7 @@ public class CraftingSession extends AbstractStorageSession {
     this.craftingRules = craftingRules;
     this.useFillers = useFillers;
     this.confirmTimeoutMs = Math.max(0L, confirmTimeoutMs);
+    this.infoButtonState = new InfoButtonState(confirmTimeoutMs);
   }
 
   @Override
@@ -123,23 +121,19 @@ public class CraftingSession extends AbstractStorageSession {
       Bukkit.getScheduler().cancelTask(infoErrorTaskId);
       infoErrorTaskId = -1;
     }
-    resetInfoConfirm();
+    infoButtonState.resetConfirm();
   }
 
   public void render() {
     displayList = buildDisplayList();
-    int totalSlots = displayList.size();
-    int totalPages = Math.max(1, (int) Math.ceil(totalSlots / (double) pageSize()));
-    if (page >= totalPages) {
-      page = totalPages - 1;
-    }
+    GuiPageWindow pageWindow = GuiPageWindow.forSlots(page, displayList.size(), pageSize());
+    page = pageWindow.page();
     slotEntries.clear();
     ItemStack[] contents = new ItemStack[GuiLayout.INVENTORY_SIZE];
     boolean fillSearchPad = useFillers && isSearchResultsPage();
 
-    int startIndex = page * STORAGE_SLOTS.length;
     for (int i = 0; i < STORAGE_SLOTS.length; i++) {
-      int idx = startIndex + i;
+      int idx = pageWindow.startIndex() + i;
       int slot = STORAGE_SLOTS[i];
       DisplayEntry entry = entryAt(idx);
       if (entry == null) {
@@ -164,7 +158,7 @@ public class CraftingSession extends AbstractStorageSession {
       }
     }
 
-    String pageInfo = lang.tr("gui.page_info", page + 1, totalPages);
+    String pageInfo = lang.tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
     List<Component> pageLore = new ArrayList<>();
     pageLore.add(Component.text(pageInfo).decoration(TextDecoration.ITALIC, false));
     String searchLabel = currentPageSearchLabel();
@@ -263,9 +257,9 @@ public class CraftingSession extends AbstractStorageSession {
     }
     if (rawSlot == GuiLayout.Crafting.SLOT_NEXT) {
       state.resetConfirm();
-      int totalPages = Math.max(1, (int) Math.ceil(displayList.size() / (double) pageSize()));
-      if (page + 1 < totalPages) {
-        page++;
+      GuiPageWindow pageWindow = GuiPageWindow.forSlots(page, displayList.size(), pageSize());
+      if (pageWindow.hasNext()) {
+        page = pageWindow.page() + 1;
         render();
       }
       return;
@@ -483,7 +477,7 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private List<StorageCache.ReservedItem> reserveIngredients(CraftPlan plan, int crafts) {
-    WirelessTerminalService ws = manager.getPlugin().getWirelessService();
+    WirelessTerminalService ws = manager.wirelessService();
     List<StorageCache.RemovalRequest> requests = new ArrayList<>(plan.ingredients.size());
     for (Ingredient ingredient : plan.ingredients.values()) {
       long remove = (long) ingredient.perCraft * crafts;
@@ -505,7 +499,7 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private void pauseBusesForCraft() {
-    var busService = manager.getPlugin().getBusService();
+    var busService = manager.busService();
     if (busService == null) return;
     busService.pauseForCraft(cache.getStorageId());
   }
@@ -810,7 +804,7 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private void showWirelessMissingError() {
-    manager.getPlugin().getPlayerFeedback().error(viewer, "message.wireless.missing_storage");
+    manager.playerFeedback().error(viewer, "message.wireless.missing_storage");
   }
 
   private int limitToPlayer(CraftPlan plan, int craftCount) {
@@ -859,7 +853,7 @@ public class CraftingSession extends AbstractStorageSession {
       matrix[i] = sample;
     }
     // Custom unbind recipe for wireless terminal inside crafting terminal.
-    var ws = manager.getPlugin().getWirelessService();
+    var ws = manager.wirelessService();
     if (ws != null) {
       int wirelessCount = 0;
       ItemStack wirelessItem = null;
@@ -1016,7 +1010,7 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private ItemStack searchButton() {
-    return StorageGuiControls.searchButton(lang, hasSearch(), searchQuery, useFillers);
+    return StorageGuiControls.searchButton(lang, hasSearch(), getSearchQuery(), useFillers);
   }
 
   private ItemStack infoButton() {
@@ -1024,12 +1018,12 @@ public class CraftingSession extends AbstractStorageSession {
         lang,
         cache,
         tier,
-        showStorageId,
+        infoButtonState.showStorageId(),
         readOnly,
         isInfoErrorActive(),
         infoErrorMessage,
-        infoConfirmRemaining(),
-        isInfoBlocked(),
+        infoButtonState.confirmRemaining(),
+        infoButtonState.isBlocked(),
         useFillers);
   }
 
@@ -1046,7 +1040,7 @@ public class CraftingSession extends AbstractStorageSession {
     infoErrorTaskId =
         Bukkit.getScheduler()
             .runTaskLater(
-                manager.getPlugin(),
+                manager.plugin(),
                 () -> {
                   infoErrorTaskId = -1;
                   infoErrorMessage = null;
@@ -1060,79 +1054,37 @@ public class CraftingSession extends AbstractStorageSession {
 
   private void handleInfoClick(InventoryClickEvent event) {
     if (!event.isShiftClick() || !event.isRightClick()) {
-      resetInfoConfirm();
+      infoButtonState.resetConfirm();
       return;
     }
-    if (!showStorageId) {
-      showStorageId = true;
+    if (!infoButtonState.showStorageId()) {
+      infoButtonState.revealStorageId();
       render();
       return;
     }
     if (!readOnly) {
-      resetInfoConfirm();
+      infoButtonState.resetConfirm();
       return;
     }
-    if (!isInfoConfirming()) {
-      startInfoConfirm();
+    if (!infoButtonState.isConfirming()) {
+      infoButtonState.startConfirm();
       render();
       return;
     }
-    int remaining = decrementInfoConfirm();
+    int remaining = infoButtonState.decrementConfirm();
     if (remaining > 0) {
       render();
       return;
     }
     if (manager.isModeratorLocked(cache.getStorageId(), viewer.getUniqueId())) {
-      markInfoBlocked();
+      infoButtonState.markBlocked();
       render();
       return;
     }
     if (!manager.forceWriterFromInfo(this)) {
-      markInfoBlocked();
+      infoButtonState.markBlocked();
       render();
     }
-  }
-
-  private boolean isInfoConfirming() {
-    if (infoConfirmRemaining <= 0) return false;
-    if (confirmTimeoutMs > 0 && System.currentTimeMillis() - infoConfirmLastAt > confirmTimeoutMs) {
-      resetInfoConfirm();
-      return false;
-    }
-    return true;
-  }
-
-  private int infoConfirmRemaining() {
-    return isInfoConfirming() ? infoConfirmRemaining : 0;
-  }
-
-  private void startInfoConfirm() {
-    infoConfirmRemaining = 4;
-    infoConfirmLastAt = System.currentTimeMillis();
-    infoBlockedUntilMs = 0L;
-  }
-
-  private int decrementInfoConfirm() {
-    if (!isInfoConfirming()) return 0;
-    infoConfirmRemaining = Math.max(0, infoConfirmRemaining - 1);
-    infoConfirmLastAt = System.currentTimeMillis();
-    return infoConfirmRemaining;
-  }
-
-  private void resetInfoConfirm() {
-    infoConfirmRemaining = 0;
-    infoConfirmLastAt = 0L;
-  }
-
-  private void markInfoBlocked() {
-    resetInfoConfirm();
-    if (confirmTimeoutMs > 0) {
-      infoBlockedUntilMs = System.currentTimeMillis() + confirmTimeoutMs;
-    }
-  }
-
-  private boolean isInfoBlocked() {
-    return infoBlockedUntilMs > System.currentTimeMillis();
   }
 
   private List<OutputStack> outputAdditions(CraftPlan plan, long outputAmount) {
