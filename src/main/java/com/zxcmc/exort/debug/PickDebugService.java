@@ -1,13 +1,13 @@
 package com.zxcmc.exort.debug;
 
 import com.zxcmc.exort.core.ExortPlugin;
+import com.zxcmc.exort.core.text.ExortText;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -27,8 +27,6 @@ public final class PickDebugService {
       }
     }
   }
-
-  private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
 
   private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
   private volatile boolean consoleExplicit;
@@ -78,9 +76,8 @@ public final class PickDebugService {
 
   private void send(Component line) {
     if (line == null) return;
-    String legacy = LEGACY.serialize(line);
     if (consoleExplicit || !viewers.isEmpty()) {
-      Bukkit.getConsoleSender().sendMessage(legacy);
+      Bukkit.getConsoleSender().sendMessage(line);
     }
     for (UUID viewerId : viewers) {
       Player player = Bukkit.getPlayer(viewerId);
@@ -88,12 +85,12 @@ public final class PickDebugService {
         viewers.remove(viewerId);
         continue;
       }
-      player.sendMessage(legacy);
+      player.sendMessage(line);
     }
   }
 
   private Component formatMessage(String message, NamedTextColor color) {
-    return Component.text("[Exort] ", NamedTextColor.AQUA)
+    return Component.text("[Exort] ", ExortText.PREFIX)
         .append(Component.text("pick ", NamedTextColor.GOLD))
         .append(Component.text(message, color));
   }

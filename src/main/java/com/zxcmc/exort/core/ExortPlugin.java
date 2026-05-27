@@ -1759,10 +1759,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   private BreakParticleSender.Settings readBreakParticleSettings(String path) {
     double range = Math.max(0.0, getConfig().getDouble(path + ".range", 16.0));
-    int count = Math.max(0, getConfig().getInt(path + ".count", 3));
+    int stageCount = Math.max(0, getConfig().getInt(path + ".count", 6));
+    int breakCount = Math.max(0, getConfig().getInt(path + ".breakCount", 30));
     double spread = Math.max(0.0, getConfig().getDouble(path + ".spread", 0.31));
-    double speed = Math.max(0.0, getConfig().getDouble(path + ".speed", 0.004));
-    return new BreakParticleSender.Settings(range, count, spread, speed);
+    return new BreakParticleSender.Settings(range, stageCount, breakCount, spread);
   }
 
   private String normalizeModelId(String raw, String namespace) {

@@ -8,6 +8,7 @@ import com.zxcmc.exort.core.marker.DisplayMarker;
 import com.zxcmc.exort.core.marker.MonitorMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
 import com.zxcmc.exort.core.task.PluginTasks;
+import com.zxcmc.exort.core.text.ExortText;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
@@ -15,7 +16,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Color;
@@ -398,7 +398,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     double progress = Math.min(1.0, Math.max(0.0, (double) total / (double) max));
     double free = 1.0 - progress;
     int percentValue = (int) Math.round(progress * 100.0);
-    Component text = Component.text(percentValue + "%").color(freeColor(free));
+    Component text = ExortText.monitorFillText(percentValue + "%", free);
 
     TextDisplay textDisplay = findTextDisplay(block);
     boolean amountChanged = true;
@@ -662,16 +662,6 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       return trimTrailingZero(COMPACT_DECIMAL.format(amount / 1_000_000.0)) + "M";
     }
     return trimTrailingZero(COMPACT_DECIMAL.format(amount / 1_000_000_000.0)) + "B";
-  }
-
-  private NamedTextColor freeColor(double freeRatio) {
-    if (freeRatio <= 0.05) {
-      return NamedTextColor.RED;
-    }
-    if (freeRatio <= 0.30) {
-      return NamedTextColor.GOLD;
-    }
-    return NamedTextColor.WHITE;
   }
 
   private String trimTrailingZero(String value) {

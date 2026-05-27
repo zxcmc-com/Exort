@@ -203,6 +203,7 @@ public final class ExortBrigadier {
             .then(
                 Commands.argument(ARG_PLAYER, StringArgumentType.word())
                     .suggests(this::suggestPlayers)
+                    .executes(this::usageGive)
                     .then(
                         Commands.literal("storage")
                             .then(

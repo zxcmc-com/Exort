@@ -297,6 +297,7 @@ public class Lang {
     put(defaultsEn, "item.export_bus", "Export Bus");
     put(defaultsEn, "item.wireless_terminal", "Wireless Terminal");
     put(defaultsEn, "lore.storage.capacity", "{0} / {1} ({2})");
+    put(defaultsEn, "lore.storage.id_tail", "{0}");
     put(defaultsEn, "gui.prev_page", "Prev Page");
     put(defaultsEn, "gui.next_page", "Next Page");
     put(defaultsEn, "gui.page_info", "Page {0}/{1}");
@@ -704,6 +705,7 @@ public class Lang {
     put(defaultsRu, "item.export_bus", "Шина экспорта");
     put(defaultsRu, "item.wireless_terminal", "Беспроводной терминал");
     put(defaultsRu, "lore.storage.capacity", "{0} / {1} ({2})");
+    put(defaultsRu, "lore.storage.id_tail", "{0}");
     put(defaultsRu, "gui.prev_page", "Пред. страница");
     put(defaultsRu, "gui.next_page", "След. страница");
     put(defaultsRu, "gui.page_info", "Страница {0}/{1}");

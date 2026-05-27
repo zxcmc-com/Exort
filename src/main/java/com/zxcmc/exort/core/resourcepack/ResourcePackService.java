@@ -2,6 +2,7 @@ package com.zxcmc.exort.core.resourcepack;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.logging.ExortLog;
+import com.zxcmc.exort.core.text.ExortText;
 import io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent;
 import java.io.IOException;
 import java.net.URI;
@@ -24,7 +25,6 @@ import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.resource.ResourcePackStatus;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -654,11 +654,7 @@ public final class ResourcePackService implements Listener {
     if (prompt == null || prompt.isBlank()) {
       return null;
     }
-    try {
-      return MiniMessage.miniMessage().deserialize(prompt);
-    } catch (RuntimeException ignored) {
-      return Component.text(prompt);
-    }
+    return ExortText.configRichText(prompt);
   }
 
   private Component requiredPackFailureMessage() {

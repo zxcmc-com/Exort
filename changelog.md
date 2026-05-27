@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.6 — 2026-05-27
+- Initialized storage items now show the same short storage UUID tail in lore as linked wireless terminals, while new uninitialized storage items stay unchanged.
+- Split custom break particle counts into stage-change and final-break settings, with stronger final break particles and no user-facing particle speed option.
+- Resource-mode GUI overlays are configured by texture keys such as `gui/inventory` instead of raw font glyph prefixes.
+
 ## 0.11.5 — 2026-05-26
 - Fixed realtime switching from RESOURCE to VANILLA so marked `CHORUS_PLANT` wires migrate to `BARRIER` carriers during the first `/exort mode set VANILLA` or `/exort reload`, instead of losing their marker until a second reload.
 - Added `exort.storagenetwork.give` for give-only staff access to `/exort give`, including the existing parameterized item-give command; `exort.storagenetwork.admin` includes it as a child permission.

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemFlag;
@@ -19,6 +20,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 public class CustomItems {
   private static final Material BASE_MATERIAL = Material.PAPER;
+  private static final int STORAGE_ID_TAIL_LENGTH = 12;
   private final StorageKeys keys;
   private final Lang lang;
   private final String wireItemModel;
@@ -78,7 +80,7 @@ public class CustomItems {
         pdc.set(keys.storageId(), PersistentDataType.STRING, storageId);
       }
       pdc.set(keys.nestedCount(), PersistentDataType.LONG, currentAmount);
-      applyLore(meta, tier, currentAmount);
+      applyLore(meta, tier, storageId, currentAmount);
       ItemModelUtil.applyItemModel(meta, storageItemModel);
       item.setItemMeta(meta);
     }
@@ -222,10 +224,11 @@ public class CustomItems {
         String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
         StorageTier tier = StorageTier.fromString(tierRaw).orElse(null);
         if (tier == null) return false;
+        String storageId = pdc.get(keys.storageId(), PersistentDataType.STRING);
         long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
         meta.itemName(Component.text(tier.displayName()).decoration(TextDecoration.ITALIC, false));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-        applyLore(meta, tier, nested);
+        applyLore(meta, tier, storageId, nested);
         ItemModelUtil.applyItemModel(meta, storageItemModel);
         stack.setItemMeta(meta);
         return true;
@@ -385,7 +388,7 @@ public class CustomItems {
             .get(keys.storageId(), PersistentDataType.STRING));
   }
 
-  private void applyLore(ItemMeta meta, StorageTier tier, long currentAmount) {
+  private void applyLore(ItemMeta meta, StorageTier tier, String storageId, long currentAmount) {
     long max = tier.maxItems();
     double percent =
         Math.min(100.0, Math.max(0.0, (double) currentAmount / Math.max(1, max) * 100.0));
@@ -397,6 +400,13 @@ public class CustomItems {
             FORMAT_PERCENT.format(percent) + "%");
     List<Component> lore = new ArrayList<>();
     lore.add(Component.text(line).decoration(TextDecoration.ITALIC, false));
+    if (storageId != null && !storageId.isBlank() && storageId.length() >= STORAGE_ID_TAIL_LENGTH) {
+      String tail = storageId.substring(storageId.length() - STORAGE_ID_TAIL_LENGTH);
+      lore.add(
+          Component.text(lang.tr("lore.storage.id_tail", tail))
+              .color(NamedTextColor.GRAY)
+              .decoration(TextDecoration.ITALIC, false));
+    }
     meta.lore(lore);
   }
 

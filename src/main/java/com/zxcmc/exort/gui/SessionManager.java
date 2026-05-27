@@ -2,11 +2,15 @@ package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.core.text.ExortText;
+import com.zxcmc.exort.core.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.*;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -586,45 +590,29 @@ public class SessionManager {
         wireless);
   }
 
-  private net.kyori.adventure.text.Component titleFor(SessionType type) {
+  private Component titleFor(SessionType type) {
     return titleFor(type, false);
   }
 
-  private net.kyori.adventure.text.Component titleFor(SessionType type, boolean wireless) {
+  private Component titleFor(SessionType type, boolean wireless) {
     boolean resourceMode = plugin.isResourceMode();
-    String prefixKey =
+    String overlayKey =
         type == SessionType.CRAFTING
-            ? "resourceMode.craftingTerminal.gui.prefix"
-            : "resourceMode.terminal.gui.prefix";
-    String fontKey =
-        type == SessionType.CRAFTING
-            ? "resourceMode.craftingTerminal.gui.font"
-            : "resourceMode.terminal.gui.font";
+            ? "resourceMode.craftingTerminal.gui.overlayTexture"
+            : "resourceMode.terminal.gui.overlayTexture";
     String nameKey =
         type == SessionType.CRAFTING
             ? "item.crafting_terminal"
             : (wireless ? "item.wireless_terminal" : "item.terminal");
-    String prefix =
-        resourceMode
-            ? plugin
-                .getConfig()
-                .getString(prefixKey, type == SessionType.CRAFTING ? "§f૱" : "§fᾖ")
-            : "";
-    String font =
-        resourceMode ? plugin.getConfig().getString(fontKey, "exort:default") : "minecraft:default";
-    net.kyori.adventure.text.Component name =
-        net.kyori.adventure.text.Component.text(plugin.getLang().tr(nameKey));
-    if (prefix == null || prefix.isEmpty()) {
+    Component name = ExortText.plain(plugin.getLang().tr(nameKey));
+    if (!resourceMode) {
       return name;
     }
-    net.kyori.adventure.text.Component prefixComponent =
-        net.kyori.adventure.text.Component.text(prefix);
-    try {
-      prefixComponent = prefixComponent.font(net.kyori.adventure.key.Key.key(font));
-    } catch (IllegalArgumentException ignored) {
-      // Ignore invalid font id and use default.
-    }
-    return prefixComponent.append(name);
+    String defaultOverlay = type == SessionType.CRAFTING ? "gui/crafting" : "gui/inventory";
+    return GuiOverlayGlyphs.overlay(
+            overlayKey, plugin.getConfig().getString(overlayKey, defaultOverlay), ExortLog::warn)
+        .map(overlay -> ExortText.withPrefix(overlay, name))
+        .orElse(name);
   }
 
   private boolean hasCraftingSessions(String storageId) {

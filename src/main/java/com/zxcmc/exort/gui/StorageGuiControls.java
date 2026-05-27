@@ -1,6 +1,7 @@
 package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.core.text.ExortText;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import java.text.DecimalFormat;
@@ -8,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.inventory.ItemStack;
 
 final class StorageGuiControls {
@@ -84,7 +84,7 @@ final class StorageGuiControls {
   }
 
   private static Component text(String value) {
-    return Component.text(value).decoration(TextDecoration.ITALIC, false);
+    return ExortText.itemText(value);
   }
 
   private static Component redText(String value) {

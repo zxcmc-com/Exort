@@ -4,8 +4,11 @@ import com.zxcmc.exort.bus.resolver.BusTargetResolver;
 import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.core.carrier.Carriers;
 import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.core.logging.ExortLog;
 import com.zxcmc.exort.core.marker.BusMarker;
 import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.core.text.ExortText;
+import com.zxcmc.exort.core.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.*;
 import net.kyori.adventure.text.Component;
@@ -110,23 +113,16 @@ public class BusSessionManager {
 
   private Component titleFor(BusType type) {
     boolean resourceMode = plugin.isResourceMode();
-    String prefixKey = "resourceMode.bus.gui.prefix";
-    String fontKey = "resourceMode.bus.gui.font";
+    String overlayKey = "resourceMode.bus.gui.overlayTexture";
     String nameKey = type == BusType.EXPORT ? "gui.bus.export_title" : "gui.bus.import_title";
-    String prefix = resourceMode ? plugin.getConfig().getString(prefixKey, "§fἢ") : "";
-    String font =
-        resourceMode ? plugin.getConfig().getString(fontKey, "exort:default") : "minecraft:default";
-    Component name = Component.text(lang.tr(nameKey));
-    if (prefix == null || prefix.isEmpty()) {
+    Component name = ExortText.plain(lang.tr(nameKey));
+    if (!resourceMode) {
       return name;
     }
-    Component prefixComponent = Component.text(prefix);
-    try {
-      prefixComponent = prefixComponent.font(net.kyori.adventure.key.Key.key(font));
-    } catch (IllegalArgumentException ignored) {
-      // Ignore invalid font id and use default.
-    }
-    return prefixComponent.append(name);
+    return GuiOverlayGlyphs.overlay(
+            overlayKey, plugin.getConfig().getString(overlayKey, "gui/bus"), ExortLog::warn)
+        .map(overlay -> ExortText.withPrefix(overlay, name))
+        .orElse(name);
   }
 
   public void closeSession(Player player) {

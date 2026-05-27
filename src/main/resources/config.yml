@@ -133,12 +133,12 @@ vanillaMode:
     enabled: true
     # Viewer range in blocks.
     range: 16
-    # Particle count emitted when the break stage changes or the block is destroyed.
-    count: 3
+    # Particle count emitted when the break stage changes.
+    count: 6
+    # Particle count emitted when the block is destroyed.
+    breakCount: 30
     # Random particle position spread from block center.
     spread: 0.31
-    # Particle velocity multiplier.
-    speed: 0.004
   wire:
     # Vanilla model for the wire display (uses minecraft namespace automatically).
     modelId: black_stained_glass
@@ -263,12 +263,12 @@ resourceMode:
     material: NETHERITE_BLOCK
     # Viewer range in blocks.
     range: 16
-    # Particle count emitted when the break stage changes or the block is destroyed.
-    count: 3
+    # Particle count emitted when the break stage changes.
+    count: 6
+    # Particle count emitted when the block is destroyed.
+    breakCount: 30
     # Random particle position spread from block center.
     spread: 0.31
-    # Particle velocity multiplier.
-    speed: 0.004
   wire:
     # Optional item_model for the wire item (inventory/hand). Example: center
     itemModel: wire/center
@@ -303,10 +303,8 @@ resourceMode:
     # Resource model for the disabled terminal display (uses resourceMode.namespace).
     modelDisabledId: terminal/inventory_disabled
     gui:
-      # Prefix text shown before the terminal title (RESOURCE only).
-      prefix: §fᾖ
-      # Font for the prefix only.
-      font: exort:default
+      # GUI overlay texture for the terminal title (RESOURCE only).
+      overlayTexture: gui/inventory
     # ItemDisplay settings
     displayBaseMaterial: PAPER
     displayScale: 1.0
@@ -322,10 +320,8 @@ resourceMode:
     # Resource model for the disabled crafting terminal display (uses resourceMode.namespace).
     modelDisabledId: terminal/workbench_disabled
     gui:
-      # Prefix text shown before the crafting terminal title (RESOURCE only).
-      prefix: §f૱
-      # Font for the prefix only.
-      font: exort:default
+      # GUI overlay texture for the crafting terminal title (RESOURCE only).
+      overlayTexture: gui/crafting
   monitor:
     # Optional item_model for the monitor item (inventory/hand). Example: terminal/monitor
     itemModel: terminal/monitor
@@ -408,10 +404,8 @@ resourceMode:
       # Resource model for the export bus display (uses resourceMode.namespace).
       modelId: bus/export
     gui:
-      # Prefix text shown before the bus title (RESOURCE only).
-      prefix: §fἢ
-      # Font for the prefix only.
-      font: exort:default
+      # GUI overlay texture for the bus title (RESOURCE only).
+      overlayTexture: gui/bus
     # ItemDisplay settings
     displayBaseMaterial: PAPER
     displayScale: 1.0

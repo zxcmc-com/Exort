@@ -13,21 +13,23 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 public final class BreakParticleSender implements BreakAnimationSender {
+  private static final double PARTICLE_SPEED = 0.004;
+
   private final ExortPlugin plugin;
   private final double range;
   private final double rangeSquared;
-  private final int count;
+  private final int stageCount;
+  private final int breakCount;
   private final double spread;
-  private final double speed;
   private final BlockData particleBlockData;
 
   private BreakParticleSender(ExortPlugin plugin, Settings settings, Material particleMaterial) {
     this.plugin = plugin;
     this.range = Math.max(0.0, settings.range());
     this.rangeSquared = this.range * this.range;
-    this.count = Math.max(0, settings.count());
+    this.stageCount = Math.max(0, settings.stageCount());
+    this.breakCount = Math.max(0, settings.breakCount());
     this.spread = Math.max(0.0, settings.spread());
-    this.speed = Math.max(0.0, settings.speed());
     this.particleBlockData =
         particleMaterial != null && particleMaterial.isBlock()
             ? particleMaterial.createBlockData()
@@ -45,20 +47,12 @@ public final class BreakParticleSender implements BreakAnimationSender {
 
   @Override
   public void show(Block block, BreakType type, double progress) {
-    if (block == null || block.getWorld() == null || range <= 0.0 || count <= 0) {
-      return;
-    }
-    Location loc = block.getLocation().add(0.5, 0.5, 0.5);
-    for (Player viewer : block.getWorld().getPlayers()) {
-      if (viewer.getLocation().distanceSquared(loc) <= rangeSquared) {
-        spawnFor(viewer, loc, block, type);
-      }
-    }
+    spawn(block, type, stageCount);
   }
 
   @Override
   public void breakBlock(Block block, BreakType type) {
-    show(block, type, 1.0);
+    spawn(block, type, breakCount);
   }
 
   @Override
@@ -66,11 +60,32 @@ public final class BreakParticleSender implements BreakAnimationSender {
     // Particles are client-side one-shot visuals.
   }
 
-  private void spawnFor(Player viewer, Location loc, Block block, BreakType type) {
+  private void spawn(Block block, BreakType type, int particleCount) {
+    if (block == null || block.getWorld() == null || range <= 0.0 || particleCount <= 0) {
+      return;
+    }
+    Location loc = block.getLocation().add(0.5, 0.5, 0.5);
+    for (Player viewer : block.getWorld().getPlayers()) {
+      if (viewer.getLocation().distanceSquared(loc) <= rangeSquared) {
+        spawnFor(viewer, loc, block, type, particleCount);
+      }
+    }
+  }
+
+  private void spawnFor(
+      Player viewer, Location loc, Block block, BreakType type, int particleCount) {
     BlockData blockData =
         particleBlockData != null ? particleBlockData : visualBlockData(block, type);
     viewer.spawnParticle(
-        Particle.BLOCK, loc, count, spread, spread, spread, speed, blockData, false);
+        Particle.BLOCK,
+        loc,
+        particleCount,
+        spread,
+        spread,
+        spread,
+        PARTICLE_SPEED,
+        blockData,
+        false);
   }
 
   private BlockData visualBlockData(Block block, BreakType type) {
@@ -102,5 +117,5 @@ public final class BreakParticleSender implements BreakAnimationSender {
         .orElse("DISPENSER");
   }
 
-  public record Settings(double range, int count, double spread, double speed) {}
+  public record Settings(double range, int stageCount, int breakCount, double spread) {}
 }

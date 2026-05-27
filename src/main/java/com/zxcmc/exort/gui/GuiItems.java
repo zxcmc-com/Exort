@@ -3,10 +3,10 @@ package com.zxcmc.exort.gui;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.zxcmc.exort.core.items.ItemModelUtil;
+import com.zxcmc.exort.core.text.ExortText;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
@@ -39,11 +39,8 @@ public final class GuiItems {
 
   public static ItemStack button(
       Material vanillaMaterial, String name, String loreLine, boolean useFillers) {
-    Component nameComp = Component.text(name).decoration(TextDecoration.ITALIC, false);
-    List<Component> lore =
-        loreLine == null
-            ? null
-            : List.of(Component.text(loreLine).decoration(TextDecoration.ITALIC, false));
+    Component nameComp = ExortText.itemText(name);
+    List<Component> lore = loreLine == null ? null : List.of(ExortText.itemText(loreLine));
     return button(vanillaMaterial, nameComp, lore, useFillers);
   }
 
@@ -53,26 +50,24 @@ public final class GuiItems {
   }
 
   public static ItemStack pagePrev(String name, String pageInfo, boolean useFillers) {
-    Component title = Component.text(name).decoration(TextDecoration.ITALIC, false);
-    List<Component> lore =
-        List.of(Component.text(pageInfo).decoration(TextDecoration.ITALIC, false));
+    Component title = ExortText.itemText(name);
+    List<Component> lore = List.of(ExortText.itemText(pageInfo));
     return headButton(HEAD_PREV_PAGE, Material.ARROW, title, lore, useFillers);
   }
 
   public static ItemStack pagePrev(String name, List<Component> lore, boolean useFillers) {
-    Component title = Component.text(name).decoration(TextDecoration.ITALIC, false);
+    Component title = ExortText.itemText(name);
     return headButton(HEAD_PREV_PAGE, Material.ARROW, title, lore, useFillers);
   }
 
   public static ItemStack pageNext(String name, String pageInfo, boolean useFillers) {
-    Component title = Component.text(name).decoration(TextDecoration.ITALIC, false);
-    List<Component> lore =
-        List.of(Component.text(pageInfo).decoration(TextDecoration.ITALIC, false));
+    Component title = ExortText.itemText(name);
+    List<Component> lore = List.of(ExortText.itemText(pageInfo));
     return headButton(HEAD_NEXT_PAGE, Material.ARROW, title, lore, useFillers);
   }
 
   public static ItemStack pageNext(String name, List<Component> lore, boolean useFillers) {
-    Component title = Component.text(name).decoration(TextDecoration.ITALIC, false);
+    Component title = ExortText.itemText(name);
     return headButton(HEAD_NEXT_PAGE, Material.ARROW, title, lore, useFillers);
   }
 
@@ -125,7 +120,7 @@ public final class GuiItems {
     ItemStack item = new ItemStack(base);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(Component.text("").decoration(TextDecoration.ITALIC, false));
+      meta.itemName(ExortText.itemText(""));
       meta.setHideTooltip(true);
       meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
       meta.setHideTooltip(true);

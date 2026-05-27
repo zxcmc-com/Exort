@@ -1,6 +1,7 @@
 package com.zxcmc.exort.core.feedback;
 
 import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.core.text.ExortText;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
@@ -59,10 +60,10 @@ public final class PlayerFeedback {
   }
 
   private enum Style {
-    INFO(NamedTextColor.GRAY),
-    SUCCESS(NamedTextColor.GREEN),
-    WARN(NamedTextColor.YELLOW),
-    ERROR(NamedTextColor.DARK_RED);
+    INFO(ExortText.INFO),
+    SUCCESS(ExortText.SUCCESS),
+    WARN(ExortText.WARNING),
+    ERROR(ExortText.ERROR);
 
     private final NamedTextColor color;
 
