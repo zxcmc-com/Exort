@@ -1,24 +1,34 @@
 package com.zxcmc.exort.storage;
 
-import java.util.*;
+import com.zxcmc.exort.api.model.StorageTierDescriptor;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Logger;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 
-public class StorageTier {
+public final class StorageTier {
   private static final long ITEMS_PER_PAGE = 45L * 64L;
   private static final Map<String, StorageTier> REGISTRY = new LinkedHashMap<>();
 
   private final String key;
-  private long maxItems;
-  private Material displayMaterial;
-  private String displayName;
+  private final long maxItems;
+  private final Material displayMaterial;
+  private final String displayName;
 
-  public StorageTier(String key, long maxItems, Material displayMaterial, String displayName) {
-    this.key = key;
+  StorageTier(String key, long maxItems, Material displayMaterial, String displayName) {
+    if (maxItems <= 0) {
+      throw new IllegalArgumentException("maxItems must be positive");
+    }
+    this.key = Objects.requireNonNull(key, "key");
     this.maxItems = maxItems;
-    this.displayMaterial = displayMaterial;
-    this.displayName = displayName;
+    this.displayMaterial = Objects.requireNonNull(displayMaterial, "displayMaterial");
+    this.displayName = Objects.requireNonNull(displayName, "displayName");
   }
 
   public String key() {
@@ -37,16 +47,9 @@ public class StorageTier {
     return displayName;
   }
 
-  public void setMaxItems(long maxItems) {
-    this.maxItems = maxItems;
-  }
-
-  public void setDisplayMaterial(Material displayMaterial) {
-    this.displayMaterial = displayMaterial;
-  }
-
-  public void setDisplayName(String displayName) {
-    this.displayName = displayName;
+  public StorageTierDescriptor descriptor() {
+    return new StorageTierDescriptor(
+        key, maxItems, displayMaterial.getKey().toString(), displayName);
   }
 
   public static Optional<StorageTier> fromString(String raw) {
@@ -55,7 +58,7 @@ public class StorageTier {
   }
 
   public static Collection<StorageTier> allTiers() {
-    return Collections.unmodifiableCollection(REGISTRY.values());
+    return List.copyOf(REGISTRY.values());
   }
 
   public static void loadFromConfig(ConfigurationSection section, Logger logger) {

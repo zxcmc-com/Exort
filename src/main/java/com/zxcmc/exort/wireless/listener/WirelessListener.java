@@ -1,13 +1,19 @@
 package com.zxcmc.exort.wireless.listener;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.logging.ExortLog;
-import com.zxcmc.exort.core.marker.StorageMarker;
-import com.zxcmc.exort.core.marker.TerminalMarker;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
-import com.zxcmc.exort.core.task.PluginTasks;
-import com.zxcmc.exort.core.util.BlockInteractUtil;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.PlayerFeedback;
+import com.zxcmc.exort.gui.SessionManager;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.infra.scheduler.PluginTasks;
+import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.platform.BlockInteractUtil;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
@@ -16,6 +22,7 @@ import java.util.Optional;
 import java.util.logging.Level;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event.Result;
@@ -26,17 +33,39 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class WirelessListener implements Listener {
-  private final ExortPlugin plugin;
+  private final JavaPlugin plugin;
   private final WirelessTerminalService service;
   private final StorageManager storageManager;
+  private final CustomItems customItems;
+  private final RegionProtection regionProtection;
+  private final BossBarManager bossBarManager;
+  private final PlayerFeedback playerFeedback;
+  private final Database database;
+  private final SessionManager sessionManager;
+  private final StorageKeys keys;
+  private final int wireLimit;
+  private final int wireHardCap;
+  private final Material wireMaterial;
+  private final Material storageCarrier;
 
-  public WirelessListener(
-      ExortPlugin plugin, WirelessTerminalService service, StorageManager storageManager) {
-    this.plugin = plugin;
-    this.service = service;
-    this.storageManager = storageManager;
+  public WirelessListener(WirelessListenerDependencies dependencies) {
+    this.plugin = dependencies.plugin();
+    this.service = dependencies.service();
+    this.storageManager = dependencies.storageManager();
+    this.customItems = dependencies.customItems();
+    this.regionProtection = dependencies.regionProtection();
+    this.bossBarManager = dependencies.bossBarManager();
+    this.playerFeedback = dependencies.playerFeedback();
+    this.database = dependencies.database();
+    this.sessionManager = dependencies.sessionManager();
+    this.keys = dependencies.keys();
+    this.wireLimit = dependencies.wireLimit();
+    this.wireHardCap = dependencies.wireHardCap();
+    this.wireMaterial = dependencies.wireMaterial();
+    this.storageCarrier = dependencies.storageCarrier();
   }
 
   @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
@@ -49,8 +78,8 @@ public class WirelessListener implements Listener {
       ItemStack main = player.getInventory().getItemInMainHand();
       if (main != null
           && main.hasItemMeta()
-          && plugin.getCustomItems() != null
-          && plugin.getCustomItems().isCustomItem(main)) {
+          && customItems != null
+          && customItems.isCustomItem(main)) {
         return;
       }
     }
@@ -84,21 +113,15 @@ public class WirelessListener implements Listener {
   private boolean tryBind(Player player, Block block, ItemStack stack, EquipmentSlot hand) {
     TerminalLinkFinder.StorageSearchResult link;
     if (TerminalMarker.isTerminal(plugin, block)) {
-      if (!plugin.getRegionProtection().canUse(player, block)) {
+      if (!regionProtection.canUse(player, block)) {
         feedbackError(player, "message.no_permission");
         return true;
       }
       link =
           TerminalLinkFinder.find(
-              block,
-              plugin.getKeys(),
-              plugin,
-              plugin.getWireLimit(),
-              plugin.getWireHardCap(),
-              plugin.getWireMaterial(),
-              plugin.getStorageCarrier());
+              block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
     } else if (StorageMarker.get(plugin, block).isPresent()) {
-      if (!plugin.getRegionProtection().canUse(player, block)) {
+      if (!regionProtection.canUse(player, block)) {
         feedbackError(player, "message.no_permission");
         return true;
       }
@@ -113,7 +136,7 @@ public class WirelessListener implements Listener {
       feedbackError(player, "message.wireless.missing_storage");
       return true;
     }
-    if (!plugin.getRegionProtection().canUse(player, link.data().block())) {
+    if (!regionProtection.canUse(player, link.data().block())) {
       feedbackError(player, "message.no_permission");
       return true;
     }
@@ -121,8 +144,8 @@ public class WirelessListener implements Listener {
     Location loc = link.data().block().getLocation();
     service.bind(player, stack, link.data().storageId(), tier, loc);
     updateHand(player, stack, hand);
-    plugin.getBossBarManager().remove(player);
-    plugin.getPlayerFeedback().success(player, "message.wireless.bound");
+    bossBarManager.remove(player);
+    playerFeedback.success(player, "message.wireless.bound");
     return true;
   }
 
@@ -153,7 +176,7 @@ public class WirelessListener implements Listener {
     }
     Block anchorBlock = anchor.getBlock();
     Optional<StorageMarker.Data> markerData = StorageMarker.get(plugin, anchorBlock);
-    if (!Carriers.matchesCarrier(anchorBlock, plugin.getStorageCarrier())
+    if (!Carriers.matchesCarrier(anchorBlock, storageCarrier)
         || markerData.isEmpty()
         || !storageId.equals(markerData.get().storageId())) {
       feedbackError(player, "message.wireless.missing_storage");
@@ -163,8 +186,7 @@ public class WirelessListener implements Listener {
       feedbackError(player, "message.wireless.out_of_range");
       return;
     }
-    plugin
-        .getDatabase()
+    database
         .getStorageTier(storageId)
         .thenCompose(
             optTier ->
@@ -221,13 +243,13 @@ public class WirelessListener implements Listener {
     }
     Block anchorBlock = anchor.getBlock();
     Optional<StorageMarker.Data> markerData = StorageMarker.get(plugin, anchorBlock);
-    if (!Carriers.matchesCarrier(anchorBlock, plugin.getStorageCarrier())
+    if (!Carriers.matchesCarrier(anchorBlock, storageCarrier)
         || markerData.isEmpty()
         || !storageId.equals(markerData.get().storageId())) {
       feedbackError(player, "message.wireless.missing_storage");
       return;
     }
-    if (!plugin.getRegionProtection().canUse(player, anchorBlock)) {
+    if (!regionProtection.canUse(player, anchorBlock)) {
       feedbackError(player, "message.no_permission");
       return;
     }
@@ -241,12 +263,11 @@ public class WirelessListener implements Listener {
 
     StorageTier tier =
         openData.optTier().flatMap(StorageTier::fromString).orElse(markerData.get().tier());
-    boolean opened =
-        plugin.getSessionManager().openWirelessSession(player, openData.cache(), tier, anchor);
+    boolean opened = sessionManager.openWirelessSession(player, openData.cache(), tier, anchor);
     if (!opened) return;
     if (player.getGameMode() != GameMode.CREATIVE && !service.consumeCharge(current)) {
       feedbackError(player, "message.wireless.empty");
-      plugin.getSessionManager().forceCloseSession(player);
+      sessionManager.forceCloseSession(player);
     }
     updateHand(player, current, hand);
   }
@@ -276,7 +297,7 @@ public class WirelessListener implements Listener {
   }
 
   private void feedbackError(Player player, String key) {
-    plugin.getPlayerFeedback().error(player, key);
+    playerFeedback.error(player, key);
   }
 
   private void updateHand(Player player, ItemStack stack, EquipmentSlot hand) {

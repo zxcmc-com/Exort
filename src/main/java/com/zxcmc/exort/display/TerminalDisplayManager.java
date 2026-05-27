@@ -1,10 +1,10 @@
 package com.zxcmc.exort.display;
 
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.keys.StorageKeys;
-import com.zxcmc.exort.core.marker.TerminalKind;
-import com.zxcmc.exort.core.marker.TerminalMarker;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.TerminalKind;
+import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.TerminalLinkFinder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;

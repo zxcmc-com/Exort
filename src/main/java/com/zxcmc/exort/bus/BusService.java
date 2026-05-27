@@ -1,11 +1,11 @@
 package com.zxcmc.exort.bus;
 
 import com.zxcmc.exort.bus.engine.BusEngine;
+import com.zxcmc.exort.bus.engine.BusEngineDependencies;
 import com.zxcmc.exort.bus.engine.BusRegistry;
 import com.zxcmc.exort.bus.resolver.BusTargetResolver;
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.db.Database;
-import com.zxcmc.exort.core.marker.BusMarker;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Optional;
@@ -14,39 +14,25 @@ import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.plugin.Plugin;
 
 public final class BusService {
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
   private final BusRegistry registry;
   private final BusEngine engine;
 
   public BusService(
-      ExortPlugin plugin,
+      BusEngineDependencies dependencies,
       StorageManager storageManager,
       Database database,
       Material busCarrier,
-      int activeIntervalTicks,
-      int idleIntervalTicks,
-      int itemsPerOperation,
-      int maxOperationsPerTick,
-      int maxOperationsPerChunk,
-      boolean allowStorageTargets,
+      BusRuntimeConfig runtimeConfig,
       WirelessTerminalService wirelessService) {
-    this.plugin = plugin;
+    this.plugin = dependencies.plugin();
     this.registry = new BusRegistry(plugin, database);
     this.engine =
         new BusEngine(
-            plugin,
-            storageManager,
-            busCarrier,
-            activeIntervalTicks,
-            idleIntervalTicks,
-            itemsPerOperation,
-            maxOperationsPerTick,
-            maxOperationsPerChunk,
-            allowStorageTargets,
-            wirelessService,
-            registry);
+            dependencies, storageManager, busCarrier, runtimeConfig, wirelessService, registry);
   }
 
   public void start() {

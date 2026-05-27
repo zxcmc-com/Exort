@@ -1,6 +1,6 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.i18n.Lang;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;

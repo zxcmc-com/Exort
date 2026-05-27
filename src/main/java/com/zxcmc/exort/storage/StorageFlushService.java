@@ -1,18 +1,23 @@
 package com.zxcmc.exort.storage;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.db.Database;
 import com.zxcmc.exort.debug.CacheDebugService;
+import com.zxcmc.exort.infra.db.Database;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class StorageFlushService {
-  private final ExortPlugin plugin;
+  private final Logger logger;
+  private final Supplier<CacheDebugService> cacheDebugService;
   private final Database database;
 
-  public StorageFlushService(ExortPlugin plugin, Database database) {
-    this.plugin = plugin;
-    this.database = database;
+  public StorageFlushService(
+      Logger logger, Supplier<CacheDebugService> cacheDebugService, Database database) {
+    this.logger = Objects.requireNonNull(logger, "logger");
+    this.cacheDebugService = Objects.requireNonNull(cacheDebugService, "cacheDebugService");
+    this.database = Objects.requireNonNull(database, "database");
   }
 
   public CompletableFuture<Void> flushAsync(StorageCache cache) {
@@ -28,9 +33,7 @@ public final class StorageFlushService {
           .whenComplete(
               (res, err) -> {
                 if (err != null) {
-                  plugin
-                      .getLogger()
-                      .log(Level.SEVERE, "Failed to flush storage " + cache.getStorageId(), err);
+                  logger.log(Level.SEVERE, "Failed to flush storage " + cache.getStorageId(), err);
                 } else {
                   cache.markCleanIfVersion(delta.version());
                 }
@@ -47,9 +50,7 @@ public final class StorageFlushService {
         .whenComplete(
             (res, err) -> {
               if (err != null) {
-                plugin
-                    .getLogger()
-                    .log(Level.SEVERE, "Failed to flush storage " + cache.getStorageId(), err);
+                logger.log(Level.SEVERE, "Failed to flush storage " + cache.getStorageId(), err);
               } else {
                 cache.markCleanIfVersion(snapshot.version());
               }
@@ -58,7 +59,7 @@ public final class StorageFlushService {
   }
 
   private void log(CacheDebugService.EventType type, String storageId, String message) {
-    var debug = plugin.getCacheDebugService();
+    var debug = cacheDebugService.get();
     if (debug != null && debug.isEnabled()) {
       debug.record(type, storageId, message);
     }

@@ -1,13 +1,12 @@
 package com.zxcmc.exort.display;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.marker.ChunkMarkerStore;
-import com.zxcmc.exort.core.marker.MonitorMarker;
-import com.zxcmc.exort.core.marker.StorageMarker;
-import com.zxcmc.exort.core.marker.TerminalMarker;
-import com.zxcmc.exort.core.marker.WireMarker;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkMarkerStore;
+import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.WireMarker;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
@@ -16,6 +15,7 @@ import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.plugin.Plugin;
 
 public final class DisplayRefreshService {
   private static final BlockFace[] FACES =
@@ -28,7 +28,13 @@ public final class DisplayRefreshService {
         BlockFace.WEST
       };
 
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
+  private final int wireHardCap;
+  private final Material wireMaterial;
+  private final Material terminalCarrier;
+  private final Material monitorCarrier;
+  private final Material busCarrier;
+  private final Material storageCarrier;
   private final WireDisplayManager wireDisplayManager;
   private final StorageDisplayManager storageDisplayManager;
   private final TerminalDisplayManager terminalDisplayManager;
@@ -36,13 +42,25 @@ public final class DisplayRefreshService {
   private final BusDisplayManager busDisplayManager;
 
   public DisplayRefreshService(
-      ExortPlugin plugin,
+      Plugin plugin,
+      int wireHardCap,
+      Material wireMaterial,
+      Material terminalCarrier,
+      Material monitorCarrier,
+      Material busCarrier,
+      Material storageCarrier,
       WireDisplayManager wireDisplayManager,
       StorageDisplayManager storageDisplayManager,
       TerminalDisplayManager terminalDisplayManager,
       MonitorDisplayManager monitorDisplayManager,
       BusDisplayManager busDisplayManager) {
     this.plugin = plugin;
+    this.wireHardCap = wireHardCap;
+    this.wireMaterial = wireMaterial;
+    this.terminalCarrier = terminalCarrier;
+    this.monitorCarrier = monitorCarrier;
+    this.busCarrier = busCarrier;
+    this.storageCarrier = storageCarrier;
     this.wireDisplayManager = wireDisplayManager;
     this.storageDisplayManager = storageDisplayManager;
     this.terminalDisplayManager = terminalDisplayManager;
@@ -108,9 +126,8 @@ public final class DisplayRefreshService {
 
   public void refreshNetworkFrom(Block block) {
     if (block == null || block.getWorld() == null) return;
-    var wireMaterial = plugin.getWireMaterial();
     if (wireMaterial == null) return;
-    int hardCap = Math.max(0, plugin.getWireHardCap());
+    int hardCap = Math.max(0, wireHardCap);
     if (hardCap == 0) return;
     boolean isWire =
         Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
@@ -146,16 +163,15 @@ public final class DisplayRefreshService {
           queue.add(next);
           continue;
         }
-        if (Carriers.matchesCarrier(next, plugin.getTerminalCarrier())
+        if (Carriers.matchesCarrier(next, terminalCarrier)
             && TerminalMarker.isTerminal(plugin, next)) {
           terminals.add(next);
-        } else if (Carriers.matchesCarrier(next, plugin.getMonitorCarrier())
+        } else if (Carriers.matchesCarrier(next, monitorCarrier)
             && MonitorMarker.isMonitor(plugin, next)) {
           monitors.add(next);
-        } else if (Carriers.matchesCarrier(next, plugin.getBusCarrier())
-            && BusMarker.isBus(plugin, next)) {
+        } else if (Carriers.matchesCarrier(next, busCarrier) && BusMarker.isBus(plugin, next)) {
           buses.add(next);
-        } else if (Carriers.matchesCarrier(next, plugin.getStorageCarrier())
+        } else if (Carriers.matchesCarrier(next, storageCarrier)
             && StorageMarker.get(plugin, next).isPresent()) {
           if (storageDisplayManager != null) {
             storageDisplayManager.refresh(next);

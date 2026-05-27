@@ -1,9 +1,9 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.text.ExortText;
+import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.text.ExortText;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;

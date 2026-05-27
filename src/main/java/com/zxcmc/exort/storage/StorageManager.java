@@ -1,42 +1,66 @@
 package com.zxcmc.exort.storage;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.db.Database;
-import com.zxcmc.exort.core.db.DbItem;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.db.DbItem;
+import com.zxcmc.exort.keys.StorageKeys;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
 
 public class StorageManager {
   private static final long FLUSH_WAIT_TIMEOUT_SECONDS = 15L;
 
-  private final ExortPlugin plugin;
   private final Database database;
+  private final Plugin schedulerPlugin;
+  private final BooleanSupplier pluginEnabled;
+  private final StorageKeys keys;
+  private final Logger logger;
+  private final Supplier<CacheDebugService> cacheDebugService;
+  private final ToIntFunction<StorageCache> customItemRefresher;
   private final StorageFlushService flushService;
   private final StorageSortService sortService;
   private final Map<String, StorageCache> caches = new ConcurrentHashMap<>();
   // Tracks in-flight loads to prevent duplicate DB work for the same storage id.
   private final Map<String, CompletableFuture<StorageCache>> loading = new ConcurrentHashMap<>();
 
-  public StorageManager(ExortPlugin plugin, Database database) {
-    this.plugin = plugin;
-    this.database = database;
-    this.flushService = new StorageFlushService(plugin, database);
-    this.sortService = new StorageSortService(plugin, database);
+  public StorageManager(
+      Database database,
+      Plugin schedulerPlugin,
+      BooleanSupplier pluginEnabled,
+      StorageKeys keys,
+      Logger logger,
+      Supplier<CacheDebugService> cacheDebugService,
+      Supplier<String> defaultSortModeName,
+      BiConsumer<String, String> persistSortMode,
+      ToIntFunction<StorageCache> customItemRefresher) {
+    this.database = Objects.requireNonNull(database, "database");
+    this.schedulerPlugin = Objects.requireNonNull(schedulerPlugin, "schedulerPlugin");
+    this.pluginEnabled = Objects.requireNonNull(pluginEnabled, "pluginEnabled");
+    this.keys = Objects.requireNonNull(keys, "keys");
+    this.logger = Objects.requireNonNull(logger, "logger");
+    this.cacheDebugService = Objects.requireNonNull(cacheDebugService, "cacheDebugService");
+    this.customItemRefresher = Objects.requireNonNull(customItemRefresher, "customItemRefresher");
+    this.flushService = new StorageFlushService(this.logger, this.cacheDebugService, this.database);
+    this.sortService = new StorageSortService(defaultSortModeName, persistSortMode);
   }
 
   public CompletableFuture<StorageCache> getOrLoad(String storageId) {
-    StorageCache cache =
-        caches.computeIfAbsent(storageId, id -> new StorageCache(id, plugin.getKeys(), plugin));
+    StorageCache cache = caches.computeIfAbsent(storageId, this::createCache);
     if (cache.isLoaded()) {
       cache.touch();
       return CompletableFuture.completedFuture(cache);
@@ -81,7 +105,7 @@ public class StorageManager {
         "loading storage " + storageId,
         () -> {
           cache.loadFromDb(data.items());
-          cache.refreshCustomItems(plugin.getCustomItems(), plugin.getWirelessService(), true);
+          refreshCustomItems(cache);
           SortMode mode = sortService.resolveAndPersistDefault(storageId, data.sortMode());
           cache.setSortMode(mode);
           return cache;
@@ -114,16 +138,14 @@ public class StorageManager {
     try {
       CompletableFuture.allOf(futures).get(Math.max(1L, timeoutSeconds), TimeUnit.SECONDS);
     } catch (TimeoutException e) {
-      plugin
-          .getLogger()
-          .log(
-              Level.SEVERE,
-              "Timed out waiting for "
-                  + futures.length
-                  + " storage flush task(s); dirty caches may remain pending",
-              e);
+      logger.log(
+          Level.SEVERE,
+          "Timed out waiting for "
+              + futures.length
+              + " storage flush task(s); dirty caches may remain pending",
+          e);
     } catch (Exception e) {
-      plugin.getLogger().log(Level.SEVERE, "Error waiting for storage flush", e);
+      logger.log(Level.SEVERE, "Error waiting for storage flush", e);
     }
   }
 
@@ -153,8 +175,7 @@ public class StorageManager {
     int refreshed = 0;
     for (StorageCache cache : caches.values()) {
       if (cache == null || !cache.isLoaded()) continue;
-      refreshed +=
-          cache.refreshCustomItems(plugin.getCustomItems(), plugin.getWirelessService(), true);
+      refreshed += refreshCustomItems(cache);
     }
     return refreshed;
   }
@@ -199,7 +220,7 @@ public class StorageManager {
     return supplyOnMainThread(
         "installing cloned storage cache " + toId,
         () -> {
-          StorageCache cloned = new StorageCache(toId, plugin.getKeys(), plugin);
+          StorageCache cloned = createCache(toId);
           cloned.loadFromDb(snapshot.byKey());
           cloned.setSortMode(snapshot.sortMode());
           caches.put(toId, cloned);
@@ -233,7 +254,7 @@ public class StorageManager {
 
   private void log(
       CacheDebugService.EventType type, String storageId, String message, long amount) {
-    var debug = plugin.getCacheDebugService();
+    var debug = cacheDebugService.get();
     if (debug != null && debug.isEnabled()) {
       debug.record(type, storageId, message, amount);
     }
@@ -244,15 +265,23 @@ public class StorageManager {
   private record CloneSnapshot(
       Collection<DbItem> items, Map<String, DbItem> byKey, SortMode sortMode) {}
 
+  private StorageCache createCache(String storageId) {
+    return new StorageCache(storageId, keys, logger, cacheDebugService);
+  }
+
+  private int refreshCustomItems(StorageCache cache) {
+    return customItemRefresher.applyAsInt(cache);
+  }
+
   private <T> CompletableFuture<T> supplyOnMainThread(String action, Supplier<T> supplier) {
     CompletableFuture<T> future = new CompletableFuture<>();
-    if (!plugin.isEnabled()) {
+    if (!pluginEnabled.getAsBoolean()) {
       future.completeExceptionally(new IllegalStateException("Plugin disabled while " + action));
       return future;
     }
     Runnable task =
         () -> {
-          if (!plugin.isEnabled()) {
+          if (!pluginEnabled.getAsBoolean()) {
             future.completeExceptionally(
                 new IllegalStateException("Plugin disabled while " + action));
             return;
@@ -268,7 +297,7 @@ public class StorageManager {
       return future;
     }
     try {
-      Bukkit.getScheduler().runTask(plugin, task);
+      Bukkit.getScheduler().runTask(schedulerPlugin, task);
     } catch (RuntimeException e) {
       future.completeExceptionally(e);
     }

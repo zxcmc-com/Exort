@@ -1,12 +1,11 @@
 package com.zxcmc.exort.display;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.keys.StorageKeys;
-import com.zxcmc.exort.core.marker.ChunkMarkerStore;
-import com.zxcmc.exort.core.marker.StorageMarker;
-import com.zxcmc.exort.core.marker.TerminalMarker;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.ChunkMarkerStore;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Iterator;
 import java.util.Map;
@@ -26,6 +25,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -39,7 +39,7 @@ public class ItemHologramManager implements Listener {
   public record Config(
       boolean enabled, double offsetX, double offsetY, double offsetZ, double scale) {}
 
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
   private final StorageKeys keys;
   private final int wireLimit;
   private final int wireHardCap;
@@ -56,7 +56,7 @@ public class ItemHologramManager implements Listener {
   private int taskId = -1;
 
   public ItemHologramManager(
-      ExortPlugin plugin,
+      Plugin plugin,
       StorageKeys keys,
       int wireLimit,
       int wireHardCap,

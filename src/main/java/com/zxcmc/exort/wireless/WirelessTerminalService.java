@@ -1,8 +1,8 @@
 package com.zxcmc.exort.wireless;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.items.CustomItems;
-import com.zxcmc.exort.core.keys.StorageKeys;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.access.WirelessAccessService;
 import com.zxcmc.exort.wireless.bind.WirelessBindService;
@@ -28,18 +28,14 @@ public class WirelessTerminalService {
   private final WirelessLoreService loreService;
 
   public WirelessTerminalService(
-      ExortPlugin plugin,
-      StorageKeys keys,
-      CustomItems customItems,
-      boolean enabled,
-      int rangeChunks) {
+      Lang lang, StorageKeys keys, CustomItems customItems, boolean enabled, int rangeChunks) {
     this.keys = keys;
     this.customItems = customItems;
     this.enabled = enabled;
     this.chargeService = new WirelessChargeService(keys);
     this.bindService = new WirelessBindService(keys);
     this.accessService = new WirelessAccessService(bindService, rangeChunks);
-    this.loreService = new WirelessLoreService(plugin.getLang(), customItems);
+    this.loreService = new WirelessLoreService(lang, customItems);
   }
 
   public boolean isEnabled() {

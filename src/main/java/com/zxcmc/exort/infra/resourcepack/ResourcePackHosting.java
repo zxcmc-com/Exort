@@ -1,0 +1,24 @@
+package com.zxcmc.exort.infra.resourcepack;
+
+import java.util.Locale;
+
+public enum ResourcePackHosting {
+  AUTO,
+  EXORT,
+  NEXO,
+  ITEMSADDER,
+  SELFHOST,
+  LOBFILE,
+  DISABLED;
+
+  public static ResourcePackHosting fromConfig(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return AUTO;
+    }
+    try {
+      return valueOf(raw.trim().toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException ignored) {
+      return AUTO;
+    }
+  }
+}

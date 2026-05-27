@@ -1,7 +1,7 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.ItemNameService;
-import com.zxcmc.exort.core.i18n.Lang;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.ArrayList;
@@ -24,11 +24,7 @@ public class StorageSession extends AbstractStorageSession {
   private long infoErrorUntilMs;
   private int infoErrorTaskId = -1;
   private static final long INFO_ERROR_TICKS = 20L * 5;
-  private final long confirmTimeoutMs;
-  private int infoConfirmRemaining;
-  private long infoConfirmLastAt;
-  private long infoBlockedUntilMs;
-  private boolean showStorageId;
+  private final InfoButtonState infoButtonState;
 
   public StorageSession(
       Player viewer,
@@ -60,7 +56,7 @@ public class StorageSession extends AbstractStorageSession {
         sortMode,
         wireless);
     this.useFillers = useFillers;
-    this.confirmTimeoutMs = Math.max(0L, confirmTimeoutMs);
+    this.infoButtonState = new InfoButtonState(confirmTimeoutMs);
   }
 
   public void onClose() {
@@ -72,7 +68,7 @@ public class StorageSession extends AbstractStorageSession {
       Bukkit.getScheduler().cancelTask(infoErrorTaskId);
       infoErrorTaskId = -1;
     }
-    resetInfoConfirm();
+    infoButtonState.resetConfirm();
   }
 
   @Override
@@ -82,17 +78,13 @@ public class StorageSession extends AbstractStorageSession {
 
   public void render() {
     displayList = buildDisplayList();
-    int totalSlots = displayList.size();
-    int totalPages = Math.max(1, (int) Math.ceil(totalSlots / (double) GuiLayout.PAGE_SIZE));
-    if (page >= totalPages) {
-      page = totalPages - 1;
-    }
+    GuiPageWindow pageWindow = GuiPageWindow.forSlots(page, displayList.size(), pageSize());
+    page = pageWindow.page();
     slotEntries.clear();
     ItemStack[] contents = new ItemStack[GuiLayout.INVENTORY_SIZE];
     boolean fillSearchPad = useFillers && isSearchResultsPage();
-    int startIndex = page * GuiLayout.PAGE_SIZE;
-    for (int i = 0; i < GuiLayout.PAGE_SIZE; i++) {
-      int idx = startIndex + i;
+    for (int i = 0; i < pageWindow.pageSize(); i++) {
+      int idx = pageWindow.startIndex() + i;
       DisplayEntry entry = entryAt(idx);
       if (entry == null) {
         contents[i] = fillSearchPad ? GuiItems.filler(true) : null;
@@ -105,7 +97,7 @@ public class StorageSession extends AbstractStorageSession {
     }
 
     // Buttons and fillers
-    String pageInfo = lang.tr("gui.page_info", page + 1, totalPages);
+    String pageInfo = lang.tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
     List<Component> pageLore = new ArrayList<>();
     pageLore.add(Component.text(pageInfo).decoration(TextDecoration.ITALIC, false));
     String searchLabel = currentPageSearchLabel();
@@ -150,7 +142,7 @@ public class StorageSession extends AbstractStorageSession {
   }
 
   private ItemStack searchButton() {
-    return StorageGuiControls.searchButton(lang, hasSearch(), searchQuery, useFillers);
+    return StorageGuiControls.searchButton(lang, hasSearch(), getSearchQuery(), useFillers);
   }
 
   private ItemStack infoButton() {
@@ -158,12 +150,12 @@ public class StorageSession extends AbstractStorageSession {
         lang,
         cache,
         tier,
-        showStorageId,
+        infoButtonState.showStorageId(),
         readOnly,
         isInfoErrorActive(),
         infoErrorMessage,
-        infoConfirmRemaining(),
-        isInfoBlocked(),
+        infoButtonState.confirmRemaining(),
+        infoButtonState.isBlocked(),
         useFillers);
   }
 
@@ -180,7 +172,7 @@ public class StorageSession extends AbstractStorageSession {
     infoErrorTaskId =
         Bukkit.getScheduler()
             .runTaskLater(
-                manager.getPlugin(),
+                manager.plugin(),
                 () -> {
                   infoErrorTaskId = -1;
                   infoErrorMessage = null;
@@ -194,79 +186,37 @@ public class StorageSession extends AbstractStorageSession {
 
   private void handleInfoClick(InventoryClickEvent event) {
     if (!event.isShiftClick() || !event.isRightClick()) {
-      resetInfoConfirm();
+      infoButtonState.resetConfirm();
       return;
     }
-    if (!showStorageId) {
-      showStorageId = true;
+    if (!infoButtonState.showStorageId()) {
+      infoButtonState.revealStorageId();
       render();
       return;
     }
     if (!readOnly) {
-      resetInfoConfirm();
+      infoButtonState.resetConfirm();
       return;
     }
-    if (!isInfoConfirming()) {
-      startInfoConfirm();
+    if (!infoButtonState.isConfirming()) {
+      infoButtonState.startConfirm();
       render();
       return;
     }
-    int remaining = decrementInfoConfirm();
+    int remaining = infoButtonState.decrementConfirm();
     if (remaining > 0) {
       render();
       return;
     }
     if (manager.isModeratorLocked(cache.getStorageId(), viewer.getUniqueId())) {
-      markInfoBlocked();
+      infoButtonState.markBlocked();
       render();
       return;
     }
     if (!manager.forceWriterFromInfo(this)) {
-      markInfoBlocked();
+      infoButtonState.markBlocked();
       render();
     }
-  }
-
-  private boolean isInfoConfirming() {
-    if (infoConfirmRemaining <= 0) return false;
-    if (confirmTimeoutMs > 0 && System.currentTimeMillis() - infoConfirmLastAt > confirmTimeoutMs) {
-      resetInfoConfirm();
-      return false;
-    }
-    return true;
-  }
-
-  private int infoConfirmRemaining() {
-    return isInfoConfirming() ? infoConfirmRemaining : 0;
-  }
-
-  private void startInfoConfirm() {
-    infoConfirmRemaining = 4;
-    infoConfirmLastAt = System.currentTimeMillis();
-    infoBlockedUntilMs = 0L;
-  }
-
-  private int decrementInfoConfirm() {
-    if (!isInfoConfirming()) return 0;
-    infoConfirmRemaining = Math.max(0, infoConfirmRemaining - 1);
-    infoConfirmLastAt = System.currentTimeMillis();
-    return infoConfirmRemaining;
-  }
-
-  private void resetInfoConfirm() {
-    infoConfirmRemaining = 0;
-    infoConfirmLastAt = 0L;
-  }
-
-  private void markInfoBlocked() {
-    resetInfoConfirm();
-    if (confirmTimeoutMs > 0) {
-      infoBlockedUntilMs = System.currentTimeMillis() + confirmTimeoutMs;
-    }
-  }
-
-  private boolean isInfoBlocked() {
-    return infoBlockedUntilMs > System.currentTimeMillis();
   }
 
   public void handleClick(InventoryClickEvent event) {
@@ -385,9 +335,9 @@ public class StorageSession extends AbstractStorageSession {
       page--;
       render();
     } else if (rawSlot == GuiLayout.Storage.SLOT_NEXT) {
-      int totalPages = Math.max(1, (int) Math.ceil(displayList.size() / (double) pageSize()));
-      if (page + 1 < totalPages) {
-        page++;
+      GuiPageWindow pageWindow = GuiPageWindow.forSlots(page, displayList.size(), pageSize());
+      if (pageWindow.hasNext()) {
+        page = pageWindow.page() + 1;
         render();
       }
     } else if (rawSlot == GuiLayout.Storage.SLOT_INFO) {

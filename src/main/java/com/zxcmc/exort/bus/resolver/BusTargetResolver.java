@@ -1,11 +1,10 @@
 package com.zxcmc.exort.bus.resolver;
 
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.marker.MonitorMarker;
-import com.zxcmc.exort.core.marker.StorageMarker;
-import com.zxcmc.exort.core.marker.TerminalMarker;
-import com.zxcmc.exort.core.marker.WireMarker;
+import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,12 +16,13 @@ import org.bukkit.block.DoubleChest;
 import org.bukkit.entity.Entity;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.plugin.Plugin;
 
 public final class BusTargetResolver {
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
   private final boolean allowStorageTargets;
 
-  public BusTargetResolver(ExortPlugin plugin, boolean allowStorageTargets) {
+  public BusTargetResolver(Plugin plugin, boolean allowStorageTargets) {
     this.plugin = plugin;
     this.allowStorageTargets = allowStorageTargets;
   }

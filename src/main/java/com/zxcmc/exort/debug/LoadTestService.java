@@ -2,14 +2,17 @@ package com.zxcmc.exort.debug;
 
 import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusPos;
+import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusType;
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.db.Database;
-import com.zxcmc.exort.core.feedback.CommandFeedback;
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.logging.ExortLog;
-import com.zxcmc.exort.core.ui.BossBarManager;
+import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.CommandFeedback;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.runtime.RuntimeNetworkConfig;
+import com.zxcmc.exort.storage.StorageRuntimeConfig;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
@@ -29,6 +32,7 @@ import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LoadTestService {
   private static final int DEFAULT_DURATION_TICKS = 20 * 60;
@@ -73,7 +77,7 @@ public final class LoadTestService {
   private static final DecimalFormat TWO_DECIMALS =
       new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.US));
 
-  private final ExortPlugin plugin;
+  private final JavaPlugin plugin;
   private final Database database;
   private final BossBarManager bossBarManager;
   private final Lang lang;
@@ -142,7 +146,7 @@ public final class LoadTestService {
   private Random jitterRandom;
 
   public LoadTestService(
-      ExortPlugin plugin, Database database, BossBarManager bossBarManager, Lang lang) {
+      JavaPlugin plugin, Database database, BossBarManager bossBarManager, Lang lang) {
     this.plugin = plugin;
     this.database = database;
     this.bossBarManager = bossBarManager;
@@ -918,23 +922,15 @@ public final class LoadTestService {
     if (simulatedPlayers <= 0) {
       simulatedPlayers = DEFAULT_PLAYERS;
     }
-    activeIntervalTicks = Math.max(1, plugin.getConfig().getInt("bus.activeIntervalTicks", 5));
-    idleIntervalTicks = Math.max(1, plugin.getConfig().getInt("bus.idleIntervalTicks", 40));
-    itemsPerOperation = Math.max(1, plugin.getConfig().getInt("bus.itemsPerOperation", 1));
-    maxOperationsPerTick = Math.max(1, plugin.getConfig().getInt("bus.maxOperationsPerTick", 6000));
-    maxOperationsPerChunk =
-        Math.max(0, plugin.getConfig().getInt("bus.maxOperationsPerChunk", 600));
-    wireLimit =
-        Math.max(
-            1, plugin.getConfig().getInt("wire.limit", plugin.getConfig().getInt("wireLimit", 32)));
-    wireHardCap =
-        Math.max(
-            0,
-            plugin
-                .getConfig()
-                .getInt(
-                    "wire.hardCap",
-                    plugin.getConfig().getInt("wireHardCap", Math.max(wireLimit * 2, wireLimit))));
+    BusRuntimeConfig busConfig = BusRuntimeConfig.fromConfig(plugin.getConfig());
+    activeIntervalTicks = busConfig.activeIntervalTicks();
+    idleIntervalTicks = busConfig.idleIntervalTicks();
+    itemsPerOperation = busConfig.itemsPerOperation();
+    maxOperationsPerTick = busConfig.maxOperationsPerTick();
+    maxOperationsPerChunk = busConfig.maxOperationsPerChunk();
+    RuntimeNetworkConfig networkConfig = RuntimeNetworkConfig.fromConfig(plugin.getConfig());
+    wireLimit = networkConfig.wireLimit();
+    wireHardCap = networkConfig.wireHardCap();
     chunksPerPlayer = DEFAULT_CHUNKS_PER_PLAYER;
     chunkFillRatio = DEFAULT_CHUNK_FILL_RATIO;
     busRatio = DEFAULT_BUS_RATIO;
@@ -957,14 +953,16 @@ public final class LoadTestService {
     opsJitterPercent = DEFAULT_OPS_JITTER_PERCENT;
     progressIntervalTicks = DEFAULT_PROGRESS_INTERVAL_TICKS;
     monitorIntervalTicks = DEFAULT_MONITOR_INTERVAL_TICKS;
-    int flushSeconds = Math.max(0, plugin.getConfig().getInt("flushIntervalSeconds", 10));
+    StorageRuntimeConfig storageConfig = StorageRuntimeConfig.fromConfig(plugin.getConfig());
+    int flushSeconds = Math.max(0, storageConfig.flushIntervalSeconds());
     flushIntervalTicks = flushSeconds > 0 ? flushSeconds * 20 : 0;
-    int idleUnloadSeconds = Math.max(0, plugin.getConfig().getInt("cache.idleUnloadSeconds", 300));
+    int idleUnloadSeconds = Math.max(0, (int) storageConfig.cacheIdleUnloadSeconds());
     idleUnloadTicks = idleUnloadSeconds > 0 ? idleUnloadSeconds * 20 : 0;
-    int idleCheckSeconds = Math.max(0, plugin.getConfig().getInt("cache.idleCheckSeconds", 60));
+    int idleCheckSeconds = Math.max(0, (int) storageConfig.cacheIdleCheckSeconds());
     idleCheckTicks = idleCheckSeconds > 0 ? idleCheckSeconds * 20 : 0;
-    wirelessEnabled = plugin.getConfig().getBoolean("wireless.enabled", true);
-    wirelessRangeChunks = Math.max(0, plugin.getConfig().getInt("wireless.rangeChunks", 3));
+    WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(plugin.getConfig());
+    wirelessEnabled = wirelessConfig.enabled();
+    wirelessRangeChunks = wirelessConfig.rangeChunks();
     loadChunks = DEFAULT_LOAD_CHUNKS;
     maxLoadedChunks = DEFAULT_MAX_LOADED_CHUNKS;
     chunkGroupSpacing = DEFAULT_CHUNK_GROUP_SPACING;

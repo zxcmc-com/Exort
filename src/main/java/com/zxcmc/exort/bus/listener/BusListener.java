@@ -1,9 +1,10 @@
 package com.zxcmc.exort.bus.listener;
 
 import com.zxcmc.exort.bus.BusSessionManager;
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.marker.BusMarker;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.marker.BusMarker;
+import java.util.function.Consumer;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.event.Event.Result;
@@ -12,14 +13,24 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.plugin.Plugin;
 
 public class BusListener implements Listener {
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
+  private final RegionProtection regionProtection;
+  private final Consumer<Block> busDisplayRefresh;
   private final BusSessionManager busSessionManager;
   private final Material busCarrier;
 
-  public BusListener(ExortPlugin plugin, BusSessionManager busSessionManager, Material busCarrier) {
+  public BusListener(
+      Plugin plugin,
+      RegionProtection regionProtection,
+      Consumer<Block> busDisplayRefresh,
+      BusSessionManager busSessionManager,
+      Material busCarrier) {
     this.plugin = plugin;
+    this.regionProtection = regionProtection;
+    this.busDisplayRefresh = busDisplayRefresh;
     this.busSessionManager = busSessionManager;
     this.busCarrier = busCarrier;
   }
@@ -34,13 +45,11 @@ public class BusListener implements Listener {
     if (event.getPlayer().isSneaking()) {
       return;
     }
-    if (!plugin.getRegionProtection().canUse(event.getPlayer(), block)) {
+    if (!regionProtection.canUse(event.getPlayer(), block)) {
       event.setCancelled(true);
       return;
     }
-    if (plugin.getBusDisplayManager() != null) {
-      plugin.getBusDisplayManager().refresh(block);
-    }
+    busDisplayRefresh.accept(block);
     event.setUseInteractedBlock(Result.DENY);
     event.setUseItemInHand(Result.DENY);
     event.setCancelled(true);

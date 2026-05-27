@@ -3,7 +3,7 @@ package com.zxcmc.exort.storage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.zxcmc.exort.core.db.DbItem;
+import com.zxcmc.exort.infra.db.DbItem;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +13,7 @@ class StorageCacheTest {
     byte[] blob = new byte[] {42};
     byte[] oversized = new byte[1_048_577];
 
-    StorageCache cache = new StorageCache("storage", null, null);
+    StorageCache cache = new StorageCache("storage", null, null, null);
     cache.loadFromDb(
         Map.of(
             "negative",

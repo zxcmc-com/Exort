@@ -2,17 +2,14 @@ package com.zxcmc.exort.bus.engine;
 
 import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusPos;
+import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.bus.InventorySideRules;
 import com.zxcmc.exort.bus.loop.BusLoopGuard;
 import com.zxcmc.exort.bus.resolver.BusTargetResolver;
-import com.zxcmc.exort.core.ExortPlugin;
-import com.zxcmc.exort.core.carrier.Carriers;
-import com.zxcmc.exort.core.items.ItemKeyUtil;
-import com.zxcmc.exort.core.marker.BusMarker;
-import com.zxcmc.exort.core.network.TerminalLinkFinder;
-import com.zxcmc.exort.gui.SortEvent;
+import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
@@ -32,7 +29,7 @@ import org.bukkit.inventory.ItemStack;
 public final class BusEngine implements Runnable {
   private static final int CRAFT_PAUSE_TICKS = 2;
 
-  private final ExortPlugin plugin;
+  private final BusEngineDependencies dependencies;
   private final StorageManager storageManager;
   private final Material busCarrier;
   private final int maxOperationsPerChunk;
@@ -54,33 +51,29 @@ public final class BusEngine implements Runnable {
   private final Map<String, Long> craftPausedUntil = new ConcurrentHashMap<>();
 
   public BusEngine(
-      ExortPlugin plugin,
+      BusEngineDependencies dependencies,
       StorageManager storageManager,
       Material busCarrier,
-      int activeIntervalTicks,
-      int idleIntervalTicks,
-      int itemsPerOperation,
-      int maxOperationsPerTick,
-      int maxOperationsPerChunk,
-      boolean allowStorageTargets,
+      BusRuntimeConfig runtimeConfig,
       WirelessTerminalService wirelessService,
       BusRegistry registry) {
-    this.plugin = plugin;
+    this.dependencies = dependencies;
     this.storageManager = storageManager;
     this.busCarrier = busCarrier;
-    this.maxOperationsPerChunk = Math.max(0, maxOperationsPerChunk);
-    this.activeIntervalTicks = Math.max(1, activeIntervalTicks);
-    this.idleIntervalTicks = Math.max(1, idleIntervalTicks);
-    this.itemsPerOperation = Math.max(1, itemsPerOperation);
-    this.maxOperationsPerTick = Math.max(1, maxOperationsPerTick);
+    this.maxOperationsPerChunk = runtimeConfig.maxOperationsPerChunk();
+    this.activeIntervalTicks = runtimeConfig.activeIntervalTicks();
+    this.idleIntervalTicks = runtimeConfig.idleIntervalTicks();
+    this.itemsPerOperation = runtimeConfig.itemsPerOperation();
+    this.maxOperationsPerTick = runtimeConfig.maxOperationsPerTick();
     this.wirelessService = wirelessService;
     this.registry = registry;
-    this.targetResolver = new BusTargetResolver(plugin, allowStorageTargets);
+    this.targetResolver =
+        new BusTargetResolver(dependencies.plugin(), runtimeConfig.allowStorageTargets());
   }
 
   public void start() {
     if (taskId != -1) return;
-    taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this, 1L, 1L);
+    taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(dependencies.plugin(), this, 1L, 1L);
   }
 
   public void stop() {
@@ -152,7 +145,7 @@ public final class BusEngine implements Runnable {
     roundRobinIndex = (start + 1) % size;
     if (!changedStorages.isEmpty()) {
       for (String storageId : changedStorages) {
-        plugin.getSessionManager().renderStorage(storageId, SortEvent.NONE);
+        dependencies.renderStorage(storageId);
       }
     }
   }
@@ -264,8 +257,8 @@ public final class BusEngine implements Runnable {
         .whenComplete(
             (cache, err) -> {
               if (err != null) {
-                plugin
-                    .getLogger()
+                dependencies
+                    .logger()
                     .log(Level.WARNING, "Failed to preload bus storage " + storageId, unwrap(err));
               }
             });
@@ -528,19 +521,11 @@ public final class BusEngine implements Runnable {
     }
     Block busBlock = world.getBlockAt(pos.x(), pos.y(), pos.z());
     if (busBlock == null) return Optional.empty();
-    if (!Carriers.matchesCarrier(busBlock, busCarrier) || !BusMarker.isBus(plugin, busBlock)) {
+    if (!Carriers.matchesCarrier(busBlock, busCarrier) || !dependencies.isBus(busBlock)) {
       registry.unregisterBus(state.pos());
       return Optional.empty();
     }
-    TerminalLinkFinder.StorageSearchResult link =
-        TerminalLinkFinder.find(
-            busBlock,
-            plugin.getKeys(),
-            plugin,
-            plugin.getWireLimit(),
-            plugin.getWireHardCap(),
-            plugin.getWireMaterial(),
-            plugin.getStorageCarrier());
+    var link = dependencies.findLinkedStorage(busBlock);
     if (link.count() != 1 || link.data() == null) {
       return Optional.empty();
     }

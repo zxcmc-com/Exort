@@ -1,6 +1,6 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.storage.StorageCache;
 import java.util.*;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -15,19 +15,7 @@ public final class SortSearchHelper {
   private SortSearchHelper() {}
 
   public static List<String> normalizeSearchTokens(String query) {
-    if (query == null) return List.of();
-    String normalized = query.trim();
-    if (normalized.isEmpty()) return List.of();
-    String[] lines = normalized.split("\\R");
-    List<String> tokens = new ArrayList<>();
-    for (String line : lines) {
-      if (line == null) continue;
-      String token = line.trim();
-      if (!token.isEmpty()) {
-        tokens.add(token);
-      }
-    }
-    return tokens;
+    return new ArrayList<>(SearchQuery.normalizeRawTokens(query));
   }
 
   public static SortResult resolveOrder(

@@ -1,8 +1,8 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.core.i18n.ItemNameService;
-import com.zxcmc.exort.core.i18n.Lang;
-import com.zxcmc.exort.core.items.ItemKeyUtil;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -42,8 +42,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   protected SortMode sortMode = SortMode.AMOUNT;
   protected boolean sortFrozen;
   protected List<String> sortOrder = new ArrayList<>();
-  protected String searchQuery;
-  protected List<String> searchTokens = List.of();
+  protected SearchQuery searchQuery = SearchQuery.empty();
   protected List<DisplayEntry> displayList = List.of();
   protected List<Integer> displayCategories = List.of();
   protected int page;
@@ -51,7 +50,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   private long lastBuildVersion = -1;
   private SortMode lastBuildSortMode;
   private boolean lastBuildSortFrozen;
-  private String lastBuildSearchQuery;
+  private SearchQuery lastBuildSearchQuery;
   protected final boolean wireless;
   private static final long WIRELESS_REFRESH_TICKS = 40L;
   private int wirelessRefreshTaskId = -1;
@@ -150,23 +149,12 @@ public abstract class AbstractStorageSession implements SearchableSession {
 
   @Override
   public String getSearchQuery() {
-    return searchQuery;
+    return searchQuery.displayText();
   }
 
   @Override
   public void setSearchQuery(String query) {
-    List<String> tokens = SortSearchHelper.normalizeSearchTokens(query);
-    if (tokens.isEmpty()) {
-      searchQuery = null;
-      searchTokens = List.of();
-    } else {
-      searchQuery = String.join("\n", tokens);
-      List<String> lowered = new ArrayList<>(tokens.size());
-      for (String token : tokens) {
-        lowered.add(token.toLowerCase(Locale.ROOT));
-      }
-      searchTokens = lowered;
-    }
+    searchQuery = SearchQuery.from(query);
     page = 0;
   }
 
@@ -176,7 +164,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected boolean hasSearch() {
-    return searchTokens != null && !searchTokens.isEmpty();
+    return !searchQuery.isEmpty();
   }
 
   protected boolean isSearchResultsPage() {
@@ -193,7 +181,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected boolean matchesQuery(ItemStack stack) {
-    return SortSearchHelper.matchesQuery(stack, searchTokens, itemNames);
+    return searchQuery.matches(stack, itemNames);
   }
 
   protected List<DisplayEntry> buildDisplayList() {
@@ -302,7 +290,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     wirelessRefreshTaskId =
         Bukkit.getScheduler()
             .scheduleSyncRepeatingTask(
-                manager.getPlugin(),
+                manager.plugin(),
                 () -> {
                   if (!viewer.isOnline()) {
                     cancelWirelessRefreshTask();
@@ -328,25 +316,13 @@ public abstract class AbstractStorageSession implements SearchableSession {
 
   private boolean matchesQueryCached(
       StorageCache.StorageItem item, Map<String, List<String>> candidatesCache) {
-    if (searchTokens == null || searchTokens.isEmpty()) return true;
-    List<String> candidates =
-        candidatesCache.computeIfAbsent(
-            item.key(), key -> SortSearchHelper.buildSearchCandidates(item.sample(), itemNames));
-    if (candidates.isEmpty()) return true;
-    for (String token : searchTokens) {
-      for (String candidate : candidates) {
-        if (candidate.contains(token)) {
-          return true;
-        }
-      }
-    }
-    return false;
+    return searchQuery.matchesCached(item, candidatesCache, itemNames);
   }
 
   protected void appendEntries(List<DisplayEntry> list, List<StorageCache.StorageItem> items) {
     for (StorageCache.StorageItem item : items) {
       ItemStack sample = item.sample();
-      WirelessTerminalService ws = manager.getPlugin().getWirelessService();
+      WirelessTerminalService ws = manager.wirelessService();
       if (ws != null && ws.isWireless(sample)) {
         sample = ws.displaySample(sample);
         maybeMarkWirelessRefresh(ws, sample);
@@ -380,7 +356,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
       StorageCache.StorageItem item,
       int category) {
     ItemStack sample = item.sample();
-    WirelessTerminalService ws = manager.getPlugin().getWirelessService();
+    WirelessTerminalService ws = manager.wirelessService();
     if (ws != null && ws.isWireless(sample)) {
       sample = ws.displaySample(sample);
       maybeMarkWirelessRefresh(ws, sample);
@@ -526,13 +502,13 @@ public abstract class AbstractStorageSession implements SearchableSession {
   protected abstract void triggerInfoError();
 
   protected long depositFromStack(ItemStack stack) {
-    var ws = manager.getPlugin().getWirelessService();
+    var ws = manager.wirelessService();
     if (ws != null) {
       if (isWireless() && ws.isWireless(stack)) {
-        String message = manager.getPlugin().getLang().tr("message.wireless.self_store");
+        String message = manager.lang().tr("message.wireless.self_store");
         setInfoErrorMessage(message);
         triggerInfoError();
-        manager.getPlugin().getPlayerFeedback().errorMessage(viewer, message);
+        manager.playerFeedback().errorMessage(viewer, message);
         return 0;
       }
     }
@@ -550,13 +526,13 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected long depositFromCursor(ItemStack cursor, int intended, InventoryClickEvent event) {
-    var ws = manager.getPlugin().getWirelessService();
+    var ws = manager.wirelessService();
     if (ws != null) {
       if (isWireless() && ws.isWireless(cursor)) {
-        String message = manager.getPlugin().getLang().tr("message.wireless.self_store");
+        String message = manager.lang().tr("message.wireless.self_store");
         setInfoErrorMessage(message);
         triggerInfoError();
-        manager.getPlugin().getPlayerFeedback().errorMessage(viewer, message);
+        manager.playerFeedback().errorMessage(viewer, message);
         return 0;
       }
     }
@@ -607,7 +583,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     if (reserved == null || reserved.amount() <= 0) return 0;
     ItemStack cursor = event.getView().getCursor();
     ItemStack give = reserved.sample().clone();
-    var ws = manager.getPlugin().getWirelessService();
+    var ws = manager.wirelessService();
     if (ws != null) {
       give = ws.extractFromStorage(give);
     }
@@ -642,7 +618,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     if (reserved == null || reserved.amount() <= 0) return 0;
     if (!(who instanceof Player player)) return 0;
     ItemStack sample = reserved.sample().clone();
-    var ws = manager.getPlugin().getWirelessService();
+    var ws = manager.wirelessService();
     if (ws != null) {
       sample = ws.extractFromStorage(sample);
     }
