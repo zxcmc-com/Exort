@@ -8,6 +8,7 @@ import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.command.ExortBrigadier;
 import com.zxcmc.exort.command.ExortBrigadierDependencies;
 import com.zxcmc.exort.debug.CacheDebugService;
+import com.zxcmc.exort.debug.LoadTestRuntimeDependencies;
 import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
@@ -207,7 +208,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> storageCarrier,
                 () -> terminalCarrier,
                 () -> GuiRuntimeConfig.fromConfig(getConfig()),
-                () -> GuiOverlayConfig.fromConfig(getConfig())));
+                () -> GuiOverlayConfig.fromConfig(getConfig()),
+                storageId -> {
+                  if (monitorDisplayManager != null) {
+                    monitorDisplayManager.refreshStorageMonitors(storageId);
+                  }
+                }));
     bossBarManager = new BossBarManager(this, storageManager, lang);
     loadTestService = new LoadTestService(this, database, bossBarManager, lang);
     cacheDebugService = new CacheDebugService(this);
@@ -236,27 +242,48 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       metrics.shutdown();
     }
     stopReloadableRuntime();
-    if (resourcePackService != null) {
-      resourcePackService.stop();
-      resourcePackService = null;
+    stopBusService();
+    stopRecipeService();
+    stopDisplayState();
+    stopResourcePackService();
+    busSessionManager = null;
+    DisplayBreakAnimationSender.clearStaleOverlays();
+    if (database != null) {
+      database.close();
     }
-    if (recipeService != null) {
-      recipeService.unregisterAll();
+  }
+
+  private void stopResourcePackService() {
+    if (resourcePackService == null) {
+      return;
     }
+    resourcePackService.stop();
+    resourcePackService = null;
+  }
+
+  private void stopRecipeService() {
+    if (recipeService == null) {
+      return;
+    }
+    recipeService.unregisterAll();
+    recipeService = null;
+  }
+
+  private void stopDisplayState() {
     if (hologramManager != null) {
       hologramManager.stop();
     }
     if (monitorDisplayManager != null) {
       monitorDisplayManager.stop();
     }
-    busSessionManager = null;
-    if (busService != null) {
-      busService.stop();
+  }
+
+  private void stopBusService() {
+    if (busService == null) {
+      return;
     }
-    DisplayBreakAnimationSender.clearStaleOverlays();
-    if (database != null) {
-      database.close();
-    }
+    busService.stop();
+    busService = null;
   }
 
   private void recordPickDebug(String message) {
@@ -355,6 +382,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   private void stopReloadableRuntime() {
+    if (loadTestService != null) {
+      loadTestService.clearRuntimeDependencies();
+    }
     stopWorldEditIntegration();
     stopPlacementGuard();
     stopProtocolEnhancements();
@@ -372,14 +402,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   private void resetReloadableDisplayState() {
+    stopBusService();
     if (hologramManager != null) {
       hologramManager.stop();
     }
     if (monitorDisplayManager != null) {
       monitorDisplayManager.stop();
-    }
-    if (busService != null) {
-      busService.stop();
     }
     monitorDisplayManager = null;
   }
@@ -458,6 +486,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     placementGuard = services.placementGuard();
     worldEditIntegration = services.worldEditIntegration();
     dialogSupported = services.dialogSupported();
+    if (loadTestService != null) {
+      loadTestService.setRuntimeDependencies(
+          new LoadTestRuntimeDependencies(
+              keys,
+              storageManager,
+              services.displayRefreshService(),
+              services.busService(),
+              networkGraphCache,
+              materials,
+              services.hologramManager(),
+              services.monitorDisplayManager(),
+              services.wireLimit(),
+              services.wireHardCap()));
+    }
   }
 
   private void evaluateModePolicy() {

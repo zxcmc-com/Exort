@@ -231,14 +231,14 @@ public class ItemPlaceBridgeListener implements Listener {
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshWireAndNeighbors(target);
-      refresh.refreshChunk(target.getChunk());
+      refresh.refreshBlockAndNeighbors(target);
     }
     var holograms = hologramManager.get();
     if (holograms != null) {
       holograms.invalidateAll();
     }
     revalidateSessions.run();
-    invalidateNetwork();
+    invalidateNetwork(target);
     if (refresh != null) {
       refresh.refreshNetworkFrom(target);
     }
@@ -266,9 +266,9 @@ public class ItemPlaceBridgeListener implements Listener {
       holograms.invalidateAll();
     }
     if (refresh != null) {
-      refresh.refreshChunk(target.getChunk());
+      refresh.refreshBlockAndNeighbors(target);
     }
-    invalidateNetwork();
+    invalidateNetwork(target);
     if (refresh != null) {
       refresh.refreshNetworkFrom(target);
     }
@@ -280,7 +280,7 @@ public class ItemPlaceBridgeListener implements Listener {
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshStorage(target);
-      refresh.refreshChunk(target.getChunk());
+      refresh.refreshBlockAndNeighbors(target);
     }
   }
 
@@ -288,7 +288,7 @@ public class ItemPlaceBridgeListener implements Listener {
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     Carriers.applyCarrier(target, terminalCarrier);
     TerminalMarker.set(plugin, target, kind, face);
-    invalidateNetwork();
+    invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshTerminal(target);
@@ -299,7 +299,7 @@ public class ItemPlaceBridgeListener implements Listener {
       holograms.invalidateAll();
     }
     if (refresh != null) {
-      refresh.refreshChunk(target.getChunk());
+      refresh.refreshBlockAndNeighbors(target);
       refresh.refreshNetworkFrom(target);
     }
   }
@@ -308,7 +308,7 @@ public class ItemPlaceBridgeListener implements Listener {
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     Carriers.applyCarrier(target, monitorCarrier);
     MonitorMarker.set(plugin, target, face);
-    invalidateNetwork();
+    invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     var monitorDisplays = monitorDisplayManager.get();
     if (monitorDisplays != null) {
@@ -316,7 +316,7 @@ public class ItemPlaceBridgeListener implements Listener {
     }
     monitorPlacedRecorder.accept(target);
     if (refresh != null) {
-      refresh.refreshChunk(target.getChunk());
+      refresh.refreshBlockAndNeighbors(target);
       refresh.refreshNetworkFrom(target);
     }
   }
@@ -331,11 +331,11 @@ public class ItemPlaceBridgeListener implements Listener {
         exportBus ? BusType.EXPORT : BusType.IMPORT,
         face,
         defaultBusMode(exportBus));
-    invalidateNetwork();
+    invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshBus(target);
-      refresh.refreshChunk(target.getChunk());
+      refresh.refreshBlockAndNeighbors(target);
     }
     var buses = busService.get();
     if (buses != null) {
@@ -346,10 +346,10 @@ public class ItemPlaceBridgeListener implements Listener {
     }
   }
 
-  private void invalidateNetwork() {
+  private void invalidateNetwork(Block block) {
     var cache = networkGraphCache.get();
     if (cache != null) {
-      cache.invalidateAll();
+      cache.invalidateAround(block);
     }
   }
 

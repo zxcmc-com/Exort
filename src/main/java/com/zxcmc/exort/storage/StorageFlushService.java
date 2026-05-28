@@ -2,16 +2,25 @@ package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.infra.db.Database;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public final class StorageFlushService {
+  private static final int MAX_BATCH_STORAGES = 32;
+  private static final int MAX_BATCH_ROWS = 2000;
+
   private final Logger logger;
   private final Supplier<CacheDebugService> cacheDebugService;
   private final Database database;
+  private final Map<String, CompletableFuture<Void>> inFlightFlushes = new ConcurrentHashMap<>();
 
   public StorageFlushService(
       Logger logger, Supplier<CacheDebugService> cacheDebugService, Database database) {
@@ -21,6 +30,107 @@ public final class StorageFlushService {
   }
 
   public CompletableFuture<Void> flushAsync(StorageCache cache) {
+    String storageId = cache.getStorageId();
+    return inFlightFlushes.computeIfAbsent(storageId, ignored -> flushUntilCleanAsync(cache));
+  }
+
+  public CompletableFuture<Void> flushBatchAsync(Collection<StorageCache> caches) {
+    if (caches == null || caches.isEmpty()) {
+      return CompletableFuture.completedFuture(null);
+    }
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
+    List<PendingDeltaFlush> pendingDeltas = new ArrayList<>();
+    int rows = 0;
+    for (StorageCache cache : caches) {
+      if (cache == null || !cache.isDirty()) {
+        continue;
+      }
+      String storageId = cache.getStorageId();
+      CompletableFuture<Void> placeholder = new CompletableFuture<>();
+      CompletableFuture<Void> existing = inFlightFlushes.putIfAbsent(storageId, placeholder);
+      if (existing != null) {
+        futures.add(existing);
+        continue;
+      }
+      StorageCache.DeltaSnapshot delta = cache.snapshotDeltaWithVersion();
+      int deltaRows = delta.upserts().size() + delta.removals().size();
+      if (deltaRows <= 0
+          || pendingDeltas.size() >= MAX_BATCH_STORAGES
+          || rows + deltaRows > MAX_BATCH_ROWS) {
+        inFlightFlushes.remove(storageId, placeholder);
+        futures.add(flushAsync(cache));
+        continue;
+      }
+      rows += deltaRows;
+      pendingDeltas.add(new PendingDeltaFlush(cache, delta, placeholder));
+      futures.add(placeholder);
+    }
+    if (!pendingDeltas.isEmpty()) {
+      flushPendingDeltas(pendingDeltas);
+    }
+    if (futures.isEmpty()) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+  }
+
+  private CompletableFuture<Void> flushUntilCleanAsync(StorageCache cache) {
+    String storageId = cache.getStorageId();
+    return flushOnceAsync(cache)
+        .thenCompose(
+            ignored ->
+                cache.isDirty()
+                    ? flushUntilCleanAsync(cache)
+                    : CompletableFuture.completedFuture(null))
+        .whenComplete((ignored, err) -> inFlightFlushes.remove(storageId));
+  }
+
+  private void flushPendingDeltas(List<PendingDeltaFlush> pendingDeltas) {
+    List<Database.DeltaWrite> writes =
+        pendingDeltas.stream()
+            .map(
+                pending ->
+                    new Database.DeltaWrite(
+                        pending.cache().getStorageId(),
+                        pending.delta().upserts(),
+                        pending.delta().removals()))
+            .toList();
+    database
+        .writeDeltaBatch(writes)
+        .whenComplete(
+            (ignored, err) -> {
+              for (PendingDeltaFlush pending : pendingDeltas) {
+                completePendingDelta(pending, err);
+              }
+            });
+  }
+
+  private void completePendingDelta(PendingDeltaFlush pending, Throwable err) {
+    StorageCache cache = pending.cache();
+    String storageId = cache.getStorageId();
+    inFlightFlushes.remove(storageId, pending.future());
+    if (err != null) {
+      logger.log(Level.SEVERE, "Failed to flush storage " + storageId, err);
+      pending.future().completeExceptionally(err);
+      return;
+    }
+    cache.markCleanIfVersion(pending.delta().version());
+    if (!cache.isDirty()) {
+      pending.future().complete(null);
+      return;
+    }
+    flushAsync(cache)
+        .whenComplete(
+            (ignored, nextErr) -> {
+              if (nextErr != null) {
+                pending.future().completeExceptionally(nextErr);
+              } else {
+                pending.future().complete(null);
+              }
+            });
+  }
+
+  private CompletableFuture<Void> flushOnceAsync(StorageCache cache) {
     StorageCache.DeltaSnapshot delta = cache.snapshotDeltaWithVersion();
     if (!delta.upserts().isEmpty() || !delta.removals().isEmpty()) {
       int count = delta.upserts().size() + delta.removals().size();
@@ -64,4 +174,7 @@ public final class StorageFlushService {
       debug.record(type, storageId, message);
     }
   }
+
+  private record PendingDeltaFlush(
+      StorageCache cache, StorageCache.DeltaSnapshot delta, CompletableFuture<Void> future) {}
 }

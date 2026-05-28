@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.3 — 2026-05-28
+- Hardened storage and wireless custom-item data reads by rejecting invalid UUID references, and tightened bus loop protection for side-sensitive inventories without changing bus settings, item PDC keys, or storage formats.
+- Improved real server performance in heavy Exort mechanics: buses now run through a due scheduler with cached target context and loop-conflict snapshots, network scans use scoped cache invalidation around changed blocks/chunks, display refreshes are deduplicated through block/network queues, monitors update from storage dirty queues instead of full periodic sweeps, storage DB writes coalesce and batch dirty deltas, and terminal/crafting GUIs build only the active page window.
+- Reduced hidden broad refresh work during normal place/break/storage changes while keeping chunk-wide display and network refreshes for chunk load, sanity repair, and WorldEdit/FAWE bulk operations.
+- Added debug performance profiling for the same runtime bus, network, display, monitor, storage DB, GUI, placement guard, and wireless paths used by production gameplay; benchmark reports now separate measured Exort shares from the synthetic load model, include queue/budget data, runtime metadata, and recent-run summaries.
+- Reworked `/exort debug benchmark start` to create benchmark-owned temporary Exort networks near the top of the world, exercise build/interact/move/teardown paths, clean up benchmark blocks/displays/storage rows, and report sustained MSPT separately from rare TPS stalls.
+
 ## 0.12.2 — 2026-05-28
 - Reworked Exort command help and usage output into compact clickable chat blocks with console colors, added canonical `/exort inventory`, `/exort language`, and `/exort resourcepack` entries with short aliases, restored bare `/exort give` to item-give usage help, and added contextual storage-tier help for `/exort give <player> storage`.
 

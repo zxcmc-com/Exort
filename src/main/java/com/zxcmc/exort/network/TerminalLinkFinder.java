@@ -1,5 +1,6 @@
 package com.zxcmc.exort.network;
 
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
 import org.bukkit.Material;
@@ -14,6 +15,21 @@ public final class TerminalLinkFinder {
   public record StorageSearchResult(int count, StorageBlockInfo data) {}
 
   public static StorageSearchResult find(
+      Block terminal,
+      StorageKeys keys,
+      Plugin plugin,
+      int wireLimit,
+      int wireHardCap,
+      Material wireMaterial,
+      Material storageCarrier) {
+    return PerfStats.measure(
+        PerfStats.Area.NETWORK,
+        () ->
+            findInternal(
+                terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier));
+  }
+
+  private static StorageSearchResult findInternal(
       Block terminal,
       StorageKeys keys,
       Plugin plugin,

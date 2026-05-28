@@ -273,11 +273,12 @@ public final class MarkerSanityService {
       boolean hadWire,
       boolean isBarrier,
       boolean isFullChorus) {
-    return matchesAnyConfiguredCarrier || isMigratableWireCarrier(hadWire, isBarrier, isFullChorus);
+    return MarkerCarrierSanity.validOrMigratableCarrier(
+        matchesAnyConfiguredCarrier, hadWire, isBarrier, isFullChorus);
   }
 
   static boolean isMigratableWireCarrier(boolean hadWire, boolean isBarrier, boolean isFullChorus) {
-    return hadWire && (isBarrier || isFullChorus);
+    return MarkerCarrierSanity.isMigratableWireCarrier(hadWire, isBarrier, isFullChorus);
   }
 
   private Throwable unwrap(Throwable err) {

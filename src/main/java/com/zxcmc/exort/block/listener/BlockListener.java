@@ -124,7 +124,7 @@ public class BlockListener implements Listener {
         block.setBlockData(directional, false);
       }
       MonitorMarker.set(plugin, block, monitorFace);
-      invalidateNetwork();
+      invalidateNetwork(block);
       var refresh = displayRefreshService.get();
       playPlaceSound(block, BreakType.MONITOR);
       var monitorDisplays = monitorDisplayManager.get();
@@ -132,7 +132,7 @@ public class BlockListener implements Listener {
         monitorDisplays.registerMonitor(block);
       }
       if (refresh != null) {
-        refresh.refreshChunk(block.getChunk());
+        refresh.refreshBlockAndNeighbors(block);
         refresh.refreshNetworkFrom(block);
       }
       return;
@@ -169,11 +169,11 @@ public class BlockListener implements Listener {
             isExport ? BusType.EXPORT : BusType.IMPORT,
             face,
             defaultBusMode(isExport));
-        invalidateNetwork();
+        invalidateNetwork(block);
         var refresh = displayRefreshService.get();
         if (refresh != null) {
           refresh.refreshBus(block);
-          refresh.refreshChunk(block.getChunk());
+          refresh.refreshBlockAndNeighbors(block);
         }
         var buses = busService.get();
         if (buses != null) {
@@ -223,7 +223,7 @@ public class BlockListener implements Listener {
       }
       TerminalMarker.set(
           plugin, block, isCrafting ? TerminalKind.CRAFTING : TerminalKind.TERMINAL, terminalFace);
-      invalidateNetwork();
+      invalidateNetwork(block);
       var refresh = displayRefreshService.get();
       if (refresh != null) {
         refresh.refreshTerminal(block);
@@ -249,7 +249,7 @@ public class BlockListener implements Listener {
         }
       }
       if (refresh != null) {
-        refresh.refreshChunk(block.getChunk());
+        refresh.refreshBlockAndNeighbors(block);
         refresh.refreshNetworkFrom(block);
       }
       return;
@@ -273,11 +273,11 @@ public class BlockListener implements Listener {
       }
       var refresh = displayRefreshService.get();
       if (refresh != null) {
-        refresh.refreshChunk(block.getChunk());
+        refresh.refreshBlockAndNeighbors(block);
       }
       playPlaceSound(block, BreakType.WIRE);
       if (hologramManager != null) hologramManager.invalidateAll();
-      invalidateNetwork();
+      invalidateNetwork(block);
       if (refresh != null) {
         refresh.refreshNetworkFrom(block);
       }
@@ -297,7 +297,7 @@ public class BlockListener implements Listener {
         var refresh = displayRefreshService.get();
         if (refresh != null) {
           refresh.refreshStorage(block);
-          refresh.refreshChunk(block.getChunk());
+          refresh.refreshBlockAndNeighbors(block);
         }
         playPlaceSound(block, BreakType.STORAGE);
       }
@@ -353,18 +353,18 @@ public class BlockListener implements Listener {
       }
     }
     if (refresh != null) {
-      refresh.refreshChunk(block.getChunk());
+      refresh.refreshBlockAndNeighbors(block);
     }
-    invalidateNetwork();
+    invalidateNetwork(block);
     if (refresh != null) {
       refresh.refreshNetworkFrom(block);
     }
   }
 
-  private void invalidateNetwork() {
+  private void invalidateNetwork(Block block) {
     var cache = networkGraphCache.get();
     if (cache != null) {
-      cache.invalidateAll();
+      cache.invalidateAround(block);
     }
   }
 

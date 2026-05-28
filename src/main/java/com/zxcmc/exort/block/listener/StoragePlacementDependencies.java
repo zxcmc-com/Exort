@@ -4,8 +4,10 @@ import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
 
 record StoragePlacementDependencies(
@@ -15,7 +17,7 @@ record StoragePlacementDependencies(
     Supplier<DisplayRefreshService> displayRefreshService,
     Supplier<ItemHologramManager> hologramManager,
     Runnable revalidateSessions,
-    Runnable invalidateNetwork) {
+    Consumer<Block> invalidateNetwork) {
   StoragePlacementDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(playerFeedback, "playerFeedback");

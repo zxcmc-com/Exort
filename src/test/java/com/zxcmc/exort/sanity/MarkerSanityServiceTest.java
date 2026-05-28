@@ -8,21 +8,21 @@ import org.junit.jupiter.api.Test;
 class MarkerSanityServiceTest {
   @Test
   void markedWireOnFullChorusIsMigratableWhenConfiguredCarrierDoesNotMatch() {
-    assertTrue(MarkerSanityService.validOrMigratableCarrier(false, true, false, true));
+    assertTrue(MarkerCarrierSanity.validOrMigratableCarrier(false, true, false, true));
   }
 
   @Test
   void markedWireOnBarrierIsMigratableWhenConfiguredCarrierDoesNotMatch() {
-    assertTrue(MarkerSanityService.validOrMigratableCarrier(false, true, true, false));
+    assertTrue(MarkerCarrierSanity.validOrMigratableCarrier(false, true, true, false));
   }
 
   @Test
   void unrelatedMaterialIsNotMigratable() {
-    assertFalse(MarkerSanityService.validOrMigratableCarrier(false, true, false, false));
+    assertFalse(MarkerCarrierSanity.validOrMigratableCarrier(false, true, false, false));
   }
 
   @Test
   void nonWireMarkersDoNotUseWireCarrierMigrationException() {
-    assertFalse(MarkerSanityService.validOrMigratableCarrier(false, false, true, true));
+    assertFalse(MarkerCarrierSanity.validOrMigratableCarrier(false, false, true, true));
   }
 }

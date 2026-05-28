@@ -113,11 +113,7 @@ public class StorageManager {
   }
 
   public void flushDirtyCaches() {
-    for (StorageCache cache : caches.values()) {
-      if (cache.isDirty()) {
-        flush(cache);
-      }
-    }
+    flushService.flushBatchAsync(caches.values());
   }
 
   public void flush(StorageCache cache) {
@@ -130,10 +126,7 @@ public class StorageManager {
 
   public void flushAllAndWait(long timeoutSeconds) {
     CompletableFuture<?>[] futures =
-        caches.values().stream()
-            .filter(StorageCache::isDirty)
-            .map(flushService::flushAsync)
-            .toArray(CompletableFuture[]::new);
+        new CompletableFuture<?>[] {flushService.flushBatchAsync(caches.values())};
     if (futures.length == 0) return;
     try {
       CompletableFuture.allOf(futures).get(Math.max(1L, timeoutSeconds), TimeUnit.SECONDS);
@@ -169,6 +162,12 @@ public class StorageManager {
   public Optional<StorageCache> getCache(String storageId) {
     StorageCache cache = caches.get(storageId);
     return Optional.ofNullable(cache);
+  }
+
+  public void discardCacheForInternalCleanup(String storageId) {
+    if (storageId == null) return;
+    loading.remove(storageId);
+    caches.remove(storageId);
   }
 
   public int refreshLoadedCustomItems() {

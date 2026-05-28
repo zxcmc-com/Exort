@@ -90,12 +90,16 @@ public class Lang {
     put(
         defaultsEn,
         "message.debug_load_progress",
-        "Load test {0}% • {1}s left • TPS {2} • MSPT {3}");
+        "Progress {0}% • {1}s left • TPS {2} • MSPT {3}");
     put(
         defaultsEn,
         "message.debug_load_verdict",
-        "Load test verdict: {0} (TPS min {1}, max {2}, avg {3}, 0.1% {4}; MSPT min {5}, max {6},"
+        "Load test verdict: {0} (TPS min {1}, max {2}, avg {3}, p1 {4}; MSPT min {5}, max {6},"
             + " avg {7}, p95 {8}, p99 {9})");
+    put(
+        defaultsEn,
+        "message.debug_load_rare_stalls",
+        "Rare stalls: {0} sample(s) below TPS 12, min {1}.");
     put(
         defaultsEn,
         "message.debug_load_summary",
@@ -103,12 +107,26 @@ public class Lang {
             + " monitors/chunk {4}, est ops/tick {5} (global {6}, chunk {7}), db/tick {8}, monitor"
             + " updates {9}/t{10}, wire {11}/{12} miss {13}% cover {14}%, duration {15}s (warmup"
             + " {16}s), jitter {17}%, guard players {18}, guard entities {19}/{20}, guard churn"
-            + " {21}/tick");
+            + " {21}/tick, world lanes {22}, world ops/tick {23}, world blocks {24}");
     put(
         defaultsEn,
         "message.debug_load_hints",
-        "Benchmark hints: dominant {0}; CPU {1}%, WIRE {2}%, DISPLAYS {3}%, DB {4}%, WIRELESS"
-            + " {5}%, GUARDS {6}%.");
+        "Synthetic benchmark hints: dominant {0}; CPU {1}%, WIRE {2}%, DISPLAYS {3}%, DB {4}%,"
+            + " WIRELESS {5}%, GUARDS {6}%, WORLD {7}% (placements {8}).");
+    put(
+        defaultsEn,
+        "message.debug_load_mspt_verdict",
+        "Sustained MSPT verdict: {0} (avg {1}, p95 {2}, p99 {3}).");
+    put(defaultsEn, "message.debug_load_measured_profile", "Measured Exort profile: {0}.");
+    put(
+        defaultsEn,
+        "message.debug_load_metadata",
+        "Benchmark metadata: server {0}, Exort {1}, Java {2}, plugins {3}.");
+    put(
+        defaultsEn,
+        "message.debug_load_recent_runs",
+        "Recent benchmark runs ({0}): TPS avg {1}, MSPT avg {2}, MSPT p95 {3}.");
+    put(defaultsEn, "message.debug_load_grade_unknown", "UNKNOWN");
     put(defaultsEn, "message.debug_load_grade_good", "GOOD");
     put(defaultsEn, "message.debug_load_grade_warn", "OK");
     put(defaultsEn, "message.debug_load_grade_poor", "POOR");
@@ -274,6 +292,7 @@ public class Lang {
     put(defaultsEn, "gui.prev_page", "Prev Page");
     put(defaultsEn, "gui.next_page", "Next Page");
     put(defaultsEn, "gui.page_info", "Page {0}/{1}");
+    put(defaultsEn, "gui.list_truncated", "Showing first {0} stacks; narrow search.");
     put(defaultsEn, "gui.bossbar", "{0} {1} / {2} ({3})");
     put(defaultsEn, "gui.crafting.button.storage", "Craft to Storage");
     put(defaultsEn, "gui.crafting.button.player", "Craft to Inventory");
@@ -464,12 +483,16 @@ public class Lang {
     put(
         defaultsRu,
         "message.debug_load_progress",
-        "Тест нагрузки {0}% • осталось {1}с • TPS {2} • MSPT {3}");
+        "Прогресс {0}% • осталось {1}с • TPS {2} • MSPT {3}");
     put(
         defaultsRu,
         "message.debug_load_verdict",
-        "Вердикт теста: {0} (TPS min {1}, max {2}, avg {3}, 0.1% {4}; MSPT min {5}, max {6}, avg"
+        "Вердикт теста: {0} (TPS min {1}, max {2}, avg {3}, p1 {4}; MSPT min {5}, max {6}, avg"
             + " {7}, p95 {8}, p99 {9})");
+    put(
+        defaultsRu,
+        "message.debug_load_rare_stalls",
+        "Редкие stalls: {0} sample(s) ниже TPS 12, min {1}.");
     put(
         defaultsRu,
         "message.debug_load_summary",
@@ -477,12 +500,27 @@ public class Lang {
             + " {4}, оценка оп/тик {5} (глобал {6}, чанк {7}), БД/тик {8}, обновления мониторов"
             + " {9}/t{10}, кабель {11}/{12} miss {13}% cover {14}%, длительность {15}с (прогрев"
             + " {16}с), джиттер {17}%, guard-игроков {18}, guard-сущностей {19}/{20},"
-            + " пересоздание guard {21}/тик");
+            + " пересоздание guard {21}/тик, world lanes {22}, world ops/tick {23}, world blocks"
+            + " {24}");
     put(
         defaultsRu,
         "message.debug_load_hints",
-        "Подсказки: доминирующая нагрузка — {0}; CPU {1}%, кабель {2}%, мониторы {3}%, БД {4}%,"
-            + " wireless {5}%, guard {6}%.");
+        "Синтетическая модель: доминирующая нагрузка — {0}; CPU {1}%, кабель {2}%, мониторы {3}%,"
+            + " БД {4}%, wireless {5}%, guard {6}%, WORLD {7}% (placements {8}).");
+    put(
+        defaultsRu,
+        "message.debug_load_mspt_verdict",
+        "Вердикт устойчивого MSPT: {0} (avg {1}, p95 {2}, p99 {3}).");
+    put(defaultsRu, "message.debug_load_measured_profile", "Измеренный профиль Exort: {0}.");
+    put(
+        defaultsRu,
+        "message.debug_load_metadata",
+        "Метаданные бенчмарка: server {0}, Exort {1}, Java {2}, plugins {3}.");
+    put(
+        defaultsRu,
+        "message.debug_load_recent_runs",
+        "Последние прогоны ({0}): TPS avg {1}, MSPT avg {2}, MSPT p95 {3}.");
+    put(defaultsRu, "message.debug_load_grade_unknown", "UNKNOWN");
     put(defaultsRu, "message.debug_load_grade_good", "ОТЛИЧНО");
     put(defaultsRu, "message.debug_load_grade_warn", "НОРМА");
     put(defaultsRu, "message.debug_load_grade_poor", "СЛАБО");
@@ -661,6 +699,7 @@ public class Lang {
     put(defaultsRu, "gui.prev_page", "Пред. страница");
     put(defaultsRu, "gui.next_page", "След. страница");
     put(defaultsRu, "gui.page_info", "Страница {0}/{1}");
+    put(defaultsRu, "gui.list_truncated", "Показаны первые {0} стаков; уточните поиск.");
     put(defaultsRu, "gui.bossbar", "{0} {1} / {2} ({3})");
     put(defaultsRu, "gui.crafting.button.storage", "Крафт в хранилище");
     put(defaultsRu, "gui.crafting.button.player", "Крафт в инвентарь");

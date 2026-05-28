@@ -1,6 +1,7 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -9,15 +10,20 @@ import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.plugin.Plugin;
 
 public final class DisplayRefreshService {
+  private static final int REFRESH_BUDGET_PER_TICK = 64;
   private static final BlockFace[] FACES =
       new BlockFace[] {
         BlockFace.UP,
@@ -40,6 +46,10 @@ public final class DisplayRefreshService {
   private final TerminalDisplayManager terminalDisplayManager;
   private final MonitorDisplayManager monitorDisplayManager;
   private final BusDisplayManager busDisplayManager;
+  private final Set<BlockKey> queuedBlocks = new HashSet<>();
+  private final Set<ChunkKey> queuedChunks = new HashSet<>();
+  private final Set<BlockKey> queuedNetworkStarts = new HashSet<>();
+  private int refreshTaskId = -1;
 
   public DisplayRefreshService(
       Plugin plugin,
@@ -69,6 +79,29 @@ public final class DisplayRefreshService {
   }
 
   public void refreshChunk(Chunk chunk) {
+    if (chunk == null || chunk.getWorld() == null) return;
+    queuedChunks.add(new ChunkKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ()));
+    updateQueueGauge();
+    scheduleRefreshDrain();
+  }
+
+  public void refreshBlockAndNeighbors(Block block) {
+    if (block == null || block.getWorld() == null) return;
+    enqueueBlock(block);
+    for (BlockFace face : FACES) {
+      enqueueBlock(block.getRelative(face));
+    }
+    updateQueueGauge();
+    scheduleRefreshDrain();
+  }
+
+  private void enqueueBlock(Block block) {
+    if (block == null || block.getWorld() == null) return;
+    queuedBlocks.add(
+        new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()));
+  }
+
+  private void refreshChunkNow(Chunk chunk) {
     boolean[] flags = new boolean[5];
     if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
     ChunkMarkerStore.forEachBlock(
@@ -126,6 +159,36 @@ public final class DisplayRefreshService {
 
   public void refreshNetworkFrom(Block block) {
     if (block == null || block.getWorld() == null) return;
+    queuedNetworkStarts.add(
+        new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()));
+    updateQueueGauge();
+    scheduleRefreshDrain();
+  }
+
+  private void refreshBlockNow(Block block) {
+    if (block == null || block.getWorld() == null) return;
+    if (!isChunkLoaded(block)) return;
+    if (Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block)) {
+      refreshWireAndNeighbors(block);
+    }
+    if (Carriers.matchesCarrier(block, storageCarrier)
+        && StorageMarker.get(plugin, block).isPresent()) {
+      refreshStorage(block);
+    }
+    if (Carriers.matchesCarrier(block, terminalCarrier)
+        && TerminalMarker.isTerminal(plugin, block)) {
+      refreshTerminal(block);
+    }
+    if (Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block)) {
+      refreshMonitor(block);
+    }
+    if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
+      refreshBus(block);
+    }
+  }
+
+  private void refreshNetworkFromNow(Block block) {
+    if (block == null || block.getWorld() == null) return;
     if (wireMaterial == null) return;
     int hardCap = Math.max(0, wireHardCap);
     if (hardCap == 0) return;
@@ -143,6 +206,82 @@ public final class DisplayRefreshService {
       }
     }
   }
+
+  private void scheduleRefreshDrain() {
+    if (refreshTaskId != -1) return;
+    try {
+      refreshTaskId =
+          Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, this::drainRefreshQueues, 1L);
+    } catch (IllegalStateException ignored) {
+      refreshTaskId = -1;
+    }
+  }
+
+  private void drainRefreshQueues() {
+    refreshTaskId = -1;
+    PerfStats.measure(PerfStats.Area.DISPLAY, this::drainRefreshQueuesMeasured);
+  }
+
+  private void drainRefreshQueuesMeasured() {
+    int budget = REFRESH_BUDGET_PER_TICK;
+    while (budget > 0 && !queuedBlocks.isEmpty()) {
+      Iterator<BlockKey> iterator = queuedBlocks.iterator();
+      BlockKey key = iterator.next();
+      iterator.remove();
+      Block block = loadedBlock(key);
+      if (block != null) {
+        refreshBlockNow(block);
+      }
+      budget--;
+    }
+    while (budget > 0 && !queuedChunks.isEmpty()) {
+      Iterator<ChunkKey> iterator = queuedChunks.iterator();
+      ChunkKey key = iterator.next();
+      iterator.remove();
+      Chunk chunk = loadedChunk(key);
+      if (chunk != null) {
+        refreshChunkNow(chunk);
+      }
+      budget--;
+    }
+    while (budget > 0 && !queuedNetworkStarts.isEmpty()) {
+      Iterator<BlockKey> iterator = queuedNetworkStarts.iterator();
+      BlockKey key = iterator.next();
+      iterator.remove();
+      Block block = loadedBlock(key);
+      if (block != null) {
+        refreshNetworkFromNow(block);
+      }
+      budget--;
+    }
+    updateQueueGauge();
+    if (!queuedBlocks.isEmpty() || !queuedChunks.isEmpty() || !queuedNetworkStarts.isEmpty()) {
+      PerfStats.incrementCounter("display.budgetOverrun");
+      scheduleRefreshDrain();
+    }
+  }
+
+  private void updateQueueGauge() {
+    PerfStats.setGauge(
+        "display.queueDepth",
+        (long) queuedBlocks.size() + queuedChunks.size() + queuedNetworkStarts.size());
+  }
+
+  private Chunk loadedChunk(ChunkKey key) {
+    World world = Bukkit.getWorld(key.world());
+    if (world == null || !world.isChunkLoaded(key.x(), key.z())) return null;
+    return world.getChunkAt(key.x(), key.z());
+  }
+
+  private Block loadedBlock(BlockKey key) {
+    World world = Bukkit.getWorld(key.world());
+    if (world == null || !world.isChunkLoaded(key.x() >> 4, key.z() >> 4)) return null;
+    return world.getBlockAt(key.x(), key.y(), key.z());
+  }
+
+  private record ChunkKey(UUID world, int x, int z) {}
+
+  private record BlockKey(UUID world, int x, int y, int z) {}
 
   private void refreshFromWire(Block start, int hardCap, Material wireMaterial) {
     Queue<Block> queue = new ArrayDeque<>();

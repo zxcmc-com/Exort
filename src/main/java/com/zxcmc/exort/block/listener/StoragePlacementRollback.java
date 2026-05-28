@@ -44,9 +44,9 @@ final class StoragePlacementRollback {
     }
 
     dependencies.revalidateSessions().run();
-    dependencies.invalidateNetwork().run();
+    dependencies.invalidateNetwork().accept(block);
     if (refresh != null) {
-      refresh.refreshChunk(block.getChunk());
+      refresh.refreshBlockAndNeighbors(block);
       refresh.refreshNetworkFrom(block);
     }
     return true;

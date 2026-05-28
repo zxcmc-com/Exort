@@ -131,14 +131,14 @@ public final class BlockBreakHandler {
       if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
         refreshWireNeighbors(block);
         if (displayRefreshService != null) {
-          displayRefreshService.refreshChunk(block.getChunk());
+          displayRefreshService.refreshBlockAndNeighbors(block);
         }
       }
       if (displayRefreshService != null) {
         displayRefreshService.removeTerminalDisplay(block);
       }
       TerminalMarker.clear(plugin, block);
-      invalidateNetwork();
+      invalidateNetwork(block);
       cleanupDisplays(block);
       return BreakResult.BROKEN;
     }
@@ -161,15 +161,15 @@ public final class BlockBreakHandler {
         monitorDisplays.unregisterMonitor(block);
       }
       MonitorMarker.clear(plugin, block);
-      invalidateNetwork();
+      invalidateNetwork(block);
       if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
         refreshWireNeighbors(block);
         if (displayRefreshService != null) {
-          displayRefreshService.refreshChunk(block.getChunk());
+          displayRefreshService.refreshBlockAndNeighbors(block);
         }
       }
       if (displayRefreshService != null) {
-        displayRefreshService.refreshChunk(block.getChunk());
+        displayRefreshService.refreshBlockAndNeighbors(block);
       }
       cleanupDisplays(block);
       return BreakResult.BROKEN;
@@ -204,14 +204,14 @@ public final class BlockBreakHandler {
       if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
         refreshWireNeighbors(block);
         if (displayRefreshService != null) {
-          displayRefreshService.refreshChunk(block.getChunk());
+          displayRefreshService.refreshBlockAndNeighbors(block);
         }
       }
       if (displayRefreshService != null) {
         displayRefreshService.removeBusDisplay(block);
       }
       BusMarker.clear(plugin, block);
-      invalidateNetwork();
+      invalidateNetwork(block);
       cleanupDisplays(block);
       return BreakResult.BROKEN;
     }
@@ -230,16 +230,16 @@ public final class BlockBreakHandler {
         dropItemSafe(block, customItems.wireItem());
       }
       WireMarker.clearWire(plugin, block);
-      invalidateNetwork();
+      invalidateNetwork(block);
       sessionManager.revalidateSessions();
       if (wireDisplayManager != null) {
         wireDisplayManager.removeWire(block);
         if (wireDisplayManager.isEnabled() && displayRefreshService != null) {
-          displayRefreshService.refreshChunk(block.getChunk());
+          displayRefreshService.refreshBlockAndNeighbors(block);
         }
       }
       if (displayRefreshService != null) {
-        displayRefreshService.refreshChunk(block.getChunk());
+        displayRefreshService.refreshBlockAndNeighbors(block);
       }
       if (hologramManager != null) hologramManager.invalidateAll();
       if (displayRefreshService != null) {
@@ -268,7 +268,7 @@ public final class BlockBreakHandler {
         displayRefreshService.removeStorageDisplay(block);
       }
       if (displayRefreshService != null) {
-        displayRefreshService.refreshChunk(block.getChunk());
+        displayRefreshService.refreshBlockAndNeighbors(block);
       }
       cleanupDisplays(block);
       return BreakResult.BROKEN;
@@ -303,11 +303,11 @@ public final class BlockBreakHandler {
     if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
       refreshWireNeighbors(block);
       if (displayRefreshService != null) {
-        displayRefreshService.refreshChunk(block.getChunk());
+        displayRefreshService.refreshBlockAndNeighbors(block);
       }
     }
     if (displayRefreshService != null) {
-      displayRefreshService.refreshChunk(block.getChunk());
+      displayRefreshService.refreshBlockAndNeighbors(block);
     }
     if (hologramManager != null) hologramManager.invalidateAll();
     if (hologramManager != null) hologramManager.unregisterStorage(block);
@@ -315,7 +315,7 @@ public final class BlockBreakHandler {
       displayRefreshService.removeStorageDisplay(block);
     }
     StorageMarker.clear(plugin, block);
-    invalidateNetwork();
+    invalidateNetwork(block);
     if (displayRefreshService != null) {
       displayRefreshService.refreshNetworkFrom(block);
     }
@@ -323,10 +323,10 @@ public final class BlockBreakHandler {
     return BreakResult.BROKEN;
   }
 
-  private void invalidateNetwork() {
+  private void invalidateNetwork(Block block) {
     var cache = networkGraphCache.get();
     if (cache != null) {
-      cache.invalidateAll();
+      cache.invalidateAround(block);
     }
   }
 

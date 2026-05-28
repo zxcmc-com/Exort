@@ -5,6 +5,7 @@ import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusPos;
 import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusType;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.gui.SortMode;
 import java.io.File;
 import java.sql.Connection;
@@ -20,6 +21,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +32,7 @@ public class Database implements AutoCloseable {
 
   private final Logger logger;
   private final Supplier<String> defaultSortModeName;
+  private final AtomicInteger queuedOperations = new AtomicInteger();
   private final ExecutorService executor =
       Executors.newSingleThreadExecutor(
           r -> {
@@ -38,6 +41,9 @@ public class Database implements AutoCloseable {
             return t;
           });
   private Connection connection;
+
+  public record DeltaWrite(
+      String storageId, Collection<DbItem> upserts, Collection<String> removals) {}
 
   public Database() {
     this(null, () -> SortMode.AMOUNT.name());
@@ -203,6 +209,32 @@ public class Database implements AutoCloseable {
     return SortMode.fromString(raw).name();
   }
 
+  public int queuedOperations() {
+    return queuedOperations.get();
+  }
+
+  private Runnable measuredStorageDbTask(Runnable task) {
+    PerfStats.setGauge("storage-db.queueDepth", queuedOperations.incrementAndGet());
+    return () -> {
+      try {
+        PerfStats.measure(PerfStats.Area.STORAGE_DB, task);
+      } finally {
+        PerfStats.setGauge("storage-db.queueDepth", queuedOperations.decrementAndGet());
+      }
+    };
+  }
+
+  private <T> Supplier<T> measuredStorageDbTask(Supplier<T> task) {
+    PerfStats.setGauge("storage-db.queueDepth", queuedOperations.incrementAndGet());
+    return () -> {
+      try {
+        return PerfStats.measure(PerfStats.Area.STORAGE_DB, task);
+      } finally {
+        PerfStats.setGauge("storage-db.queueDepth", queuedOperations.decrementAndGet());
+      }
+    };
+  }
+
   public CompletableFuture<Optional<String>> getStorageSortMode(String storageId) {
     Objects.requireNonNull(storageId, "storageId");
     return CompletableFuture.supplyAsync(
@@ -300,6 +332,41 @@ public class Database implements AutoCloseable {
               connection.rollback();
             } catch (SQLException ex) {
               log(Level.SEVERE, "Failed to rollback transaction", ex);
+            }
+            throw new CompletionException(e);
+          } finally {
+            try {
+              connection.setAutoCommit(true);
+            } catch (SQLException ignored) {
+            }
+          }
+        },
+        executor);
+  }
+
+  public CompletableFuture<Void> deleteStorageForInternalCleanup(String storageId) {
+    Objects.requireNonNull(storageId, "storageId");
+    return CompletableFuture.runAsync(
+        () -> {
+          try {
+            connection.setAutoCommit(false);
+            try (PreparedStatement deleteItems =
+                connection.prepareStatement("DELETE FROM storage_items WHERE storage_id = ?")) {
+              deleteItems.setString(1, storageId);
+              deleteItems.executeUpdate();
+            }
+            try (PreparedStatement deleteStorage =
+                connection.prepareStatement("DELETE FROM storages WHERE id = ?")) {
+              deleteStorage.setString(1, storageId);
+              deleteStorage.executeUpdate();
+            }
+            connection.commit();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to delete storage for internal cleanup " + storageId, e);
+            try {
+              connection.rollback();
+            } catch (SQLException ex) {
+              log(Level.SEVERE, "Failed to rollback storage cleanup transaction", ex);
             }
             throw new CompletionException(e);
           } finally {
@@ -598,46 +665,48 @@ public class Database implements AutoCloseable {
   public CompletableFuture<Map<String, DbItem>> loadStorage(String storageId) {
     Objects.requireNonNull(storageId, "storageId");
     return CompletableFuture.supplyAsync(
-        () -> {
-          Map<String, DbItem> items = new HashMap<>();
-          String sql =
-              "SELECT item_key, item_blob, amount, length(item_blob) AS blob_len FROM storage_items"
-                  + " WHERE storage_id = ?";
-          try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, storageId);
-            try (ResultSet rs = ps.executeQuery()) {
-              while (rs.next()) {
-                String key = rs.getString("item_key");
-                long amount = rs.getLong("amount");
-                long blobLen = rs.getLong("blob_len");
-                if (amount <= 0) {
-                  warnInvalidStorageRow(storageId, key, amount, blobLen, "amount must be positive");
-                  continue;
+        measuredStorageDbTask(
+            () -> {
+              Map<String, DbItem> items = new HashMap<>();
+              String sql =
+                  "SELECT item_key, item_blob, amount, length(item_blob) AS blob_len FROM"
+                      + " storage_items WHERE storage_id = ?";
+              try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, storageId);
+                try (ResultSet rs = ps.executeQuery()) {
+                  while (rs.next()) {
+                    String key = rs.getString("item_key");
+                    long amount = rs.getLong("amount");
+                    long blobLen = rs.getLong("blob_len");
+                    if (amount <= 0) {
+                      warnInvalidStorageRow(
+                          storageId, key, amount, blobLen, "amount must be positive");
+                      continue;
+                    }
+                    if (blobLen <= 0 || blobLen > MAX_ITEM_BLOB_BYTES) {
+                      warnInvalidStorageRow(
+                          storageId, key, amount, blobLen, "invalid serialized item blob length");
+                      continue;
+                    }
+                    byte[] blob = rs.getBytes("item_blob");
+                    if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+                      warnInvalidStorageRow(
+                          storageId,
+                          key,
+                          amount,
+                          blob == null ? 0L : blob.length,
+                          "invalid serialized item blob");
+                      continue;
+                    }
+                    items.put(key, new DbItem(key, blob, amount));
+                  }
                 }
-                if (blobLen <= 0 || blobLen > MAX_ITEM_BLOB_BYTES) {
-                  warnInvalidStorageRow(
-                      storageId, key, amount, blobLen, "invalid serialized item blob length");
-                  continue;
-                }
-                byte[] blob = rs.getBytes("item_blob");
-                if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
-                  warnInvalidStorageRow(
-                      storageId,
-                      key,
-                      amount,
-                      blob == null ? 0L : blob.length,
-                      "invalid serialized item blob");
-                  continue;
-                }
-                items.put(key, new DbItem(key, blob, amount));
+              } catch (SQLException e) {
+                log(Level.SEVERE, "Failed to load storage " + storageId, e);
+                throw new CompletionException(e);
               }
-            }
-          } catch (SQLException e) {
-            log(Level.SEVERE, "Failed to load storage " + storageId, e);
-            throw new CompletionException(e);
-          }
-          return items;
-        },
+              return items;
+            }),
         executor);
   }
 
@@ -645,14 +714,15 @@ public class Database implements AutoCloseable {
     Objects.requireNonNull(storageId, "storageId");
     Collection<DbItem> safeItems = items == null ? List.of() : items;
     return CompletableFuture.runAsync(
-        () -> {
-          try {
-            writeSnapshotInternal(storageId, safeItems);
-          } catch (SQLException e) {
-            log(Level.SEVERE, "Failed to write snapshot for " + storageId, e);
-            throw new CompletionException(e);
-          }
-        },
+        measuredStorageDbTask(
+            () -> {
+              try {
+                writeSnapshotInternal(storageId, safeItems);
+              } catch (SQLException e) {
+                log(Level.SEVERE, "Failed to write snapshot for " + storageId, e);
+                throw new CompletionException(e);
+              }
+            }),
         executor);
   }
 
@@ -714,86 +784,183 @@ public class Database implements AutoCloseable {
       String storageId, Collection<DbItem> upserts, Collection<String> removals) {
     Objects.requireNonNull(storageId, "storageId");
     return CompletableFuture.runAsync(
-        () -> {
-          if ((upserts == null || upserts.isEmpty()) && (removals == null || removals.isEmpty())) {
-            return;
-          }
-          try {
-            connection.setAutoCommit(false);
-            if (removals != null && !removals.isEmpty()) {
-              try (PreparedStatement delete =
-                  connection.prepareStatement(
-                      "DELETE FROM storage_items WHERE storage_id = ? AND item_key = ?")) {
-                int batchSize = 0;
-                for (String key : removals) {
-                  if (key == null || key.isEmpty()) continue;
-                  delete.setString(1, storageId);
-                  delete.setString(2, key);
-                  delete.addBatch();
-                  batchSize++;
-                  if (batchSize >= 1000) {
+        measuredStorageDbTask(
+            () -> {
+              if ((upserts == null || upserts.isEmpty())
+                  && (removals == null || removals.isEmpty())) {
+                return;
+              }
+              try {
+                connection.setAutoCommit(false);
+                if (removals != null && !removals.isEmpty()) {
+                  try (PreparedStatement delete =
+                      connection.prepareStatement(
+                          "DELETE FROM storage_items WHERE storage_id = ? AND item_key = ?")) {
+                    int batchSize = 0;
+                    for (String key : removals) {
+                      if (key == null || key.isEmpty()) continue;
+                      delete.setString(1, storageId);
+                      delete.setString(2, key);
+                      delete.addBatch();
+                      batchSize++;
+                      if (batchSize >= 1000) {
+                        delete.executeBatch();
+                        delete.clearBatch();
+                        batchSize = 0;
+                      }
+                    }
+                    if (batchSize > 0) {
+                      delete.executeBatch();
+                    }
+                  }
+                }
+                if (upserts != null && !upserts.isEmpty()) {
+                  String insertSql =
+                      """
+                      INSERT INTO storage_items(storage_id, item_key, item_blob, amount)
+                      VALUES(?, ?, ?, ?)
+                      ON CONFLICT(storage_id, item_key) DO UPDATE SET
+                          item_blob = excluded.item_blob,
+                          amount = excluded.amount
+                      """;
+                  try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
+                    int batchSize = 0;
+                    for (DbItem item : upserts) {
+                      if (!isPersistableDbItem(storageId, item, "delta")) continue;
+                      insert.setString(1, storageId);
+                      insert.setString(2, item.key());
+                      insert.setBytes(3, item.blob());
+                      insert.setLong(4, item.amount());
+                      insert.addBatch();
+                      batchSize++;
+                      if (batchSize >= 1000) {
+                        insert.executeBatch();
+                        insert.clearBatch();
+                        batchSize = 0;
+                      }
+                    }
+                    if (batchSize > 0) {
+                      insert.executeBatch();
+                    }
+                  }
+                }
+                try (PreparedStatement update =
+                    connection.prepareStatement(
+                        "UPDATE storages SET updated_at = ? WHERE id = ?")) {
+                  update.setLong(1, Instant.now().getEpochSecond());
+                  update.setString(2, storageId);
+                  update.executeUpdate();
+                }
+                connection.commit();
+              } catch (SQLException e) {
+                log(Level.SEVERE, "Failed to write delta for " + storageId, e);
+                try {
+                  connection.rollback();
+                } catch (SQLException ex) {
+                  log(Level.SEVERE, "Failed to rollback transaction", ex);
+                }
+                throw new CompletionException(e);
+              } finally {
+                try {
+                  connection.setAutoCommit(true);
+                } catch (SQLException ignored) {
+                }
+              }
+            }),
+        executor);
+  }
+
+  public CompletableFuture<Void> writeDeltaBatch(Collection<DeltaWrite> writes) {
+    Collection<DeltaWrite> safeWrites =
+        writes == null
+            ? List.of()
+            : writes.stream().filter(write -> write != null && write.storageId() != null).toList();
+    return CompletableFuture.runAsync(
+        measuredStorageDbTask(
+            () -> {
+              if (safeWrites.isEmpty()) {
+                return;
+              }
+              try {
+                connection.setAutoCommit(false);
+                try (PreparedStatement delete =
+                        connection.prepareStatement(
+                            "DELETE FROM storage_items WHERE storage_id = ? AND item_key = ?");
+                    PreparedStatement insert =
+                        connection.prepareStatement(
+                            """
+                            INSERT INTO storage_items(storage_id, item_key, item_blob, amount)
+                            VALUES(?, ?, ?, ?)
+                            ON CONFLICT(storage_id, item_key) DO UPDATE SET
+                                item_blob = excluded.item_blob,
+                                amount = excluded.amount
+                            """);
+                    PreparedStatement update =
+                        connection.prepareStatement(
+                            "UPDATE storages SET updated_at = ? WHERE id = ?")) {
+                  int deleteBatch = 0;
+                  int insertBatch = 0;
+                  long now = Instant.now().getEpochSecond();
+                  for (DeltaWrite write : safeWrites) {
+                    String storageId = write.storageId();
+                    Collection<String> removals =
+                        write.removals() == null ? List.of() : write.removals();
+                    for (String key : removals) {
+                      if (key == null || key.isEmpty()) continue;
+                      delete.setString(1, storageId);
+                      delete.setString(2, key);
+                      delete.addBatch();
+                      deleteBatch++;
+                      if (deleteBatch >= 1000) {
+                        delete.executeBatch();
+                        delete.clearBatch();
+                        deleteBatch = 0;
+                      }
+                    }
+                    Collection<DbItem> upserts =
+                        write.upserts() == null ? List.of() : write.upserts();
+                    for (DbItem item : upserts) {
+                      if (!isPersistableDbItem(storageId, item, "delta-batch")) continue;
+                      insert.setString(1, storageId);
+                      insert.setString(2, item.key());
+                      insert.setBytes(3, item.blob());
+                      insert.setLong(4, item.amount());
+                      insert.addBatch();
+                      insertBatch++;
+                      if (insertBatch >= 1000) {
+                        insert.executeBatch();
+                        insert.clearBatch();
+                        insertBatch = 0;
+                      }
+                    }
+                    update.setLong(1, now);
+                    update.setString(2, storageId);
+                    update.addBatch();
+                  }
+                  if (deleteBatch > 0) {
                     delete.executeBatch();
-                    delete.clearBatch();
-                    batchSize = 0;
                   }
-                }
-                if (batchSize > 0) {
-                  delete.executeBatch();
-                }
-              }
-            }
-            if (upserts != null && !upserts.isEmpty()) {
-              String insertSql =
-                  """
-                  INSERT INTO storage_items(storage_id, item_key, item_blob, amount)
-                  VALUES(?, ?, ?, ?)
-                  ON CONFLICT(storage_id, item_key) DO UPDATE SET
-                      item_blob = excluded.item_blob,
-                      amount = excluded.amount
-                  """;
-              try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
-                int batchSize = 0;
-                for (DbItem item : upserts) {
-                  if (!isPersistableDbItem(storageId, item, "delta")) continue;
-                  insert.setString(1, storageId);
-                  insert.setString(2, item.key());
-                  insert.setBytes(3, item.blob());
-                  insert.setLong(4, item.amount());
-                  insert.addBatch();
-                  batchSize++;
-                  if (batchSize >= 1000) {
+                  if (insertBatch > 0) {
                     insert.executeBatch();
-                    insert.clearBatch();
-                    batchSize = 0;
                   }
+                  update.executeBatch();
                 }
-                if (batchSize > 0) {
-                  insert.executeBatch();
+                connection.commit();
+              } catch (SQLException e) {
+                log(Level.SEVERE, "Failed to write storage delta batch", e);
+                try {
+                  connection.rollback();
+                } catch (SQLException ex) {
+                  log(Level.SEVERE, "Failed to rollback transaction", ex);
+                }
+                throw new CompletionException(e);
+              } finally {
+                try {
+                  connection.setAutoCommit(true);
+                } catch (SQLException ignored) {
                 }
               }
-            }
-            try (PreparedStatement update =
-                connection.prepareStatement("UPDATE storages SET updated_at = ? WHERE id = ?")) {
-              update.setLong(1, Instant.now().getEpochSecond());
-              update.setString(2, storageId);
-              update.executeUpdate();
-            }
-            connection.commit();
-          } catch (SQLException e) {
-            log(Level.SEVERE, "Failed to write delta for " + storageId, e);
-            try {
-              connection.rollback();
-            } catch (SQLException ex) {
-              log(Level.SEVERE, "Failed to rollback transaction", ex);
-            }
-            throw new CompletionException(e);
-          } finally {
-            try {
-              connection.setAutoCommit(true);
-            } catch (SQLException ignored) {
-            }
-          }
-        },
+            }),
         executor);
   }
 

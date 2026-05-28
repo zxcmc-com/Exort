@@ -12,6 +12,7 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -38,7 +39,8 @@ public record SessionManagerDependencies(
     Supplier<Material> storageCarrier,
     Supplier<Material> terminalCarrier,
     Supplier<GuiRuntimeConfig> runtimeConfig,
-    Supplier<GuiOverlayConfig> overlayConfig) {
+    Supplier<GuiOverlayConfig> overlayConfig,
+    Consumer<String> storageChangeListener) {
   public SessionManagerDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(database, "database");
@@ -61,5 +63,6 @@ public record SessionManagerDependencies(
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(overlayConfig, "overlayConfig");
+    Objects.requireNonNull(storageChangeListener, "storageChangeListener");
   }
 }

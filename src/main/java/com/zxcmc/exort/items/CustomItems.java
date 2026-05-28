@@ -1,6 +1,7 @@
 package com.zxcmc.exort.items;
 
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -382,10 +383,11 @@ public class CustomItems {
   public Optional<String> storageId(ItemStack stack) {
     if (stack == null || !stack.hasItemMeta()) return Optional.empty();
     return Optional.ofNullable(
-        stack
-            .getItemMeta()
-            .getPersistentDataContainer()
-            .get(keys.storageId(), PersistentDataType.STRING));
+        PdcValueSanitizer.uuidString(
+            stack
+                .getItemMeta()
+                .getPersistentDataContainer()
+                .get(keys.storageId(), PersistentDataType.STRING)));
   }
 
   private void applyLore(ItemMeta meta, StorageTier tier, String storageId, long currentAmount) {
