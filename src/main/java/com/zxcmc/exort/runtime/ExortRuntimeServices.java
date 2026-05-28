@@ -1,0 +1,51 @@
+package com.zxcmc.exort.runtime;
+
+import com.zxcmc.exort.breaking.BlockBreakHandler;
+import com.zxcmc.exort.breaking.BreakSoundConfig;
+import com.zxcmc.exort.breaking.CustomBlockBreaker;
+import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.display.BusDisplayManager;
+import com.zxcmc.exort.display.DisplayRefreshService;
+import com.zxcmc.exort.display.ItemHologramManager;
+import com.zxcmc.exort.display.MonitorDisplayManager;
+import com.zxcmc.exort.display.StorageDisplayManager;
+import com.zxcmc.exort.display.TerminalDisplayManager;
+import com.zxcmc.exort.display.WireDisplayManager;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
+import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.placement.RightClickPlacementGuard;
+import com.zxcmc.exort.recipes.CraftingRules;
+import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.wireless.WirelessTerminalService;
+import java.util.concurrent.CompletableFuture;
+
+public record ExortRuntimeServices(
+    CompletableFuture<ItemNameService.Status> itemNamesStatus,
+    CustomItems customItems,
+    WirelessTerminalService wirelessService,
+    RuntimeMaterials materials,
+    int wireLimit,
+    int wireHardCap,
+    long storagePeekTicks,
+    long wirePeekTicks,
+    ItemHologramManager hologramManager,
+    WireDisplayManager wireDisplayManager,
+    StorageDisplayManager storageDisplayManager,
+    TerminalDisplayManager terminalDisplayManager,
+    MonitorDisplayManager monitorDisplayManager,
+    BusDisplayManager busDisplayManager,
+    DisplayRefreshService displayRefreshService,
+    BusService busService,
+    BusSessionManager busSessionManager,
+    BlockBreakHandler breakHandler,
+    CustomBlockBreaker customBlockBreaker,
+    BreakSoundConfig breakSoundConfig,
+    CraftingRules craftingRules,
+    RecipeService recipeService,
+    ProtocolLibEnhancements protocolLibEnhancements,
+    RightClickPlacementGuard placementGuard,
+    WorldEditIntegration worldEditIntegration,
+    boolean dialogSupported) {}

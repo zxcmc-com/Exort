@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1 — 2026-05-28
+- Reworked internal plugin startup, runtime assembly, listener registration, task scheduling, and command wiring into smaller focused classes while preserving public command behavior, permissions, config keys, database format, PDC keys, resource-pack paths, and gameplay workflows.
+- Reworked internal WorldEdit/FAWE wiring to remove concrete plugin coupling and isolate FAWE setup code without changing marker transport or integration behavior.
+
 ## 0.12.0 — 2026-05-28
 - Fixed item dictionary reload/status handling for nested YAML keys after `/exort lang set`, and refreshes item dictionaries automatically on plugin startup.
 - Fixed WorldEdit/FAWE integration lifecycle during `/exort reload` so the bridge is restored after listener cleanup.

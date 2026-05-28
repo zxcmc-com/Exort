@@ -1,6 +1,5 @@
 package com.zxcmc.exort.integration.worldedit;
 
-import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import java.lang.reflect.InvocationTargetException;
 import org.bukkit.Bukkit;
@@ -18,8 +17,8 @@ public final class WorldEditIntegration {
     this.bridge = bridge;
   }
 
-  public static WorldEditIntegration tryRegister(ExortPlugin plugin) {
-    if (plugin == null) return null;
+  public static WorldEditIntegration tryRegister(WorldEditBridgeDependencies dependencies) {
+    if (dependencies == null) return null;
     Plugin worldEdit = Bukkit.getPluginManager().getPlugin("WorldEdit");
     Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
     if (worldEdit == null && fawe == null) return null;
@@ -31,7 +30,9 @@ public final class WorldEditIntegration {
       Class<?> bridgeClass =
           Class.forName(BRIDGE_CLASS, true, WorldEditIntegration.class.getClassLoader());
       Object bridgeInstance =
-          bridgeClass.getMethod("tryRegister", ExortPlugin.class).invoke(null, plugin);
+          bridgeClass
+              .getMethod("tryRegister", WorldEditBridgeDependencies.class)
+              .invoke(null, dependencies);
       return bridgeInstance == null ? null : new WorldEditIntegration(bridgeInstance);
     } catch (InvocationTargetException e) {
       ExortLog.warn("[WorldEdit] Integration disabled: " + message(e.getCause()));

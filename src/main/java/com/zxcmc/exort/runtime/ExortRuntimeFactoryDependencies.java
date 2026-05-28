@@ -1,0 +1,99 @@
+package com.zxcmc.exort.runtime;
+
+import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.debug.WorldEditDebugService;
+import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.PlayerFeedback;
+import com.zxcmc.exort.gui.GuiOverlayConfig;
+import com.zxcmc.exort.gui.GuiRuntimeConfig;
+import com.zxcmc.exort.gui.SearchDialogService;
+import com.zxcmc.exort.gui.SessionManager;
+import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditBridgeDependencies;
+import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
+import com.zxcmc.exort.items.InventoryRefreshService;
+import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.storage.StorageManager;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.bukkit.block.Block;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public record ExortRuntimeFactoryDependencies(
+    JavaPlugin plugin,
+    FileConfiguration config,
+    Lang lang,
+    ItemNameService itemNameService,
+    SearchDialogService searchDialogService,
+    StorageKeys keys,
+    StorageManager storageManager,
+    Database database,
+    SessionManager sessionManager,
+    BossBarManager bossBarManager,
+    PlayerFeedback playerFeedback,
+    InventoryRefreshService inventoryRefreshService,
+    Supplier<NetworkGraphCache> networkGraphCache,
+    Supplier<RegionProtection> regionProtection,
+    Supplier<WorldEditDebugService> worldEditDebugService,
+    Supplier<BusService> busService,
+    RecipeService previousRecipeService,
+    RuntimeTaskScheduler runtimeTasks,
+    boolean resourceMode,
+    Runnable reloadDefaultSortMode,
+    Runnable stopReloadableRuntime,
+    Runnable unregisterReloadableRuntimeListeners,
+    Runnable setupRegionProtection,
+    Runnable resetReloadableDisplayState,
+    Runnable revalidateSessions,
+    Consumer<String> pickDebugSink,
+    Consumer<String> pickDebugFullSink,
+    Consumer<Block> monitorPlacedRecorder,
+    java.util.function.Predicate<Block> monitorRecentlyPlaced,
+    Supplier<GuiRuntimeConfig> guiRuntimeConfig,
+    Supplier<GuiOverlayConfig> guiOverlayConfig,
+    Consumer<String> renderStorage,
+    Function<WorldEditBridgeDependencies, WorldEditIntegration> tryRegisterWorldEdit,
+    Consumer<WorldEditIntegration> worldEditIntegrationSink) {
+  public ExortRuntimeFactoryDependencies {
+    Objects.requireNonNull(plugin, "plugin");
+    Objects.requireNonNull(config, "config");
+    Objects.requireNonNull(lang, "lang");
+    Objects.requireNonNull(itemNameService, "itemNameService");
+    Objects.requireNonNull(searchDialogService, "searchDialogService");
+    Objects.requireNonNull(keys, "keys");
+    Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(database, "database");
+    Objects.requireNonNull(sessionManager, "sessionManager");
+    Objects.requireNonNull(bossBarManager, "bossBarManager");
+    Objects.requireNonNull(playerFeedback, "playerFeedback");
+    Objects.requireNonNull(inventoryRefreshService, "inventoryRefreshService");
+    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
+    Objects.requireNonNull(regionProtection, "regionProtection");
+    Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
+    Objects.requireNonNull(busService, "busService");
+    Objects.requireNonNull(reloadDefaultSortMode, "reloadDefaultSortMode");
+    Objects.requireNonNull(stopReloadableRuntime, "stopReloadableRuntime");
+    Objects.requireNonNull(
+        unregisterReloadableRuntimeListeners, "unregisterReloadableRuntimeListeners");
+    Objects.requireNonNull(setupRegionProtection, "setupRegionProtection");
+    Objects.requireNonNull(resetReloadableDisplayState, "resetReloadableDisplayState");
+    Objects.requireNonNull(revalidateSessions, "revalidateSessions");
+    Objects.requireNonNull(pickDebugSink, "pickDebugSink");
+    Objects.requireNonNull(pickDebugFullSink, "pickDebugFullSink");
+    Objects.requireNonNull(monitorPlacedRecorder, "monitorPlacedRecorder");
+    Objects.requireNonNull(monitorRecentlyPlaced, "monitorRecentlyPlaced");
+    Objects.requireNonNull(guiRuntimeConfig, "guiRuntimeConfig");
+    Objects.requireNonNull(guiOverlayConfig, "guiOverlayConfig");
+    Objects.requireNonNull(renderStorage, "renderStorage");
+    Objects.requireNonNull(tryRegisterWorldEdit, "tryRegisterWorldEdit");
+    Objects.requireNonNull(worldEditIntegrationSink, "worldEditIntegrationSink");
+  }
+}

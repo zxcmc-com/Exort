@@ -39,16 +39,21 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
-import com.zxcmc.exort.core.ExortPlugin;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.infra.logging.ExortLog;
-import com.zxcmc.exort.marker.*;
+import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkMarkerStore;
+import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.StorageCoreMarker;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.marker.TerminalKind;
+import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.storage.StorageTier;
-import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -60,6 +65,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -73,7 +79,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -81,7 +86,6 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -105,8 +109,6 @@ public final class WorldEditBridge implements Listener {
   private static final String SECTION_MONITOR = "monitor";
   private static final String SECTION_WIRE = "wire";
   private static final String SECTION_STORAGE_CORE = "storage_core";
-
-  private static final String FAWE_ALLOWED_KEY = "extent.allowed-plugins";
 
   private static final String FIELD_ID = "id";
   private static final String FIELD_TIER = "tier";
@@ -142,12 +144,12 @@ public final class WorldEditBridge implements Listener {
   private static final Map<Class<?>, TransformAccessor> TRANSFORM_ACCESSORS =
       new ConcurrentHashMap<>();
   private static final Set<Class<?>> TRANSFORM_SKIP = ConcurrentHashMap.newKeySet();
-  private static final Set<String> FAWE_WARNED_KEYS = ConcurrentHashMap.newKeySet();
   private static final BlockFace[] ROTATABLE_FACES = {
     BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN
   };
 
-  private final ExortPlugin plugin;
+  private final Plugin plugin;
+  private final WorldEditBridgeDependencies deps;
   private final Queue<PendingUpdate> updates = new ConcurrentLinkedQueue<>();
   private final Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> undoMarkerHistory =
       new ConcurrentHashMap<>();
@@ -164,19 +166,22 @@ public final class WorldEditBridge implements Listener {
   private BukkitTask flushTask;
   private long tickCounter;
 
-  private WorldEditBridge(ExortPlugin plugin) {
-    this.plugin = plugin;
+  private WorldEditBridge(WorldEditBridgeDependencies deps) {
+    this.deps = Objects.requireNonNull(deps, "deps");
+    this.plugin = deps.plugin();
   }
 
-  public static WorldEditBridge tryRegister(ExortPlugin plugin) {
+  public static WorldEditBridge tryRegister(WorldEditBridgeDependencies deps) {
+    if (deps == null) return null;
+    Plugin plugin = deps.plugin();
     Plugin worldEdit = Bukkit.getPluginManager().getPlugin("WorldEdit");
     Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
     if (worldEdit == null && fawe == null) return null;
     try {
       if (fawe != null) {
-        allowFaweExtent(fawe, plugin.getLogger());
+        FaweExtentAccess.allowMarkerExtent(fawe, plugin.getLogger(), MarkerExtent.class.getName());
       }
-      WorldEditBridge bridge = new WorldEditBridge(plugin);
+      WorldEditBridge bridge = new WorldEditBridge(deps);
       WorldEdit.getInstance().getEventBus().register(bridge);
       Bukkit.getPluginManager().registerEvents(bridge, plugin);
       bridge.startFlushTask();
@@ -189,93 +194,6 @@ public final class WorldEditBridge implements Listener {
       ExortLog.warn("[WorldEdit] Integration disabled: " + err.getMessage());
       return null;
     }
-  }
-
-  private static void allowFaweExtent(Plugin fawe, Logger logger) {
-    String extentClass = MarkerExtent.class.getName();
-    boolean modified = false;
-    boolean runtimeAllowed = false;
-    Throwable runtimeError = null;
-    try {
-      File configFile = new File(fawe.getDataFolder(), "config.yml");
-      if (configFile.isFile()) {
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-        var allowed = config.getStringList(FAWE_ALLOWED_KEY);
-        if (!allowed.contains(extentClass)) {
-          allowed.add(extentClass);
-          config.set(FAWE_ALLOWED_KEY, allowed);
-          config.save(configFile);
-          modified = true;
-        }
-      }
-    } catch (Exception ignored) {
-    }
-    try {
-      Class<?> settingsClass = Class.forName("com.fastasyncworldedit.core.configuration.Settings");
-      Object settings = settingsClass.getMethod("settings").invoke(null);
-      Object extent = settingsClass.getField("EXTENT").get(settings);
-      var allowedField = extent.getClass().getField("ALLOWED_PLUGINS");
-      Object value = allowedField.get(extent);
-      if (value instanceof java.util.List<?> list) {
-        if (!list.contains(extentClass)) {
-          try {
-            @SuppressWarnings("unchecked")
-            java.util.List<String> mutable = (java.util.List<String>) list;
-            mutable.add(extentClass);
-          } catch (UnsupportedOperationException ignored) {
-            java.util.List<String> copy = new java.util.ArrayList<>();
-            for (Object item : list) {
-              if (item != null) {
-                copy.add(item.toString());
-              }
-            }
-            if (!copy.contains(extentClass)) {
-              copy.add(extentClass);
-            }
-            allowedField.set(extent, copy);
-          }
-        }
-      }
-      if (modified) {
-        try {
-          File configFile = new File(fawe.getDataFolder(), "config.yml");
-          settingsClass.getMethod("reload", File.class).invoke(settings, configFile);
-          extent = settingsClass.getField("EXTENT").get(settings);
-          allowedField = extent.getClass().getField("ALLOWED_PLUGINS");
-        } catch (Exception ignored) {
-        }
-      }
-      runtimeAllowed = containsString(allowedField.get(extent), extentClass);
-    } catch (Throwable err) {
-      runtimeError = err;
-    }
-    if (!runtimeAllowed && logger != null && FAWE_WARNED_KEYS.add(FAWE_ALLOWED_KEY)) {
-      String suffix =
-          runtimeError == null
-              ? ""
-              : " Runtime check failed: "
-                  + runtimeError.getClass().getSimpleName()
-                  + ": "
-                  + runtimeError.getMessage();
-      logger.warning(
-          "[WorldEdit] Could not verify FAWE "
-              + FAWE_ALLOWED_KEY
-              + " contains "
-              + extentClass
-              + "; Exort marker extent may be rejected by FAWE."
-              + suffix);
-    }
-  }
-
-  private static boolean containsString(Object value, String expected) {
-    if (value instanceof Iterable<?> iterable) {
-      for (Object item : iterable) {
-        if (expected.equals(String.valueOf(item))) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   public void shutdown() {
@@ -321,7 +239,7 @@ public final class WorldEditBridge implements Listener {
     }
     World world = Bukkit.getWorld(weWorld.getName());
     if (world == null) return;
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.incSessions();
       debug.recordEvent(
@@ -701,7 +619,7 @@ public final class WorldEditBridge implements Listener {
       return;
     }
     clipboardPatches.put(actor.getUniqueId(), patch);
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent(
           "we clipboard remember markers=" + patch.markers().size(), NamedTextColor.BLUE);
@@ -793,7 +711,7 @@ public final class WorldEditBridge implements Listener {
       return null;
     }
     consumePasteCommand(actorId, command);
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent(
           "we paste sidecar markers=" + destinationMarkers.size(), NamedTextColor.DARK_GREEN);
@@ -834,7 +752,7 @@ public final class WorldEditBridge implements Listener {
       return null;
     }
     consumeHistoryCommand(actorId, command);
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent(
           "we history restore armed action=" + command.action().name().toLowerCase(Locale.ROOT),
@@ -875,7 +793,7 @@ public final class WorldEditBridge implements Listener {
     if (markers.isEmpty()) {
       return null;
     }
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent("we clipboard capture markers=" + markers.size(), NamedTextColor.BLUE);
     }
@@ -903,7 +821,7 @@ public final class WorldEditBridge implements Listener {
     if (destinationMarkers.isEmpty()) {
       return null;
     }
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent(
           "we move sidecar markers="
@@ -1043,7 +961,7 @@ public final class WorldEditBridge implements Listener {
     ClipboardHolder patchedHolder = new ClipboardHolder(patched);
     patchedHolder.setTransform(holder.getTransform());
     session.setClipboard(patchedHolder);
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent("we clipboard patch markers=" + applied, NamedTextColor.DARK_GREEN);
     }
@@ -1060,7 +978,7 @@ public final class WorldEditBridge implements Listener {
           .add(removedStorageId);
     }
     updates.add(new PendingUpdate(update));
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.incUpdatesQueued();
     }
@@ -1090,7 +1008,7 @@ public final class WorldEditBridge implements Listener {
     }
     if (batches.isEmpty()) return;
 
-    NetworkGraphCache graphCache = plugin.getNetworkGraphCache();
+    NetworkGraphCache graphCache = deps.networkGraphCache();
     Map<Long, Set<String>> removedStorageIdsByOperation = removedStorageIdsByOperation(batches);
     Set<ChunkKey> changedChunks = new HashSet<>();
     Set<BlockRef> networkRefreshStarts = new HashSet<>();
@@ -1116,7 +1034,7 @@ public final class WorldEditBridge implements Listener {
               storageId != null
                   && (update.moveOperation() || removedStorageIds.contains(storageId));
           if (moveStorage) {
-            WorldEditDebugService debug = plugin.getWorldEditDebugService();
+            WorldEditDebugService debug = deps.debugService();
             if (debug != null && debug.isFull()) {
               debug.recordEvent(
                   "we storage move operation="
@@ -1135,7 +1053,7 @@ public final class WorldEditBridge implements Listener {
             }
           } else if (storageId != null) {
             String newId = UUID.randomUUID().toString();
-            var storageManager = plugin.getStorageManager();
+            var storageManager = deps.storageManager();
             if (storageManager == null) {
               plugin
                   .getLogger()
@@ -1161,7 +1079,7 @@ public final class WorldEditBridge implements Listener {
                     null,
                     true,
                     false);
-            WorldEditDebugService debug = plugin.getWorldEditDebugService();
+            WorldEditDebugService debug = deps.debugService();
             if (debug != null && debug.isFull()) {
               debug.recordEvent(
                   "we storage clone operation="
@@ -1201,13 +1119,13 @@ public final class WorldEditBridge implements Listener {
             pending.attempts++;
             pending.nextTick = tickCounter + RETRY_DELAY_TICKS;
             updates.add(pending);
-            WorldEditDebugService debug = plugin.getWorldEditDebugService();
+            WorldEditDebugService debug = deps.debugService();
             if (debug != null && debug.isEnabled()) {
               debug.incUpdatesRetried();
             }
           }
         } else {
-          WorldEditDebugService debug = plugin.getWorldEditDebugService();
+          WorldEditDebugService debug = deps.debugService();
           if (debug != null && debug.isEnabled()) {
             debug.incUpdatesApplied();
           }
@@ -1231,11 +1149,11 @@ public final class WorldEditBridge implements Listener {
   private DisplayCleanupService newDisplayCleanupService() {
     return new DisplayCleanupService(
         plugin,
-        plugin.getWireMaterial(),
-        plugin.getStorageCarrier(),
-        plugin.getTerminalCarrier(),
-        plugin.getMonitorCarrier(),
-        plugin.getBusCarrier());
+        deps.wireMaterial(),
+        deps.storageCarrier(),
+        deps.terminalCarrier(),
+        deps.monitorCarrier(),
+        deps.busCarrier());
   }
 
   private void refreshAffectedChunks(
@@ -1243,8 +1161,8 @@ public final class WorldEditBridge implements Listener {
     if (chunkKeys == null || chunkKeys.isEmpty()) {
       return;
     }
-    DisplayRefreshService refreshService = plugin.getDisplayRefreshService();
-    BusService busService = plugin.getBusService();
+    DisplayRefreshService refreshService = deps.displayRefreshService();
+    BusService busService = deps.busService();
     DisplayCleanupService cleanupService = newDisplayCleanupService();
     int refreshedChunks = 0;
     for (ChunkKey key : chunkKeys) {
@@ -1271,7 +1189,7 @@ public final class WorldEditBridge implements Listener {
         refreshService.refreshNetworkFrom(block);
       }
     }
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isFull()) {
       debug.recordEvent(
           "we refresh pass reason="
@@ -1360,7 +1278,7 @@ public final class WorldEditBridge implements Listener {
   }
 
   private void requeueBatch(ChunkUpdateBatch batch) {
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     for (PendingUpdate pending : batch.updates) {
       if (pending.attempts < MAX_RETRIES) {
         pending.attempts++;
@@ -1385,33 +1303,32 @@ public final class WorldEditBridge implements Listener {
       ChunkMarkerStore.clearBlock(plugin, block);
       return true;
     }
-    if (snapshot.storage() != null && !Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+    if (snapshot.storage() != null && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
       return false;
     }
-    if (snapshot.storageCore() && !Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+    if (snapshot.storageCore() && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
       return false;
     }
-    if (snapshot.terminal() != null
-        && !Carriers.matchesCarrier(block, plugin.getTerminalCarrier())) {
+    if (snapshot.terminal() != null && !Carriers.matchesCarrier(block, deps.terminalCarrier())) {
       return false;
     }
-    if (snapshot.monitor() != null && !Carriers.matchesCarrier(block, plugin.getMonitorCarrier())) {
+    if (snapshot.monitor() != null && !Carriers.matchesCarrier(block, deps.monitorCarrier())) {
       return false;
     }
-    if (snapshot.bus() != null && !Carriers.matchesCarrier(block, plugin.getBusCarrier())) {
+    if (snapshot.bus() != null && !Carriers.matchesCarrier(block, deps.busCarrier())) {
       return false;
     }
-    if (snapshot.wire() && !Carriers.matchesCarrier(block, plugin.getWireMaterial())) {
+    if (snapshot.wire() && !Carriers.matchesCarrier(block, deps.wireMaterial())) {
       return false;
     }
     removeExistingBlockState(block);
     ChunkMarkerStore.clearBlock(plugin, block);
-    if (snapshot.storage() != null && Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+    if (snapshot.storage() != null && Carriers.matchesCarrier(block, deps.storageCarrier())) {
       StorageTier tier = StorageTier.fromString(snapshot.storage().tier()).orElse(null);
       if (tier != null) {
         String storageId = snapshot.storage().storageId();
         StorageMarker.set(plugin, block, storageId, tier, parseFacing(snapshot.storage()));
-        ItemHologramManager hologramManager = plugin.getHologramManager();
+        ItemHologramManager hologramManager = deps.hologramManager();
         if (hologramManager != null) {
           hologramManager.registerStorage(block);
         }
@@ -1420,33 +1337,32 @@ public final class WorldEditBridge implements Listener {
         }
       }
     }
-    if (snapshot.storageCore() && Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+    if (snapshot.storageCore() && Carriers.matchesCarrier(block, deps.storageCarrier())) {
       StorageCoreMarker.set(plugin, block);
     }
-    if (snapshot.terminal() != null
-        && Carriers.matchesCarrier(block, plugin.getTerminalCarrier())) {
+    if (snapshot.terminal() != null && Carriers.matchesCarrier(block, deps.terminalCarrier())) {
       TerminalKind kind = parseTerminalKind(snapshot.terminal());
       TerminalMarker.set(plugin, block, kind, parseFacing(snapshot.terminal()));
-      ItemHologramManager hologramManager = plugin.getHologramManager();
+      ItemHologramManager hologramManager = deps.hologramManager();
       if (hologramManager != null) {
         hologramManager.registerTerminal(block);
       }
     }
-    if (snapshot.monitor() != null && Carriers.matchesCarrier(block, plugin.getMonitorCarrier())) {
+    if (snapshot.monitor() != null && Carriers.matchesCarrier(block, deps.monitorCarrier())) {
       MonitorMarker.set(plugin, block, parseFacing(snapshot.monitor()));
       if (snapshot.monitor().itemKey() != null || snapshot.monitor().itemBlob() != null) {
         MonitorMarker.setItem(
             plugin, block, snapshot.monitor().itemKey(), snapshot.monitor().itemBlob());
       }
     }
-    if (snapshot.bus() != null && Carriers.matchesCarrier(block, plugin.getBusCarrier())) {
+    if (snapshot.bus() != null && Carriers.matchesCarrier(block, deps.busCarrier())) {
       BusType type = BusType.fromString(snapshot.bus().type());
       BusMode mode = BusMode.fromString(snapshot.bus().mode());
       BlockFace facing = parseFacing(snapshot.bus());
       BusMarker.set(plugin, block, type, facing, mode);
       byte[] filters = snapshot.bus().filters();
       if (filters != null && filters.length > 0) {
-        BusService busService = plugin.getBusService();
+        BusService busService = deps.busService();
         if (busService != null) {
           BusState state =
               busService.getOrCreateState(
@@ -1460,18 +1376,18 @@ public final class WorldEditBridge implements Listener {
         }
       }
     }
-    if (snapshot.wire() && Carriers.matchesCarrier(block, plugin.getWireMaterial())) {
+    if (snapshot.wire() && Carriers.matchesCarrier(block, deps.wireMaterial())) {
       WireMarker.setWire(plugin, block);
     }
     return true;
   }
 
   private void removeExistingBlockState(Block block) {
-    DisplayRefreshService displayRefreshService = plugin.getDisplayRefreshService();
+    DisplayRefreshService displayRefreshService = deps.displayRefreshService();
     if (displayRefreshService != null) {
       displayRefreshService.removeBlockDisplays(block);
     }
-    ItemHologramManager hologramManager = plugin.getHologramManager();
+    ItemHologramManager hologramManager = deps.hologramManager();
     if (hologramManager != null) {
       if (StorageMarker.get(plugin, block).isPresent() || StorageCoreMarker.isCore(plugin, block)) {
         hologramManager.unregisterStorage(block);
@@ -1480,8 +1396,8 @@ public final class WorldEditBridge implements Listener {
         hologramManager.unregisterTerminal(block);
       }
     }
-    if (BusMarker.isBus(plugin, block) && plugin.getBusService() != null) {
-      plugin.getBusService().unregisterBus(block);
+    if (BusMarker.isBus(plugin, block) && deps.busService() != null) {
+      deps.busService().unregisterBus(block);
     }
   }
 
@@ -1489,8 +1405,7 @@ public final class WorldEditBridge implements Listener {
     if (storageId == null || storageId.isBlank() || block == null || block.getWorld() == null) {
       return;
     }
-    plugin
-        .getDatabase()
+    deps.database()
         .updatePlayerLastStorageLocation(
             storageId, block.getWorld().getName(), block.getX(), block.getY(), block.getZ())
         .whenComplete(
@@ -1560,7 +1475,7 @@ public final class WorldEditBridge implements Listener {
             data.put(blockKey(block.getX(), block.getY(), block.getZ()), tag);
           }
         });
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isFull()) {
       debug.recordEvent(
           "we snapshot chunk=" + chunkX + "," + chunkZ + " markers=" + data.size(),
@@ -1607,7 +1522,7 @@ public final class WorldEditBridge implements Listener {
       busTag.putString(FIELD_MODE, data.mode().name());
       byte[] filters = BusMarker.getFilters(plugin, block).orElse(null);
       if (filters == null || filters.length == 0) {
-        BusService busService = plugin.getBusService();
+        BusService busService = deps.busService();
         if (busService != null) {
           BusState state = busService.getOrCreateState(BusPos.of(block), data, block);
           if (state != null) {
@@ -1650,7 +1565,7 @@ public final class WorldEditBridge implements Listener {
       ChunkMarkerStore.clearBlock(plugin, block);
       cleared = true;
     }
-    WorldEditDebugService debug = plugin.getWorldEditDebugService();
+    WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isFull()) {
       debug.recordEvent(
           "we snapshot stale pos="
@@ -1672,33 +1587,32 @@ public final class WorldEditBridge implements Listener {
 
   private boolean matchesWorldCarrier(Block block, MarkerSnapshot snapshot) {
     if (block == null || snapshot == null) return false;
-    if (snapshot.storage() != null && !Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+    if (snapshot.storage() != null && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
       return false;
     }
-    if (snapshot.storageCore() && !Carriers.matchesCarrier(block, plugin.getStorageCarrier())) {
+    if (snapshot.storageCore() && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
       return false;
     }
-    if (snapshot.terminal() != null
-        && !Carriers.matchesCarrier(block, plugin.getTerminalCarrier())) {
+    if (snapshot.terminal() != null && !Carriers.matchesCarrier(block, deps.terminalCarrier())) {
       return false;
     }
-    if (snapshot.monitor() != null && !Carriers.matchesCarrier(block, plugin.getMonitorCarrier())) {
+    if (snapshot.monitor() != null && !Carriers.matchesCarrier(block, deps.monitorCarrier())) {
       return false;
     }
-    if (snapshot.bus() != null && !Carriers.matchesCarrier(block, plugin.getBusCarrier())) {
+    if (snapshot.bus() != null && !Carriers.matchesCarrier(block, deps.busCarrier())) {
       return false;
     }
-    return !snapshot.wire() || Carriers.matchesCarrier(block, plugin.getWireMaterial());
+    return !snapshot.wire() || Carriers.matchesCarrier(block, deps.wireMaterial());
   }
 
   private boolean isCarrierCandidate(Block block) {
     if (block == null) return false;
     Material type = block.getType();
-    return type == plugin.getStorageCarrier()
-        || type == plugin.getTerminalCarrier()
-        || type == plugin.getMonitorCarrier()
-        || type == plugin.getBusCarrier()
-        || type == plugin.getWireMaterial()
+    return type == deps.storageCarrier()
+        || type == deps.terminalCarrier()
+        || type == deps.monitorCarrier()
+        || type == deps.busCarrier()
+        || type == deps.wireMaterial()
         || type == Carriers.CARRIER_BARRIER
         || type == Carriers.CHORUS_MATERIAL;
   }
@@ -1966,7 +1880,7 @@ public final class WorldEditBridge implements Listener {
       if (withNbt == null) {
         return block;
       }
-      WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+      WorldEditDebugService debug = bridge.deps.debugService();
       if (debug != null && debug.isFull()) {
         debug.recordEvent(
             "getFullBlock pos="
@@ -2056,7 +1970,7 @@ public final class WorldEditBridge implements Listener {
           markerSource = "move_sidecar";
         }
       }
-      WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+      WorldEditDebugService debug = bridge.deps.debugService();
       if (debug != null && debug.isFull()) {
         String baseType = base == null ? "null" : base.getBlockType().getId();
         debug.recordEvent(
@@ -2181,7 +2095,7 @@ public final class WorldEditBridge implements Listener {
         return delegateSetBlocks(region, block);
       }
       if (!needsProcessing(region, block)) {
-        WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+        WorldEditDebugService debug = bridge.deps.debugService();
         if (debug != null && debug.isEnabled()) {
           debug.recordEvent("setBlocks constant delegated", NamedTextColor.GRAY);
         }
@@ -2201,7 +2115,7 @@ public final class WorldEditBridge implements Listener {
           throw new RuntimeException(e);
         }
       }
-      WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+      WorldEditDebugService debug = bridge.deps.debugService();
       if (debug != null && debug.isEnabled()) {
         debug.recordSetBlocks(total);
         debug.recordEvent(
@@ -2220,7 +2134,7 @@ public final class WorldEditBridge implements Listener {
         return delegateSetBlocks(region, pattern);
       }
       if (!needsProcessing(region, pattern)) {
-        WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+        WorldEditDebugService debug = bridge.deps.debugService();
         if (debug != null && debug.isEnabled()) {
           debug.recordEvent("setBlocks pattern delegated", NamedTextColor.GRAY);
         }
@@ -2241,7 +2155,7 @@ public final class WorldEditBridge implements Listener {
           throw new RuntimeException(e);
         }
       }
-      WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+      WorldEditDebugService debug = bridge.deps.debugService();
       if (debug != null && debug.isEnabled()) {
         debug.recordSetBlocks(total);
         debug.recordEvent(
@@ -2260,7 +2174,7 @@ public final class WorldEditBridge implements Listener {
         return delegateSetBlocksSet(positions, pattern);
       }
       if (!needsProcessing(positions, pattern)) {
-        WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+        WorldEditDebugService debug = bridge.deps.debugService();
         if (debug != null && debug.isEnabled()) {
           debug.recordEvent("setBlocks set delegated", NamedTextColor.GRAY);
         }
@@ -2279,7 +2193,7 @@ public final class WorldEditBridge implements Listener {
           throw new RuntimeException(e);
         }
       }
-      WorldEditDebugService debug = bridge.plugin.getWorldEditDebugService();
+      WorldEditDebugService debug = bridge.deps.debugService();
       if (debug != null && debug.isEnabled()) {
         debug.recordSetBlocks(total);
         debug.recordEvent(
@@ -2441,15 +2355,15 @@ public final class WorldEditBridge implements Listener {
     private BaseBlock carrierBlock(MarkerSnapshot snapshot, BaseBlock fallback) {
       Material material = null;
       if (snapshot.storage() != null || snapshot.storageCore()) {
-        material = bridge.plugin.getStorageCarrier();
+        material = bridge.deps.storageCarrier();
       } else if (snapshot.terminal() != null) {
-        material = bridge.plugin.getTerminalCarrier();
+        material = bridge.deps.terminalCarrier();
       } else if (snapshot.monitor() != null) {
-        material = bridge.plugin.getMonitorCarrier();
+        material = bridge.deps.monitorCarrier();
       } else if (snapshot.bus() != null) {
-        material = bridge.plugin.getBusCarrier();
+        material = bridge.deps.busCarrier();
       } else if (snapshot.wire()) {
-        material = bridge.plugin.getWireMaterial();
+        material = bridge.deps.wireMaterial();
       }
       if (material == null) return fallback;
       BlockType type = BlockTypes.get(material.getKey().toString());
@@ -2475,15 +2389,15 @@ public final class WorldEditBridge implements Listener {
       if (base == null || snapshot == null) return false;
       Material material = null;
       if (snapshot.storage() != null || snapshot.storageCore()) {
-        material = bridge.plugin.getStorageCarrier();
+        material = bridge.deps.storageCarrier();
       } else if (snapshot.terminal() != null) {
-        material = bridge.plugin.getTerminalCarrier();
+        material = bridge.deps.terminalCarrier();
       } else if (snapshot.monitor() != null) {
-        material = bridge.plugin.getMonitorCarrier();
+        material = bridge.deps.monitorCarrier();
       } else if (snapshot.bus() != null) {
-        material = bridge.plugin.getBusCarrier();
+        material = bridge.deps.busCarrier();
       } else if (snapshot.wire()) {
-        material = bridge.plugin.getWireMaterial();
+        material = bridge.deps.wireMaterial();
       }
       if (material == null) return false;
       BlockType type = BlockTypes.get(material.getKey().toString());
@@ -2845,19 +2759,19 @@ public final class WorldEditBridge implements Listener {
   private Material carrierMaterial(MarkerSnapshot snapshot) {
     if (snapshot == null) return null;
     if (snapshot.storage() != null || snapshot.storageCore()) {
-      return plugin.getStorageCarrier();
+      return deps.storageCarrier();
     }
     if (snapshot.terminal() != null) {
-      return plugin.getTerminalCarrier();
+      return deps.terminalCarrier();
     }
     if (snapshot.monitor() != null) {
-      return plugin.getMonitorCarrier();
+      return deps.monitorCarrier();
     }
     if (snapshot.bus() != null) {
-      return plugin.getBusCarrier();
+      return deps.busCarrier();
     }
     if (snapshot.wire()) {
-      return plugin.getWireMaterial();
+      return deps.wireMaterial();
     }
     return null;
   }
