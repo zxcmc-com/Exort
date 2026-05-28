@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.2 — 2026-05-28
+- Reworked Exort command help and usage output into compact clickable chat blocks with console colors, added canonical `/exort inventory`, `/exort language`, and `/exort resourcepack` entries with short aliases, restored bare `/exort give` to item-give usage help, and added contextual storage-tier help for `/exort give <player> storage`.
+
 ## 0.12.1 — 2026-05-28
 - Reworked internal plugin startup, runtime assembly, listener registration, task scheduling, and command wiring into smaller focused classes while preserving public command behavior, permissions, config keys, database format, PDC keys, resource-pack paths, and gameplay workflows.
 - Reworked internal WorldEdit/FAWE wiring to remove concrete plugin coupling and isolate FAWE setup code without changing marker transport or integration behavior.

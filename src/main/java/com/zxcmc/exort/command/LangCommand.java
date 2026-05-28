@@ -12,10 +12,12 @@ import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.util.StringUtil;
 
@@ -29,8 +31,8 @@ final class LangCommand {
     this.dependencies = Objects.requireNonNull(dependencies, "dependencies");
   }
 
-  LiteralArgumentBuilder<CommandSourceStack> build() {
-    return Commands.literal("lang")
+  LiteralArgumentBuilder<CommandSourceStack> build(String literal) {
+    return Commands.literal(literal)
         .requires(source -> hasAdminPermission(sender(source)))
         .executes(this::usage)
         .then(Commands.literal("status").executes(this::status))
@@ -45,7 +47,13 @@ final class LangCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sendMessage(sender(context.getSource()), dependencies.lang().tr("message.usage_lang"));
+    CommandFeedback.sendBlock(
+        sender(context.getSource()),
+        Component.text(dependencies.lang().tr("message.usage_language_header")),
+        List.of(
+            usageLine("/exort language status", "message.usage_language_status"),
+            usageLine("/exort language set <lang>", "message.usage_language_set"),
+            usageLine("/exort language refresh", "message.usage_language_refresh")));
     return 1;
   }
 
@@ -77,26 +85,33 @@ final class LangCommand {
     var status = dependencies.itemNameService().status();
     CommandSender sender = sender(context.getSource());
     Lang lang = dependencies.lang();
-    sendMessage(sender, lang.tr("message.lang_status_header"));
-    sendMessage(sender, lang.tr("message.lang_status_active", status.activeLanguage()));
-    sendMessage(sender, lang.tr("message.lang_status_server", status.serverVersion()));
-    sendMessage(sender, lang.tr("message.lang_status_paths", "Exort/lang", "Exort/lang/items"));
+    var lines = new ArrayList<String>();
+    lines.add(lang.tr("message.lang_status_active", status.activeLanguage()));
+    lines.add(lang.tr("message.lang_status_server", status.serverVersion()));
+    lines.add(lang.tr("message.lang_status_paths", "Exort/lang", "Exort/lang/items"));
     String indexLine =
         status.indexCached()
             ? lang.tr("message.lang_status_index_cached", status.availableLanguages())
             : lang.tr("message.lang_status_index_missing");
-    sendMessage(sender, indexLine);
+    lines.add(indexLine);
     if (status.indexFetched()) {
-      sendMessage(sender, lang.tr("message.lang_status_index_fetched"));
+      lines.add(lang.tr("message.lang_status_index_fetched"));
     }
     if (!status.dictVersions().isEmpty()) {
       for (var entry : status.dictVersions().entrySet()) {
         int size = status.dictSizes().getOrDefault(entry.getKey(), 0);
-        sendMessage(
-            sender, lang.tr("message.lang_status_dict", entry.getKey(), entry.getValue(), size));
+        lines.add(lang.tr("message.lang_status_dict", entry.getKey(), entry.getValue(), size));
       }
     }
+    CommandFeedback.sendBlock(sender, lang.tr("message.lang_status_header"), lines);
     return 1;
+  }
+
+  private Component usageLine(String command, String descriptionKey) {
+    return CommandFeedback.commandLine(
+        command,
+        dependencies.lang().tr(descriptionKey),
+        dependencies.lang().tr("message.command_click", command));
   }
 
   private int set(CommandContext<CommandSourceStack> context) {

@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -57,27 +58,45 @@ final class ModeCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sendMessage(sender(context.getSource()), dependencies.lang().tr("message.usage_mode"));
+    CommandFeedback.sendBlock(
+        sender(context.getSource()),
+        Component.text(dependencies.lang().tr("message.usage_mode_header")),
+        List.of(
+            usageLine("/exort mode info", "message.usage_mode_info"),
+            usageLine("/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set"),
+            usageLine("/exort mode fix RESOURCE", "message.usage_mode_fix")));
     return 1;
   }
 
   private int info(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
-    sendMessage(
-        sender,
+    String title =
         dependencies
             .lang()
             .tr(
                 "message.mode_info",
                 dependencies.configuredMode().get(),
-                dependencies.effectiveMode().get()));
+                dependencies.effectiveMode().get());
     if (!dependencies.modeFallbackReason().get().isBlank()) {
-      sendMessage(
+      CommandFeedback.sendBlock(
           sender,
-          dependencies.lang().tr("message.mode_fallback", dependencies.modeFallbackReason().get()));
+          title,
+          List.of(
+              dependencies
+                  .lang()
+                  .tr("message.mode_fallback", dependencies.modeFallbackReason().get())));
+    } else {
+      sendMessage(sender, title);
     }
     return 1;
+  }
+
+  private Component usageLine(String command, String descriptionKey) {
+    return CommandFeedback.commandLine(
+        command,
+        dependencies.lang().tr(descriptionKey),
+        dependencies.lang().tr("message.command_click", command));
   }
 
   private int set(CommandContext<CommandSourceStack> context) {
@@ -200,20 +219,21 @@ final class ModeCommand {
   }
 
   private void notifyModeFixRestart(CommandSender sender, String paperConfigPath) {
-    sendToSenderAndPlayers(
-        sender,
-        dependencies
-            .lang()
-            .tr(
-                "message.mode_fix_paper_changed",
-                PaperChorusPlantUpdates.SETTING_PATH,
-                paperConfigPath));
-    sendToSenderAndPlayers(sender, dependencies.lang().tr("message.mode_fix_exort_changed"));
-    sendToSenderAndPlayers(sender, dependencies.lang().tr("message.mode_fix_restart_scheduled"));
+    List<String> lines =
+        List.of(
+            dependencies
+                .lang()
+                .tr(
+                    "message.mode_fix_paper_changed",
+                    PaperChorusPlantUpdates.SETTING_PATH,
+                    paperConfigPath),
+            dependencies.lang().tr("message.mode_fix_exort_changed"),
+            dependencies.lang().tr("message.mode_fix_restart_scheduled"));
+    sendBlockToSenderAndPlayers(sender, lines);
   }
 
-  private void sendToSenderAndPlayers(CommandSender sender, String message) {
-    sendMessage(sender, message);
+  private void sendBlockToSenderAndPlayers(CommandSender sender, List<String> lines) {
+    CommandFeedback.sendBlock(sender, lines.getFirst(), lines.subList(1, lines.size()));
     Set<UUID> skippedPlayers = new HashSet<>();
     if (sender instanceof Player player) {
       skippedPlayers.add(player.getUniqueId());
@@ -222,7 +242,7 @@ final class ModeCommand {
       if (skippedPlayers.contains(player.getUniqueId())) {
         continue;
       }
-      sendMessage(player, message);
+      CommandFeedback.sendBlock(player, lines.getFirst(), lines.subList(1, lines.size()));
     }
   }
 

@@ -36,13 +36,7 @@ public class Lang {
     put(defaultsEn, "message.invalid_terminal", "This is not a valid terminal.");
     put(defaultsEn, "message.only_player", "Only players can use this command.");
     put(defaultsEn, "message.player_not_found", "Player not found.");
-    put(
-        defaultsEn,
-        "message.give_usage",
-        "Usage: /exort give | /exort give <player> storage <tier> [amount] | terminal"
-            + " [amount] | crafting_terminal [amount] | monitor [amount] | import_bus [amount]"
-            + " | export_bus [amount] | wire [amount] | storage_core [amount] |"
-            + " wireless_terminal [amount]");
+    put(defaultsEn, "message.command_click", "Click to insert {0}");
     put(defaultsEn, "message.give_unknown", "Unknown item type.");
     put(defaultsEn, "message.give_success", "Gave {0}x {1} to {2}.");
     put(
@@ -61,54 +55,31 @@ public class Lang {
     put(defaultsEn, "message.debug_storage_opened", "Opened storage {0} in {1} mode.");
     put(defaultsEn, "debug.mode.read", "read-only");
     put(defaultsEn, "debug.mode.write", "write");
+    put(defaultsEn, "message.usage_debug_header", "Debug and inspection:");
+    put(defaultsEn, "message.usage_debug_player", "show a player's active or last storage");
+    put(defaultsEn, "message.usage_debug_storage", "open storage by id or player's last storage");
+    put(defaultsEn, "message.usage_debug_cache", "inspect storage cache and loaded network links");
+    put(defaultsEn, "message.usage_debug_verbose", "toggle compact/normal/full diagnostic logs");
+    put(defaultsEn, "message.usage_debug_benchmark", "start or stop the load benchmark");
+    put(defaultsEn, "message.usage_give_header", "Give Exort items:");
+    put(defaultsEn, "message.usage_give_storage", "give a storage item by tier");
+    put(defaultsEn, "message.usage_give_item", "give a fixed Exort item");
     put(
         defaultsEn,
-        "message.usage_debug",
-        "Usage: /exort debug player <player> | /exort debug storage <storageId> [write] | /exort"
-            + " debug cache status <storageId|player> | /exort debug verbose cache start [mode]"
-            + " [storage <uuid>] | /exort debug verbose cache stop | /exort debug verbose pick"
-            + " start [mode] | /exort debug verbose pick stop | /exort debug benchmark start"
-            + " [players] [seconds] | /exort debug benchmark stop");
-    put(
-        defaultsEn,
-        "message.usage_give",
-        "Usage: /exort give | /exort give <player> storage <tier> [amount] | terminal"
-            + " [amount] | crafting_terminal [amount] | monitor [amount] | import_bus [amount]"
-            + " | export_bus [amount] | wire [amount] | storage_core [amount] |"
-            + " wireless_terminal [amount]");
+        "message.usage_give_items",
+        "Items: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire,"
+            + " wireless_terminal");
     put(defaultsEn, "message.usage_reload", "Usage: /exort reload");
     put(defaultsEn, "message.unknown_subcommand", "Unknown subcommand.");
-    put(defaultsEn, "message.help_header", "Exort commands:");
-    put(
-        defaultsEn,
-        "message.help_debug",
-        "/{0} debug player <player> | /{0} debug storage <id> [write] | /{0} debug cache status"
-            + " <id|player> | /{0} debug verbose cache start [mode] [storage <uuid>] | /{0} debug"
-            + " verbose cache stop | /{0} debug verbose pick start [mode] | /{0} debug verbose"
-            + " pick stop | /{0} debug benchmark start [players] [seconds] | /{0} debug benchmark"
-            + " stop - debug access");
-    put(
-        defaultsEn,
-        "message.help_give",
-        "/{0} give - open item menu; /{0} give <player> storage <tier> [amount] | terminal"
-            + " [amount] | crafting_terminal [amount] | monitor [amount] | import_bus [amount]"
-            + " | export_bus [amount] | wire [amount] | storage_core [amount] |"
-            + " wireless_terminal [amount] - give items");
-    put(defaultsEn, "message.help_reload", "/{0} reload - reload config and language");
-    put(
-        defaultsEn,
-        "message.help_lang",
-        "/{0} lang status | /{0} lang refresh - language dictionaries");
-    put(
-        defaultsEn,
-        "message.help_mode",
-        "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> | /{0} mode fix RESOURCE -"
-            + " switch or fix mode");
-    put(
-        defaultsEn,
-        "message.help_pack",
-        "/{0} pack status | /{0} pack rebuild | /{0} pack send <player|all> - resource pack");
-    put(defaultsEn, "message.help_version", "/{0} version - show plugin version");
+    put(defaultsEn, "message.help_header", "Exort Storage Network commands:");
+    put(defaultsEn, "message.help_inventory", "Exort item inventory");
+    put(defaultsEn, "message.help_give", "give items to a player");
+    put(defaultsEn, "message.help_resourcepack", "manage the resource pack");
+    put(defaultsEn, "message.help_language", "language settings");
+    put(defaultsEn, "message.help_mode", "display mode settings");
+    put(defaultsEn, "message.help_debug", "debug and inspect internals");
+    put(defaultsEn, "message.help_version", "show plugin version");
+    put(defaultsEn, "message.help_reload", "reload config and runtime");
     put(
         defaultsEn,
         "message.debug_load_usage",
@@ -207,16 +178,18 @@ public class Lang {
         "message.debug_cache_status_connections_empty",
         "No loaded terminals/monitors/buses are linked to this storage.");
     put(defaultsEn, "message.version", "Exort Storage Network v{0} by phantomfighterxx");
-    put(defaultsEn, "message.usage_lang", "Usage: /exort lang status | /exort lang refresh");
-    put(
-        defaultsEn,
-        "message.usage_mode",
-        "Usage: /exort mode info | /exort mode set <VANILLA | RESOURCE> | /exort mode fix"
-            + " RESOURCE");
-    put(
-        defaultsEn,
-        "message.usage_pack",
-        "Usage: /exort pack status | /exort pack rebuild | /exort pack send <player|all>");
+    put(defaultsEn, "message.usage_language_header", "Language settings:");
+    put(defaultsEn, "message.usage_language_status", "show active language and dictionaries");
+    put(defaultsEn, "message.usage_language_set", "change Exort language");
+    put(defaultsEn, "message.usage_language_refresh", "refresh item dictionaries");
+    put(defaultsEn, "message.usage_mode_header", "Display mode settings:");
+    put(defaultsEn, "message.usage_mode_info", "show configured and effective mode");
+    put(defaultsEn, "message.usage_mode_set", "switch display mode");
+    put(defaultsEn, "message.usage_mode_fix", "prepare Paper config for RESOURCE mode");
+    put(defaultsEn, "message.usage_resourcepack_header", "Resource pack management:");
+    put(defaultsEn, "message.usage_resourcepack_status", "show resource-pack pipeline status");
+    put(defaultsEn, "message.usage_resourcepack_rebuild", "rebuild and reload the pack pipeline");
+    put(defaultsEn, "message.usage_resourcepack_send", "send the ready pack to a player or all");
     put(defaultsEn, "message.lang_refreshed", "Language dictionaries refreshed.");
     put(defaultsEn, "message.lang_set", "Language set to {0}.");
     put(defaultsEn, "message.lang_invalid", "Unknown language: {0}");
@@ -415,13 +388,7 @@ public class Lang {
     put(defaultsRu, "message.invalid_terminal", "Это не терминал хранилища.");
     put(defaultsRu, "message.only_player", "Команда доступна только игрокам.");
     put(defaultsRu, "message.player_not_found", "Игрок не найден.");
-    put(
-        defaultsRu,
-        "message.give_usage",
-        "Использование: /exort give | /exort give <игрок> storage <tier> [кол-во] |"
-            + " terminal [кол-во] | crafting_terminal [кол-во] | monitor [кол-во] | import_bus"
-            + " [кол-во] | export_bus [кол-во] | wire [кол-во] | storage_core [кол-во] |"
-            + " wireless_terminal [кол-во]");
+    put(defaultsRu, "message.command_click", "Кликните, чтобы вставить {0}");
     put(defaultsRu, "message.give_unknown", "Неизвестный тип предмета.");
     put(defaultsRu, "message.give_success", "Выдано {0}x {1} игроку {2}.");
     put(
@@ -455,51 +422,34 @@ public class Lang {
     put(defaultsRu, "message.debug_storage_opened", "Открыто хранилище {0} в режиме {1}.");
     put(defaultsRu, "debug.mode.read", "только чтение");
     put(defaultsRu, "debug.mode.write", "чтение/запись");
+    put(defaultsRu, "message.usage_debug_header", "Отладка и инспекция:");
     put(
         defaultsRu,
-        "message.usage_debug",
-        "Использование: /exort debug player <игрок> | /exort debug storage <id> [write] | /exort"
-            + " debug cache status <uuid|игрок> | /exort debug verbose cache start [mode] [storage"
-            + " <uuid>] | /exort debug verbose cache stop | /exort debug verbose pick start [mode]"
-            + " | /exort debug verbose pick stop | /exort debug benchmark start [игроки]"
-            + " [секунды] | /exort debug benchmark stop");
+        "message.usage_debug_player",
+        "показать активное или последнее хранилище игрока");
+    put(defaultsRu, "message.usage_debug_storage", "открыть хранилище по id или последнему игрока");
+    put(defaultsRu, "message.usage_debug_cache", "проверить кэш хранилища и загруженные связи");
+    put(defaultsRu, "message.usage_debug_verbose", "включить или выключить диагностический лог");
+    put(defaultsRu, "message.usage_debug_benchmark", "запустить или остановить тест нагрузки");
+    put(defaultsRu, "message.usage_give_header", "Выдача предметов Exort:");
+    put(defaultsRu, "message.usage_give_storage", "выдать хранилище по тиру");
+    put(defaultsRu, "message.usage_give_item", "выдать фиксированный предмет Exort");
     put(
         defaultsRu,
-        "message.usage_give",
-        "Использование: /exort give | /exort give <игрок> storage <tier> [кол-во] |"
-            + " terminal [кол-во] | crafting_terminal [кол-во] | monitor [кол-во] | import_bus"
-            + " [кол-во] | export_bus [кол-во] | wire [кол-во] | storage_core [кол-во] |"
-            + " wireless_terminal [кол-во]");
+        "message.usage_give_items",
+        "Предметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus,"
+            + " wire, wireless_terminal");
     put(defaultsRu, "message.usage_reload", "Использование: /exort reload");
     put(defaultsRu, "message.unknown_subcommand", "Неизвестная подкоманда.");
-    put(defaultsRu, "message.help_header", "Команды Exort:");
-    put(
-        defaultsRu,
-        "message.help_debug",
-        "/{0} debug player <игрок> | /{0} debug storage <id> [write] | /{0} debug cache status"
-            + " <uuid|игрок> | /{0} debug verbose cache start [mode] [storage <uuid>] | /{0} debug"
-            + " verbose cache stop | /{0} debug verbose pick start [mode] | /{0} debug verbose"
-            + " pick stop | /{0} debug benchmark start [игроки] [секунды] | /{0} debug benchmark"
-            + " stop - отладка");
-    put(
-        defaultsRu,
-        "message.help_give",
-        "/{0} give - открыть меню предметов; /{0} give <игрок> storage <tier> [кол-во] |"
-            + " terminal [кол-во] | crafting_terminal [кол-во] | monitor [кол-во] | import_bus"
-            + " [кол-во] | export_bus [кол-во] | wire [кол-во] | storage_core [кол-во] |"
-            + " wireless_terminal [кол-во] - выдать предметы");
-    put(defaultsRu, "message.help_reload", "/{0} reload - перезагрузить конфиг и язык");
-    put(defaultsRu, "message.help_lang", "/{0} lang status | /{0} lang refresh - словари языка");
-    put(
-        defaultsRu,
-        "message.help_mode",
-        "/{0} mode info | /{0} mode set <VANILLA | RESOURCE> | /{0} mode fix RESOURCE -"
-            + " сменить или исправить режим");
-    put(
-        defaultsRu,
-        "message.help_pack",
-        "/{0} pack status | /{0} pack rebuild | /{0} pack send <игрок|all> - ресурс-пак");
-    put(defaultsRu, "message.help_version", "/{0} version - показать версию плагина");
+    put(defaultsRu, "message.help_header", "Команды Exort Storage Network:");
+    put(defaultsRu, "message.help_inventory", "меню с предметами Exort");
+    put(defaultsRu, "message.help_give", "выдача предметов игроку");
+    put(defaultsRu, "message.help_resourcepack", "управление ресурс-паком");
+    put(defaultsRu, "message.help_language", "настройки языка");
+    put(defaultsRu, "message.help_mode", "настройки режима отображения");
+    put(defaultsRu, "message.help_debug", "отладка и инспекция");
+    put(defaultsRu, "message.help_version", "показать версию плагина");
+    put(defaultsRu, "message.help_reload", "перезагрузить конфиг и runtime");
     put(
         defaultsRu,
         "message.debug_load_usage",
@@ -605,19 +555,21 @@ public class Lang {
         "message.debug_cache_status_connections_empty",
         "Нет загруженных терминалов/мониторов/шин, связанных с этим хранилищем.");
     put(defaultsRu, "message.version", "Exort Storage Network v{0} by phantomfighterxx");
+    put(defaultsRu, "message.usage_language_header", "Настройки языка:");
+    put(defaultsRu, "message.usage_language_status", "показать активный язык и словари");
+    put(defaultsRu, "message.usage_language_set", "сменить язык Exort");
+    put(defaultsRu, "message.usage_language_refresh", "обновить словари предметов");
+    put(defaultsRu, "message.usage_mode_header", "Настройки режима отображения:");
+    put(defaultsRu, "message.usage_mode_info", "показать режим из конфига и фактический режим");
+    put(defaultsRu, "message.usage_mode_set", "переключить режим отображения");
+    put(defaultsRu, "message.usage_mode_fix", "подготовить конфиг Paper для RESOURCE");
+    put(defaultsRu, "message.usage_resourcepack_header", "Управление ресурс-паком:");
     put(
         defaultsRu,
-        "message.usage_lang",
-        "Использование: /exort lang status | /exort lang refresh");
-    put(
-        defaultsRu,
-        "message.usage_mode",
-        "Использование: /exort mode info | /exort mode set <VANILLA | RESOURCE> | /exort mode"
-            + " fix RESOURCE");
-    put(
-        defaultsRu,
-        "message.usage_pack",
-        "Использование: /exort pack status | /exort pack rebuild | /exort pack send <игрок|all>");
+        "message.usage_resourcepack_status",
+        "показать состояние пайплайна ресурс-пака");
+    put(defaultsRu, "message.usage_resourcepack_rebuild", "пересобрать и перезагрузить пайплайн");
+    put(defaultsRu, "message.usage_resourcepack_send", "отправить готовый пак игроку или всем");
     put(defaultsRu, "message.lang_refreshed", "Словари языка обновлены.");
     put(defaultsRu, "message.lang_set", "Язык установлен: {0}.");
     put(defaultsRu, "message.lang_invalid", "Неизвестный язык: {0}");

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -28,8 +29,8 @@ final class PackCommand {
     this.dependencies = Objects.requireNonNull(dependencies, "dependencies");
   }
 
-  LiteralArgumentBuilder<CommandSourceStack> build() {
-    return Commands.literal("pack")
+  LiteralArgumentBuilder<CommandSourceStack> build(String literal) {
+    return Commands.literal(literal)
         .requires(source -> hasAdminPermission(sender(source)))
         .executes(this::usage)
         .then(Commands.literal("status").executes(this::status))
@@ -47,7 +48,13 @@ final class PackCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sendMessage(sender(context.getSource()), dependencies.lang().tr("message.usage_pack"));
+    CommandFeedback.sendBlock(
+        sender(context.getSource()),
+        Component.text(dependencies.lang().tr("message.usage_resourcepack_header")),
+        List.of(
+            usageLine("/exort resourcepack status", "message.usage_resourcepack_status"),
+            usageLine("/exort resourcepack rebuild", "message.usage_resourcepack_rebuild"),
+            usageLine("/exort resourcepack send [player|all]", "message.usage_resourcepack_send")));
     return 1;
   }
 
@@ -65,16 +72,38 @@ final class PackCommand {
                   dependencies.lang().tr("message.pack_service_not_started")));
       return 1;
     }
-    service.statusLines().forEach(line -> sendMessage(sender, line));
+    List<String> lines = service.statusLines();
+    if (!lines.isEmpty()) {
+      CommandFeedback.sendBlock(sender, lines.get(0), lines.subList(1, lines.size()));
+    }
     return 1;
+  }
+
+  private Component usageLine(String command, String descriptionKey) {
+    return CommandFeedback.commandLine(
+        command,
+        dependencies.lang().tr(descriptionKey),
+        dependencies.lang().tr("message.command_click", command));
   }
 
   private int rebuild(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     dependencies.resourcePackReloader().run();
-    sendMessage(sender, dependencies.lang().tr("message.pack_rebuilt"));
-    status(context);
+    var service = dependencies.resourcePackService().get();
+    var lines = new ArrayList<String>();
+    lines.add(dependencies.lang().tr("message.pack_rebuilt"));
+    if (service == null) {
+      lines.add(
+          dependencies
+              .lang()
+              .tr(
+                  "message.pack_unavailable",
+                  dependencies.lang().tr("message.pack_service_not_started")));
+    } else {
+      lines.addAll(service.statusLines());
+    }
+    CommandFeedback.sendBlock(sender, lines.getFirst(), lines.subList(1, lines.size()));
     return 1;
   }
 

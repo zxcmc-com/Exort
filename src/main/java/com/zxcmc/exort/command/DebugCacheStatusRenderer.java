@@ -51,20 +51,20 @@ final class DebugCacheStatusRenderer {
   }
 
   void send(CommandSender sender, String storageId) {
-    CommandFeedback.send(sender, lang.tr("message.debug_cache_status_header", storageId));
+    List<String> lines = new ArrayList<>();
+    lines.add(lang.tr("message.debug_cache_status_header", storageId));
     var cacheOpt = storageManager.getCache(storageId);
     boolean loading = storageManager.isLoading(storageId);
     long now = System.currentTimeMillis();
     if (cacheOpt.isEmpty() || !cacheOpt.get().isLoaded()) {
-      CommandFeedback.send(sender, lang.tr("message.debug_cache_status_cache_unloaded"));
+      lines.add(lang.tr("message.debug_cache_status_cache_unloaded"));
     } else {
       var cache = cacheOpt.get();
       long idleMs = Math.max(0L, now - cache.lastAccessMs());
       long idleThresholdMs = Math.max(0L, cacheIdleUnloadSeconds.getAsLong() * 1000L);
       boolean dirty = cache.isDirty();
       int viewers = cache.viewerCount();
-      CommandFeedback.send(
-          sender,
+      lines.add(
           lang.tr(
               "message.debug_cache_status_cache",
               "true",
@@ -75,8 +75,7 @@ final class DebugCacheStatusRenderer {
       String touchSource = cache.lastTouchSource();
       if (touchSource != null) {
         long touchAge = Math.max(0L, now - cache.lastTouchMs());
-        CommandFeedback.send(
-            sender,
+        lines.add(
             lang.tr(
                 "message.debug_cache_status_touch",
                 String.valueOf(touchAge),
@@ -84,8 +83,7 @@ final class DebugCacheStatusRenderer {
                 touchSource));
       }
       boolean eligible = idleMs >= idleThresholdMs && !dirty && viewers <= 0 && !loading;
-      CommandFeedback.send(
-          sender,
+      lines.add(
           lang.tr(
               "message.debug_cache_status_evict",
               String.valueOf(eligible),
@@ -98,13 +96,13 @@ final class DebugCacheStatusRenderer {
 
     Location loc = findLoadedStorageLocation(storageId);
     if (loc == null || loc.getWorld() == null) {
-      CommandFeedback.send(sender, lang.tr("message.debug_cache_status_marker_missing"));
+      lines.add(lang.tr("message.debug_cache_status_marker_missing"));
+      sendLines(sender, lines);
       return;
     }
     int cx = loc.getBlockX() >> 4;
     int cz = loc.getBlockZ() >> 4;
-    CommandFeedback.send(
-        sender,
+    lines.add(
         lang.tr(
             "message.debug_cache_status_marker",
             loc.getWorld().getName(),
@@ -115,10 +113,9 @@ final class DebugCacheStatusRenderer {
             String.valueOf(cz)));
     boolean loaded = loc.getWorld().isChunkLoaded(cx, cz);
     if (!loaded) {
-      CommandFeedback.send(sender, lang.tr("message.debug_cache_status_chunk_unloaded"));
+      lines.add(lang.tr("message.debug_cache_status_chunk_unloaded"));
       ConnectionStats stats = findLoadedConnections(storageId);
-      CommandFeedback.send(
-          sender,
+      lines.add(
           lang.tr(
               "message.debug_cache_status_connections",
               String.valueOf(stats.terminals()),
@@ -126,8 +123,9 @@ final class DebugCacheStatusRenderer {
               String.valueOf(stats.buses()),
               String.valueOf(stats.total())));
       if (stats.total() == 0) {
-        CommandFeedback.send(sender, lang.tr("message.debug_cache_status_connections_empty"));
+        lines.add(lang.tr("message.debug_cache_status_connections_empty"));
       }
+      sendLines(sender, lines);
       return;
     }
     Chunk chunk = loc.getWorld().getChunkAt(cx, cz);
@@ -149,8 +147,7 @@ final class DebugCacheStatusRenderer {
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("-");
-    CommandFeedback.send(
-        sender,
+    lines.add(
         lang.tr(
             "message.debug_cache_status_chunk",
             String.valueOf(chunk.isLoaded()),
@@ -159,10 +156,9 @@ final class DebugCacheStatusRenderer {
             ticketNames,
             playerNames));
     String reason = buildChunkReason(chunk, ticketNames, playerNames);
-    CommandFeedback.send(sender, lang.tr("message.debug_cache_status_chunk_reason", reason));
+    lines.add(lang.tr("message.debug_cache_status_chunk_reason", reason));
     ConnectionStats stats = findLoadedConnections(storageId);
-    CommandFeedback.send(
-        sender,
+    lines.add(
         lang.tr(
             "message.debug_cache_status_connections",
             String.valueOf(stats.terminals()),
@@ -170,7 +166,14 @@ final class DebugCacheStatusRenderer {
             String.valueOf(stats.buses()),
             String.valueOf(stats.total())));
     if (stats.total() == 0) {
-      CommandFeedback.send(sender, lang.tr("message.debug_cache_status_connections_empty"));
+      lines.add(lang.tr("message.debug_cache_status_connections_empty"));
+    }
+    sendLines(sender, lines);
+  }
+
+  private void sendLines(CommandSender sender, List<String> lines) {
+    if (!lines.isEmpty()) {
+      CommandFeedback.sendBlock(sender, lines.get(0), lines.subList(1, lines.size()));
     }
   }
 

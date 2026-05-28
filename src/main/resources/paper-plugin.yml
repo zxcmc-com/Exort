@@ -39,5 +39,5 @@ permissions:
     children:
       exort.storagenetwork.give: true
   exort.storagenetwork.give:
-    description: Allows opening the Exort give menu and using /exort give.
-    default: false
+    description: Allows opening the Exort item inventory and using /exort give.
+    default: "false"

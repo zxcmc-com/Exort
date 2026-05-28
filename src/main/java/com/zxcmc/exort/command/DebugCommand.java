@@ -228,8 +228,26 @@ final class DebugCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
-    sendMessage(sender(context.getSource()), lang().tr("message.usage_debug"));
+    CommandFeedback.sendBlock(
+        sender(context.getSource()),
+        Component.text(lang().tr("message.usage_debug_header")),
+        List.of(
+            usageLine("/exort debug player <player>", "message.usage_debug_player"),
+            usageLine(
+                "/exort debug storage <storageId|player> [write]", "message.usage_debug_storage"),
+            usageLine("/exort debug cache status <storageId|player>", "message.usage_debug_cache"),
+            usageLine(
+                "/exort debug verbose <cache|worldedit|pick> start|stop [mode]",
+                "message.usage_debug_verbose"),
+            usageLine(
+                "/exort debug benchmark start|stop [players] [seconds]",
+                "message.usage_debug_benchmark")));
     return 1;
+  }
+
+  private Component usageLine(String command, String descriptionKey) {
+    return CommandFeedback.commandLine(
+        command, lang().tr(descriptionKey), lang().tr("message.command_click", command));
   }
 
   private int cacheVerboseStart(

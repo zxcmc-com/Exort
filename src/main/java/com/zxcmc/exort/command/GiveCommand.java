@@ -8,7 +8,6 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.feedback.CommandFeedback;
-import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -18,7 +17,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
@@ -45,13 +44,14 @@ final class GiveCommand {
   LiteralArgumentBuilder<CommandSourceStack> build() {
     return Commands.literal("give")
         .requires(source -> hasGivePermission(sender(source)))
-        .executes(this::openGiveMenu)
+        .executes(this::usage)
         .then(
             Commands.argument(ARG_PLAYER, StringArgumentType.word())
                 .suggests(this::suggestPlayers)
                 .executes(this::usage)
                 .then(
                     Commands.literal("storage")
+                        .executes(this::storageUsage)
                         .then(
                             Commands.argument(ARG_TIER, StringArgumentType.word())
                                 .suggests(this::suggestTiers)
@@ -152,25 +152,38 @@ final class GiveCommand {
   }
 
   private int usage(CommandContext<CommandSourceStack> context) {
-    sendMessage(sender(context.getSource()), dependencies.lang().tr("message.give_usage"));
+    if (!ensureGivePermission(context)) return 0;
+    CommandFeedback.sendBlock(
+        sender(context.getSource()),
+        Component.text(dependencies.lang().tr("message.usage_give_header")),
+        List.of(
+            usageLine("/exort give <player> storage <tier> [amount]", "message.usage_give_storage"),
+            usageLine("/exort give <player> <item> [amount]", "message.usage_give_item"),
+            Component.text(dependencies.lang().tr("message.usage_give_items"))));
     return 1;
   }
 
-  private int openGiveMenu(CommandContext<CommandSourceStack> context) {
+  private int storageUsage(CommandContext<CommandSourceStack> context) {
     if (!ensureGivePermission(context)) return 0;
-    CommandSender sender = sender(context.getSource());
-    if (!(sender instanceof Player player)) {
-      sendMessage(sender, dependencies.lang().tr("message.only_player"));
-      return 1;
-    }
-    try {
-      new ExortGiveMenu(dependencies.customItems(), () -> dependencies.wirelessService().create())
-          .open(player);
-    } catch (IllegalStateException e) {
-      ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to open Exort give menu", e);
-      sendMessage(sender, dependencies.lang().tr("message.operation_failed"));
-    }
+    String playerName = StringArgumentType.getString(context, ARG_PLAYER);
+    CommandFeedback.sendBlock(
+        sender(context.getSource()),
+        Component.text(dependencies.lang().tr("message.usage_give_header")),
+        List.of(usageLine(storageUsageCommand(playerName), "message.usage_give_storage")));
     return 1;
+  }
+
+  private Component usageLine(String command, String descriptionKey) {
+    return CommandFeedback.commandLine(
+        command,
+        dependencies.lang().tr(descriptionKey),
+        dependencies.lang().tr("message.command_click", command));
+  }
+
+  static String storageUsageCommand(String playerName) {
+    return "/exort give "
+        + Objects.requireNonNull(playerName, "playerName")
+        + " storage <tier> [amount]";
   }
 
   private int giveStorage(CommandContext<CommandSourceStack> context, int amount) {
@@ -267,21 +280,27 @@ final class GiveCommand {
       target.playSound(
           target.getLocation(), Sound.ENTITY_ITEM_PICKUP, GIVE_SOUND_VOLUME, GIVE_SOUND_PITCH);
     }
-    sendMessage(
-        sender,
+    List<String> lines = new ArrayList<>();
+    lines.add(
         dependencies.lang().tr("message.give_success", result.total(), itemName, target.getName()));
     if (result.dropped() > 0) {
-      sendMessage(
-          sender,
-          dependencies.lang().tr("message.give_dropped", result.dropped(), target.getName()));
+      lines.add(dependencies.lang().tr("message.give_dropped", result.dropped(), target.getName()));
     }
     if (result.total() < requested) {
-      sendMessage(
-          sender,
+      lines.add(
           dependencies
               .lang()
               .tr("message.give_partial", result.total(), requested, target.getName()));
     }
+    sendResult(sender, lines);
+  }
+
+  private void sendResult(CommandSender sender, List<String> lines) {
+    if (lines.size() == 1) {
+      sendMessage(sender, lines.getFirst());
+      return;
+    }
+    CommandFeedback.sendBlock(sender, lines.getFirst(), lines.subList(1, lines.size()));
   }
 
   private CompletableFuture<Suggestions> suggestPlayers(

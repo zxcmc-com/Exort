@@ -9,8 +9,11 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -30,27 +33,44 @@ public final class ExortBrigadier {
         Commands.literal("exort")
             .requires(source -> hasAnyPermission(sender(source)))
             .executes(this::help);
-    root.then(new DebugCommand(dependencies).build());
+    root.then(
+        Commands.literal("help")
+            .requires(source -> hasAnyPermission(sender(source)))
+            .executes(this::help));
+
+    InventoryCommand inventoryCommand = new InventoryCommand(dependencies);
+    root.then(inventoryCommand.build("inventory"));
+    root.then(inventoryCommand.build("inv"));
 
     root.then(new GiveCommand(dependencies).build());
+
+    PackCommand packCommand = new PackCommand(dependencies);
+    root.then(packCommand.build("resourcepack"));
+    root.then(packCommand.build("pack"));
+
+    LangCommand langCommand = new LangCommand(dependencies);
+    root.then(langCommand.build("language"));
+    root.then(langCommand.build("lang"));
+
+    root.then(new ModeCommand(dependencies).build());
+
+    root.then(new DebugCommand(dependencies).build());
+
+    root.then(versionCommand("version"));
+    root.then(versionCommand("ver"));
 
     root.then(
         Commands.literal("reload")
             .requires(source -> hasAdminPermission(sender(source)))
             .executes(this::reload));
 
-    root.then(new LangCommand(dependencies).build());
-
-    root.then(new ModeCommand(dependencies).build());
-
-    root.then(new PackCommand(dependencies).build());
-
-    root.then(
-        Commands.literal("version")
-            .requires(source -> hasAdminPermission(sender(source)))
-            .executes(this::version));
-
     return root.build();
+  }
+
+  private LiteralArgumentBuilder<CommandSourceStack> versionCommand(String literal) {
+    return Commands.literal(literal)
+        .requires(source -> hasAdminPermission(sender(source)))
+        .executes(this::version);
   }
 
   private int help(CommandContext<CommandSourceStack> context) {
@@ -60,19 +80,31 @@ public final class ExortBrigadier {
       return 0;
     }
     Lang lang = lang();
-    sendMessage(sender, lang.tr("message.help_header"));
-    if (hasAdminPermission(sender)) {
-      sendMessage(sender, lang.tr("message.help_debug", "exort"));
-    }
-    sendMessage(sender, lang.tr("message.help_give", "exort"));
-    if (hasAdminPermission(sender)) {
-      sendMessage(sender, lang.tr("message.help_reload", "exort"));
-      sendMessage(sender, lang.tr("message.help_lang", "exort"));
-      sendMessage(sender, lang.tr("message.help_mode", "exort"));
-      sendMessage(sender, lang.tr("message.help_pack", "exort"));
-      sendMessage(sender, lang.tr("message.help_version", "exort"));
-    }
+    CommandFeedback.sendBlock(
+        sender,
+        Component.text(lang.tr("message.help_header")),
+        rootHelpLines(lang, hasAdminPermission(sender)));
     return 1;
+  }
+
+  static List<Component> rootHelpLines(Lang lang, boolean admin) {
+    List<Component> lines = new ArrayList<>();
+    lines.add(helpLine(lang, "/exort inventory", "message.help_inventory"));
+    lines.add(helpLine(lang, "/exort give", "message.help_give"));
+    if (admin) {
+      lines.add(helpLine(lang, "/exort resourcepack", "message.help_resourcepack"));
+      lines.add(helpLine(lang, "/exort language", "message.help_language"));
+      lines.add(helpLine(lang, "/exort mode", "message.help_mode"));
+      lines.add(helpLine(lang, "/exort debug", "message.help_debug"));
+      lines.add(helpLine(lang, "/exort version", "message.help_version"));
+      lines.add(helpLine(lang, "/exort reload", "message.help_reload"));
+    }
+    return List.copyOf(lines);
+  }
+
+  private static Component helpLine(Lang lang, String command, String descriptionKey) {
+    return CommandFeedback.commandLine(
+        command, lang.tr(descriptionKey), lang.tr("message.command_click", command));
   }
 
   private int reload(CommandContext<CommandSourceStack> context) {
