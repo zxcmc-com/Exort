@@ -1,6 +1,7 @@
 package com.zxcmc.exort.wireless.listener;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
@@ -73,6 +74,10 @@ public class WirelessListener implements Listener {
     if (event.getHand() != EquipmentSlot.HAND && event.getHand() != EquipmentSlot.OFF_HAND) return;
     ItemStack stack = event.getItem();
     if (!service.isWireless(stack)) return;
+    PerfStats.measure(PerfStats.Area.WIRELESS, () -> onWirelessInteract(event, stack));
+  }
+
+  private void onWirelessInteract(PlayerInteractEvent event, ItemStack stack) {
     Player player = event.getPlayer();
     if (event.getHand() == EquipmentSlot.OFF_HAND) {
       ItemStack main = player.getInventory().getItemInMainHand();

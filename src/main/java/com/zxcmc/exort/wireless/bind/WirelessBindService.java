@@ -1,5 +1,6 @@
 package com.zxcmc.exort.wireless.bind;
 
+import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessMeta;
@@ -60,8 +61,10 @@ public final class WirelessBindService {
     if (tierRaw != null) {
       tier = StorageTier.fromString(tierRaw).orElse(null);
     }
-    String storageId = pdc.get(keys.wirelessStorageId(), PersistentDataType.STRING);
-    String owner = pdc.get(keys.wirelessOwner(), PersistentDataType.STRING);
+    String storageId =
+        PdcValueSanitizer.uuidString(pdc.get(keys.wirelessStorageId(), PersistentDataType.STRING));
+    String owner =
+        PdcValueSanitizer.uuidString(pdc.get(keys.wirelessOwner(), PersistentDataType.STRING));
     String ownerName = pdc.get(keys.wirelessOwnerName(), PersistentDataType.STRING);
     return new WirelessMeta(tier, storageId, owner, ownerName);
   }
@@ -71,11 +74,12 @@ public final class WirelessBindService {
   }
 
   public String storageId(PersistentDataContainer pdc) {
-    return pdc.get(keys.wirelessStorageId(), PersistentDataType.STRING);
+    return PdcValueSanitizer.uuidString(
+        pdc.get(keys.wirelessStorageId(), PersistentDataType.STRING));
   }
 
   public String owner(PersistentDataContainer pdc) {
-    return pdc.get(keys.wirelessOwner(), PersistentDataType.STRING);
+    return PdcValueSanitizer.uuidString(pdc.get(keys.wirelessOwner(), PersistentDataType.STRING));
   }
 
   public Optional<StorageTier> tier(PersistentDataContainer pdc) {

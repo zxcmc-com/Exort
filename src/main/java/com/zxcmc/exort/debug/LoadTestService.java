@@ -16,6 +16,7 @@ import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -76,6 +77,8 @@ public final class LoadTestService {
       new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
   private static final DecimalFormat TWO_DECIMALS =
       new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.US));
+  private static final int RECENT_RUN_LIMIT = 3;
+  private static final Deque<RunSummary> RECENT_RUNS = new ArrayDeque<>();
 
   private final JavaPlugin plugin;
   private final Database database;
@@ -144,6 +147,8 @@ public final class LoadTestService {
   private List<ChunkTicket> loadedChunks;
   private World benchmarkWorld;
   private Random jitterRandom;
+  private LoadTestRuntimeDependencies runtimeDependencies;
+  private LoadTestWorldWorkload worldWorkload;
 
   public LoadTestService(
       JavaPlugin plugin, Database database, BossBarManager bossBarManager, Lang lang) {
@@ -155,6 +160,18 @@ public final class LoadTestService {
 
   public boolean isRunning() {
     return taskId != -1;
+  }
+
+  public void setRuntimeDependencies(LoadTestRuntimeDependencies dependencies) {
+    this.runtimeDependencies = dependencies;
+  }
+
+  public void clearRuntimeDependencies() {
+    if (isRunning()) {
+      stop(false);
+    }
+    cleanupWorldWorkload();
+    this.runtimeDependencies = null;
   }
 
   public void start(CommandSender sender, int players) {
@@ -176,8 +193,10 @@ public final class LoadTestService {
     this.tickMs = new double[Math.max(1, durationTicks - warmupTicks)];
     this.msptSamples = new double[tickMs.length];
     this.jitterRandom = new Random(System.nanoTime());
+    PerfStats.resetAndEnable();
     prepareChunks(sender);
     cleanupTaggedBenchmarkEntitiesAll();
+    prepareWorldWorkload();
     prepareDbPositions(simulatedPlayers);
     prepareDisplaySamples();
     prepareGuardSimulation();
@@ -204,10 +223,12 @@ public final class LoadTestService {
       sendToConsoleIfNeeded(lang.tr("message.debug_load_stopped"));
     }
     cleanupDbPositions();
+    cleanupWorldWorkload();
     cleanupGuardSimulation();
     cleanupDisplays();
     cleanupTaggedBenchmarkEntitiesAll();
     cleanupChunks();
+    PerfStats.disable();
     if (ownerId != null) {
       Player player = Bukkit.getPlayer(ownerId);
       if (player != null && player.isOnline()) {
@@ -219,6 +240,7 @@ public final class LoadTestService {
   }
 
   private void tick() {
+    PerfStats.tick(Bukkit.getCurrentTick());
     long elapsed = Bukkit.getCurrentTick() - startTick;
     long now = System.nanoTime();
     if (lastTickNs != 0L) {
@@ -240,6 +262,7 @@ public final class LoadTestService {
     simulateCacheMaintenance(elapsed);
     simulateWirelessChecks();
     simulateGuardChurn();
+    simulateWorldWorkload(elapsed);
 
     if (elapsed % Math.max(1, progressIntervalTicks) == 0L) {
       sendProgress((int) elapsed);
@@ -261,11 +284,24 @@ public final class LoadTestService {
   }
 
   private void finishForced(String forcedGradeKey) {
-    String verdict = verdict(forcedGradeKey);
+    LoadTestVerdictCalculator.Result result = verdictResult(forcedGradeKey);
+    String verdict = formatVerdict(result);
     if (owner != null) {
       CommandFeedback.send(owner, verdict);
     }
     sendToConsoleIfNeeded(verdict);
+    String sustainable = sustainableMsptLine(result);
+    if (owner != null) {
+      CommandFeedback.send(owner, sustainable);
+    }
+    sendToConsoleIfNeeded(sustainable);
+    String stallWarning = rareStallWarning(result);
+    if (stallWarning != null && !stallWarning.isBlank()) {
+      if (owner != null) {
+        CommandFeedback.send(owner, stallWarning);
+      }
+      sendToConsoleIfNeeded(stallWarning);
+    }
     String hints = profileHints();
     if (hints != null && !hints.isBlank()) {
       if (owner != null) {
@@ -273,7 +309,140 @@ public final class LoadTestService {
       }
       sendToConsoleIfNeeded(hints);
     }
+    String measured = measuredProfileLine();
+    if (measured != null && !measured.isBlank()) {
+      if (owner != null) {
+        CommandFeedback.send(owner, measured);
+      }
+      sendToConsoleIfNeeded(measured);
+    }
+    String meta = metadataLine();
+    if (owner != null) {
+      CommandFeedback.send(owner, meta);
+    }
+    sendToConsoleIfNeeded(meta);
+    String runs = rememberAndFormatRuns(result);
+    if (runs != null && !runs.isBlank()) {
+      if (owner != null) {
+        CommandFeedback.send(owner, runs);
+      }
+      sendToConsoleIfNeeded(runs);
+    }
     stop(false);
+  }
+
+  private String sustainableMsptLine(LoadTestVerdictCalculator.Result result) {
+    String gradeKey = sustainableMsptGrade(result.msptAvg(), result.msptP95());
+    return lang.tr(
+        "message.debug_load_mspt_verdict",
+        lang.tr(gradeKey),
+        ONE_DECIMAL.format(result.msptAvg()),
+        ONE_DECIMAL.format(result.msptP95()),
+        ONE_DECIMAL.format(result.msptP99()));
+  }
+
+  private String sustainableMsptGrade(double avg, double p95) {
+    if (avg >= 70.0 || p95 >= 80.0) return "message.debug_load_grade_awful";
+    if (avg >= 60.0 || p95 >= 70.0) return "message.debug_load_grade_bad";
+    if (avg > 50.0 || p95 > 60.0) return "message.debug_load_grade_poor";
+    if (avg <= 35.0 && p95 <= 45.0) return "message.debug_load_grade_good";
+    return "message.debug_load_grade_warn";
+  }
+
+  private String measuredProfileLine() {
+    PerfStats.Snapshot snapshot = PerfStats.snapshot();
+    if (!snapshot.hasSamples()) {
+      return null;
+    }
+    List<String> parts = new ArrayList<>();
+    for (PerfStats.MetricStats metric : snapshot.metrics()) {
+      if (metric.calls() <= 0L) continue;
+      int pct =
+          snapshot.totalNanos() <= 0L
+              ? 0
+              : (int) Math.round(metric.totalNanos() * 100.0 / snapshot.totalNanos());
+      parts.add(
+          metric.label()
+              + " "
+              + pct
+              + "%/"
+              + metric.calls()
+              + " calls p95 "
+              + ONE_DECIMAL.format(metric.p95Micros())
+              + "us tick-p95 "
+              + ONE_DECIMAL.format(metric.p95TickMicros())
+              + "us");
+      if (parts.size() >= 5) {
+        break;
+      }
+    }
+    appendMeasuredQueueStats(snapshot, parts);
+    if (parts.isEmpty()) {
+      return null;
+    }
+    return lang.tr("message.debug_load_measured_profile", String.join(", ", parts));
+  }
+
+  private void appendMeasuredQueueStats(PerfStats.Snapshot snapshot, List<String> parts) {
+    long storageQueue = snapshot.gauges().getOrDefault("storage-db.queueDepth", -1L);
+    long displayQueue = snapshot.gauges().getOrDefault("display.queueDepth", -1L);
+    long monitorQueue = snapshot.gauges().getOrDefault("monitor.queueDepth", -1L);
+    long busDue = snapshot.gauges().getOrDefault("bus.dueDepth", -1L);
+    long displayOverruns = snapshot.counters().getOrDefault("display.budgetOverrun", 0L);
+    long monitorOverruns = snapshot.counters().getOrDefault("monitor.budgetOverrun", 0L);
+    long busOverruns = snapshot.counters().getOrDefault("bus.budgetOverrun", 0L);
+    List<String> queues = new ArrayList<>();
+    if (storageQueue >= 0L) queues.add("dbQ " + storageQueue);
+    if (displayQueue >= 0L) queues.add("displayQ " + displayQueue);
+    if (monitorQueue >= 0L) queues.add("monitorQ " + monitorQueue);
+    if (busDue >= 0L) queues.add("busDue " + busDue);
+    if (displayOverruns > 0L) queues.add("displayOverruns " + displayOverruns);
+    if (monitorOverruns > 0L) queues.add("monitorOverruns " + monitorOverruns);
+    if (busOverruns > 0L) queues.add("busOverruns " + busOverruns);
+    if (!queues.isEmpty()) {
+      parts.add(String.join(" ", queues));
+    }
+  }
+
+  private String metadataLine() {
+    String server = Bukkit.getName() + " " + Bukkit.getMinecraftVersion();
+    String java = System.getProperty("java.version", "unknown");
+    String plugins =
+        Arrays.stream(Bukkit.getPluginManager().getPlugins())
+            .map(plugin -> plugin.getName() + " " + plugin.getPluginMeta().getVersion())
+            .limit(12)
+            .reduce((left, right) -> left + ", " + right)
+            .orElse("-");
+    return lang.tr(
+        "message.debug_load_metadata", server, plugin.getPluginMeta().getVersion(), java, plugins);
+  }
+
+  private String rememberAndFormatRuns(LoadTestVerdictCalculator.Result result) {
+    synchronized (RECENT_RUNS) {
+      RECENT_RUNS.addLast(
+          new RunSummary(result.gradeKey(), result.tpsAvg(), result.msptAvg(), result.msptP95()));
+      while (RECENT_RUNS.size() > RECENT_RUN_LIMIT) {
+        RECENT_RUNS.removeFirst();
+      }
+      if (RECENT_RUNS.size() < 2) {
+        return null;
+      }
+      double tpsAvg = 0.0;
+      double msptAvg = 0.0;
+      double msptP95 = 0.0;
+      for (RunSummary run : RECENT_RUNS) {
+        tpsAvg += run.tpsAvg();
+        msptAvg += run.msptAvg();
+        msptP95 += run.msptP95();
+      }
+      int count = RECENT_RUNS.size();
+      return lang.tr(
+          "message.debug_load_recent_runs",
+          count,
+          TWO_DECIMALS.format(tpsAvg / count),
+          ONE_DECIMAL.format(msptAvg / count),
+          ONE_DECIMAL.format(msptP95 / count));
+    }
   }
 
   private void sendProgress(int elapsedTicks) {
@@ -376,70 +545,74 @@ public final class LoadTestService {
     dbSettings = null;
   }
 
-  private String verdict(String forcedGradeKey) {
+  private void prepareWorldWorkload() {
+    cleanupWorldWorkload();
+    if (runtimeDependencies == null || benchmarkWorld == null || loadedChunks == null) {
+      return;
+    }
+    List<LoadTestWorldWorkload.LoadedChunk> chunks = new ArrayList<>(loadedChunks.size());
+    for (ChunkTicket ticket : loadedChunks) {
+      chunks.add(new LoadTestWorldWorkload.LoadedChunk(ticket.world(), ticket.x(), ticket.z()));
+    }
+    worldWorkload =
+        LoadTestWorldWorkload.create(
+                plugin, database, runtimeDependencies, benchmarkWorld, chunks, simulatedPlayers)
+            .orElse(null);
+  }
+
+  private void simulateWorldWorkload(long elapsedTicks) {
+    if (worldWorkload == null) {
+      return;
+    }
+    try {
+      worldWorkload.tick(elapsedTicks);
+    } catch (RuntimeException | LinkageError e) {
+      plugin.getLogger().log(Level.WARNING, "Benchmark world workload failed and was disabled.", e);
+      cleanupWorldWorkload();
+    }
+  }
+
+  private void cleanupWorldWorkload() {
+    if (worldWorkload == null) {
+      return;
+    }
+    try {
+      worldWorkload.cleanup();
+    } catch (RuntimeException | LinkageError e) {
+      plugin.getLogger().log(Level.WARNING, "Benchmark world workload cleanup failed.", e);
+    } finally {
+      worldWorkload = null;
+    }
+  }
+
+  private LoadTestVerdictCalculator.Result verdictResult(String forcedGradeKey) {
     int n = Math.min(sampleIndex, tickMs.length);
-    if (n <= 0) {
-      return lang.tr("message.debug_load_verdict", "UNKNOWN", "0", "0", "0", "0", "0", "0");
-    }
-    double[] tpsSamples = new double[n];
-    for (int i = 0; i < n; i++) {
-      double ms = tickMs[i];
-      tpsSamples[i] = ms <= 0.0 ? 20.0 : Math.min(20.0, 1000.0 / ms);
-    }
-    double min = tpsSamples[0];
-    double max = tpsSamples[0];
-    double sum = 0.0;
-    for (double v : tpsSamples) {
-      min = Math.min(min, v);
-      max = Math.max(max, v);
-      sum += v;
-    }
-    double avg = sum / tpsSamples.length;
-    Arrays.sort(tpsSamples);
-    int idx = Math.max(0, (int) Math.ceil(tpsSamples.length * 0.001) - 1);
-    double p001 = tpsSamples[idx];
-    double[] msptSorted = Arrays.copyOf(msptSamples, n);
-    Arrays.sort(msptSorted);
-    double msptAvg = 0.0;
-    double msptMin = msptSorted[0];
-    double msptMax = msptSorted[n - 1];
-    for (int i = 0; i < n; i++) {
-      msptAvg += msptSamples[i];
-    }
-    msptAvg /= n;
-    double msptP95 = msptSorted[Math.max(0, (int) Math.ceil(n * 0.95) - 1)];
-    double msptP99 = msptSorted[Math.max(0, (int) Math.ceil(n * 0.99) - 1)];
-    String gradeKey =
-        forcedGradeKey != null ? forcedGradeKey : gradeKey(min, avg, p001, msptAvg, msptP95);
-    String grade = lang.tr(gradeKey);
+    return LoadTestVerdictCalculator.calculate(tickMs, msptSamples, n, forcedGradeKey);
+  }
+
+  private String formatVerdict(LoadTestVerdictCalculator.Result result) {
+    String grade = lang.tr(result.gradeKey());
     return lang.tr(
         "message.debug_load_verdict",
         grade,
-        TWO_DECIMALS.format(min),
-        TWO_DECIMALS.format(max),
-        TWO_DECIMALS.format(avg),
-        TWO_DECIMALS.format(p001),
-        ONE_DECIMAL.format(msptMin),
-        ONE_DECIMAL.format(msptMax),
-        ONE_DECIMAL.format(msptAvg),
-        ONE_DECIMAL.format(msptP95),
-        ONE_DECIMAL.format(msptP99));
+        TWO_DECIMALS.format(result.tpsMin()),
+        TWO_DECIMALS.format(result.tpsMax()),
+        TWO_DECIMALS.format(result.tpsAvg()),
+        TWO_DECIMALS.format(result.tpsP1()),
+        ONE_DECIMAL.format(result.msptMin()),
+        ONE_DECIMAL.format(result.msptMax()),
+        ONE_DECIMAL.format(result.msptAvg()),
+        ONE_DECIMAL.format(result.msptP95()),
+        ONE_DECIMAL.format(result.msptP99()));
   }
 
-  private String gradeKey(double min, double avg, double p001, double msptAvg, double msptP95) {
-    if (avg < 15.0 || p001 < 12.0 || msptAvg >= 70.0 || msptP95 >= 80.0) {
-      return "message.debug_load_grade_awful";
-    }
-    if (avg >= 19.5 && p001 >= 18.0 && msptAvg <= 35.0 && msptP95 <= 45.0) {
-      return "message.debug_load_grade_good";
-    }
-    if (avg >= 18.5 && p001 >= 17.0 && msptAvg <= 50.0 && msptP95 <= 60.0) {
-      return "message.debug_load_grade_warn";
-    }
-    if (avg >= 16.0 && msptAvg <= 60.0) {
-      return "message.debug_load_grade_poor";
-    }
-    return "message.debug_load_grade_bad";
+  private String rareStallWarning(LoadTestVerdictCalculator.Result result) {
+    if (result.severeStalls() <= 0) return null;
+    if ("message.debug_load_grade_awful".equals(result.gradeKey())) return null;
+    return lang.tr(
+        "message.debug_load_rare_stalls",
+        result.severeStalls(),
+        TWO_DECIMALS.format(result.tpsMin()));
   }
 
   private int estimateOperationsPerTick() {
@@ -509,7 +682,8 @@ public final class LoadTestService {
                 * (long) Math.max(1, cpuIterationsPerOp / 12)
             : 0L;
     long guardCost = (long) Math.max(0, guardChurnPerTick) * (long) Math.max(1, cpuIterationsPerOp);
-    long total = cpuCost + wireCost + monitorCost + dbCost + wirelessCost + guardCost;
+    long worldCost = worldWorkload == null ? 0L : worldWorkload.estimatedCost(cpuIterationsPerOp);
+    long total = cpuCost + wireCost + monitorCost + dbCost + wirelessCost + guardCost + worldCost;
     if (total <= 0) return null;
     int cpuPct = (int) Math.round(cpuCost * 100.0 / total);
     int wirePct = (int) Math.round(wireCost * 100.0 / total);
@@ -517,6 +691,7 @@ public final class LoadTestService {
     int dbPct = (int) Math.round(dbCost * 100.0 / total);
     int wirelessPct = (int) Math.round(wirelessCost * 100.0 / total);
     int guardPct = (int) Math.round(guardCost * 100.0 / total);
+    int worldPct = (int) Math.round(worldCost * 100.0 / total);
     String dominant = "CPU";
     long max = cpuCost;
     if (wireCost > max) {
@@ -536,7 +711,11 @@ public final class LoadTestService {
       dominant = "WIRELESS";
     }
     if (guardCost > max) {
+      max = guardCost;
       dominant = "GUARDS";
+    }
+    if (worldCost > max) {
+      dominant = "WORLD";
     }
     return lang.tr(
         "message.debug_load_hints",
@@ -546,13 +725,18 @@ public final class LoadTestService {
         monitorPct,
         dbPct,
         wirelessPct,
-        guardPct);
+        guardPct,
+        worldPct,
+        worldWorkload == null ? 0L : worldWorkload.totalPlacements());
   }
 
   private String summaryLine() {
     int chunks = activeChunkCount();
     int ops = estimateOperationsPerTick();
     int dbOps = estimateDbOpsPerTick(ops);
+    int worldLanes = worldWorkload == null ? 0 : worldWorkload.laneCount();
+    int worldBudget = worldWorkload == null ? 0 : worldWorkload.operationBudget();
+    int worldBlocks = worldWorkload == null ? 0 : worldWorkload.plannedBlockCount();
     return lang.tr(
         "message.debug_load_summary",
         simulatedPlayers,
@@ -576,7 +760,10 @@ public final class LoadTestService {
         guardPlayers,
         targetGuardEntities,
         requestedGuardEntities(),
-        guardChurnPerTick);
+        guardChurnPerTick,
+        worldLanes,
+        worldBudget,
+        worldBlocks);
   }
 
   private long requestedGuardEntities() {
@@ -865,8 +1052,7 @@ public final class LoadTestService {
   }
 
   private double safeBenchmarkY(World world, double offset) {
-    double y = world.getSpawnLocation().getY() + 8.0 + offset;
-    return Math.min(world.getMaxHeight() - 4.0, Math.max(world.getMinHeight() + 4.0, y));
+    return BenchmarkHeight.entityY(world, offset);
   }
 
   private void cleanupGuardSimulation() {
@@ -1123,6 +1309,8 @@ public final class LoadTestService {
   }
 
   private record ChunkPos(int x, int z) {}
+
+  private record RunSummary(String gradeKey, double tpsAvg, double msptAvg, double msptP95) {}
 
   private record ChunkTicket(UUID world, int x, int z) {}
 }

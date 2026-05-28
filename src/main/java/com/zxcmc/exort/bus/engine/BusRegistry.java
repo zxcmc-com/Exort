@@ -26,6 +26,7 @@ public final class BusRegistry {
   private final Map<BusPos, BusState> states = new ConcurrentHashMap<>();
   private volatile List<BusState> stateList = List.of();
   private volatile boolean stateListDirty;
+  private volatile long version;
 
   public BusRegistry(Plugin plugin, Database database) {
     this.plugin = plugin;
@@ -36,6 +37,7 @@ public final class BusRegistry {
     states.clear();
     stateList = List.of();
     stateListDirty = false;
+    version++;
   }
 
   public BusState getOrCreateState(BusPos pos, BusMarker.Data marker, Block busBlock) {
@@ -43,7 +45,11 @@ public final class BusRegistry {
     BusState existing = states.get(pos);
     if (existing != null) {
       if (busBlock != null) {
+        long before = existing.settingsRevision();
         applyMarkerState(existing, marker, busBlock);
+        if (existing.settingsRevision() != before) {
+          markDirty();
+        }
       }
       return existing;
     }
@@ -98,6 +104,7 @@ public final class BusRegistry {
 
   public void saveSettings(BusState state, Block busBlock) {
     if (state == null) return;
+    markDirty();
     BusSettings settings =
         new BusSettings(state.pos(), state.type(), state.mode(), state.filters());
     database
@@ -153,8 +160,13 @@ public final class BusRegistry {
     return stateList;
   }
 
+  public long version() {
+    return version;
+  }
+
   private void markDirty() {
     stateListDirty = true;
+    version++;
   }
 
   private void loadSettingsIfMissing(
@@ -194,6 +206,7 @@ public final class BusRegistry {
                           state.setType(settings.type());
                           state.setMode(settings.mode());
                           state.setFilters(settings.filters());
+                          markDirty();
                         });
               } catch (IllegalStateException ignored) {
                 // Plugin is disabling between the async load and the sync handoff.

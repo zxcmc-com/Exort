@@ -201,7 +201,7 @@ public final class SortSearchHelper {
         return PlainTextComponentSerializer.plainText().serialize(meta.itemName());
       }
     }
-    String resolved = itemNames.resolveName(stack);
+    String resolved = itemNames != null ? itemNames.resolveName(stack) : null;
     if (resolved != null && !resolved.isBlank()) {
       return resolved;
     }
@@ -226,7 +226,7 @@ public final class SortSearchHelper {
         }
       }
     }
-    String dictionaryName = itemNames.resolveDictionaryName(stack);
+    String dictionaryName = itemNames != null ? itemNames.resolveDictionaryName(stack) : null;
     if (dictionaryName != null && !dictionaryName.isBlank()) {
       candidates.add(dictionaryName.toLowerCase(Locale.ROOT));
     }

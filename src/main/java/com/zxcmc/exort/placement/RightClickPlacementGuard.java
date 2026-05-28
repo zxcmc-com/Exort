@@ -1,6 +1,7 @@
 package com.zxcmc.exort.placement;
 
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.items.CustomItems;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,6 +108,10 @@ public final class RightClickPlacementGuard implements Listener, Runnable {
 
   @Override
   public void run() {
+    PerfStats.measure(PerfStats.Area.PLACEMENT_GUARD, this::runMeasured);
+  }
+
+  private void runMeasured() {
     Set<UUID> online = new HashSet<>();
     for (Player player : Bukkit.getOnlinePlayers()) {
       online.add(player.getUniqueId());

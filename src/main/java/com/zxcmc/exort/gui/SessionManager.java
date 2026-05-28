@@ -1,7 +1,6 @@
 package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.bus.BusService;
-import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.session.GuiRenderScheduler;
@@ -12,7 +11,6 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
@@ -20,8 +18,15 @@ import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
@@ -56,8 +61,10 @@ public class SessionManager {
   private final Supplier<Material> wireMaterial;
   private final Supplier<Material> storageCarrier;
   private final Supplier<Material> terminalCarrier;
+  private final GuiSessionValidator sessionValidator;
   private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
   private final Supplier<GuiOverlayConfig> overlayConfigSource;
+  private final Consumer<String> storageChangeListener;
   private GuiRuntimeConfig runtimeConfig;
   private GuiOverlayConfig overlayConfig;
   private int sessionTaskId = -1;
@@ -82,8 +89,12 @@ public class SessionManager {
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
     this.terminalCarrier = dependencies.terminalCarrier();
+    this.sessionValidator =
+        new GuiSessionValidator(
+            plugin, keys, wireLimit, wireHardCap, wireMaterial, storageCarrier, terminalCarrier);
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();
+    this.storageChangeListener = dependencies.storageChangeListener();
     this.runtimeConfig = runtimeConfigSource.get();
     this.overlayConfig = overlayConfigSource.get();
     this.renderScheduler =
@@ -131,7 +142,6 @@ public class SessionManager {
                 () -> {
                   WirelessTerminalService tickWireless = wirelessService.get();
                   Material tickStorageCarrier = storageCarrier.get();
-                  Material tickTerminalCarrier = terminalCarrier.get();
                   double maxDeviceDistanceSquared = maxDeviceDistanceSquared();
                   List<GuiSession> snapshot = new ArrayList<>(registry.allSessions());
                   List<WirelessCloseRequest> toClose = new ArrayList<>();
@@ -139,35 +149,18 @@ public class SessionManager {
                   for (GuiSession session : snapshot) {
                     if (!(session instanceof AbstractStorageSession storageSession)) continue;
                     if (!storageSession.isWireless()) {
-                      if (shouldClosePhysicalSession(
-                          storageSession, tickTerminalCarrier, maxDeviceDistanceSquared)) {
+                      if (sessionValidator.shouldClosePhysicalSession(
+                          storageSession, maxDeviceDistanceSquared)) {
                         physicalToClose.add(storageSession.getViewer());
                       }
                       continue;
                     }
                     if (tickWireless == null || tickStorageCarrier == null) continue;
-                    Player p = storageSession.getViewer();
-                    if (p == null || !p.isOnline()) {
-                      if (p != null) {
-                        toClose.add(new WirelessCloseRequest(p, null));
-                      }
-                      continue;
-                    }
-                    Location anchor = storageSession.getStorageLocation();
-                    if (!tickWireless.isEnabled()) {
-                      toClose.add(new WirelessCloseRequest(p, "message.wireless.disabled"));
-                      continue;
-                    }
-                    if (anchor == null || !anchor.isWorldLoaded()) {
-                      toClose.add(new WirelessCloseRequest(p, "message.wireless.missing_storage"));
-                      continue;
-                    }
-                    if (!tickWireless.inRange(anchor, p.getLocation())) {
-                      toClose.add(new WirelessCloseRequest(p, "message.wireless.out_of_range"));
-                      continue;
-                    }
-                    if (!Carriers.matchesCarrier(anchor.getBlock(), tickStorageCarrier)) {
-                      toClose.add(new WirelessCloseRequest(p, "message.wireless.missing_storage"));
+                    GuiSessionValidator.WirelessValidationResult validation =
+                        sessionValidator.wirelessValidation(storageSession, tickWireless);
+                    if (!validation.isValid() && validation.player() != null) {
+                      toClose.add(
+                          new WirelessCloseRequest(validation.player(), validation.messageKey()));
                     }
                   }
                   if (!physicalToClose.isEmpty()) {
@@ -378,7 +371,7 @@ public class SessionManager {
                   searchCoordinator.discard(player);
                   return;
                 }
-                if (!isSessionValid(parent)) {
+                if (!sessionValidator.isSessionValid(parent)) {
                   forceCloseSession(player);
                   return;
                 }
@@ -437,7 +430,7 @@ public class SessionManager {
               if (searchCoordinator.hasPending(player)) return;
               GuiSession current = registry.sessionFor(player.getUniqueId());
               if (current != parent) return;
-              if (!isSessionValid(parent)) {
+              if (!sessionValidator.isSessionValid(parent)) {
                 forceCloseSession(player);
                 return;
               }
@@ -470,28 +463,19 @@ public class SessionManager {
         forceCloseSession(session.getViewer());
         continue;
       }
-      var link =
-          TerminalLinkFinder.find(
-              termBlock,
-              keys,
-              plugin,
-              wireLimit.getAsInt(),
-              wireHardCap.getAsInt(),
-              wireMaterial.get(),
-              storageCarrier.get());
-      if (link.count() != 1
-          || link.data() == null
-          || !session.getStorageId().equals(link.data().storageId())) {
+      if (!sessionValidator.isSessionValid(session)) {
         forceCloseSession(session.getViewer());
       }
     }
   }
 
   public void renderStorage(String storageId) {
+    storageChangeListener.accept(storageId);
     renderScheduler.request(storageId);
   }
 
   public void renderStorage(String storageId, SortEvent event) {
+    storageChangeListener.accept(storageId);
     renderScheduler.request(storageId, event);
   }
 
@@ -586,55 +570,6 @@ public class SessionManager {
     return GuiOverlayGlyphs.overlay(overlayKey, overlayConfig.storageTerminal(type), ExortLog::warn)
         .map(overlay -> ExortText.withPrefix(overlay, name))
         .orElse(name);
-  }
-
-  private boolean isSessionValid(GuiSession session) {
-    Block termBlock = session.getTerminalBlock();
-    if (termBlock == null) {
-      return true;
-    }
-    if (termBlock.getType() != terminalCarrier.get()) {
-      return false;
-    }
-    var link =
-        TerminalLinkFinder.find(
-            termBlock,
-            keys,
-            plugin,
-            wireLimit.getAsInt(),
-            wireHardCap.getAsInt(),
-            wireMaterial.get(),
-            storageCarrier.get());
-    return link.count() == 1
-        && link.data() != null
-        && session.getStorageId().equals(link.data().storageId());
-  }
-
-  private boolean shouldClosePhysicalSession(
-      AbstractStorageSession session, Material terminalCarrier, double maxDistanceSquared) {
-    Player player = session.getViewer();
-    if (player == null || !player.isOnline()) return true;
-    Block terminal = session.getTerminalBlock();
-    if (terminal == null) return false;
-    if (terminalCarrier == null) return false;
-    if (!isBlockChunkLoaded(terminal)) return true;
-    if (!Carriers.matchesCarrier(terminal, terminalCarrier)) return true;
-    return isOutOfDeviceRange(player, terminal, maxDistanceSquared);
-  }
-
-  private boolean isOutOfDeviceRange(Player player, Block block, double maxDistanceSquared) {
-    if (player.getWorld() == null || block.getWorld() == null) return true;
-    if (!player.getWorld().getUID().equals(block.getWorld().getUID())) return true;
-    Location playerLocation = player.getLocation();
-    double dx = playerLocation.getX() - (block.getX() + 0.5D);
-    double dy = playerLocation.getY() - (block.getY() + 0.5D);
-    double dz = playerLocation.getZ() - (block.getZ() + 0.5D);
-    return dx * dx + dy * dy + dz * dz > maxDistanceSquared;
-  }
-
-  private boolean isBlockChunkLoaded(Block block) {
-    return block.getWorld() != null
-        && block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4);
   }
 
   private double maxDeviceDistanceSquared() {

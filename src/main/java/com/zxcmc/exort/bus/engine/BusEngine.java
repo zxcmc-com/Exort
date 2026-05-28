@@ -9,12 +9,20 @@ import com.zxcmc.exort.bus.InventorySideRules;
 import com.zxcmc.exort.bus.loop.BusLoopGuard;
 import com.zxcmc.exort.bus.resolver.BusTargetResolver;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -28,6 +36,8 @@ import org.bukkit.inventory.ItemStack;
 
 public final class BusEngine implements Runnable {
   private static final int CRAFT_PAUSE_TICKS = 2;
+  private static final int CONTEXT_CACHE_TTL_TICKS = 20;
+  private static final int LOOP_GUARD_REFRESH_TICKS = 20;
 
   private final BusEngineDependencies dependencies;
   private final StorageManager storageManager;
@@ -40,13 +50,15 @@ public final class BusEngine implements Runnable {
   private final WirelessTerminalService wirelessService;
   private final BusTargetResolver targetResolver;
   private final BusRegistry registry;
+  private final BusDueScheduler dueScheduler = new BusDueScheduler();
 
   private int taskId = -1;
-  private int roundRobinIndex;
   private long chunkOpTick = Long.MIN_VALUE;
   private final Map<ChunkKey, Integer> chunkOps = new HashMap<>();
-  private final Map<BusPos, ResolvedContext> contextCache = new HashMap<>();
-  private long contextTick = Long.MIN_VALUE;
+  private final Map<BusPos, CachedContext> contextCache = new HashMap<>();
+  private long loopGuardNextRefreshTick = Long.MIN_VALUE;
+  private long loopGuardRegistryVersion = Long.MIN_VALUE;
+  private long loopGuardTopologyVersion = Long.MIN_VALUE;
   private final Set<BusPos> loopDisabled = ConcurrentHashMap.newKeySet();
   private final Map<String, Long> craftPausedUntil = new ConcurrentHashMap<>();
 
@@ -82,6 +94,7 @@ public final class BusEngine implements Runnable {
       taskId = -1;
     }
     chunkOps.clear();
+    dueScheduler.clear();
     contextCache.clear();
     loopDisabled.clear();
     craftPausedUntil.clear();
@@ -108,33 +121,54 @@ public final class BusEngine implements Runnable {
 
   @Override
   public void run() {
+    PerfStats.measure(PerfStats.Area.BUS, this::runMeasured);
+  }
+
+  private void runMeasured() {
     List<BusState> list = registry.snapshotList();
-    if (list.isEmpty()) return;
+    if (list.isEmpty()) {
+      dueScheduler.clear();
+      return;
+    }
     int opsLeft = maxOperationsPerTick;
     long tick = Bukkit.getCurrentTick();
     if (chunkOpTick != tick) {
       chunkOps.clear();
       chunkOpTick = tick;
     }
-    buildContextCache(list, tick);
+    dueScheduler.sync(list, registry.version(), tick);
+    PerfStats.setGauge("bus.dueDepth", dueScheduler.size());
+    refreshLoopDisabledSnapshotIfNeeded(list, tick);
     Set<String> changedStorages = new HashSet<>();
-    int size = list.size();
-    int start = roundRobinIndex % size;
-    for (int i = 0; i < size && opsLeft > 0; i++) {
-      int idx = (start + i) % size;
-      BusState state = list.get(idx);
+    int contextBudget = contextBudget();
+    while (opsLeft > 0 && contextBudget-- > 0) {
+      BusState state = dueScheduler.pollDue(tick);
+      if (state == null) {
+        break;
+      }
+      long nextTick;
       if (state == null) continue;
       if (state.viewers() > 0) {
-        state.setNextTick(tick + idleIntervalTicks);
+        nextTick = tick + idleIntervalTicks;
+        state.setNextTick(nextTick);
+        dueScheduler.schedule(state, nextTick);
         continue;
       }
-      if (tick < state.nextTick()) continue;
       if (maxOperationsPerChunk > 0 && isChunkLimitReached(state.pos())) {
-        state.setNextTick(tick + idleIntervalTicks);
+        nextTick = tick + idleIntervalTicks;
+        state.setNextTick(nextTick);
+        dueScheduler.schedule(state, nextTick);
         continue;
       }
-      boolean moved = tickBus(state, tick, changedStorages);
-      state.setNextTick(tick + (moved ? activeIntervalTicks : idleIntervalTicks));
+      boolean moved = false;
+      try {
+        moved = tickBus(state, tick, changedStorages);
+      } catch (RuntimeException ex) {
+        dependencies.logger().log(Level.WARNING, "Bus tick failed for " + state.pos(), ex);
+      }
+      nextTick = tick + (moved ? activeIntervalTicks : idleIntervalTicks);
+      state.setNextTick(nextTick);
+      dueScheduler.schedule(state, nextTick);
       if (moved) {
         opsLeft--;
         if (maxOperationsPerChunk > 0) {
@@ -142,7 +176,9 @@ public final class BusEngine implements Runnable {
         }
       }
     }
-    roundRobinIndex = (start + 1) % size;
+    if (dueScheduler.hasDue(tick)) {
+      PerfStats.incrementCounter("bus.budgetOverrun");
+    }
     if (!changedStorages.isEmpty()) {
       for (String storageId : changedStorages) {
         dependencies.renderStorage(storageId);
@@ -150,10 +186,16 @@ public final class BusEngine implements Runnable {
     }
   }
 
+  private int contextBudget() {
+    int base = Math.max(maxOperationsPerTick, 1) * 4;
+    return Math.max(64, Math.min(base, 4096));
+  }
+
   private boolean tickBus(BusState state, long tick, Set<String> changedStorages) {
-    if (loopDisabled.contains(state.pos())) return false;
-    ResolvedContext ctx =
-        contextCache.computeIfAbsent(state.pos(), pos -> computeContext(state).orElse(null));
+    if (state.type() == BusType.EXPORT && loopDisabled.contains(state.pos())) {
+      return false;
+    }
+    ResolvedContext ctx = contextFor(state, tick);
     if (ctx == null) return false;
     String storageId = ctx.storageId();
     StorageTier tier = ctx.tier();
@@ -170,9 +212,12 @@ public final class BusEngine implements Runnable {
       preloadStorage(storageId);
       return false;
     }
-    return state.type() == BusType.IMPORT
-        ? tickImport(state, cache, tier, target, changedStorages, tick)
-        : tickExport(state, cache, target, changedStorages, tick);
+    return PerfStats.measure(
+        "bus.move",
+        () ->
+            state.type() == BusType.IMPORT
+                ? tickImport(state, cache, tier, target, changedStorages, tick)
+                : tickExport(state, cache, target, changedStorages, tick));
   }
 
   private boolean isPaused(String storageId, long tick) {
@@ -438,27 +483,113 @@ public final class BusEngine implements Runnable {
       BusTargetResolver.InvKey invKey,
       boolean inventorySideSensitive) {}
 
-  private record StorageInvKey(String storageId, BusTargetResolver.InvKey invKey) {}
+  private record StorageInvKey(
+      String storageId, BusTargetResolver.InvKey invKey, BlockFace sideSensitiveSide) {}
 
-  private void buildContextCache(List<BusState> list, long tick) {
-    if (contextTick != tick) {
-      contextCache.clear();
-      contextTick = tick;
+  private record CachedContext(
+      ResolvedContext context,
+      long settingsRevision,
+      long topologyVersion,
+      Material busMaterial,
+      Material targetMaterial,
+      long createdTick) {}
+
+  private ResolvedContext contextFor(BusState state, long tick) {
+    return PerfStats.measure("bus.resolve", () -> contextForMeasured(state, tick));
+  }
+
+  private ResolvedContext contextForMeasured(BusState state, long tick) {
+    if (state == null) return null;
+    CachedContext cached = contextCache.get(state.pos());
+    if (cached != null && cachedContextValid(state, cached, tick)) {
+      return cached.context();
     }
+    Optional<ResolvedContext> computed = computeContext(state);
+    if (computed.isEmpty()) {
+      contextCache.remove(state.pos());
+      return null;
+    }
+    ResolvedContext ctx = computed.get();
+    Material busMaterial = blockMaterial(state.pos());
+    Material targetMaterial = targetMaterial(ctx.target());
+    contextCache.put(
+        state.pos(),
+        new CachedContext(
+            ctx,
+            state.settingsRevision(),
+            dependencies.topologyVersion(),
+            busMaterial,
+            targetMaterial,
+            tick));
+    return ctx;
+  }
+
+  private boolean cachedContextValid(BusState state, CachedContext cached, long tick) {
+    if (cached == null || cached.context() == null || state == null) return false;
+    if (cached.settingsRevision() != state.settingsRevision()) return false;
+    if (cached.topologyVersion() != dependencies.topologyVersion()) return false;
+    if (tick - cached.createdTick() > CONTEXT_CACHE_TTL_TICKS) return false;
+    BusPos pos = state.pos();
+    World world = Bukkit.getWorld(pos.world());
+    if (world == null || !world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) return false;
+    Block busBlock = world.getBlockAt(pos.x(), pos.y(), pos.z());
+    if (busBlock.getType() != cached.busMaterial()) return false;
+    if (!Carriers.matchesCarrier(busBlock, busCarrier) || !dependencies.isBus(busBlock)) {
+      return false;
+    }
+    Block target = targetBlock(cached.context().target());
+    if (target == null || target.getWorld() == null) return false;
+    if (!target.getWorld().isChunkLoaded(target.getX() >> 4, target.getZ() >> 4)) return false;
+    return target.getType() == cached.targetMaterial();
+  }
+
+  private Material blockMaterial(BusPos pos) {
+    if (pos == null) return Material.AIR;
+    World world = Bukkit.getWorld(pos.world());
+    if (world == null || !world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) return Material.AIR;
+    return world.getBlockAt(pos.x(), pos.y(), pos.z()).getType();
+  }
+
+  private Material targetMaterial(BusTargetResolver.BusTarget target) {
+    Block block = targetBlock(target);
+    return block == null ? Material.AIR : block.getType();
+  }
+
+  private Block targetBlock(BusTargetResolver.BusTarget target) {
+    if (target instanceof BusTargetResolver.InventoryTarget invTarget) {
+      return invTarget.block();
+    }
+    if (target instanceof BusTargetResolver.StorageTarget storageTarget) {
+      return storageTarget.block();
+    }
+    return null;
+  }
+
+  private void refreshLoopDisabledSnapshotIfNeeded(List<BusState> list, long tick) {
+    long registryVersion = registry.version();
+    long topologyVersion = dependencies.topologyVersion();
+    if (tick < loopGuardNextRefreshTick
+        && registryVersion == loopGuardRegistryVersion
+        && topologyVersion == loopGuardTopologyVersion) {
+      return;
+    }
+    PerfStats.measure("bus.loopGuard", () -> rebuildLoopDisabledSnapshot(list, tick));
+    loopGuardNextRefreshTick = tick + LOOP_GUARD_REFRESH_TICKS;
+    loopGuardRegistryVersion = registryVersion;
+    loopGuardTopologyVersion = topologyVersion;
+  }
+
+  private void rebuildLoopDisabledSnapshot(List<BusState> list, long tick) {
     loopDisabled.clear();
     Map<StorageInvKey, List<ResolvedContext>> grouped = new HashMap<>();
     for (BusState state : list) {
-      ResolvedContext ctx =
-          contextCache.computeIfAbsent(state.pos(), pos -> computeContext(state).orElse(null));
+      ResolvedContext ctx = contextFor(state, tick);
       if (ctx == null || ctx.invKey() == null || ctx.storageId() == null) continue;
-      StorageInvKey key = new StorageInvKey(ctx.storageId(), ctx.invKey());
+      StorageInvKey key = conflictKey(ctx);
       grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(ctx);
     }
     for (var entry : grouped.entrySet()) {
       List<ResolvedContext> group = entry.getValue();
-      if (group.stream().anyMatch(ResolvedContext::inventorySideSensitive)) {
-        continue;
-      }
       List<ResolvedContext> imports =
           group.stream().filter(c -> c.type() == BusType.IMPORT).toList();
       List<ResolvedContext> exports =
@@ -471,6 +602,15 @@ public final class BusEngine implements Runnable {
         loopDisabled.add(exp.state().pos());
       }
     }
+  }
+
+  private StorageInvKey conflictKey(ResolvedContext ctx) {
+    BlockFace side = null;
+    if (ctx.inventorySideSensitive()
+        && ctx.target() instanceof BusTargetResolver.InventoryTarget invTarget) {
+      side = invTarget.side();
+    }
+    return new StorageInvKey(ctx.storageId(), ctx.invKey(), side);
   }
 
   private boolean hasAllAllConflict(List<ResolvedContext> group) {

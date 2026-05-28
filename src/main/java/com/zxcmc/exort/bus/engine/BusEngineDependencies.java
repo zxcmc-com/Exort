@@ -2,6 +2,7 @@ package com.zxcmc.exort.bus.engine;
 
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.network.NetworkGraphCacheProvider;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -37,6 +38,14 @@ public record BusEngineDependencies(
   TerminalLinkFinder.StorageSearchResult findLinkedStorage(Block busBlock) {
     return TerminalLinkFinder.find(
         busBlock, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+  }
+
+  long topologyVersion() {
+    if (plugin instanceof NetworkGraphCacheProvider provider
+        && provider.getNetworkGraphCache() != null) {
+      return provider.getNetworkGraphCache().currentVersion();
+    }
+    return 0L;
   }
 
   void renderStorage(String storageId) {

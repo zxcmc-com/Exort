@@ -50,6 +50,7 @@ public class ItemNameService {
   private volatile String activeLanguage = "en_us";
   private volatile String serverVersion = "unknown";
   private volatile boolean indexFetched;
+  private volatile long version;
 
   public ItemNameService(JavaPlugin plugin) {
     this.plugin = plugin;
@@ -68,6 +69,10 @@ public class ItemNameService {
 
   public String getActiveLanguage() {
     return activeLanguage;
+  }
+
+  public long version() {
+    return version;
   }
 
   public Status status() {
@@ -263,6 +268,7 @@ public class ItemNameService {
     }
     active = newActive;
     fallback = newFallback;
+    version++;
     logReload(updated);
   }
 

@@ -1,5 +1,6 @@
 package com.zxcmc.exort.gui;
 
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.items.ItemKeyUtil;
@@ -7,7 +8,9 @@ import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -47,10 +50,13 @@ public abstract class AbstractStorageSession implements SearchableSession {
   protected List<Integer> displayCategories = List.of();
   protected int page;
   protected int searchResultsCount;
+  protected boolean displayListTruncated;
   private long lastBuildVersion = -1;
   private SortMode lastBuildSortMode;
   private boolean lastBuildSortFrozen;
   private SearchQuery lastBuildSearchQuery;
+  private int lastBuildPage = -1;
+  private long lastBuildNameServiceVersion = -1L;
   protected final boolean wireless;
   private static final long WIRELESS_REFRESH_TICKS = 40L;
   private int wirelessRefreshTaskId = -1;
@@ -171,6 +177,10 @@ public abstract class AbstractStorageSession implements SearchableSession {
     return hasSearch() && page < searchPages();
   }
 
+  protected boolean isDisplayListTruncated() {
+    return displayListTruncated;
+  }
+
   protected int pageSize() {
     return GuiLayout.PAGE_SIZE;
   }
@@ -186,86 +196,48 @@ public abstract class AbstractStorageSession implements SearchableSession {
 
   protected List<DisplayEntry> buildDisplayList() {
     long version = cache.version();
+    long nameServiceVersion = itemNames == null ? 0L : itemNames.version();
     if (!wirelessForceRebuild
         && version == lastBuildVersion
+        && nameServiceVersion == lastBuildNameServiceVersion
         && sortMode == lastBuildSortMode
         && sortFrozen == lastBuildSortFrozen
+        && page == lastBuildPage
         && Objects.equals(searchQuery, lastBuildSearchQuery)) {
       return displayList;
     }
     wirelessRefreshUntilMs = 0L;
     wirelessForceRebuild = false;
-    searchResultsCount = 0;
-    List<DisplayEntry> list = new ArrayList<>();
-    List<Integer> categories = sortMode == SortMode.CATEGORY ? new ArrayList<>() : List.of();
-    List<StorageCache.StorageItem> items = cache.itemsSnapshot();
-    boolean allowCategoryDupes = sortMode == SortMode.CATEGORY && !hasSearch();
-    SortSearchHelper.SortResult orderedResult =
-        SortSearchHelper.resolveOrder(
-            items, sortMode, sortFrozen, sortOrder, itemNames, allowCategoryDupes);
-    sortOrder = orderedResult.order();
-    List<StorageCache.StorageItem> ordered = orderedResult.ordered();
-    if (!hasSearch()) {
-      if (sortMode == SortMode.CATEGORY) {
-        appendEntriesWithCategoryPadding(list, categories, ordered, allowCategoryDupes);
-      } else {
-        appendEntries(list, ordered);
-      }
-      displayCategories = categories;
-      rememberBuildCache(version);
-      return list;
-    }
-    List<StorageCache.StorageItem> matches = new ArrayList<>();
-    List<StorageCache.StorageItem> others = new ArrayList<>();
-    // Cache search candidates for this render to avoid repeated dictionary/item-meta lookups.
-    Map<String, List<String>> candidatesCache = new HashMap<>();
-    for (StorageCache.StorageItem item : ordered) {
-      if (matchesQueryCached(item, candidatesCache)) {
-        matches.add(item);
-      } else {
-        others.add(item);
-      }
-    }
-    int pageSize = pageSize();
-    if (matches.isEmpty()) {
-      // Keep an empty "search results" page when nothing matches.
-      for (int i = 0; i < pageSize; i++) {
-        list.add(null);
-        if (sortMode == SortMode.CATEGORY) {
-          categories.add(null);
-        }
-      }
-      searchResultsCount = 0;
-    } else {
-      if (sortMode == SortMode.CATEGORY) {
-        appendEntriesWithCategories(list, categories, matches, false);
-      } else {
-        appendEntries(list, matches);
-      }
-      searchResultsCount = list.size();
-      int pad = (pageSize - (searchResultsCount % pageSize)) % pageSize;
-      for (int i = 0; i < pad; i++) {
-        list.add(null);
-        if (sortMode == SortMode.CATEGORY) {
-          categories.add(null);
-        }
-      }
-    }
-    if (sortMode == SortMode.CATEGORY) {
-      appendEntriesWithCategoryPadding(list, categories, others, false);
-    } else {
-      appendEntries(list, others);
-    }
-    displayCategories = categories;
-    rememberBuildCache(version);
-    return list;
+    StorageDisplayListBuilder.Result result =
+        PerfStats.measure(
+            PerfStats.Area.GUI,
+            () ->
+                StorageDisplayListBuilder.build(
+                    cache.itemsSnapshot(),
+                    sortMode,
+                    sortFrozen,
+                    sortOrder,
+                    searchQuery,
+                    itemNames,
+                    page,
+                    pageSize(),
+                    StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES,
+                    this::displaySample));
+    sortOrder = result.sortOrder();
+    searchResultsCount = result.searchResultsCount();
+    displayCategories = result.displayCategories();
+    displayListTruncated = result.truncated();
+    rememberBuildCache(version, nameServiceVersion);
+    return result.displayList();
   }
 
-  private void rememberBuildCache(long version) {
+  private void rememberBuildCache(long version, long nameServiceVersion) {
     lastBuildVersion = version;
+    lastBuildNameServiceVersion = nameServiceVersion;
     lastBuildSortMode = sortMode;
     lastBuildSortFrozen = sortFrozen;
     lastBuildSearchQuery = searchQuery;
+    lastBuildPage = page;
   }
 
   private void maybeMarkWirelessRefresh(WirelessTerminalService ws, ItemStack sample) {
@@ -314,87 +286,14 @@ public abstract class AbstractStorageSession implements SearchableSession {
     }
   }
 
-  private boolean matchesQueryCached(
-      StorageCache.StorageItem item, Map<String, List<String>> candidatesCache) {
-    return searchQuery.matchesCached(item, candidatesCache, itemNames);
-  }
-
-  protected void appendEntries(List<DisplayEntry> list, List<StorageCache.StorageItem> items) {
-    for (StorageCache.StorageItem item : items) {
-      ItemStack sample = item.sample();
-      WirelessTerminalService ws = manager.wirelessService();
-      if (ws != null && ws.isWireless(sample)) {
-        sample = ws.displaySample(sample);
-        maybeMarkWirelessRefresh(ws, sample);
-      }
-      int maxStack = Math.max(1, sample.getMaxStackSize());
-      long remaining = item.amount();
-      while (remaining > 0) {
-        int amount = (int) Math.min(maxStack, remaining);
-        list.add(new DisplayEntry(item.key(), sample, amount));
-        remaining -= amount;
-      }
-    }
-  }
-
-  protected void appendEntriesWithCategories(
-      List<DisplayEntry> list,
-      List<Integer> categories,
-      List<StorageCache.StorageItem> items,
-      boolean allowCategoryDupes) {
-    CreativeTabOrder order = CreativeTabOrder.get();
-    Map<String, Integer> seen = new HashMap<>();
-    for (StorageCache.StorageItem item : items) {
-      int category = categoryFor(item, order, seen, allowCategoryDupes);
-      appendEntriesWithCategory(list, categories, item, category);
-    }
-  }
-
-  protected void appendEntriesWithCategory(
-      List<DisplayEntry> list,
-      List<Integer> categories,
-      StorageCache.StorageItem item,
-      int category) {
+  private ItemStack displaySample(StorageCache.StorageItem item) {
     ItemStack sample = item.sample();
     WirelessTerminalService ws = manager.wirelessService();
     if (ws != null && ws.isWireless(sample)) {
       sample = ws.displaySample(sample);
       maybeMarkWirelessRefresh(ws, sample);
     }
-    int maxStack = Math.max(1, sample.getMaxStackSize());
-    long remaining = item.amount();
-    while (remaining > 0) {
-      int amount = (int) Math.min(maxStack, remaining);
-      list.add(new DisplayEntry(item.key(), sample, amount));
-      categories.add(category);
-      remaining -= amount;
-    }
-  }
-
-  protected void appendEntriesWithCategoryPadding(
-      List<DisplayEntry> list,
-      List<Integer> categories,
-      List<StorageCache.StorageItem> items,
-      boolean allowCategoryDupes) {
-    if (items.isEmpty()) {
-      return;
-    }
-    CreativeTabOrder order = CreativeTabOrder.get();
-    Map<String, Integer> seen = new HashMap<>();
-    int lastCategory = Integer.MIN_VALUE;
-    int pageSize = pageSize();
-    for (StorageCache.StorageItem item : items) {
-      int category = categoryFor(item, order, seen, allowCategoryDupes);
-      if (lastCategory != Integer.MIN_VALUE && category != lastCategory) {
-        int pad = (pageSize - (list.size() % pageSize)) % pageSize;
-        for (int i = 0; i < pad; i++) {
-          list.add(null);
-          categories.add(null);
-        }
-      }
-      lastCategory = category;
-      appendEntriesWithCategory(list, categories, item, category);
-    }
+    return sample;
   }
 
   protected String currentPageCategoryLabel() {
@@ -431,26 +330,6 @@ public abstract class AbstractStorageSession implements SearchableSession {
     int pageSize = pageSize();
     int pages = (int) Math.ceil(searchResultsCount / (double) pageSize);
     return Math.max(1, pages);
-  }
-
-  protected int categoryFor(
-      StorageCache.StorageItem item,
-      CreativeTabOrder order,
-      Map<String, Integer> seen,
-      boolean allowCategoryDupes) {
-    if (order == null || item == null) {
-      return SortSearchHelper.categoryIndex(item != null ? item.sample() : null);
-    }
-    if (!allowCategoryDupes) {
-      return order.positionFor(item.sample()).tabIndex();
-    }
-    int idx = seen.getOrDefault(item.key(), 0);
-    seen.put(item.key(), idx + 1);
-    List<CreativeTabOrder.Position> positions = order.positionsFor(item.sample());
-    if (positions != null && idx < positions.size()) {
-      return positions.get(idx).tabIndex();
-    }
-    return order.positionFor(item.sample()).tabIndex();
   }
 
   protected void updateBossBar() {

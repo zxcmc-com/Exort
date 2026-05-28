@@ -1,12 +1,14 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.network.NetworkGraphCacheProvider;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
@@ -45,6 +47,8 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
 
   private static final String TAG_ITEM = DisplayTags.MONITOR_ITEM_TAG;
   private static final String TAG_TEXT = DisplayTags.MONITOR_TEXT_TAG;
+  private static final int MONITOR_REFRESH_BUDGET_PER_TICK = 64;
+  private static final int MONITOR_SANITY_BUDGET_PER_TICK = 16;
   private static final DecimalFormat COMPACT_DECIMAL =
       new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
   private static final NamespacedKey NEXO_FURNITURE = NamespacedKey.fromString("nexo:furniture");
@@ -82,8 +86,12 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private final ScreenConfig textEmptyConfig;
   private final int textBackgroundAlpha;
   private final Map<MonitorPos, MonitorState> monitors = new HashMap<>();
+  private final Map<String, Set<MonitorPos>> monitorsByStorage = new HashMap<>();
+  private final Set<MonitorPos> queuedMonitorRefreshes = new LinkedHashSet<>();
   private final Map<String, Long> loadAttempts = new HashMap<>();
   private int taskId = -1;
+  private int refreshTaskId = -1;
+  private int sanityCursor = 0;
   private final ThreadLocal<TerminalLinkFinder.StorageSearchResult> currentLink =
       new ThreadLocal<>();
   private static final long LOAD_COOLDOWN_MS = 1000L;
@@ -154,6 +162,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       Bukkit.getScheduler().cancelTask(taskId);
       taskId = -1;
     }
+    if (refreshTaskId != -1) {
+      Bukkit.getScheduler().cancelTask(refreshTaskId);
+      refreshTaskId = -1;
+    }
     clearAll();
   }
 
@@ -166,18 +178,21 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       removeDisplay(block);
     }
     monitors.clear();
+    monitorsByStorage.clear();
+    queuedMonitorRefreshes.clear();
+    PerfStats.setGauge("monitor.queueDepth", 0L);
   }
 
   public void registerMonitor(Block block) {
-    monitors.put(
+    putMonitorState(
         MonitorPos.of(block),
-        new MonitorState(null, null, Long.MIN_VALUE, null, null, false, null));
+        new MonitorState(null, null, Long.MIN_VALUE, null, null, false, null, -1L, -1L));
     refresh(block);
   }
 
   public void unregisterMonitor(Block block) {
     MonitorPos pos = MonitorPos.of(block);
-    monitors.remove(pos);
+    removeMonitorState(pos);
     removeContent(block);
     removeDisplay(block);
   }
@@ -202,19 +217,36 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         (block, root) -> {
           if (!Carriers.matchesCarrier(block, carrierMaterial)) return;
           if (!MonitorMarker.isMonitor(plugin, block)) return;
-          monitors.putIfAbsent(
-              MonitorPos.of(block),
-              new MonitorState(null, null, Long.MIN_VALUE, null, null, false, null));
+          MonitorPos pos = MonitorPos.of(block);
+          if (!monitors.containsKey(pos)) {
+            putMonitorState(
+                pos,
+                new MonitorState(null, null, Long.MIN_VALUE, null, null, false, null, -1L, -1L));
+          }
           refresh(block);
         });
   }
 
   private void tick() {
-    for (var entry : new HashMap<>(monitors).entrySet()) {
-      MonitorPos pos = entry.getKey();
+    PerfStats.measure(PerfStats.Area.MONITOR, this::tickMeasured);
+  }
+
+  private void tickMeasured() {
+    drainQueuedRefreshes(MONITOR_REFRESH_BUDGET_PER_TICK);
+    if (monitors.isEmpty()) {
+      sanityCursor = 0;
+      return;
+    }
+    List<MonitorPos> positions = new ArrayList<>(monitors.keySet());
+    int limit = Math.min(MONITOR_SANITY_BUDGET_PER_TICK, positions.size());
+    sanityCursor = Math.floorMod(sanityCursor, positions.size());
+    for (int i = 0; i < limit; i++) {
+      MonitorPos pos = positions.get((sanityCursor + i) % positions.size());
+      MonitorState state = monitors.get(pos);
+      if (state == null) continue;
       World world = Bukkit.getWorld(pos.world());
       if (world == null) {
-        monitors.remove(pos);
+        removeMonitorState(pos);
         continue;
       }
       if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) {
@@ -226,16 +258,23 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         unregisterMonitor(block);
         continue;
       }
-      refresh(block);
+      if (shouldRefresh(block, state)) {
+        refreshMeasured(block);
+      }
     }
+    sanityCursor = (sanityCursor + limit) % Math.max(1, positions.size());
   }
 
   @Override
   public void refresh(Block block) {
+    PerfStats.measure(PerfStats.Area.MONITOR, () -> refreshMeasured(block));
+  }
+
+  private void refreshMeasured(Block block) {
     if (!isValidBlock(block)) {
       removeDisplay(block);
       removeContent(block);
-      monitors.remove(MonitorPos.of(block));
+      removeMonitorState(MonitorPos.of(block));
       return;
     }
     TerminalLinkFinder.StorageSearchResult link = resolveLink(block);
@@ -322,7 +361,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     boolean active = link.count() == 1 && link.data() != null;
     MonitorPos pos = MonitorPos.of(block);
     if (!active) {
-      monitors.put(pos, new MonitorState(null, null, Long.MIN_VALUE, modelId, null, false, null));
+      putMonitorState(
+          pos,
+          new MonitorState(
+              null, null, Long.MIN_VALUE, modelId, null, false, null, -1L, topologyVersion()));
       removeContent(block);
       return;
     }
@@ -378,17 +420,28 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       textDisplay.teleport(targetScreenLoc(block, textConfig));
       orientDisplay(textDisplay, block, textConfig.scale(), false);
     }
-    monitors.put(
+    putMonitorState(
         pos,
         new MonitorState(
-            storageId, itemKey, amount, modelId, activeItemConfig, horizontal, transform));
+            storageId,
+            itemKey,
+            amount,
+            modelId,
+            activeItemConfig,
+            horizontal,
+            transform,
+            storageVersion(storageId),
+            topologyVersion()));
   }
 
   private void updateEmptyText(
       Block block, String storageId, StorageTier tier, String modelId, MonitorState prev) {
     MonitorPos pos = MonitorPos.of(block);
     if (storageId == null || tier == null) {
-      monitors.put(pos, new MonitorState(null, null, Long.MIN_VALUE, modelId, null, false, null));
+      putMonitorState(
+          pos,
+          new MonitorState(
+              null, null, Long.MIN_VALUE, modelId, null, false, null, -1L, topologyVersion()));
       removeContent(block);
       return;
     }
@@ -413,7 +466,18 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       textDisplay.teleport(targetScreenLoc(block, textEmptyConfig));
       orientDisplay(textDisplay, block, textEmptyConfig.scale(), false);
     }
-    monitors.put(pos, new MonitorState(storageId, null, total, modelId, null, false, null));
+    putMonitorState(
+        pos,
+        new MonitorState(
+            storageId,
+            null,
+            total,
+            modelId,
+            null,
+            false,
+            null,
+            storageVersion(storageId),
+            topologyVersion()));
   }
 
   @Override
@@ -748,19 +812,112 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
             });
   }
 
-  private void refreshStorageMonitors(String storageId) {
+  public void refreshStorageMonitors(String storageId) {
     if (storageId == null) return;
-    for (var entry : new HashMap<>(monitors).entrySet()) {
-      MonitorState state = entry.getValue();
-      if (state == null || !storageId.equals(state.storageId())) continue;
-      MonitorPos pos = entry.getKey();
+    Set<MonitorPos> positions = monitorsByStorage.get(storageId);
+    if (positions == null || positions.isEmpty()) {
+      return;
+    }
+    queuedMonitorRefreshes.addAll(positions);
+    updateMonitorQueueGauge();
+    scheduleQueuedRefreshDrain();
+  }
+
+  private void scheduleQueuedRefreshDrain() {
+    if (refreshTaskId != -1) return;
+    try {
+      refreshTaskId =
+          Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, this::drainQueuedRefreshTask, 1L);
+    } catch (IllegalStateException ignored) {
+      refreshTaskId = -1;
+    }
+  }
+
+  private void drainQueuedRefreshTask() {
+    refreshTaskId = -1;
+    PerfStats.measure(
+        PerfStats.Area.MONITOR, () -> drainQueuedRefreshes(MONITOR_REFRESH_BUDGET_PER_TICK));
+    if (!queuedMonitorRefreshes.isEmpty()) {
+      PerfStats.incrementCounter("monitor.budgetOverrun");
+      scheduleQueuedRefreshDrain();
+    }
+  }
+
+  private void drainQueuedRefreshes(int budget) {
+    Iterator<MonitorPos> iterator = queuedMonitorRefreshes.iterator();
+    while (budget-- > 0 && iterator.hasNext()) {
+      MonitorPos pos = iterator.next();
+      iterator.remove();
       World world = Bukkit.getWorld(pos.world());
       if (world == null) continue;
       if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) continue;
       Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
       if (!isValidBlock(block)) continue;
-      refresh(block);
+      refreshMeasured(block);
     }
+    updateMonitorQueueGauge();
+  }
+
+  private void updateMonitorQueueGauge() {
+    PerfStats.setGauge("monitor.queueDepth", queuedMonitorRefreshes.size());
+  }
+
+  private void putMonitorState(MonitorPos pos, MonitorState state) {
+    if (pos == null) return;
+    MonitorState previous = monitors.put(pos, state);
+    updateStorageIndex(
+        pos,
+        previous == null ? null : previous.storageId(),
+        state == null ? null : state.storageId());
+  }
+
+  private void removeMonitorState(MonitorPos pos) {
+    if (pos == null) return;
+    MonitorState previous = monitors.remove(pos);
+    updateStorageIndex(pos, previous == null ? null : previous.storageId(), null);
+    queuedMonitorRefreshes.remove(pos);
+    updateMonitorQueueGauge();
+  }
+
+  private void updateStorageIndex(MonitorPos pos, String previousStorageId, String nextStorageId) {
+    if (Objects.equals(previousStorageId, nextStorageId)) {
+      return;
+    }
+    if (previousStorageId != null) {
+      Set<MonitorPos> previous = monitorsByStorage.get(previousStorageId);
+      if (previous != null) {
+        previous.remove(pos);
+        if (previous.isEmpty()) {
+          monitorsByStorage.remove(previousStorageId);
+        }
+      }
+    }
+    if (nextStorageId != null) {
+      monitorsByStorage.computeIfAbsent(nextStorageId, ignored -> new LinkedHashSet<>()).add(pos);
+    }
+  }
+
+  private boolean shouldRefresh(Block block, MonitorState prev) {
+    if (prev == null) return true;
+    if (prev.lastTopologyVersion() != topologyVersion()) return true;
+    String storageId = prev.storageId();
+    if (storageId == null) return false;
+    Optional<StorageCache> cacheOpt = storageManager.peekLoadedCache(storageId);
+    if (cacheOpt.isEmpty()) return true;
+    return cacheOpt.get().version() != prev.lastStorageVersion();
+  }
+
+  private long storageVersion(String storageId) {
+    if (storageId == null) return -1L;
+    return storageManager.peekLoadedCache(storageId).map(StorageCache::version).orElse(-1L);
+  }
+
+  private long topologyVersion() {
+    if (plugin instanceof NetworkGraphCacheProvider provider
+        && provider.getNetworkGraphCache() != null) {
+      return provider.getNetworkGraphCache().currentVersion();
+    }
+    return 0L;
   }
 
   private record MonitorPos(UUID world, int x, int y, int z) {
@@ -776,5 +933,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       String lastModelId,
       ScreenConfig lastItemConfig,
       boolean lastHorizontal,
-      ItemDisplay.ItemDisplayTransform lastTransform) {}
+      ItemDisplay.ItemDisplayTransform lastTransform,
+      long lastStorageVersion,
+      long lastTopologyVersion) {}
 }

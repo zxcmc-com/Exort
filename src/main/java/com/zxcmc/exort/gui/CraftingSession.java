@@ -127,7 +127,13 @@ public class CraftingSession extends AbstractStorageSession {
   public void render() {
     displayList = buildDisplayList();
     GuiPageWindow pageWindow = GuiPageWindow.forSlots(page, displayList.size(), pageSize());
-    page = pageWindow.page();
+    if (pageWindow.page() != page) {
+      page = pageWindow.page();
+      displayList = buildDisplayList();
+      pageWindow = GuiPageWindow.forSlots(page, displayList.size(), pageSize());
+    } else {
+      page = pageWindow.page();
+    }
     slotEntries.clear();
     ItemStack[] contents = new ItemStack[GuiLayout.INVENTORY_SIZE];
     boolean fillSearchPad = useFillers && isSearchResultsPage();
@@ -169,6 +175,13 @@ public class CraftingSession extends AbstractStorageSession {
       if (categoryLabel != null) {
         pageLore.add(Component.text(categoryLabel).decoration(TextDecoration.ITALIC, false));
       }
+    }
+    if (isDisplayListTruncated()) {
+      pageLore.add(
+          Component.text(
+                  lang.tr(
+                      "gui.list_truncated", StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES))
+              .decoration(TextDecoration.ITALIC, false));
     }
     contents[GuiLayout.Crafting.SLOT_PREV] =
         GuiItems.pagePrev(lang.tr("gui.prev_page"), pageLore, useFillers);
