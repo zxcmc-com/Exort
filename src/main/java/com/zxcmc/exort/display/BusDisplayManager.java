@@ -30,6 +30,7 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
       double offsetX,
       double offsetY,
       double offsetZ,
+      DisplayMetadataService metadataService,
       String importName,
       String exportName) {
     super(
@@ -41,7 +42,8 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
         offsetX,
         offsetY,
         offsetZ,
-        "bus");
+        metadataService,
+        DisplayTags.BUS_TAG);
     this.importModelId = importModelId == null ? "" : importModelId;
     this.exportModelId = exportModelId == null ? "" : exportModelId;
     this.importName = importName == null ? "" : importName;

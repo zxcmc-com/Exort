@@ -49,6 +49,7 @@ public class ItemHologramManager implements Listener {
   private final Material disconnectedMaterial;
   private final Config terminalConfig;
   private final Config storageConfig;
+  private final DisplayMetadataService metadataService;
   private final Map<HoloPos, Kind> holograms = new ConcurrentHashMap<>();
   private final Map<HoloPos, ItemDisplay> displays = new ConcurrentHashMap<>();
   private final Map<HoloPos, Material> cache = new ConcurrentHashMap<>();
@@ -64,7 +65,8 @@ public class ItemHologramManager implements Listener {
       Material storageCarrier,
       Material terminalCarrier,
       Config terminalConfig,
-      Config storageConfig) {
+      Config storageConfig,
+      DisplayMetadataService metadataService) {
     this.plugin = plugin;
     this.keys = keys;
     this.wireLimit = wireLimit;
@@ -74,6 +76,7 @@ public class ItemHologramManager implements Listener {
     this.terminalCarrier = terminalCarrier;
     this.terminalConfig = terminalConfig;
     this.storageConfig = storageConfig;
+    this.metadataService = metadataService;
     this.disconnectedMaterial = resolveTestBlock();
   }
 
@@ -131,7 +134,7 @@ public class ItemHologramManager implements Listener {
         .values()
         .forEach(
             display -> {
-              if (display != null && !display.isDead()) display.remove();
+              removeManagedDisplay(display);
             });
     displays.clear();
     holograms.clear();
@@ -140,9 +143,15 @@ public class ItemHologramManager implements Listener {
 
   private void removeDisplay(HoloPos pos) {
     ItemDisplay display = displays.remove(pos);
-    if (display != null && !display.isDead()) {
-      display.remove();
+    removeManagedDisplay(display);
+  }
+
+  private void removeManagedDisplay(Display display) {
+    if (display == null || display.isDead()) {
+      return;
     }
+    metadataService.unregister(display);
+    display.remove();
   }
 
   private void scanLoadedHolograms() {
@@ -258,12 +267,9 @@ public class ItemHologramManager implements Listener {
       item.setBrightness(null);
     }
     item.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-    item.setViewRange(1.0f);
-    item.setDisplayWidth(0.0f);
-    item.setDisplayHeight(0.0f);
-    item.setTeleportDuration(0);
     item.addScoreboardTag(DisplayTags.HOLOGRAM_TAG);
     item.addScoreboardTag(DisplayTags.DISPLAY_TAG);
+    metadataService.normalize(item);
     Transformation t = item.getTransformation();
     t.getScale().set(new Vector3f((float) scale, (float) scale, (float) scale));
     t.getLeftRotation().identity();

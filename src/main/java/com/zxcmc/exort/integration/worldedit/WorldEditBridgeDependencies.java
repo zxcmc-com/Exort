@@ -21,7 +21,8 @@ public record WorldEditBridgeDependencies(
     Supplier<DisplayRefreshService> displayRefreshServiceSource,
     Supplier<BusService> busServiceSource,
     Supplier<ItemHologramManager> hologramManagerSource,
-    WorldEditBridgeMaterials materials) {
+    WorldEditBridgeMaterials materials,
+    WorldEditBulkConfig bulkConfig) {
   public WorldEditBridgeDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(database, "database");
@@ -32,6 +33,7 @@ public record WorldEditBridgeDependencies(
     Objects.requireNonNull(busServiceSource, "busServiceSource");
     Objects.requireNonNull(hologramManagerSource, "hologramManagerSource");
     Objects.requireNonNull(materials, "materials");
+    Objects.requireNonNull(bulkConfig, "bulkConfig");
   }
 
   public WorldEditDebugService debugService() {

@@ -57,6 +57,49 @@ protocolLib:
     # Also handle middle-clicks that target Exort ItemDisplay/TextDisplay visuals.
     entityPick: true
 
+# Performance controls for expensive Exort runtime paths.
+performance:
+  displayCulling:
+    # Dynamically lowers Exort display render ranges per player in dense scenes.
+    enabled: true
+    # AUTO | PROTOCOL_LIB | PAPER. AUTO prefers ProtocolLib metadata packets when available.
+    backend: AUTO
+    # How often nearby Exort display density is rechecked.
+    intervalTicks: 10
+    # Displays farther than this are ignored by Exort density management and left to vanilla entity tracking.
+    maxDistance: 64
+    # Displays within this range are always shown to avoid near-player pop-in.
+    forceVisibleDistance: 6
+    # Visibility/range packet changes are capped per tick to avoid moving render cost to MSPT.
+    maxVisibilityChangesPerTick: 600
+    adaptiveViewRange:
+      # Reduce display view ranges when many Exort displays are near a player.
+      enabled: true
+      entityThresholds: [320, 640, 1200]
+      recoverThresholds: [240, 520, 960]
+      denseIntervalsToStepDown: 3
+      stableIntervalsToStepUp: 60
+      stepDownCooldownTicks: 40
+      stepUpCooldownTicks: 200
+      roleRanges:
+        block: [1.0, 0.9, 0.8, 0.7]
+        wire: [0.5, 0.35, 0.25, 0.12]
+        monitorContent: [0.45, 0.3, 0.2, 0.1]
+        hologram: [0.35, 0.25, 0.15, 0.1]
+    clientCullingBypass:
+      # Manual opt-in for players with a client-side culling mod such as EntityCulling.
+      enabled: true
+      players: []
+  worldEditBulk:
+    # Budget Exort marker/display/bus/network post-processing after WorldEdit/FAWE operations.
+    enabled: true
+    # Operations at or above this queued marker count use the lower bulk marker budget.
+    bulkThresholdBlocks: 512
+    markerUpdatesPerTick: 1500
+    refreshChunksPerTick: 2
+    busScanChunksPerTick: 2
+    networkStartsPerTick: 32
+
 # Prevent client-side ghost block placement/sound when right-clicking Exort blocks while holding
 # placeable vanilla items. Uses small invisible armor stands per affected player, placed inside the
 # current and briefly predicted block cells where vanilla would try to place the held item.
@@ -270,6 +313,19 @@ resourceMode:
     # Random particle position spread from block center.
     spread: 0.31
   wire:
+    # AUTO uses DETAILED normally and switches dense wire zones to COMPACT; DETAILED and COMPACT force one mode.
+    renderMode: AUTO
+    autoRender:
+      # Count wire density in a square chunk window around each cable.
+      chunkRadius: 1
+      # Switch new/missing displays in dense zones to COMPACT at or above this wire count.
+      enterCompactWires: 48
+      # Recover dense zones back to DETAILED at or below this wire count.
+      exitCompactWires: 32
+      # Existing displays are converted only when no players are this close.
+      idlePlayerRadiusBlocks: 96
+      # Max idle wire display conversions per maintenance tick.
+      maintenanceBlocksPerTick: 16
     # Optional item_model for the wire item (inventory/hand). Example: center
     itemModel: wire/center
     # Model used for the wire center. Default matches the provided pack: wire/center

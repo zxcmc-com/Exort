@@ -4,6 +4,7 @@ import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
+import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
@@ -35,6 +36,7 @@ public record ExortBrigadierDependencies(
     CacheDebugService cacheDebugService,
     WorldEditDebugService worldEditDebugService,
     PickDebugService pickDebugService,
+    Supplier<DisplayCullingService> displayCullingService,
     LoadTestService loadTestService,
     ItemNameService itemNameService,
     Supplier<ResourcePackService> resourcePackService,
@@ -66,6 +68,7 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(cacheDebugService, "cacheDebugService");
     Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
     Objects.requireNonNull(pickDebugService, "pickDebugService");
+    Objects.requireNonNull(displayCullingService, "displayCullingService");
     Objects.requireNonNull(loadTestService, "loadTestService");
     Objects.requireNonNull(itemNameService, "itemNameService");
     Objects.requireNonNull(resourcePackService, "resourcePackService");

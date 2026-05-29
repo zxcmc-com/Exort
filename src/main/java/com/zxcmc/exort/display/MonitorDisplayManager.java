@@ -108,6 +108,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       double offsetX,
       double offsetY,
       double offsetZ,
+      DisplayMetadataService metadataService,
       String monitorName,
       int wireLimit,
       int wireHardCap,
@@ -130,6 +131,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         offsetX,
         offsetY,
         offsetZ,
+        metadataService,
         "monitor");
     this.keys = keys;
     this.storageManager = storageManager;
@@ -559,13 +561,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     item.setBillboard(Display.Billboard.FIXED);
     item.setBrightness(new Display.Brightness(15, 15));
     item.setItemDisplayTransform(transform);
-    item.setDisplayWidth(0.0f);
-    item.setDisplayHeight(0.0f);
-    item.setViewRange(1.0f);
-    item.setTeleportDuration(0);
     item.addScoreboardTag(DisplayTags.DISPLAY_TAG);
     item.addScoreboardTag(TAG_ITEM);
     item.addScoreboardTag(DisplayTags.MONITOR_BASE_TAG);
+    metadataService.normalize(item);
     Transformation t = item.getTransformation();
     t.getScale().set(new Vector3f((float) scale, (float) scale, (float) scale));
     t.getLeftRotation().identity();
@@ -593,11 +592,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     display.setSilent(true);
     display.setBillboard(Display.Billboard.FIXED);
     display.setBrightness(new Display.Brightness(15, 15));
-    display.setViewRange(1.0f);
-    display.setTeleportDuration(0);
     display.addScoreboardTag(DisplayTags.DISPLAY_TAG);
     display.addScoreboardTag(TAG_TEXT);
     display.addScoreboardTag(DisplayTags.MONITOR_BASE_TAG);
+    metadataService.normalize(display);
     display.setSeeThrough(false);
     display.setShadowed(true);
     display.setDefaultBackground(false);
@@ -633,7 +631,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     if (itemId != null) {
       var ent = Bukkit.getEntity(itemId);
       if (ent instanceof ItemDisplay display && !display.isDead()) {
-        display.remove();
+        removeManagedDisplay(display);
       }
       DisplayMarker.clear(plugin, "monitor_item", block);
     }
@@ -644,7 +642,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     if (textId != null) {
       var ent = Bukkit.getEntity(textId);
       if (ent instanceof TextDisplay display && !display.isDead()) {
-        display.remove();
+        removeManagedDisplay(display);
       }
       DisplayMarker.clear(plugin, "monitor_text", block);
     }

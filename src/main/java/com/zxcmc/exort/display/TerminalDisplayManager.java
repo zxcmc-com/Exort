@@ -43,6 +43,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
       double offsetX,
       double offsetY,
       double offsetZ,
+      DisplayMetadataService metadataService,
       String terminalName,
       String craftingTerminalName,
       StorageKeys keys,
@@ -60,6 +61,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
         offsetX,
         offsetY,
         offsetZ,
+        metadataService,
         "terminal");
     this.terminalName = terminalName == null ? "" : terminalName;
     this.craftingTerminalName = craftingTerminalName == null ? "" : craftingTerminalName;

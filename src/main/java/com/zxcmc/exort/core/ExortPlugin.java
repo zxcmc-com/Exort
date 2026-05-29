@@ -13,6 +13,7 @@ import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.DisplayBreakAnimationSender;
+import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.feedback.BossBarManager;
@@ -104,6 +105,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private ItemHologramManager hologramManager;
   private boolean dialogSupported;
   private MonitorDisplayManager monitorDisplayManager;
+  private DisplayCullingService displayCullingService;
   private BusService busService;
   private BusSessionManager busSessionManager;
   private CustomBlockBreaker customBlockBreaker;
@@ -270,6 +272,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   private void stopDisplayState() {
+    if (displayCullingService != null) {
+      displayCullingService.stop();
+      displayCullingService = null;
+    }
     if (hologramManager != null) {
       hologramManager.stop();
     }
@@ -403,6 +409,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   private void resetReloadableDisplayState() {
     stopBusService();
+    if (displayCullingService != null) {
+      displayCullingService.stop();
+      displayCullingService = null;
+    }
     if (hologramManager != null) {
       hologramManager.stop();
     }
@@ -477,6 +487,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     wireHardCap = services.wireHardCap();
     hologramManager = services.hologramManager();
     monitorDisplayManager = services.monitorDisplayManager();
+    displayCullingService = services.displayCullingService();
     busService = services.busService();
     busSessionManager = services.busSessionManager();
     customBlockBreaker = services.customBlockBreaker();
@@ -610,6 +621,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         cacheDebugService,
         worldEditDebugService,
         pickDebugService,
+        () -> displayCullingService,
         loadTestService,
         itemNameService,
         () -> resourcePackService,

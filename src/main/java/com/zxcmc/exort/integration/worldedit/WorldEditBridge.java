@@ -36,6 +36,7 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
@@ -48,7 +49,6 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageTier;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -191,6 +191,7 @@ public final class WorldEditBridge implements Listener {
       flushTask.cancel();
       flushTask = null;
     }
+    refreshScheduler.shutdown();
     clipboardPatcher.shutdown();
     markerHistory.clear();
     clipboardPatches.clear();
@@ -680,6 +681,7 @@ public final class WorldEditBridge implements Listener {
     if (update == null) return;
     operationTracker.record(update);
     updates.add(new PendingUpdate(update));
+    updateQueueDepthGauge();
     WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.incUpdatesQueued();
@@ -687,14 +689,22 @@ public final class WorldEditBridge implements Listener {
   }
 
   private void flushUpdates() {
-    if (updates.isEmpty()) return;
+    if (updates.isEmpty()) {
+      updateQueueDepthGauge();
+      return;
+    }
+    PerfStats.measure("worldedit.markerApply", this::flushUpdatesMeasured);
+  }
+
+  private void flushUpdatesMeasured() {
     operationTracker.purge(System.currentTimeMillis());
     Map<ChunkKey, ChunkUpdateBatch> batches = new HashMap<>();
     int processed = 0;
     tickCounter++;
     int polled = 0;
     int limit = updates.size();
-    while (processed < APPLY_PER_TICK) {
+    int applyLimit = markerUpdatesPerTick(limit);
+    while (processed < applyLimit) {
       PendingUpdate pending = updates.poll();
       if (pending == null) break;
       polled++;
@@ -708,9 +718,11 @@ public final class WorldEditBridge implements Listener {
       }
       if (polled >= limit) break;
     }
-    if (batches.isEmpty()) return;
+    if (batches.isEmpty()) {
+      updateQueueDepthGauge();
+      return;
+    }
 
-    NetworkGraphCache graphCache = deps.networkGraphCache();
     Map<Long, Set<String>> removedStorageIdsByOperation =
         operationTracker.removedStorageIdsByOperation(batches);
     Set<ChunkKey> changedChunks = new HashSet<>();
@@ -844,8 +856,22 @@ public final class WorldEditBridge implements Listener {
       refreshScheduler.refreshAffectedChunks(changedChunks, networkRefreshStarts, "immediate");
       refreshScheduler.scheduleDeferredRefresh(changedChunks, networkRefreshStarts);
     }
-    if (!changedChunks.isEmpty() && graphCache != null) {
-      graphCache.invalidateAll();
+    updateQueueDepthGauge();
+  }
+
+  private int markerUpdatesPerTick(int queued) {
+    WorldEditBulkConfig config = deps.bulkConfig();
+    if (config.enabled() && queued >= config.bulkThresholdBlocks()) {
+      return config.markerUpdatesPerTick();
+    }
+    return APPLY_PER_TICK;
+  }
+
+  private void updateQueueDepthGauge() {
+    if (PerfStats.isEnabled()) {
+      int markerDepth = updates.size();
+      PerfStats.setGauge("worldedit.markerQueueDepth", markerDepth);
+      PerfStats.setGauge("worldedit.queueDepth", markerDepth + refreshScheduler.queuedTaskCount());
     }
   }
 

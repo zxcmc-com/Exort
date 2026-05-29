@@ -27,6 +27,7 @@ import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.wire.WirePlacementLimitGuard;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,6 +58,7 @@ public class BlockListener implements Listener {
   private final StorageKeys keys;
   private final CustomItems customItems;
   private final Material wireMaterial;
+  private final WirePlacementLimitGuard wirePlacementLimitGuard;
   private final ItemHologramManager hologramManager;
   private final WireDisplayManager wireDisplayManager;
   private final Material storageCarrier;
@@ -80,6 +82,9 @@ public class BlockListener implements Listener {
     this.keys = dependencies.keys();
     this.customItems = dependencies.customItems();
     this.wireMaterial = dependencies.wireMaterial();
+    this.wirePlacementLimitGuard =
+        new WirePlacementLimitGuard(
+            plugin, wireMaterial, dependencies.wireHardCap(), dependencies.playerFeedback());
     this.hologramManager = dependencies.hologramManager();
     this.wireDisplayManager = dependencies.wireDisplayManager();
     this.storageCarrier = dependencies.storageCarrier();
@@ -262,6 +267,10 @@ public class BlockListener implements Listener {
       String type = itemPdc.get(keys.type(), PersistentDataType.STRING);
       if (!"wire".equalsIgnoreCase(type)) return;
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
+        event.setCancelled(true);
+        return;
+      }
+      if (!wirePlacementLimitGuard.canPlace(event.getPlayer(), block)) {
         event.setCancelled(true);
         return;
       }

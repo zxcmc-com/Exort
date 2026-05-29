@@ -9,6 +9,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
+import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.feedback.CommandFeedback;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.i18n.Lang;
@@ -129,12 +130,46 @@ final class DebugCommand {
                                         ctx, StringArgumentType.getString(ctx, ARG_VERBOSE_MODE)))))
             .then(Commands.literal("stop").executes(this::pickVerboseStop));
 
+    LiteralArgumentBuilder<CommandSourceStack> cullingVerbose =
+        Commands.literal("culling")
+            .then(
+                Commands.literal("start")
+                    .executes(ctx -> cullingVerboseStart(ctx, null))
+                    .then(
+                        Commands.argument(ARG_VERBOSE_MODE, StringArgumentType.word())
+                            .suggests(this::suggestVerboseModes)
+                            .executes(
+                                ctx ->
+                                    cullingVerboseStart(
+                                        ctx, StringArgumentType.getString(ctx, ARG_VERBOSE_MODE)))))
+            .then(Commands.literal("stop").executes(this::cullingVerboseStop));
+
     LiteralArgumentBuilder<CommandSourceStack> verbose =
-        Commands.literal("verbose").then(cacheVerbose).then(worldEditVerbose).then(pickVerbose);
+        Commands.literal("verbose")
+            .then(cacheVerbose)
+            .then(worldEditVerbose)
+            .then(pickVerbose)
+            .then(cullingVerbose);
 
     return Commands.literal("debug")
         .requires(source -> hasAdminPermission(sender(source)))
         .executes(this::usage)
+        .then(
+            Commands.literal("culling")
+                .then(
+                    Commands.literal("client")
+                        .then(
+                            Commands.argument(ARG_PLAYER, StringArgumentType.word())
+                                .suggests(this::suggestPlayers)
+                                .then(
+                                    Commands.literal("status")
+                                        .executes(ctx -> cullingClient(ctx, "status")))
+                                .then(
+                                    Commands.literal("enable")
+                                        .executes(ctx -> cullingClient(ctx, "enable")))
+                                .then(
+                                    Commands.literal("disable")
+                                        .executes(ctx -> cullingClient(ctx, "disable"))))))
         .then(
             Commands.literal("player")
                 .then(
@@ -237,8 +272,11 @@ final class DebugCommand {
                 "/exort debug storage <storageId|player> [write]", "message.usage_debug_storage"),
             usageLine("/exort debug cache status <storageId|player>", "message.usage_debug_cache"),
             usageLine(
-                "/exort debug verbose <cache|worldedit|pick> start|stop [mode]",
+                "/exort debug verbose <cache|worldedit|pick|culling> start|stop [mode]",
                 "message.usage_debug_verbose"),
+            usageLine(
+                "/exort debug culling client <player> status|enable|disable",
+                "message.usage_debug_culling_client"),
             usageLine(
                 "/exort debug benchmark start|stop [players] [seconds]",
                 "message.usage_debug_benchmark")));
@@ -334,6 +372,73 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     dependencies.pickDebugService().stop(sender);
     sendMessage(sender, lang().tr("message.debug_pick_stopped"));
+    return 1;
+  }
+
+  private int cullingVerboseStart(CommandContext<CommandSourceStack> context, String rawMode) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    DisplayCullingService service = dependencies.displayCullingService().get();
+    if (service == null) {
+      sendMessage(sender, lang().tr("message.debug_culling_unavailable"));
+      return 1;
+    }
+    var mode = DisplayCullingService.DebugMode.fromString(rawMode);
+    if (rawMode != null && mode == null) {
+      sendMessage(sender, lang().tr("message.debug_culling_mode_invalid", rawMode));
+      return 0;
+    }
+    service.startDebug(sender, mode);
+    String modeName =
+        (mode == null ? service.getDebugMode() : mode).name().toLowerCase(Locale.ROOT);
+    sendMessage(sender, lang().tr("message.debug_culling_started", modeName));
+    return 1;
+  }
+
+  private int cullingVerboseStop(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    DisplayCullingService service = dependencies.displayCullingService().get();
+    if (service == null) {
+      sendMessage(sender, lang().tr("message.debug_culling_unavailable"));
+      return 1;
+    }
+    service.stopDebug(sender);
+    sendMessage(sender, lang().tr("message.debug_culling_stopped"));
+    return 1;
+  }
+
+  private int cullingClient(CommandContext<CommandSourceStack> context, String action) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    DisplayCullingService service = dependencies.displayCullingService().get();
+    if (service == null) {
+      sendMessage(sender, lang().tr("message.debug_culling_unavailable"));
+      return 1;
+    }
+    String rawPlayer = StringArgumentType.getString(context, ARG_PLAYER);
+    OfflinePlayer target = resolveOfflinePlayer(rawPlayer);
+    if (target == null) {
+      sendMessage(sender, lang().tr("message.debug_culling_client_invalid", rawPlayer));
+      return 0;
+    }
+    String targetName =
+        target.getName() == null ? target.getUniqueId().toString() : target.getName();
+    DisplayCullingService.ClientCullingBypassStatus status =
+        switch (action) {
+          case "enable" -> service.setClientCullingBypass(target.getUniqueId(), true);
+          case "disable" -> service.setClientCullingBypass(target.getUniqueId(), false);
+          default -> service.clientCullingBypassStatus(target.getUniqueId());
+        };
+    sendMessage(
+        sender,
+        lang()
+            .tr(
+                "message.debug_culling_client_status",
+                targetName,
+                status.playerListed() ? "enabled" : "disabled",
+                status.active() ? "active" : "inactive",
+                status.configEnabled() ? "enabled" : "disabled"));
     return 1;
   }
 
@@ -559,6 +664,25 @@ final class DebugCommand {
             builder.getRemaining().toLowerCase(Locale.ROOT), options, new ArrayList<>());
     matches.forEach(builder::suggest);
     return builder.buildFuture();
+  }
+
+  private OfflinePlayer resolveOfflinePlayer(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    Player online = Bukkit.getPlayerExact(raw);
+    if (online != null) {
+      return online;
+    }
+    try {
+      return Bukkit.getOfflinePlayer(UUID.fromString(raw.trim()));
+    } catch (IllegalArgumentException ignored) {
+      OfflinePlayer offline = Bukkit.getOfflinePlayer(raw.trim());
+      if (offline.hasPlayedBefore() || offline.getName() != null) {
+        return offline;
+      }
+      return null;
+    }
   }
 
   private CompletableFuture<Suggestions> suggestVerboseModes(

@@ -399,6 +399,46 @@ public final class ProtocolLibEnhancements {
     }
   }
 
+  public DisplayCullingPackets tryCreateDisplayCullingPackets() {
+    try {
+      Class<?> serverPacketTypesClass =
+          loader.loadClass("com.comphenix.protocol.PacketType$Play$Server");
+      Class<?> protocolManagerClass = loader.loadClass("com.comphenix.protocol.ProtocolManager");
+      Class<?> packetContainerClass =
+          loader.loadClass("com.comphenix.protocol.events.PacketContainer");
+      Class<?> wrappedDataValueClass =
+          loader.loadClass("com.comphenix.protocol.wrappers.WrappedDataValue");
+      Class<?> serializerClass =
+          loader.loadClass("com.comphenix.protocol.wrappers.WrappedDataWatcher$Serializer");
+
+      Method createPacket = protocolManagerClass.getMethod("createPacket", packetTypeClass);
+      Method sendServerPacket =
+          protocolManagerClass.getMethod(
+              "sendServerPacket", Player.class, packetContainerClass, boolean.class);
+      Constructor<?> dataValueConstructor =
+          wrappedDataValueClass.getConstructor(int.class, serializerClass, Object.class);
+      DisplayCullingPackets packets =
+          new DisplayCullingPackets(
+              protocolManager,
+              createPacket,
+              sendServerPacket,
+              packetContainerClass,
+              dataValueConstructor,
+              serverPacketTypesClass.getField(ENTITY_METADATA).get(null),
+              createDataWatcherSerializer(loader, serializerClass, Float.class));
+      packets.validate();
+      return packets;
+    } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+      ExortLog.warn(
+          "[ProtocolLib] Display culling metadata backend unavailable; using Paper entity"
+              + " visibility fallback. Cause: "
+              + describeError(e)
+              + " "
+              + fallbackAdvice());
+      return null;
+    }
+  }
+
   private void setProbe(Feature feature, FeatureStatus status, String detail) {
     featureProbes.put(feature, new FeatureProbe(status, detail == null ? "" : detail));
   }
@@ -922,6 +962,117 @@ public final class ProtocolLibEnhancements {
       builder.getClass().getMethod("attributeKey", String.class).invoke(builder, key);
       builder.getClass().getMethod("baseValue", double.class).invoke(builder, guardScale);
       return builder.getClass().getMethod("build").invoke(builder);
+    }
+
+    private Object dataValue(int index, Object serializer, Object value)
+        throws ReflectiveOperationException {
+      return dataValueConstructor.newInstance(index, serializer, value);
+    }
+
+    private Object modifier(Object packet, String methodName) throws ReflectiveOperationException {
+      return packetContainerClass.getMethod(methodName).invoke(packet);
+    }
+
+    private void send(Player player, Object packet) throws ReflectiveOperationException {
+      sendServerPacket.invoke(protocolManager, player, packet, Boolean.FALSE);
+    }
+
+    private static void writeRequired(Object modifier, int index, Object value, String field)
+        throws ReflectiveOperationException {
+      if (!writeIfPresent(modifier, index, value)) {
+        throw new IllegalStateException(field + " field is unavailable.");
+      }
+    }
+
+    private static boolean writeIfPresent(Object modifier, int index, Object value)
+        throws ReflectiveOperationException {
+      if (modifierSize(modifier) <= index) {
+        return false;
+      }
+      modifier
+          .getClass()
+          .getMethod("write", int.class, Object.class)
+          .invoke(modifier, index, value);
+      return true;
+    }
+
+    private static int modifierSize(Object modifier) throws ReflectiveOperationException {
+      Object size = modifier.getClass().getMethod("size").invoke(modifier);
+      return ((Number) size).intValue();
+    }
+  }
+
+  public static final class DisplayCullingPackets {
+    private static final int DISPLAY_VIEW_RANGE_METADATA_INDEX = 17;
+
+    private final Object protocolManager;
+    private final Method createPacket;
+    private final Method sendServerPacket;
+    private final Class<?> packetContainerClass;
+    private final Constructor<?> dataValueConstructor;
+    private final Object entityMetadataPacketType;
+    private final Object floatSerializer;
+    private String lastFailure = "";
+
+    private DisplayCullingPackets(
+        Object protocolManager,
+        Method createPacket,
+        Method sendServerPacket,
+        Class<?> packetContainerClass,
+        Constructor<?> dataValueConstructor,
+        Object entityMetadataPacketType,
+        Object floatSerializer) {
+      this.protocolManager = protocolManager;
+      this.createPacket = createPacket;
+      this.sendServerPacket = sendServerPacket;
+      this.packetContainerClass = packetContainerClass;
+      this.dataValueConstructor = dataValueConstructor;
+      this.entityMetadataPacketType = entityMetadataPacketType;
+      this.floatSerializer = floatSerializer;
+    }
+
+    public boolean sendViewRange(Player player, int entityId, float viewRange) {
+      try {
+        send(player, createViewRangePacket(entityId, viewRange));
+        return true;
+      } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+        lastFailure = describeError(e);
+        return false;
+      }
+    }
+
+    public String lastFailure() {
+      return lastFailure;
+    }
+
+    private void validate() throws ReflectiveOperationException {
+      createViewRangePacket(1, 0.0f);
+      createViewRangePacket(1, 1.0f);
+    }
+
+    private Object createViewRangePacket(int entityId, float viewRange)
+        throws ReflectiveOperationException {
+      Object packet = createPacket(entityMetadataPacketType);
+      writeRequired(modifier(packet, "getIntegers"), 0, entityId, ENTITY_METADATA + ".id");
+      List<Object> values =
+          List.of(
+              dataValue(
+                  DISPLAY_VIEW_RANGE_METADATA_INDEX,
+                  floatSerializer,
+                  Float.valueOf(Math.max(0.0f, viewRange))));
+      writeRequired(
+          modifier(packet, "getDataValueCollectionModifier"),
+          0,
+          values,
+          ENTITY_METADATA + ".values");
+      return packet;
+    }
+
+    private Object createPacket(Object packetType) throws ReflectiveOperationException {
+      Object packet = createPacket.invoke(protocolManager, packetType);
+      Object generic = modifier(packet, "getModifier");
+      generic.getClass().getMethod("writeDefaults").invoke(generic);
+      return packet;
     }
 
     private Object dataValue(int index, Object serializer, Object value)

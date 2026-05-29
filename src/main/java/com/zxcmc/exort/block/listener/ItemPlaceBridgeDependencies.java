@@ -27,6 +27,7 @@ public record ItemPlaceBridgeDependencies(
     CustomItems customItems,
     StorageKeys keys,
     Material wireMaterial,
+    int wireHardCap,
     Material storageCarrier,
     Material terminalCarrier,
     Material monitorCarrier,
