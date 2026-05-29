@@ -147,7 +147,6 @@ public final class BusEngine implements Runnable {
         break;
       }
       long nextTick;
-      if (state == null) continue;
       if (state.viewers() > 0) {
         nextTick = tick + idleIntervalTicks;
         state.setNextTick(nextTick);

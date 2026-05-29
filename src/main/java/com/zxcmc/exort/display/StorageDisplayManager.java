@@ -27,6 +27,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
       double offsetX,
       double offsetY,
       double offsetZ,
+      DisplayMetadataService metadataService,
       String coreName) {
     super(
         plugin,
@@ -37,6 +38,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
         offsetX,
         offsetY,
         offsetZ,
+        metadataService,
         "storage");
     this.coreName = coreName == null || coreName.isBlank() ? "Storage Core" : coreName;
   }

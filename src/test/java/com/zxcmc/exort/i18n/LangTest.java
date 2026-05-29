@@ -66,7 +66,15 @@ class LangTest {
             "message.usage_debug_storage",
             "message.usage_debug_cache",
             "message.usage_debug_verbose",
-            "message.usage_debug_benchmark");
+            "message.usage_debug_culling_client",
+            "message.usage_debug_benchmark",
+            "message.debug_culling_unavailable",
+            "message.debug_culling_started",
+            "message.debug_culling_stopped",
+            "message.debug_culling_mode_invalid",
+            "message.debug_culling_client_invalid",
+            "message.debug_culling_client_status",
+            "message.wire.hard_cap");
 
     for (String key : requiredKeys) {
       assertTrue(en.containsKey(key), "missing English key: " + key);

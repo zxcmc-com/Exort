@@ -95,6 +95,15 @@ public final class ConfigUpdater {
       ExortLog.error("Failed to read default config for merging: " + e.getMessage());
     }
 
+    return mergeLinesWithDefaults(defaults, user, userLines, lines, existed);
+  }
+
+  static String mergeLinesWithDefaults(
+      YamlConfiguration defaults,
+      YamlConfiguration user,
+      List<String> userLines,
+      List<String> lines,
+      boolean existed) {
     List<String> rawTiersBody = existed ? extractSectionBody(userLines, "tiers") : null;
 
     StringBuilder out = new StringBuilder();
@@ -128,6 +137,14 @@ public final class ConfigUpdater {
         }
       }
       if (isSection) {
+        Object defaultValue = defaults.get(fullPath);
+        Object userValue = user.get(fullPath);
+        if (defaultValue instanceof List<?> || userValue instanceof List<?>) {
+          Object val = user.contains(fullPath) ? userValue : defaultValue;
+          renderValue(out, indent, keyPart, val);
+          i = skipDefaultSubtree(lines, i, indent);
+          continue;
+        }
         // Special handling for tiers: emit user section and skip defaults when user fully controls
         // it
         if ("tiers".equalsIgnoreCase(fullPath) && existed) {
@@ -144,34 +161,12 @@ public final class ConfigUpdater {
             }
           }
           // skip lines until we exit the tiers section in defaults
-          int baseIndent = indent;
-          i++;
-          while (i < lines.size()) {
-            String next = lines.get(i);
-            int nextIndent = countLeadingSpaces(next);
-            String ntrim = next.trim();
-            if (!ntrim.isEmpty() && !ntrim.startsWith("#") && nextIndent <= baseIndent) {
-              i--; // step back one so outer loop processes this line
-              break;
-            }
-            i++;
-          }
+          i = skipDefaultSubtree(lines, i, indent);
           continue;
         }
         if (fullPath.startsWith("tiers.") && existed && !user.contains(fullPath)) {
           // skip default tier subtree that user removed
-          int baseIndent = indent;
-          i++;
-          while (i < lines.size()) {
-            String next = lines.get(i);
-            int nextIndent = countLeadingSpaces(next);
-            String ntrim = next.trim();
-            if (!ntrim.isEmpty() && !ntrim.startsWith("#") && nextIndent <= baseIndent) {
-              i--; // step back for outer loop
-              break;
-            }
-            i++;
-          }
+          i = skipDefaultSubtree(lines, i, indent);
           continue;
         }
         pathStack.push(keyWithIndent(keyPart, indent));
@@ -181,12 +176,7 @@ public final class ConfigUpdater {
           continue; // skip default tier entries if user removed them
         }
         Object val = user.contains(fullPath) ? user.get(fullPath) : defaults.get(fullPath);
-        String rendered = scalarToString(val);
-        out.append(spaces(indent))
-            .append(keyPart)
-            .append(": ")
-            .append(rendered)
-            .append(System.lineSeparator());
+        renderValue(out, indent, keyPart, val);
       }
     }
 
@@ -216,13 +206,41 @@ public final class ConfigUpdater {
         out.append(spaces(indent)).append(key).append(":").append(System.lineSeparator());
         renderSection(out, cs, indent + 2);
       } else {
-        out.append(spaces(indent))
-            .append(key)
-            .append(": ")
-            .append(scalarToString(val))
-            .append(System.lineSeparator());
+        renderValue(out, indent, key, val);
       }
     }
+  }
+
+  static void renderValue(StringBuilder out, int indent, String key, Object val) {
+    if (val instanceof List<?> list) {
+      out.append(spaces(indent)).append(key).append(":").append(System.lineSeparator());
+      for (Object item : list) {
+        out.append(spaces(indent + 2))
+            .append("- ")
+            .append(scalarToString(item))
+            .append(System.lineSeparator());
+      }
+      return;
+    }
+    out.append(spaces(indent))
+        .append(key)
+        .append(": ")
+        .append(scalarToString(val))
+        .append(System.lineSeparator());
+  }
+
+  private static int skipDefaultSubtree(List<String> lines, int startIndex, int baseIndent) {
+    int i = startIndex + 1;
+    while (i < lines.size()) {
+      String next = lines.get(i);
+      int nextIndent = countLeadingSpaces(next);
+      String ntrim = next.trim();
+      if (!ntrim.isEmpty() && !ntrim.startsWith("#") && nextIndent <= baseIndent) {
+        return i - 1;
+      }
+      i++;
+    }
+    return lines.size() - 1;
   }
 
   private static int countLeadingSpaces(String line) {

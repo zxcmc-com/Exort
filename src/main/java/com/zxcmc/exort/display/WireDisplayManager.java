@@ -1,6 +1,7 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.items.ItemModelUtil;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
@@ -29,8 +30,8 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Wire rendering: - VANILLA: single ItemDisplay (legacy model selection) - RESOURCE: center +
- * per-face connection ItemDisplays
+ * Wire rendering: - VANILLA: single ItemDisplay - RESOURCE/COMPACT: one ItemDisplay per wire with a
+ * connection-mask model - RESOURCE/DETAILED: center + per-face connection ItemDisplays
  */
 public class WireDisplayManager {
   private static final BlockFace[] FACES =
@@ -56,13 +57,18 @@ public class WireDisplayManager {
   private final String displayNamespace;
   private final String displayCenter;
   private final String displayConnection;
-  private final boolean useConnectionModels;
+  private final boolean resourceMode;
+  private final WireRenderMode renderMode;
   private final Material displayBaseMaterial;
   private final double displayScale;
   private final double offsetX;
   private final double offsetY;
   private final double offsetZ;
   private final String entityName;
+  private final DisplayMetadataService metadataService;
+  private final WireBlockIndex wireBlockIndex;
+  private final WireRenderPolicy renderPolicy;
+  private int maintenanceCursor;
   private final Set<String> warnedItemModels = Collections.synchronizedSet(new HashSet<>());
   private final Set<String> warnedModelIds = Collections.synchronizedSet(new HashSet<>());
   private final Map<BlockFace, Quaternionf> connectionRotations = new EnumMap<>(BlockFace.class);
@@ -78,13 +84,17 @@ public class WireDisplayManager {
       String displayNamespace,
       String displayCenter,
       String displayConnection,
-      boolean useConnectionModels,
+      boolean resourceMode,
+      WireRenderMode renderMode,
       Material displayBaseMaterial,
       double displayScale,
       double offsetX,
       double offsetY,
       double offsetZ,
-      String entityName) {
+      String entityName,
+      DisplayMetadataService metadataService,
+      WireBlockIndex wireBlockIndex,
+      WireRenderPolicy renderPolicy) {
     this.plugin = plugin;
     this.enabled = enabled;
     this.wireCarrierMaterial = wireCarrierMaterial;
@@ -95,14 +105,18 @@ public class WireDisplayManager {
     this.displayNamespace = displayNamespace == null ? "" : displayNamespace.trim();
     this.displayCenter = displayCenter == null ? "" : displayCenter.trim();
     this.displayConnection = displayConnection == null ? "" : displayConnection.trim();
-    this.useConnectionModels = useConnectionModels;
+    this.resourceMode = resourceMode;
+    this.renderMode = renderMode == null ? WireRenderMode.AUTO : renderMode;
     this.displayBaseMaterial = displayBaseMaterial;
     this.displayScale = displayScale;
     this.offsetX = offsetX;
     this.offsetY = offsetY;
     this.offsetZ = offsetZ;
     this.entityName = entityName == null ? "" : entityName;
-    if (useConnectionModels) {
+    this.metadataService = metadataService;
+    this.wireBlockIndex = wireBlockIndex;
+    this.renderPolicy = renderPolicy;
+    if (resourceMode) {
       int baseMask = bit(BlockFace.NORTH);
       for (BlockFace face : FACES) {
         Rotation rot = findRotation(baseMask, bit(face));
@@ -173,15 +187,33 @@ public class WireDisplayManager {
   }
 
   private void updateWire(Block wire) {
-    if (useConnectionModels) {
+    if (wireBlockIndex != null) {
+      wireBlockIndex.register(wire);
+    }
+    WireRenderMode desiredMode = desiredModeFor(wire);
+    WireRenderMode existingMode = existingMode(wire);
+    if (renderPolicy != null
+        && renderPolicy.auto()
+        && existingMode != null
+        && existingMode != desiredMode
+        && renderPolicy.hasNearbyPlayers(wire)) {
+      desiredMode = existingMode;
+    }
+    if (desiredMode == WireRenderMode.DETAILED) {
       updateWireMulti(wire);
       return;
     }
+    updateWireCompact(wire);
+  }
+
+  private void updateWireCompact(Block wire) {
+    PerfStats.incrementCounter("wire.compactUpdates");
     WireRender render = renderFor(wire);
     if (render == null) {
       removeDisplay(wire);
       return;
     }
+    cleanupDetailedDisplays(wire, false);
 
     UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
     var existing = existingId != null ? Bukkit.getEntity(existingId) : null;
@@ -204,28 +236,22 @@ public class WireDisplayManager {
       applyModel(display, render.modelId());
       display.teleport(targetLoc(wire));
       applyOrientation(display, render.rotation());
+      metadataService.normalize(display);
     }
   }
 
   private void removeDisplay(Block wire) {
-    if (useConnectionModels) {
-      removeMultiDisplays(wire);
-      return;
+    if (wireBlockIndex != null) {
+      wireBlockIndex.unregister(wire);
     }
-    UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
-    if (existingId != null) {
-      var ent = Bukkit.getEntity(existingId);
-      if (ent instanceof ItemDisplay display && !display.isDead()) {
-        display.remove();
-      }
-      DisplayMarker.clear(plugin, "wire", wire);
-    }
+    removeCompactDisplay(wire);
+    removeMultiDisplays(wire);
     // Fallback: remove any stray displays in the block space with our tag
     var loc = targetLoc(wire);
     for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
       if (ent instanceof ItemDisplay display
           && display.getScoreboardTags().contains(DisplayTags.DISPLAY_TAG)) {
-        display.remove();
+        removeManagedDisplay(display);
       }
     }
   }
@@ -248,6 +274,7 @@ public class WireDisplayManager {
             loc,
             ItemDisplay.class,
             item -> {
+              item.addScoreboardTag(DisplayTags.WIRE_COMPACT_TAG);
               applySettings(item);
 
               Transformation t = item.getTransformation();
@@ -267,6 +294,7 @@ public class WireDisplayManager {
       removeMultiDisplays(wire);
       return;
     }
+    removeCompactDisplay(wire);
     int mask = connectionsMask(wire);
 
     ItemDisplay center = findTaggedDisplay(wire, DisplayTags.WIRE_CENTER_TAG);
@@ -277,6 +305,7 @@ public class WireDisplayManager {
       applyModel(center, displayCenter);
       center.teleport(targetLoc(wire));
       applyOrientation(center, MIRROR_Y_180);
+      metadataService.normalize(center);
     }
 
     for (BlockFace face : FACES) {
@@ -285,7 +314,7 @@ public class WireDisplayManager {
       ItemDisplay display = findTaggedDisplay(wire, tag);
       if (!connected) {
         if (display != null && !display.isDead()) {
-          display.remove();
+          removeManagedDisplay(display);
         }
         continue;
       }
@@ -296,12 +325,19 @@ public class WireDisplayManager {
         applyModel(display, displayConnection);
         display.teleport(targetLoc(wire));
         applyOrientation(display, connectionRotations.get(face));
+        metadataService.normalize(display);
       }
     }
   }
 
   private void removeMultiDisplays(Block wire) {
-    DisplayMarker.clear(plugin, "wire", wire);
+    cleanupDetailedDisplays(wire, true);
+  }
+
+  private void cleanupDetailedDisplays(Block wire, boolean clearMarker) {
+    if (clearMarker) {
+      DisplayMarker.clear(plugin, "wire", wire);
+    }
     var loc = targetLoc(wire);
     for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
       if (!(ent instanceof ItemDisplay display)) continue;
@@ -310,9 +346,37 @@ public class WireDisplayManager {
       if (!display.getLocation().getBlock().equals(wire)) continue;
       if (tags.contains(DisplayTags.WIRE_CENTER_TAG)
           || tags.stream().anyMatch(tag -> tag.startsWith(DisplayTags.WIRE_CONNECTION_PREFIX))) {
-        display.remove();
+        removeManagedDisplay(display);
       }
     }
+  }
+
+  private void removeCompactDisplay(Block wire) {
+    UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
+    if (existingId != null) {
+      var ent = Bukkit.getEntity(existingId);
+      if (ent instanceof ItemDisplay display && !display.isDead()) {
+        removeManagedDisplay(display);
+      }
+      DisplayMarker.clear(plugin, "wire", wire);
+    }
+    var loc = targetLoc(wire);
+    for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
+      if (!(ent instanceof ItemDisplay display)) continue;
+      var tags = display.getScoreboardTags();
+      if (!tags.contains(DisplayTags.DISPLAY_TAG)) continue;
+      if (!tags.contains(DisplayTags.WIRE_COMPACT_TAG)) continue;
+      if (!display.getLocation().getBlock().equals(wire)) continue;
+      removeManagedDisplay(display);
+    }
+  }
+
+  private void removeManagedDisplay(Display display) {
+    if (display == null || display.isDead()) {
+      return;
+    }
+    metadataService.unregister(display);
+    display.remove();
   }
 
   private ItemDisplay findTaggedDisplay(Block wire, String tag) {
@@ -337,10 +401,10 @@ public class WireDisplayManager {
             loc,
             ItemDisplay.class,
             item -> {
+              item.addScoreboardTag(tag);
               applySettings(item);
               applyModel(item, modelId);
               applyOrientation(item, rotation == null ? new Quaternionf() : rotation);
-              item.addScoreboardTag(tag);
             });
   }
 
@@ -351,11 +415,8 @@ public class WireDisplayManager {
     item.setInvisible(true);
     item.setBillboard(Display.Billboard.FIXED);
     item.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-    item.setDisplayWidth(0.0f);
-    item.setDisplayHeight(0.0f);
-    item.setViewRange(1.0f);
-    item.setTeleportDuration(0);
     item.addScoreboardTag(DisplayTags.DISPLAY_TAG);
+    metadataService.normalize(item);
     if (!entityName.isBlank()) {
       item.customName(Component.text(entityName));
     } else {
@@ -404,7 +465,7 @@ public class WireDisplayManager {
 
   private WireRender renderFor(Block wire) {
     int mask = connectionsMask(wire);
-    if (!useConnectionModels) {
+    if (!resourceMode) {
       if (displayCenter.isBlank()) return null;
       return new WireRender(displayCenter, new Quaternionf(MIRROR_Y_180));
     }
@@ -415,13 +476,109 @@ public class WireDisplayManager {
 
     ModelBase base = baseForMask(mask);
     if (base == null) {
-      return new WireRender(displayNamespace + ":" + suffix(mask), new Quaternionf(MIRROR_Y_180));
+      return new WireRender(compactModelId(suffix(mask)), new Quaternionf(MIRROR_Y_180));
     }
 
     Rotation rot = findRotation(base.baseMask(), mask);
     Quaternionf q = rot == null ? new Quaternionf() : new Quaternionf(rot.quat());
     q.mul(MIRROR_Y_180);
-    return new WireRender(displayNamespace + ":" + base.modelKey(), q);
+    return new WireRender(compactModelId(base.modelKey()), q);
+  }
+
+  private WireRenderMode desiredModeFor(Block wire) {
+    if (!resourceMode) {
+      return WireRenderMode.COMPACT;
+    }
+    if (renderPolicy != null) {
+      return renderPolicy.desiredMode(wire);
+    }
+    return renderMode == WireRenderMode.DETAILED ? WireRenderMode.DETAILED : WireRenderMode.COMPACT;
+  }
+
+  private WireRenderMode existingMode(Block wire) {
+    if (hasCompactDisplay(wire)) {
+      return WireRenderMode.COMPACT;
+    }
+    if (findTaggedDisplay(wire, DisplayTags.WIRE_CENTER_TAG) != null) {
+      return WireRenderMode.DETAILED;
+    }
+    for (BlockFace face : FACES) {
+      String tag = DisplayTags.WIRE_CONNECTION_PREFIX + face.name().toLowerCase();
+      if (findTaggedDisplay(wire, tag) != null) {
+        return WireRenderMode.DETAILED;
+      }
+    }
+    return null;
+  }
+
+  private boolean hasCompactDisplay(Block wire) {
+    UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
+    if (existingId != null) {
+      var existing = Bukkit.getEntity(existingId);
+      if (existing instanceof ItemDisplay display
+          && !display.isDead()
+          && display.getScoreboardTags().contains(DisplayTags.WIRE_COMPACT_TAG)) {
+        return true;
+      }
+    }
+    var loc = targetLoc(wire);
+    for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
+      if (!(ent instanceof ItemDisplay display)) continue;
+      var tags = display.getScoreboardTags();
+      if (!tags.contains(DisplayTags.DISPLAY_TAG)) continue;
+      if (!tags.contains(DisplayTags.WIRE_COMPACT_TAG)) continue;
+      if (!display.getLocation().getBlock().equals(wire)) continue;
+      return true;
+    }
+    return false;
+  }
+
+  public void runAutoMaintenance() {
+    if (!isEnabled() || renderPolicy == null || !renderPolicy.auto() || wireBlockIndex == null) {
+      return;
+    }
+    List<WireBlockIndex.BlockKey> blocks = wireBlockIndex.snapshotBlocks();
+    if (blocks.isEmpty()) {
+      PerfStats.setGauge("wire.autoRender.maintenanceQueue", 0L);
+      return;
+    }
+    int budget = renderPolicy.config().maintenanceBlocksPerTick();
+    int processed = 0;
+    while (processed < budget && !blocks.isEmpty()) {
+      if (maintenanceCursor >= blocks.size()) {
+        maintenanceCursor = 0;
+      }
+      WireBlockIndex.BlockKey key = blocks.get(maintenanceCursor++);
+      Block block = wireBlockIndex.loadedBlock(key);
+      if (block == null || !isWire(block)) {
+        wireBlockIndex.unregister(key);
+        processed++;
+        continue;
+      }
+      WireRenderMode desired = desiredModeFor(block);
+      WireRenderMode existing = existingMode(block);
+      if (existing != null && existing != desired && !renderPolicy.hasNearbyPlayers(block)) {
+        if (desired == WireRenderMode.DETAILED) {
+          updateWireMulti(block);
+        } else {
+          updateWireCompact(block);
+        }
+        PerfStats.incrementCounter("wire.autoRender.maintenanceConverted");
+      }
+      processed++;
+    }
+    PerfStats.setGauge("wire.autoRender.maintenanceQueue", blocks.size());
+  }
+
+  private String compactModelId(String key) {
+    String normalized = key == null ? "" : key.trim();
+    if (normalized.isBlank()) {
+      return "";
+    }
+    if (normalized.contains(":")) {
+      return normalized;
+    }
+    return displayNamespace + ":wire/" + normalized;
   }
 
   private int connectionsMask(Block wire) {
@@ -575,6 +732,19 @@ public class WireDisplayManager {
       case 6 -> new ModelBase("udnsew", ALL_MASK);
       default -> null;
     };
+  }
+
+  static String compactModelKeyForMask(int mask) {
+    ModelBase base = baseForMask(mask);
+    return base == null ? suffix(mask) : base.modelKey();
+  }
+
+  static boolean hasCompactRotationForMask(int mask) {
+    if (mask == 0) {
+      return true;
+    }
+    ModelBase base = baseForMask(mask);
+    return base != null && findRotation(base.baseMask(), mask) != null;
   }
 
   private static Rotation findRotation(int baseMask, int targetMask) {

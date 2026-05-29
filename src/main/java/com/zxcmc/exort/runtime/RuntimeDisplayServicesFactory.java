@@ -1,12 +1,20 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.display.BusDisplayManager;
+import com.zxcmc.exort.display.DisplayCullingConfig;
+import com.zxcmc.exort.display.DisplayCullingService;
+import com.zxcmc.exort.display.DisplayEntityIndex;
+import com.zxcmc.exort.display.DisplayMetadataService;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.display.StorageDisplayManager;
 import com.zxcmc.exort.display.TerminalDisplayManager;
+import com.zxcmc.exort.display.WireAutoRenderConfig;
+import com.zxcmc.exort.display.WireBlockIndex;
 import com.zxcmc.exort.display.WireDisplayManager;
+import com.zxcmc.exort.display.WireRenderMode;
+import com.zxcmc.exort.display.WireRenderPolicy;
 import com.zxcmc.exort.sanity.ChunkSanityService;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;
@@ -23,6 +31,16 @@ public final class RuntimeDisplayServicesFactory {
     RuntimeDisplayModelConfig displayModels =
         RuntimeDisplayModelConfig.fromConfig(
             deps.config(), deps.resourceMode(), itemModels.displayNamespace());
+    DisplayCullingConfig displayCullingConfig = DisplayCullingConfig.fromConfig(deps.config());
+    DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
+    DisplayMetadataService metadataService =
+        new DisplayMetadataService(displayEntityIndex, displayCullingConfig);
+    WireBlockIndex wireBlockIndex = new WireBlockIndex();
+    WireRenderMode wireRenderMode =
+        WireRenderMode.fromString(deps.config().getString("resourceMode.wire.renderMode"));
+    WireRenderPolicy wireRenderPolicy =
+        new WireRenderPolicy(
+            wireRenderMode, WireAutoRenderConfig.fromConfig(deps.config()), wireBlockIndex);
 
     ItemHologramManager hologramManager =
         new ItemHologramManager(
@@ -34,27 +52,44 @@ public final class RuntimeDisplayServicesFactory {
             materials.storageCarrier(),
             materials.terminalCarrier(),
             deps.hologramConfig().terminal(),
-            deps.hologramConfig().storage());
+            deps.hologramConfig().storage(),
+            metadataService);
     hologramManager.start();
     Bukkit.getPluginManager().registerEvents(hologramManager, deps.plugin());
 
-    WireDisplayManager wireDisplayManager = createWireDisplayManager(deps, displayModels);
+    WireDisplayManager wireDisplayManager =
+        createWireDisplayManager(
+            deps, displayModels, metadataService, wireBlockIndex, wireRenderPolicy, wireRenderMode);
     if (wireDisplayManager.isEnabled()) {
       Bukkit.getScheduler().runTask(deps.plugin(), wireDisplayManager::scanLoadedChunks);
     }
 
-    StorageDisplayManager storageDisplayManager = createStorageDisplayManager(deps, displayModels);
+    StorageDisplayManager storageDisplayManager =
+        createStorageDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), storageDisplayManager::scanLoadedChunks);
 
     TerminalDisplayManager terminalDisplayManager =
-        createTerminalDisplayManager(deps, displayModels);
+        createTerminalDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), terminalDisplayManager::scanLoadedChunks);
 
-    MonitorDisplayManager monitorDisplayManager = createMonitorDisplayManager(deps, displayModels);
+    MonitorDisplayManager monitorDisplayManager =
+        createMonitorDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), monitorDisplayManager::start);
 
-    BusDisplayManager busDisplayManager = createBusDisplayManager(deps, displayModels);
+    BusDisplayManager busDisplayManager =
+        createBusDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), busDisplayManager::scanLoadedChunks);
+    Bukkit.getScheduler().runTask(deps.plugin(), metadataService::rebuildLoadedDisplays);
+
+    DisplayCullingService displayCullingService =
+        new DisplayCullingService(
+            deps.plugin(),
+            displayCullingConfig,
+            deps.protocolLibEnhancements(),
+            displayEntityIndex,
+            metadataService,
+            wireDisplayManager::runAutoMaintenance);
+    displayCullingService.start();
 
     DisplayRefreshService displayRefreshService =
         new DisplayRefreshService(
@@ -79,11 +114,17 @@ public final class RuntimeDisplayServicesFactory {
         terminalDisplayManager,
         monitorDisplayManager,
         busDisplayManager,
+        displayCullingService,
         displayRefreshService);
   }
 
   private static WireDisplayManager createWireDisplayManager(
-      RuntimeDisplayServicesDependencies deps, RuntimeDisplayModelConfig displayModels) {
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService,
+      WireBlockIndex wireBlockIndex,
+      WireRenderPolicy wireRenderPolicy,
+      WireRenderMode wireRenderMode) {
     RuntimeDisplayConfig wireDisplay =
         RuntimeDisplayConfig.fromConfig(
             deps.config(), deps.resourceMode(), "resourceMode.wire", deps.materialResolver());
@@ -100,16 +141,22 @@ public final class RuntimeDisplayServicesFactory {
         displayModels.wireCenter(),
         displayModels.wireConnection(),
         deps.resourceMode(),
+        wireRenderMode,
         wireDisplay.displayBaseMaterial(),
         wireDisplay.displayScale(),
         wireDisplay.offsetX(),
         wireDisplay.offsetY(),
         wireDisplay.offsetZ(),
-        deps.lang().tr("item.wire"));
+        deps.lang().tr("item.wire"),
+        metadataService,
+        wireBlockIndex,
+        wireRenderPolicy);
   }
 
   private static StorageDisplayManager createStorageDisplayManager(
-      RuntimeDisplayServicesDependencies deps, RuntimeDisplayModelConfig displayModels) {
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
     RuntimeDisplayConfig storageDisplay =
         RuntimeDisplayConfig.fromConfig(
             deps.config(), deps.resourceMode(), "resourceMode.storage", deps.materialResolver());
@@ -122,11 +169,14 @@ public final class RuntimeDisplayServicesFactory {
         storageDisplay.offsetX(),
         storageDisplay.offsetY(),
         storageDisplay.offsetZ(),
+        metadataService,
         deps.lang().tr("item.storage_core"));
   }
 
   private static TerminalDisplayManager createTerminalDisplayManager(
-      RuntimeDisplayServicesDependencies deps, RuntimeDisplayModelConfig displayModels) {
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
     RuntimeDisplayConfig terminalDisplay =
         RuntimeDisplayConfig.fromConfig(
             deps.config(), deps.resourceMode(), "resourceMode.terminal", deps.materialResolver());
@@ -143,6 +193,7 @@ public final class RuntimeDisplayServicesFactory {
         terminalDisplay.offsetX(),
         terminalDisplay.offsetY(),
         terminalDisplay.offsetZ(),
+        metadataService,
         deps.lang().tr("item.terminal"),
         deps.lang().tr("item.crafting_terminal"),
         deps.keys(),
@@ -154,7 +205,9 @@ public final class RuntimeDisplayServicesFactory {
   }
 
   private static MonitorDisplayManager createMonitorDisplayManager(
-      RuntimeDisplayServicesDependencies deps, RuntimeDisplayModelConfig displayModels) {
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
     RuntimeDisplayConfig monitorDisplay =
         RuntimeDisplayConfig.fromConfig(
             deps.config(), deps.resourceMode(), "resourceMode.monitor", deps.materialResolver());
@@ -173,6 +226,7 @@ public final class RuntimeDisplayServicesFactory {
         monitorDisplay.offsetX(),
         monitorDisplay.offsetY(),
         monitorDisplay.offsetZ(),
+        metadataService,
         deps.lang().tr("item.monitor"),
         deps.wireLimit(),
         deps.wireHardCap(),
@@ -189,7 +243,9 @@ public final class RuntimeDisplayServicesFactory {
   }
 
   private static BusDisplayManager createBusDisplayManager(
-      RuntimeDisplayServicesDependencies deps, RuntimeDisplayModelConfig displayModels) {
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
     RuntimeDisplayConfig busDisplay =
         RuntimeDisplayConfig.fromConfig(
             deps.config(), deps.resourceMode(), "resourceMode.bus", deps.materialResolver());
@@ -203,6 +259,7 @@ public final class RuntimeDisplayServicesFactory {
         busDisplay.offsetX(),
         busDisplay.offsetY(),
         busDisplay.offsetZ(),
+        metadataService,
         deps.lang().tr("item.import_bus"),
         deps.lang().tr("item.export_bus"));
   }

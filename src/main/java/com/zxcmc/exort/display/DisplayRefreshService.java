@@ -323,6 +323,7 @@ public final class DisplayRefreshService {
         wireDisplayManager.updateWireAndNeighbors(wire);
       }
     }
+    PerfStats.addCounter("wire.networkRefreshVisited", visited.size());
     for (Block terminal : terminals) {
       refreshTerminal(terminal);
     }

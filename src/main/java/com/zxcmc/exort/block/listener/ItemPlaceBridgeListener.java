@@ -26,6 +26,7 @@ import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.platform.BlockInteractUtil;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.wire.WirePlacementLimitGuard;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +64,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final CustomItems customItems;
   private final StorageKeys keys;
   private final Material wireMaterial;
+  private final WirePlacementLimitGuard wirePlacementLimitGuard;
   private final Material storageCarrier;
   private final Material terminalCarrier;
   private final Material monitorCarrier;
@@ -86,6 +88,9 @@ public class ItemPlaceBridgeListener implements Listener {
     this.customItems = dependencies.customItems();
     this.keys = dependencies.keys();
     this.wireMaterial = dependencies.wireMaterial();
+    this.wirePlacementLimitGuard =
+        new WirePlacementLimitGuard(
+            plugin, wireMaterial, dependencies.wireHardCap(), dependencies.playerFeedback());
     this.storageCarrier = dependencies.storageCarrier();
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
@@ -147,6 +152,7 @@ public class ItemPlaceBridgeListener implements Listener {
     if (isWire(stack)) {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), wireMaterial)) return;
+      if (!wirePlacementLimitGuard.canPlace(event.getPlayer(), target)) return;
       placeWire(event, target);
       consume(event);
       playPlaceSound(target, BreakType.WIRE);

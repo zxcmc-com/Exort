@@ -46,6 +46,8 @@ public final class NetworkGraphCache {
 
   private record ChunkKey(UUID world, int x, int z) {}
 
+  public record ChunkPosition(UUID worldId, int chunkX, int chunkZ) {}
+
   private record CacheEntry(
       TerminalLinkFinder.StorageSearchResult result,
       Set<BlockKey> touchedBlocks,
@@ -88,9 +90,32 @@ public final class NetworkGraphCache {
     if (chunk == null || chunk.getWorld() == null) {
       return;
     }
+    invalidateChunks(
+        java.util.List.of(
+            new ChunkPosition(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ())));
+  }
+
+  public void invalidateChunks(Collection<ChunkPosition> chunks) {
+    if (chunks == null || chunks.isEmpty()) {
+      return;
+    }
+    Set<ChunkKey> changedChunks = new HashSet<>();
+    for (ChunkPosition chunk : chunks) {
+      if (chunk == null || chunk.worldId() == null) {
+        continue;
+      }
+      changedChunks.add(new ChunkKey(chunk.worldId(), chunk.chunkX(), chunk.chunkZ()));
+    }
+    if (changedChunks.isEmpty()) {
+      return;
+    }
     version.incrementAndGet();
-    ChunkKey changedChunk = new ChunkKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
-    cache.entrySet().removeIf(entry -> entry.getValue().touchedChunks().contains(changedChunk));
+    int before = cache.size();
+    cache
+        .entrySet()
+        .removeIf(entry -> !Collections.disjoint(entry.getValue().touchedChunks(), changedChunks));
+    PerfStats.addCounter("network.invalidateChunks", changedChunks.size());
+    PerfStats.addCounter("network.invalidateEntries", Math.max(0, before - cache.size()));
   }
 
   public long currentVersion() {

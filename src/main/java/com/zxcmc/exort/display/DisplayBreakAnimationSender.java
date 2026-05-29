@@ -121,10 +121,8 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
               item.addScoreboardTag(DisplayTags.BREAK_OVERLAY_TAG);
               item.setBillboard(Display.Billboard.FIXED);
               item.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-              item.setDisplayWidth(0.0f);
-              item.setDisplayHeight(0.0f);
-              item.setViewRange(1.0f);
-              item.setTeleportDuration(0);
+              DisplayMetadataNormalizer.normalize(
+                  item, new DisplayMetadataNormalizer.DisplayDimensions(1.0f, 1.0f));
               item.customName(null);
               item.setCustomNameVisible(false);
             });

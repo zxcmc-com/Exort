@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
@@ -25,6 +26,7 @@ public record RuntimeDisplayServicesDependencies(
     int wireLimit,
     int wireHardCap,
     RuntimeDisplayConfig.MaterialResolver materialResolver,
+    ProtocolLibEnhancements protocolLibEnhancements,
     Supplier<WorldEditDebugService> worldEditDebugService,
     Supplier<BusService> busService,
     Runnable invalidateNetwork) {

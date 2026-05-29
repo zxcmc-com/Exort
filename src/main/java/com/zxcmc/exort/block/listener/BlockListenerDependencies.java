@@ -27,6 +27,7 @@ public record BlockListenerDependencies(
     StorageKeys keys,
     CustomItems customItems,
     Material wireMaterial,
+    int wireHardCap,
     ItemHologramManager hologramManager,
     Supplier<ItemHologramManager> hologramManagerSource,
     WireDisplayManager wireDisplayManager,

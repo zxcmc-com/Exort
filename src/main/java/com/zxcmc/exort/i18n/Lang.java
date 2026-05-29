@@ -50,6 +50,7 @@ public class Lang {
     put(defaultsEn, "message.debug_player_last", "{0} last used: {1} ({2}) at {3} {4} {5} {6}");
     put(defaultsEn, "message.debug_player_click", "Click to open /exort debug storage {0}");
     put(defaultsEn, "message.debug_storage_invalid", "Invalid storage UUID or player name.");
+    put(defaultsEn, "message.debug_culling_unavailable", "Display culling service is unavailable.");
     put(defaultsEn, "message.debug_location_unknown", "Storage location for {0} is unknown.");
     put(defaultsEn, "message.debug_storage_missing", "Storage tier not found for {0}.");
     put(defaultsEn, "message.debug_storage_opened", "Opened storage {0} in {1} mode.");
@@ -60,6 +61,7 @@ public class Lang {
     put(defaultsEn, "message.usage_debug_storage", "open storage by id or player's last storage");
     put(defaultsEn, "message.usage_debug_cache", "inspect storage cache and loaded network links");
     put(defaultsEn, "message.usage_debug_verbose", "toggle compact/normal/full diagnostic logs");
+    put(defaultsEn, "message.usage_debug_culling_client", "manage client-side culling bypass");
     put(defaultsEn, "message.usage_debug_benchmark", "start or stop the load benchmark");
     put(defaultsEn, "message.usage_give_header", "Give Exort items:");
     put(defaultsEn, "message.usage_give_storage", "give a storage item by tier");
@@ -162,6 +164,23 @@ public class Lang {
         defaultsEn,
         "message.debug_pick_mode_invalid",
         "Invalid pick verbose mode: {0}. Use compact/normal/full.");
+    put(
+        defaultsEn,
+        "message.debug_culling_started",
+        "Display culling verbose logging enabled (mode: {0}).");
+    put(defaultsEn, "message.debug_culling_stopped", "Display culling verbose logging disabled.");
+    put(
+        defaultsEn,
+        "message.debug_culling_mode_invalid",
+        "Invalid display culling verbose mode: {0}. Use compact/normal/full.");
+    put(
+        defaultsEn,
+        "message.debug_culling_client_invalid",
+        "Unknown player for culling client bypass: {0}.");
+    put(
+        defaultsEn,
+        "message.debug_culling_client_status",
+        "Client culling bypass for {0}: listed={1}, effective={2}, config={3}.");
     put(defaultsEn, "message.debug_cache_status_header", "Cache status for {0}:");
     put(defaultsEn, "message.debug_cache_status_cache_unloaded", "Cache: not loaded.");
     put(
@@ -364,6 +383,7 @@ public class Lang {
     put(defaultsEn, "wire.status", "Wire {0}/{1}");
     put(defaultsEn, "wire.too_long", "Wire is too long! {0}/{1}");
     put(defaultsEn, "wire.storage_connected", "Storage connected");
+    put(defaultsEn, "message.wire.hard_cap", "Wire chain is too large: {0}/{1}.");
     put(defaultsEn, "message.bus.no_storage", "No storage connected to this bus.");
     put(
         defaultsEn,
@@ -433,6 +453,7 @@ public class Lang {
         "message.debug_player_click",
         "Кликните, чтобы открыть /exort debug storage {0}");
     put(defaultsRu, "message.debug_storage_invalid", "Неверный UUID или ник игрока.");
+    put(defaultsRu, "message.debug_culling_unavailable", "Сервис display culling недоступен.");
     put(
         defaultsRu,
         "message.debug_location_unknown",
@@ -449,6 +470,7 @@ public class Lang {
     put(defaultsRu, "message.usage_debug_storage", "открыть хранилище по id или последнему игрока");
     put(defaultsRu, "message.usage_debug_cache", "проверить кэш хранилища и загруженные связи");
     put(defaultsRu, "message.usage_debug_verbose", "включить или выключить диагностический лог");
+    put(defaultsRu, "message.usage_debug_culling_client", "управлять client-side culling bypass");
     put(defaultsRu, "message.usage_debug_benchmark", "запустить или остановить тест нагрузки");
     put(defaultsRu, "message.usage_give_header", "Выдача предметов Exort:");
     put(defaultsRu, "message.usage_give_storage", "выдать хранилище по тиру");
@@ -556,6 +578,23 @@ public class Lang {
         defaultsRu,
         "message.debug_pick_mode_invalid",
         "Неверный режим лога pick: {0}. Используйте compact/normal/full.");
+    put(
+        defaultsRu,
+        "message.debug_culling_started",
+        "Подробный лог display culling включен (режим: {0}).");
+    put(defaultsRu, "message.debug_culling_stopped", "Подробный лог display culling выключен.");
+    put(
+        defaultsRu,
+        "message.debug_culling_mode_invalid",
+        "Неверный режим лога display culling: {0}. Используйте compact/normal/full.");
+    put(
+        defaultsRu,
+        "message.debug_culling_client_invalid",
+        "Неизвестный игрок для client culling bypass: {0}.");
+    put(
+        defaultsRu,
+        "message.debug_culling_client_status",
+        "Client culling bypass для {0}: список={1}, действует={2}, конфиг={3}.");
     put(defaultsRu, "message.debug_cache_status_header", "Статус кэша для {0}:");
     put(defaultsRu, "message.debug_cache_status_cache_unloaded", "Кэш: не загружен.");
     put(
@@ -771,6 +810,7 @@ public class Lang {
     put(defaultsRu, "wire.status", "Кабель {0}/{1}");
     put(defaultsRu, "wire.too_long", "Кабель слишком длинный! {0}/{1}");
     put(defaultsRu, "wire.storage_connected", "Хранилище подключено");
+    put(defaultsRu, "message.wire.hard_cap", "Цепь кабеля слишком большая: {0}/{1}.");
     put(defaultsRu, "message.bus.no_storage", "Эта шина не подключена к хранилищу.");
     put(
         defaultsRu,

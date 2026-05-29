@@ -28,6 +28,7 @@ public abstract class BaseCarrierDisplayManager {
   protected final double offsetX;
   protected final double offsetY;
   protected final double offsetZ;
+  protected final DisplayMetadataService metadataService;
   private final String markerType;
 
   protected BaseCarrierDisplayManager(
@@ -39,6 +40,7 @@ public abstract class BaseCarrierDisplayManager {
       double offsetX,
       double offsetY,
       double offsetZ,
+      DisplayMetadataService metadataService,
       String markerType) {
     this.plugin = plugin;
     this.carrierMaterial = carrierMaterial;
@@ -48,6 +50,7 @@ public abstract class BaseCarrierDisplayManager {
     this.offsetX = offsetX;
     this.offsetY = offsetY;
     this.offsetZ = offsetZ;
+    this.metadataService = metadataService;
     this.markerType = markerType;
   }
 
@@ -101,7 +104,7 @@ public abstract class BaseCarrierDisplayManager {
     UUID existingId = DisplayMarker.get(plugin, markerType, block).orElse(null);
     if (existingId != null) {
       var ent = Bukkit.getEntity(existingId);
-      if (ent instanceof ItemDisplay d && !d.isDead()) d.remove();
+      if (ent instanceof ItemDisplay d && !d.isDead()) removeManagedDisplay(d);
     }
     DisplayMarker.clear(plugin, markerType, block);
     cleanupNearby(block);
@@ -122,10 +125,7 @@ public abstract class BaseCarrierDisplayManager {
               item.addScoreboardTag(markerType);
               item.setBillboard(Display.Billboard.FIXED);
               item.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-              item.setDisplayWidth(0.0f);
-              item.setDisplayHeight(0.0f);
-              item.setViewRange(1.0f);
-              item.setTeleportDuration(0);
+              metadataService.normalize(item);
               apply(item, block);
             });
   }
@@ -139,6 +139,7 @@ public abstract class BaseCarrierDisplayManager {
       stack.setItemMeta(meta);
     }
     display.setItemStack(stack);
+    metadataService.normalize(display);
     applyTransform(display, block);
   }
 
@@ -163,9 +164,17 @@ public abstract class BaseCarrierDisplayManager {
     for (var ent : block.getWorld().getNearbyEntities(loc, radius, radius, radius)) {
       if (ent instanceof ItemDisplay display
           && display.getScoreboardTags().contains(DisplayTags.DISPLAY_TAG)) {
-        display.remove();
+        removeManagedDisplay(display);
       }
     }
+  }
+
+  protected void removeManagedDisplay(Display display) {
+    if (display == null || display.isDead()) {
+      return;
+    }
+    metadataService.unregister(display);
+    display.remove();
   }
 
   protected abstract boolean isValidBlock(Block block);

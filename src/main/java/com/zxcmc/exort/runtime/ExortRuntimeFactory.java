@@ -10,6 +10,7 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeDependencies;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeMaterials;
+import com.zxcmc.exort.integration.worldedit.WorldEditBulkConfig;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.integration.worldedit.WorldEditRuntimeBootstrap;
 import com.zxcmc.exort.items.CustomItems;
@@ -87,6 +88,7 @@ public final class ExortRuntimeFactory {
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
                 RuntimeMaterialResolver::resolve,
+                protocolLibEnhancements,
                 deps.worldEditDebugService(),
                 () -> state.busService,
                 () -> {
@@ -203,7 +205,8 @@ public final class ExortRuntimeFactory {
                 materials.storageCarrier(),
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
-                materials.busCarrier()));
+                materials.busCarrier()),
+            WorldEditBulkConfig.fromConfig(deps.config()));
     WorldEditIntegration worldEditIntegration =
         WorldEditRuntimeBootstrap.register(
             worldEditDependencies, deps.tryRegisterWorldEdit(), deps.worldEditIntegrationSink());
@@ -226,6 +229,7 @@ public final class ExortRuntimeFactory {
         displayServices.terminalDisplayManager(),
         displayServices.monitorDisplayManager(),
         displayServices.busDisplayManager(),
+        displayServices.displayCullingService(),
         displayServices.displayRefreshService(),
         busServices.busService(),
         busServices.busSessionManager(),

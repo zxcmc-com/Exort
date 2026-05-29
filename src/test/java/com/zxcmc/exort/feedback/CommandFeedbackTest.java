@@ -46,10 +46,10 @@ class CommandFeedbackTest {
   void commandSuggestionDropsChoicesAndOptionalArguments() {
     Component command =
         CommandFeedback.command(
-            "/exort debug verbose <cache|worldedit|pick> start|stop [mode]", "Click");
+            "/exort debug verbose <cache|worldedit|pick|culling> start|stop [mode]", "Click");
 
     assertEquals(
-        "/exort debug verbose <cache | worldedit | pick> start | stop [mode]",
+        "/exort debug verbose <cache | worldedit | pick | culling> start | stop [mode]",
         PLAIN.serialize(command));
     ClickEvent click = firstClickEvent(command);
     assertNotNull(click);
