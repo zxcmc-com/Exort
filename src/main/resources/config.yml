@@ -87,9 +87,28 @@ performance:
         monitorContent: [0.45, 0.3, 0.2, 0.1]
         hologram: [0.35, 0.25, 0.15, 0.1]
     clientCullingBypass:
-      # Manual opt-in for players with a client-side culling mod such as EntityCulling.
+      # Enables per-player bypass for clients with a client-side culling mod such as EntityCulling.
+      # Manual and detected player state is stored in the plugin database.
       enabled: true
-      players: []
+      autoDetect:
+        translationProbe:
+          # Attempts to detect EntityCulling by checking whether the client translates
+          # EntityCulling language keys. This may briefly show a virtual sign
+          # 5 blocks behind and 5 blocks below the player.
+          # The probe waits while non-player containers such as chests or anvils are open.
+          enabled: true
+          # Wait for a client brand before probing and skip only explicit vanilla clients.
+          # Non-vanilla brands outside this hint list are still probed.
+          requireModdedBrand: true
+          brands: [fabric, quilt, forge, neoforge]
+          translationKeys:
+            - text.entityculling.title
+            - key.entityculling.toggle
+          joinDelayTicks: 20
+          retryDelayTicks: 20
+          maxAttempts: 10
+          openDelayTicks: 2
+          timeoutTicks: 20
   worldEditBulk:
     # Budget Exort marker/display/bus/network post-processing after WorldEdit/FAWE operations.
     enabled: true

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,17 @@ class DisplayCullingConfigTest {
     assertEquals(0.1, config.adaptiveViewRange().rangeMultiplier(DisplayRole.MONITOR_CONTENT, 3));
     assertEquals(0.1, config.adaptiveViewRange().rangeMultiplier(DisplayRole.HOLOGRAM, 3));
     assertTrue(config.clientCullingBypass().enabled());
-    assertTrue(config.clientCullingBypass().players().isEmpty());
+    assertTrue(config.clientCullingBypass().translationProbe().enabled());
+    assertTrue(config.clientCullingBypass().translationProbe().requireModdedBrand());
+    assertEquals(
+        Set.of("fabric", "quilt", "forge", "neoforge"),
+        config.clientCullingBypass().translationProbe().brandTokens());
+    assertEquals(
+        List.of("text.entityculling.title", "key.entityculling.toggle"),
+        config.clientCullingBypass().translationProbe().translationKeys());
+    assertEquals(20, config.clientCullingBypass().translationProbe().joinDelayTicks());
+    assertEquals(20, config.clientCullingBypass().translationProbe().retryDelayTicks());
+    assertEquals(10, config.clientCullingBypass().translationProbe().maxAttempts());
   }
 
   @Test
@@ -80,17 +89,34 @@ class DisplayCullingConfigTest {
   }
 
   @Test
-  void parsesClientCullingBypassPlayers() {
-    UUID playerId = UUID.fromString("00000000-0000-0000-0000-000000000123");
+  void parsesClientCullingTranslationProbe() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("performance.displayCulling.clientCullingBypass.enabled", false);
     yaml.set(
-        "performance.displayCulling.clientCullingBypass.players",
-        List.of(playerId.toString(), "not-a-uuid"));
+        "performance.displayCulling.clientCullingBypass.autoDetect.translationProbe.enabled",
+        false);
+    yaml.set(
+        "performance.displayCulling.clientCullingBypass.autoDetect.translationProbe.brands",
+        List.of(" Fabric ", "", "NeoForge"));
+    yaml.set(
+        "performance.displayCulling.clientCullingBypass.autoDetect.translationProbe.translationKeys",
+        List.of(" text.entityculling.title ", " "));
+    yaml.set(
+        "performance.displayCulling.clientCullingBypass.autoDetect.translationProbe.joinDelayTicks",
+        0);
+    yaml.set(
+        "performance.displayCulling.clientCullingBypass.autoDetect.translationProbe.timeoutTicks",
+        1);
 
     DisplayCullingConfig config = DisplayCullingConfig.fromConfig(yaml);
 
-    assertFalse(config.clientCullingBypass().enabled());
-    assertEquals(Set.of(playerId), config.clientCullingBypass().players());
+    assertFalse(config.clientCullingBypass().translationProbe().enabled());
+    assertEquals(
+        Set.of("fabric", "neoforge"),
+        config.clientCullingBypass().translationProbe().brandTokens());
+    assertEquals(
+        List.of("text.entityculling.title"),
+        config.clientCullingBypass().translationProbe().translationKeys());
+    assertEquals(1, config.clientCullingBypass().translationProbe().joinDelayTicks());
+    assertEquals(5, config.clientCullingBypass().translationProbe().timeoutTicks());
   }
 }

@@ -437,8 +437,11 @@ final class DebugCommand {
                 "message.debug_culling_client_status",
                 targetName,
                 status.playerListed() ? "enabled" : "disabled",
+                status.autoDetected() ? "detected" : "not-detected",
+                status.source(),
                 status.active() ? "active" : "inactive",
-                status.configEnabled() ? "enabled" : "disabled"));
+                status.configEnabled() ? "enabled" : "disabled",
+                status.probeStatus().summary()));
     return 1;
   }
 

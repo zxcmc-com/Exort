@@ -180,7 +180,8 @@ public class Lang {
     put(
         defaultsEn,
         "message.debug_culling_client_status",
-        "Client culling bypass for {0}: listed={1}, effective={2}, config={3}.");
+        "Client culling bypass for {0}: manual={1}, auto={2}, source={3}, effective={4},"
+            + " config={5}. Client probe: {6}.");
     put(defaultsEn, "message.debug_cache_status_header", "Cache status for {0}:");
     put(defaultsEn, "message.debug_cache_status_cache_unloaded", "Cache: not loaded.");
     put(
@@ -594,7 +595,8 @@ public class Lang {
     put(
         defaultsRu,
         "message.debug_culling_client_status",
-        "Client culling bypass для {0}: список={1}, действует={2}, конфиг={3}.");
+        "Client culling bypass для {0}: вручную={1}, auto={2}, источник={3}, действует={4},"
+            + " конфиг={5}. Ответ клиента: {6}.");
     put(defaultsRu, "message.debug_cache_status_header", "Статус кэша для {0}:");
     put(defaultsRu, "message.debug_cache_status_cache_unloaded", "Кэш: не загружен.");
     put(

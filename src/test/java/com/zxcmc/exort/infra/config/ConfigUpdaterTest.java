@@ -67,4 +67,24 @@ class ConfigUpdaterTest {
     assertEquals(-1, merged.indexOf("          - 0.35"), merged);
     assertEquals(-1, merged.indexOf("          - 0.12"), merged);
   }
+
+  @Test
+  void mergeDropsRetiredClientCullingPlayersKey() {
+    YamlConfiguration defaults = new YamlConfiguration();
+    defaults.set("performance.displayCulling.clientCullingBypass.enabled", true);
+    YamlConfiguration user = new YamlConfiguration();
+    user.set("performance.displayCulling.clientCullingBypass.enabled", true);
+    user.set(
+        "performance.displayCulling.clientCullingBypass.players",
+        List.of("00000000-0000-0000-0000-000000000123"));
+    List<String> defaultLines =
+        List.of(
+            "performance:", "  displayCulling:", "    clientCullingBypass:", "      enabled: true");
+
+    String merged =
+        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
+
+    assertEquals(-1, merged.indexOf("clientCullingBypass.players"), merged);
+    assertEquals(-1, merged.indexOf("00000000-0000-0000-0000-000000000123"), merged);
+  }
 }

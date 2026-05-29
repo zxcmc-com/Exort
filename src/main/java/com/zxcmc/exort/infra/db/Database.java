@@ -125,6 +125,17 @@ public class Database implements AutoCloseable {
                   PRIMARY KEY (world, x, y, z)
               )
           """);
+      stmt.execute(
+          """
+              CREATE TABLE IF NOT EXISTS client_culling_players (
+                  player_uuid TEXT PRIMARY KEY,
+                  manual_bypass INTEGER NOT NULL DEFAULT 0,
+                  last_match_brand TEXT NULL,
+                  last_probe_state TEXT NULL,
+                  last_seen_at INTEGER NOT NULL DEFAULT 0,
+                  updated_at INTEGER NOT NULL
+              )
+          """);
     }
   }
 
@@ -577,6 +588,188 @@ public class Database implements AutoCloseable {
 
   public record PlayerLastStorage(
       String storageId, String tier, String world, int x, int y, int z, long updatedAt) {}
+
+  public CompletableFuture<Map<UUID, ClientCullingState>> loadClientCullingStates() {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          Map<UUID, ClientCullingState> states = new HashMap<>();
+          String sql =
+              """
+              SELECT player_uuid,
+                     manual_bypass,
+                     last_match_brand,
+                     last_probe_state,
+                     last_seen_at,
+                     updated_at
+              FROM client_culling_players
+              """;
+          try (PreparedStatement ps = connection.prepareStatement(sql);
+              ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+              try {
+                UUID playerId = UUID.fromString(rs.getString("player_uuid"));
+                states.put(
+                    playerId,
+                    new ClientCullingState(
+                        playerId,
+                        rs.getInt("manual_bypass") != 0,
+                        rs.getString("last_match_brand"),
+                        rs.getString("last_probe_state"),
+                        rs.getLong("last_seen_at"),
+                        rs.getLong("updated_at")));
+              } catch (IllegalArgumentException ignored) {
+                // Ignore hand-edited invalid UUIDs.
+              }
+            }
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to load client culling states", e);
+            throw new CompletionException(e);
+          }
+          return states;
+        },
+        executor);
+  }
+
+  public CompletableFuture<Void> setClientCullingManualBypass(UUID playerId, boolean enabled) {
+    Objects.requireNonNull(playerId, "playerId");
+    long now = Instant.now().getEpochSecond();
+    return CompletableFuture.runAsync(
+        () -> {
+          String sql =
+              """
+              INSERT INTO client_culling_players(
+                  player_uuid, manual_bypass, last_match_brand, last_probe_state, last_seen_at, updated_at
+              )
+              VALUES(?, ?, NULL, NULL, 0, ?)
+              ON CONFLICT(player_uuid) DO UPDATE SET
+                  manual_bypass = excluded.manual_bypass,
+                  updated_at = excluded.updated_at
+              """;
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, playerId.toString());
+            ps.setInt(2, enabled ? 1 : 0);
+            ps.setLong(3, now);
+            ps.executeUpdate();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to save client culling manual bypass for " + playerId, e);
+            throw new CompletionException(e);
+          }
+        },
+        executor);
+  }
+
+  public CompletableFuture<Void> recordClientCullingProbeResult(
+      UUID playerId, String probeState, String brand, boolean match) {
+    Objects.requireNonNull(playerId, "playerId");
+    long now = Instant.now().getEpochSecond();
+    String normalizedState = emptyToNull(probeState);
+    String normalizedBrand = emptyToNull(brand);
+    return CompletableFuture.runAsync(
+        () -> {
+          String sql =
+              """
+              INSERT INTO client_culling_players(
+                  player_uuid, manual_bypass, last_match_brand, last_probe_state, last_seen_at, updated_at
+              )
+              VALUES(?, 0, ?, ?, ?, ?)
+              ON CONFLICT(player_uuid) DO UPDATE SET
+                  last_match_brand = excluded.last_match_brand,
+                  last_probe_state = excluded.last_probe_state,
+                  last_seen_at = excluded.last_seen_at,
+                  updated_at = excluded.updated_at
+              """;
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, playerId.toString());
+            ps.setString(2, match ? normalizedBrand : null);
+            ps.setString(3, normalizedState);
+            ps.setLong(4, now);
+            ps.setLong(5, now);
+            ps.executeUpdate();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to save client culling probe result for " + playerId, e);
+            throw new CompletionException(e);
+          }
+        },
+        executor);
+  }
+
+  public CompletableFuture<Void> updateClientCullingLastSeen(UUID playerId) {
+    Objects.requireNonNull(playerId, "playerId");
+    long now = Instant.now().getEpochSecond();
+    return CompletableFuture.runAsync(
+        () -> {
+          String sql =
+              """
+              INSERT INTO client_culling_players(
+                  player_uuid, manual_bypass, last_match_brand, last_probe_state, last_seen_at, updated_at
+              )
+              VALUES(?, 0, NULL, NULL, ?, ?)
+              ON CONFLICT(player_uuid) DO UPDATE SET
+                  last_seen_at = excluded.last_seen_at,
+                  updated_at = excluded.updated_at
+              """;
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, playerId.toString());
+            ps.setLong(2, now);
+            ps.setLong(3, now);
+            ps.executeUpdate();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to save client culling last seen for " + playerId, e);
+            throw new CompletionException(e);
+          }
+        },
+        executor);
+  }
+
+  private static String emptyToNull(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return value.trim();
+  }
+
+  public record ClientCullingState(
+      UUID playerId,
+      boolean manualBypass,
+      String lastMatchBrand,
+      String lastProbeState,
+      long lastSeenAt,
+      long updatedAt) {
+    public boolean hasFreshMatch(String brand, long nowEpochSeconds, long maxAgeSeconds) {
+      if (lastMatchBrand == null || lastMatchBrand.isBlank()) {
+        return false;
+      }
+      if (brand == null || !lastMatchBrand.equalsIgnoreCase(brand.trim())) {
+        return false;
+      }
+      return lastSeenAt > 0L && nowEpochSeconds - lastSeenAt <= maxAgeSeconds;
+    }
+
+    public ClientCullingState withManualBypass(boolean manualBypass, long updatedAt) {
+      return new ClientCullingState(
+          playerId, manualBypass, lastMatchBrand, lastProbeState, lastSeenAt, updatedAt);
+    }
+
+    public ClientCullingState withProbeResult(
+        String probeState, String brand, boolean match, long timestamp) {
+      return new ClientCullingState(
+          playerId,
+          manualBypass,
+          match ? emptyToNull(brand) : null,
+          emptyToNull(probeState),
+          timestamp,
+          timestamp);
+    }
+
+    public ClientCullingState withLastSeen(long timestamp) {
+      return new ClientCullingState(
+          playerId, manualBypass, lastMatchBrand, lastProbeState, timestamp, timestamp);
+    }
+
+    public static ClientCullingState empty(UUID playerId) {
+      return new ClientCullingState(playerId, false, null, null, 0L, 0L);
+    }
+  }
 
   public CompletableFuture<Optional<BusSettings>> loadBusSettings(BusPos pos, int slots) {
     Objects.requireNonNull(pos, "pos");

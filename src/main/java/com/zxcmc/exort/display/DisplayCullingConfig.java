@@ -5,7 +5,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record DisplayCullingConfig(
@@ -230,33 +229,101 @@ public record DisplayCullingConfig(
     }
   }
 
-  public record ClientCullingBypassConfig(boolean enabled, Set<UUID> players) {
+  public record ClientCullingBypassConfig(
+      boolean enabled, TranslationProbeConfig translationProbe) {
+    public ClientCullingBypassConfig {
+      translationProbe =
+          translationProbe == null
+              ? TranslationProbeConfig.defaults()
+              : translationProbe.normalized();
+    }
+
     static ClientCullingBypassConfig defaults() {
-      return new ClientCullingBypassConfig(true, Set.of());
+      return new ClientCullingBypassConfig(true, TranslationProbeConfig.defaults());
     }
 
     static ClientCullingBypassConfig fromConfig(ConfigurationSection config) {
       String path = PATH + "clientCullingBypass.";
-      List<String> rawPlayers = config.getStringList(path + "players");
-      Set<UUID> players = new LinkedHashSet<>();
-      for (String raw : rawPlayers) {
-        if (raw == null || raw.isBlank()) {
-          continue;
-        }
-        try {
-          players.add(UUID.fromString(raw.trim()));
-        } catch (IllegalArgumentException ignored) {
-          // Ignore stale or hand-edited invalid UUIDs.
-        }
-      }
       return new ClientCullingBypassConfig(
-          config.getBoolean(path + "enabled", true), Set.copyOf(players));
+          config.getBoolean(path + "enabled", true),
+          TranslationProbeConfig.fromConfig(config, path + "autoDetect.translationProbe."));
+    }
+  }
+
+  public record TranslationProbeConfig(
+      boolean enabled,
+      boolean requireModdedBrand,
+      Set<String> brandTokens,
+      List<String> translationKeys,
+      int joinDelayTicks,
+      int retryDelayTicks,
+      int maxAttempts,
+      int openDelayTicks,
+      int timeoutTicks) {
+    private static final Set<String> DEFAULT_BRAND_TOKENS =
+        Set.of("fabric", "quilt", "forge", "neoforge");
+    private static final List<String> DEFAULT_TRANSLATION_KEYS =
+        List.of("text.entityculling.title", "key.entityculling.toggle");
+
+    public TranslationProbeConfig {
+      brandTokens = brandTokens == null ? Set.of() : Set.copyOf(brandTokens);
+      translationKeys = translationKeys == null ? List.of() : List.copyOf(translationKeys);
     }
 
-    List<String> playerStrings() {
+    static TranslationProbeConfig defaults() {
+      return new TranslationProbeConfig(
+          true, true, DEFAULT_BRAND_TOKENS, DEFAULT_TRANSLATION_KEYS, 20, 20, 10, 2, 20);
+    }
+
+    static TranslationProbeConfig fromConfig(ConfigurationSection config, String path) {
+      TranslationProbeConfig defaults = defaults();
+      return new TranslationProbeConfig(
+          config.getBoolean(path + "enabled", defaults.enabled()),
+          config.getBoolean(path + "requireModdedBrand", defaults.requireModdedBrand()),
+          stringSet(config.getStringList(path + "brands"), defaults.brandTokens()),
+          stringList(config.getStringList(path + "translationKeys"), defaults.translationKeys()),
+          config.getInt(path + "joinDelayTicks", defaults.joinDelayTicks()),
+          config.getInt(path + "retryDelayTicks", defaults.retryDelayTicks()),
+          config.getInt(path + "maxAttempts", defaults.maxAttempts()),
+          config.getInt(path + "openDelayTicks", defaults.openDelayTicks()),
+          config.getInt(path + "timeoutTicks", defaults.timeoutTicks()));
+    }
+
+    TranslationProbeConfig normalized() {
+      return new TranslationProbeConfig(
+          enabled,
+          requireModdedBrand,
+          stringSet(brandTokens.stream().toList(), DEFAULT_BRAND_TOKENS),
+          stringList(translationKeys, DEFAULT_TRANSLATION_KEYS),
+          Math.max(1, joinDelayTicks),
+          Math.max(1, retryDelayTicks),
+          Math.max(1, maxAttempts),
+          Math.max(1, openDelayTicks),
+          Math.max(5, timeoutTicks));
+    }
+
+    private static Set<String> stringSet(List<String> raw, Set<String> fallback) {
+      Set<String> out = new LinkedHashSet<>();
+      if (raw != null) {
+        for (String value : raw) {
+          if (value != null && !value.isBlank()) {
+            out.add(value.trim().toLowerCase(Locale.ROOT));
+          }
+        }
+      }
+      return out.isEmpty() ? fallback : Set.copyOf(out);
+    }
+
+    private static List<String> stringList(List<String> raw, List<String> fallback) {
       List<String> out = new ArrayList<>();
-      players.stream().map(UUID::toString).sorted().forEach(out::add);
-      return out;
+      if (raw != null) {
+        for (String value : raw) {
+          if (value != null && !value.isBlank()) {
+            out.add(value.trim());
+          }
+        }
+      }
+      return out.isEmpty() ? fallback : List.copyOf(out);
     }
   }
 }

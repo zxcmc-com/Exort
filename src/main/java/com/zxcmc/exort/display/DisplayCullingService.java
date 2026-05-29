@@ -1,11 +1,13 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.debug.PerfStats;
+import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
 import com.zxcmc.exort.text.ExortText;
 import io.papermc.paper.event.player.PlayerTrackEntityEvent;
 import io.papermc.paper.event.player.PlayerUntrackEntityEvent;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -15,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -27,12 +30,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class DisplayCullingService implements Listener {
-  private static final String CLIENT_BYPASS_PLAYERS_PATH =
-      "performance.displayCulling.clientCullingBypass.players";
+  private static final long CLIENT_CULLING_CACHE_TTL_SECONDS = 12L * 60L * 60L;
   private static final int DEBUG_SAMPLE_LIMIT = 8;
   private static final double PAPER_SHOW_DISTANCE_BUFFER_BLOCKS = 4.0;
   private static final double MOTION_SAMPLE_MIN_DISTANCE_SQUARED = 0.36;
@@ -47,14 +50,22 @@ public final class DisplayCullingService implements Listener {
   private final ProtocolLibEnhancements protocolLibEnhancements;
   private final DisplayEntityIndex index;
   private final DisplayMetadataService metadataService;
+  private final Database database;
   private final Runnable maintenanceTask;
   private final Map<UUID, Map<UUID, TrackedDisplay>> trackedByPlayer = new ConcurrentHashMap<>();
   private final Map<UUID, AdaptiveViewRangeState> adaptiveStates = new ConcurrentHashMap<>();
   private final Map<UUID, PlayerMotionState> motionStates = new ConcurrentHashMap<>();
   private final Set<UUID> clientCullingBypass = ConcurrentHashMap.newKeySet();
+  private final Set<UUID> autoClientCullingBypass = ConcurrentHashMap.newKeySet();
+  private final Set<UUID> clientCullingAutoSuppressed = ConcurrentHashMap.newKeySet();
+  private final Map<UUID, ClientCullingProbeStatus> clientCullingProbeStatuses =
+      new ConcurrentHashMap<>();
+  private final Map<UUID, Database.ClientCullingState> clientCullingDbStates =
+      new ConcurrentHashMap<>();
   private final Set<UUID> debugViewers = ConcurrentHashMap.newKeySet();
   private final DebugSummary debugSummary = new DebugSummary();
   private final Object debugSummaryLock = new Object();
+  private final ClientCullingTranslationProbe translationProbe;
   private DisplayCullingBackend backend;
   private int taskId = -1;
   private int debugSummaryTaskId = -1;
@@ -74,14 +85,22 @@ public final class DisplayCullingService implements Listener {
       ProtocolLibEnhancements protocolLibEnhancements,
       DisplayEntityIndex index,
       DisplayMetadataService metadataService,
+      Database database,
       Runnable maintenanceTask) {
     this.plugin = plugin;
     this.config = config;
     this.protocolLibEnhancements = protocolLibEnhancements;
     this.index = index;
     this.metadataService = metadataService;
+    this.database = database;
     this.maintenanceTask = maintenanceTask == null ? () -> {} : maintenanceTask;
-    this.clientCullingBypass.addAll(config.clientCullingBypass().players());
+    loadPersistentClientCullingStates();
+    this.translationProbe =
+        new ClientCullingTranslationProbe(
+            plugin,
+            config.clientCullingBypass().translationProbe(),
+            this::cachedClientProbeStatus,
+            this::recordClientProbeStatus);
   }
 
   public void start() {
@@ -91,6 +110,10 @@ public final class DisplayCullingService implements Listener {
     backend = createBackend();
     normalizeAndIndexLoadedDisplays();
     Bukkit.getPluginManager().registerEvents(this, plugin);
+    translationProbe.start();
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      translationProbe.schedule(player);
+    }
     taskId =
         Bukkit.getScheduler()
             .scheduleSyncRepeatingTask(
@@ -103,12 +126,19 @@ public final class DisplayCullingService implements Listener {
       Bukkit.getScheduler().cancelTask(taskId);
       taskId = -1;
     }
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      persistClientCullingLastSeen(player.getUniqueId());
+    }
+    translationProbe.stop();
     HandlerList.unregisterAll(this);
     restoreAll();
     clearDebug();
     trackedByPlayer.clear();
     adaptiveStates.clear();
     motionStates.clear();
+    autoClientCullingBypass.clear();
+    clientCullingAutoSuppressed.clear();
+    clientCullingProbeStatuses.clear();
     if (index != null) {
       index.clear();
     }
@@ -124,8 +154,19 @@ public final class DisplayCullingService implements Listener {
   }
 
   public ClientCullingBypassStatus clientCullingBypassStatus(UUID playerId) {
-    boolean listed = playerId != null && clientCullingBypass.contains(playerId);
-    return new ClientCullingBypassStatus(config.clientCullingBypass().enabled(), listed);
+    boolean manualListed = playerId != null && clientCullingBypass.contains(playerId);
+    boolean autoDetected = playerId != null && autoClientCullingBypass.contains(playerId);
+    boolean autoSuppressed = playerId != null && clientCullingAutoSuppressed.contains(playerId);
+    ClientCullingProbeStatus probeStatus =
+        playerId == null
+            ? defaultProbeStatus()
+            : clientCullingProbeStatuses.getOrDefault(playerId, defaultProbeStatus());
+    return new ClientCullingBypassStatus(
+        config.clientCullingBypass().enabled(),
+        manualListed,
+        autoDetected,
+        autoSuppressed,
+        probeStatus);
   }
 
   public ClientCullingBypassStatus setClientCullingBypass(UUID playerId, boolean enabled) {
@@ -134,21 +175,21 @@ public final class DisplayCullingService implements Listener {
     }
     if (enabled) {
       clientCullingBypass.add(playerId);
+      clientCullingAutoSuppressed.remove(playerId);
       Player player = Bukkit.getPlayer(playerId);
       if (player != null) {
-        restorePlayer(player);
+        activateClientCullingBypass(player);
       }
-      trackedByPlayer.remove(playerId);
-      adaptiveStates.remove(playerId);
-      motionStates.remove(playerId);
     } else {
       clientCullingBypass.remove(playerId);
+      autoClientCullingBypass.remove(playerId);
+      clientCullingAutoSuppressed.add(playerId);
       Player player = Bukkit.getPlayer(playerId);
       if (player != null) {
         processPlayer(player);
       }
     }
-    saveClientCullingBypass();
+    persistClientCullingManualBypass(playerId, enabled);
     return clientCullingBypassStatus(playerId);
   }
 
@@ -173,15 +214,11 @@ public final class DisplayCullingService implements Listener {
     updateDebugSummaryTask();
   }
 
-  private void saveClientCullingBypass() {
-    plugin
-        .getConfig()
-        .set(
-            CLIENT_BYPASS_PLAYERS_PATH,
-            new DisplayCullingConfig.ClientCullingBypassConfig(
-                    true, Set.copyOf(clientCullingBypass))
-                .playerStrings());
-    plugin.saveConfig();
+  @EventHandler
+  public void onJoin(PlayerJoinEvent event) {
+    if (event != null && event.getPlayer() != null) {
+      translationProbe.schedule(event.getPlayer());
+    }
   }
 
   @EventHandler
@@ -213,10 +250,16 @@ public final class DisplayCullingService implements Listener {
   @EventHandler
   public void onQuit(PlayerQuitEvent event) {
     if (event != null && event.getPlayer() != null) {
-      trackedByPlayer.remove(event.getPlayer().getUniqueId());
-      adaptiveStates.remove(event.getPlayer().getUniqueId());
-      motionStates.remove(event.getPlayer().getUniqueId());
-      debugViewers.remove(event.getPlayer().getUniqueId());
+      UUID playerId = event.getPlayer().getUniqueId();
+      persistClientCullingLastSeen(playerId);
+      translationProbe.cancel(playerId);
+      trackedByPlayer.remove(playerId);
+      adaptiveStates.remove(playerId);
+      motionStates.remove(playerId);
+      autoClientCullingBypass.remove(playerId);
+      clientCullingAutoSuppressed.remove(playerId);
+      clientCullingProbeStatuses.remove(playerId);
+      debugViewers.remove(playerId);
       updateDebugSummaryTask();
     }
   }
@@ -255,7 +298,131 @@ public final class DisplayCullingService implements Listener {
   private boolean isClientCullingBypassed(UUID playerId) {
     return playerId != null
         && config.clientCullingBypass().enabled()
-        && clientCullingBypass.contains(playerId);
+        && (clientCullingBypass.contains(playerId)
+            || (autoClientCullingBypass.contains(playerId)
+                && !clientCullingAutoSuppressed.contains(playerId)));
+  }
+
+  private ClientCullingProbeStatus defaultProbeStatus() {
+    return config.clientCullingBypass().translationProbe().enabled()
+        ? ClientCullingProbeStatus.notRun()
+        : ClientCullingProbeStatus.disabled();
+  }
+
+  private void loadPersistentClientCullingStates() {
+    if (database == null) {
+      return;
+    }
+    try {
+      Map<UUID, Database.ClientCullingState> states = database.loadClientCullingStates().join();
+      clientCullingDbStates.clear();
+      clientCullingDbStates.putAll(states);
+      for (Database.ClientCullingState state : states.values()) {
+        if (state.manualBypass()) {
+          clientCullingBypass.add(state.playerId());
+        }
+      }
+    } catch (RuntimeException e) {
+      plugin.getLogger().log(Level.WARNING, "Failed to load client culling bypass states", e);
+    }
+  }
+
+  private ClientCullingProbeStatus cachedClientProbeStatus(Player player, String brand) {
+    if (player == null || brand == null || brand.isBlank()) {
+      return null;
+    }
+    Database.ClientCullingState state = clientCullingDbStates.get(player.getUniqueId());
+    long now = Instant.now().getEpochSecond();
+    if (state == null || !state.hasFreshMatch(brand, now, CLIENT_CULLING_CACHE_TTL_SECONDS)) {
+      return null;
+    }
+    long ageSeconds = Math.max(0L, now - state.lastSeenAt());
+    return ClientCullingProbeStatus.cachedMatch(brand, ageSeconds);
+  }
+
+  private void recordClientProbeStatus(Player player, ClientCullingProbeStatus status) {
+    if (player == null || status == null) {
+      return;
+    }
+    UUID playerId = player.getUniqueId();
+    clientCullingProbeStatuses.put(playerId, status);
+    if (status.state() == ClientCullingProbeState.MATCH
+        || status.state() == ClientCullingProbeState.CACHED_MATCH) {
+      if (status.state() == ClientCullingProbeState.MATCH) {
+        persistClientCullingProbeResult(playerId, status);
+      }
+      if (!clientCullingAutoSuppressed.contains(playerId)
+          && autoClientCullingBypass.add(playerId)) {
+        activateClientCullingBypass(player);
+      }
+      return;
+    }
+    if (status.state().terminal()) {
+      persistClientCullingProbeResult(playerId, status);
+    }
+    if (status.state().terminal()
+        && autoClientCullingBypass.remove(playerId)
+        && !clientCullingBypass.contains(playerId)) {
+      processPlayer(player);
+    }
+  }
+
+  private void persistClientCullingManualBypass(UUID playerId, boolean enabled) {
+    if (playerId == null) {
+      return;
+    }
+    long now = Instant.now().getEpochSecond();
+    clientCullingDbStates.compute(
+        playerId,
+        (ignored, state) ->
+            (state == null ? Database.ClientCullingState.empty(playerId) : state)
+                .withManualBypass(enabled, now));
+    if (database != null) {
+      database.setClientCullingManualBypass(playerId, enabled);
+    }
+  }
+
+  private void persistClientCullingProbeResult(UUID playerId, ClientCullingProbeStatus status) {
+    if (playerId == null || status == null) {
+      return;
+    }
+    boolean match = status.state() == ClientCullingProbeState.MATCH;
+    long now = Instant.now().getEpochSecond();
+    clientCullingDbStates.compute(
+        playerId,
+        (ignored, state) ->
+            (state == null ? Database.ClientCullingState.empty(playerId) : state)
+                .withProbeResult(status.state().name(), status.brand(), match, now));
+    if (database != null) {
+      database.recordClientCullingProbeResult(
+          playerId, status.state().name(), status.brand(), match);
+    }
+  }
+
+  private void persistClientCullingLastSeen(UUID playerId) {
+    if (playerId == null) {
+      return;
+    }
+    long now = Instant.now().getEpochSecond();
+    clientCullingDbStates.compute(
+        playerId,
+        (ignored, state) ->
+            (state == null ? Database.ClientCullingState.empty(playerId) : state)
+                .withLastSeen(now));
+    if (database != null) {
+      database.updateClientCullingLastSeen(playerId);
+    }
+  }
+
+  private void activateClientCullingBypass(Player player) {
+    if (player == null) {
+      return;
+    }
+    restorePlayer(player);
+    UUID playerId = player.getUniqueId();
+    trackedByPlayer.remove(playerId);
+    adaptiveStates.remove(playerId);
+    motionStates.remove(playerId);
   }
 
   private void tick() {
@@ -1032,9 +1199,127 @@ public final class DisplayCullingService implements Listener {
 
   private record CullingCandidate(DisplayEntityIndex.Entry entry, Display display) {}
 
-  public record ClientCullingBypassStatus(boolean configEnabled, boolean playerListed) {
+  public enum ClientCullingProbeState {
+    DISABLED(false),
+    NOT_RUN(false),
+    PENDING(false),
+    CACHED_MATCH(true),
+    MATCH(true),
+    NO_MATCH(true),
+    SKIPPED(true),
+    ERROR(true);
+
+    private final boolean terminal;
+
+    ClientCullingProbeState(boolean terminal) {
+      this.terminal = terminal;
+    }
+
+    public boolean terminal() {
+      return terminal;
+    }
+  }
+
+  public record ClientCullingProbeStatus(
+      ClientCullingProbeState state, String brand, String key, String response, String detail) {
+    public static ClientCullingProbeStatus notRun() {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.NOT_RUN, "unknown", null, null, "");
+    }
+
+    public static ClientCullingProbeStatus disabled() {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.DISABLED, "unknown", null, null, "translation probe disabled");
+    }
+
+    public static ClientCullingProbeStatus pending(String brand, String detail) {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.PENDING, brand, null, null, detail);
+    }
+
+    public static ClientCullingProbeStatus match(String brand, String key, String response) {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.MATCH, brand, key, response, "EntityCulling translation matched");
+    }
+
+    public static ClientCullingProbeStatus cachedMatch(String brand, long ageSeconds) {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.CACHED_MATCH,
+          brand,
+          null,
+          null,
+          "lastSeenAgeAtProbe=" + Math.max(0L, ageSeconds) + "s");
+    }
+
+    public static ClientCullingProbeStatus noMatch(String brand, String response, String detail) {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.NO_MATCH, brand, null, response, detail);
+    }
+
+    public static ClientCullingProbeStatus skipped(String brand, String detail) {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.SKIPPED, brand, null, null, detail);
+    }
+
+    public static ClientCullingProbeStatus error(
+        String brand, String key, String response, String detail) {
+      return new ClientCullingProbeStatus(
+          ClientCullingProbeState.ERROR, brand, key, response, detail);
+    }
+
+    public String summary() {
+      String brandText = sanitize(brand);
+      String detailText = sanitize(detail);
+      String responseText = sanitize(response);
+      return switch (state) {
+        case DISABLED -> "disabled";
+        case NOT_RUN -> "not-run";
+        case PENDING -> "pending brand=" + brandText + " detail=" + detailText;
+        case CACHED_MATCH -> "cached-match brand=" + brandText + " detail=" + detailText;
+        case MATCH ->
+            "match brand=" + brandText + " key=" + sanitize(key) + " response=" + responseText;
+        case NO_MATCH ->
+            "no-match brand=" + brandText + " response=" + responseText + " detail=" + detailText;
+        case SKIPPED -> "skipped brand=" + brandText + " detail=" + detailText;
+        case ERROR -> "error brand=" + brandText + " detail=" + detailText;
+      };
+    }
+
+    private static String sanitize(String value) {
+      if (value == null || value.isBlank()) {
+        return "-";
+      }
+      String trimmed = value.trim().replace('\n', ' ');
+      return trimmed.length() <= 80 ? trimmed : trimmed.substring(0, 77) + "...";
+    }
+  }
+
+  public record ClientCullingBypassStatus(
+      boolean configEnabled,
+      boolean playerListed,
+      boolean autoDetected,
+      boolean autoSuppressed,
+      ClientCullingProbeStatus probeStatus) {
     public boolean active() {
-      return configEnabled && playerListed;
+      return configEnabled && (playerListed || (autoDetected && !autoSuppressed));
+    }
+
+    public String source() {
+      if (!configEnabled) {
+        return "config-disabled";
+      }
+      if (playerListed) {
+        return "manual";
+      }
+      if (autoSuppressed) {
+        return "suppressed";
+      }
+      if (!autoDetected) {
+        return "none";
+      }
+      return probeStatus != null && probeStatus.state() == ClientCullingProbeState.CACHED_MATCH
+          ? "translation-probe-cache"
+          : "translation-probe";
     }
   }
 

@@ -3,12 +3,15 @@ package com.zxcmc.exort.infra.db;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.sql.DriverManager;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -171,6 +174,63 @@ class DatabaseTest {
           assertFalse(rs.next());
         }
       }
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void persistsClientCullingState() throws Exception {
+    File file = tempDir.resolve("client-culling.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID playerId = UUID.fromString("00000000-0000-0000-0000-000000000123");
+
+      database.setClientCullingManualBypass(playerId, true).get(5, TimeUnit.SECONDS);
+      database
+          .recordClientCullingProbeResult(playerId, "MATCH", "fabric", true)
+          .get(5, TimeUnit.SECONDS);
+      database.updateClientCullingLastSeen(playerId).get(5, TimeUnit.SECONDS);
+
+      Map<UUID, Database.ClientCullingState> states =
+          database.loadClientCullingStates().get(5, TimeUnit.SECONDS);
+      Database.ClientCullingState state = states.get(playerId);
+
+      assertTrue(state.manualBypass());
+      assertEquals("fabric", state.lastMatchBrand());
+      assertEquals("MATCH", state.lastProbeState());
+      assertTrue(
+          state.hasFreshMatch(
+              "fabric", Instant.now().getEpochSecond(), TimeUnit.HOURS.toSeconds(12)));
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void clientCullingNoMatchClearsLastMatchedBrand() throws Exception {
+    File file = tempDir.resolve("client-culling-clear.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID playerId = UUID.fromString("00000000-0000-0000-0000-000000000124");
+
+      database
+          .recordClientCullingProbeResult(playerId, "MATCH", "fabric", true)
+          .get(5, TimeUnit.SECONDS);
+      database
+          .recordClientCullingProbeResult(playerId, "NO_MATCH", "fabric", false)
+          .get(5, TimeUnit.SECONDS);
+
+      Database.ClientCullingState state =
+          database.loadClientCullingStates().get(5, TimeUnit.SECONDS).get(playerId);
+
+      assertNull(state.lastMatchBrand());
+      assertEquals("NO_MATCH", state.lastProbeState());
+      assertFalse(
+          state.hasFreshMatch(
+              "fabric", Instant.now().getEpochSecond(), TimeUnit.HOURS.toSeconds(12)));
     } finally {
       database.close();
     }

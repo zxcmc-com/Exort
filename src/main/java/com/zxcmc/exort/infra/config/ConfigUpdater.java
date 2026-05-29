@@ -17,6 +17,9 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ConfigUpdater {
+  private static final Set<String> RETIRED_KEYS =
+      Set.of("performance.displayCulling.clientCullingBypass.players");
+
   private ConfigUpdater() {}
 
   public static void update(JavaPlugin plugin, String resourceName) {
@@ -391,6 +394,7 @@ public final class ConfigUpdater {
     Set<String> out = new TreeSet<>();
     for (String key : user.getKeys(true)) {
       if ("tiers".equalsIgnoreCase(key) || key.startsWith("tiers.")) continue;
+      if (RETIRED_KEYS.contains(key)) continue;
       if (defaultKeys.contains(key)) continue;
       if (user.isConfigurationSection(key)) continue;
       out.add(key);

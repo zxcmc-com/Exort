@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.5 — 2026-05-29
+- Added automatic EntityCulling detection for client culling bypass: after a client brand is available, Exort probes non-vanilla clients with EntityCulling translation keys on a virtual sign placed 5 blocks behind and 5 blocks below the player, skips explicit `vanilla` clients, and enables bypass automatically when those language keys are translated. Previous same-brand matches are reused for up to 12 hours from the player's last online timestamp, avoiding repeat probes on normal reconnects.
+- Removed `performance.displayCulling.clientCullingBypass.players`; manual bypass state and auto-detect history now live in the plugin database.
+- `/exort debug culling client <player> status` now reports manual/auto/source state, client brand, probe response, cache-hit, and inventory-wait diagnostics.
+
 ## 0.12.4 — 2026-05-29
 - Added density-based Exort display range management for dense bases and high player counts: density is counted from a section index, and role ranges change only after sustained threshold crossings. Main block visuals stay visible farther; wires, monitor contents, and holograms are reduced first. Already loaded displays in front of a moving or stopped player keep their current range while the player continues roughly the same route, with a short behind-player buffer to avoid flicker from a single step back.
 - Added per-player display range control through ProtocolLib when available. With ProtocolLib, dense scenes use per-player `view_range` metadata packets; without it, the Paper fallback keeps base role ranges and hides only low-priority displays outside their reduced range.

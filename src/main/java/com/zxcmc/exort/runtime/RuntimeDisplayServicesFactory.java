@@ -88,6 +88,7 @@ public final class RuntimeDisplayServicesFactory {
             deps.protocolLibEnhancements(),
             displayEntityIndex,
             metadataService,
+            deps.database(),
             wireDisplayManager::runAutoMaintenance);
     displayCullingService.start();
 
