@@ -1,7 +1,6 @@
 package com.zxcmc.exort.debug;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,14 +15,14 @@ class LoadTestVerdictCalculatorTest {
     LoadTestVerdictCalculator.Result result =
         LoadTestVerdictCalculator.calculate(tickMs, mspt, tickMs.length, null);
 
-    assertNotEquals("message.debug_load_grade_awful", result.gradeKey());
+    assertEquals("message.debug_load_grade_good", result.gradeKey());
     assertEquals(2, result.severeStalls());
   }
 
   @Test
-  void sustainedLowP1GivesAwful() {
+  void frequentWallClockStallsGiveAwful() {
     double[] tickMs = samples(300, 50.0);
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 30; i++) {
       tickMs[i] = 90.0;
     }
     double[] mspt = samples(300, 30.0);

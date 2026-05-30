@@ -2,11 +2,14 @@ package com.zxcmc.exort.platform;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -30,7 +33,8 @@ public final class PaperChorusPlantUpdates {
       return Status.missing(file);
     }
     try {
-      return Status.present(file, readDisabled(file));
+      boolean configDisabled = readDisabled(file);
+      return Status.present(file, runtimeDisabled().orElse(configDisabled));
     } catch (IOException | InvalidConfigurationException e) {
       return Status.error(file, isAccessDenied(e), errorReason(e, file));
     }
@@ -42,14 +46,40 @@ public final class PaperChorusPlantUpdates {
       return FixResult.missing(file);
     }
     try {
-      boolean previous = readDisabled(file);
-      if (previous) {
-        return FixResult.present(file, true, false);
+      boolean configDisabled = readDisabled(file);
+      Optional<Boolean> runtimeDisabled = runtimeDisabled();
+      boolean activeDisabled = runtimeDisabled.orElse(configDisabled);
+      if (configDisabled) {
+        return FixResult.present(file, activeDisabled, false, !activeDisabled);
       }
       writeDisabled(file);
-      return FixResult.present(file, false, true);
+      return FixResult.present(file, activeDisabled, true, !activeDisabled);
     } catch (IOException | InvalidConfigurationException e) {
       return FixResult.error(file, isAccessDenied(e), errorReason(e, file));
+    }
+  }
+
+  public static Optional<Boolean> runtimeDisabled() {
+    try {
+      Class<?> globalConfiguration =
+          Class.forName("io.papermc.paper.configuration.GlobalConfiguration");
+      Method get = globalConfiguration.getMethod("get");
+      Object global = get.invoke(null);
+      if (global == null) {
+        return Optional.empty();
+      }
+      Field blockUpdatesField = global.getClass().getField("blockUpdates");
+      Object blockUpdates = blockUpdatesField.get(global);
+      if (blockUpdates == null) {
+        return Optional.empty();
+      }
+      Field settingField = blockUpdates.getClass().getField("disableChorusPlantUpdates");
+      return Optional.of(settingField.getBoolean(blockUpdates));
+    } catch (ReflectiveOperationException
+        | LinkageError
+        | SecurityException
+        | IllegalArgumentException e) {
+      return Optional.empty();
     }
   }
 
@@ -236,19 +266,26 @@ public final class PaperChorusPlantUpdates {
       State state,
       boolean previousDisabled,
       boolean changed,
+      boolean restartRequired,
       boolean accessDenied,
       String error) {
     public static FixResult present(File file, boolean previousDisabled, boolean changed) {
-      return new FixResult(file, State.PRESENT, previousDisabled, changed, false, "");
+      return present(file, previousDisabled, changed, changed);
+    }
+
+    public static FixResult present(
+        File file, boolean previousDisabled, boolean changed, boolean restartRequired) {
+      return new FixResult(
+          file, State.PRESENT, previousDisabled, changed, restartRequired, false, "");
     }
 
     public static FixResult missing(File file) {
-      return new FixResult(file, State.MISSING, false, false, false, "");
+      return new FixResult(file, State.MISSING, false, false, false, false, "");
     }
 
     public static FixResult error(File file, boolean accessDenied, String error) {
       return new FixResult(
-          file, State.ERROR, false, false, accessDenied, error == null ? "" : error);
+          file, State.ERROR, false, false, false, accessDenied, error == null ? "" : error);
     }
   }
 

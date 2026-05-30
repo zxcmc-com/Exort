@@ -33,6 +33,7 @@ final class LoadTestVerdictCalculator {
     Arrays.sort(tpsSamples);
     double tpsAvg = tpsSum / n;
     double tpsP1 = percentile(tpsSamples, 0.01);
+    double severeStallRatio = severeStalls / (double) n;
 
     double[] msptSorted = Arrays.copyOf(msptSamples, n);
     Arrays.sort(msptSorted);
@@ -47,7 +48,9 @@ final class LoadTestVerdictCalculator {
     double msptP99 = percentile(msptSorted, 0.99);
 
     String gradeKey =
-        forcedGradeKey != null ? forcedGradeKey : gradeKey(tpsAvg, tpsP1, msptAvg, msptP95);
+        forcedGradeKey != null
+            ? forcedGradeKey
+            : gradeKey(tpsAvg, severeStallRatio, msptAvg, msptP95);
     return new Result(
         gradeKey,
         tpsMin,
@@ -68,17 +71,18 @@ final class LoadTestVerdictCalculator {
     return sorted[Math.min(sorted.length - 1, idx)];
   }
 
-  private static String gradeKey(double tpsAvg, double tpsP1, double msptAvg, double msptP95) {
-    if (tpsAvg < 15.0 || tpsP1 < 12.0 || msptAvg >= 70.0 || msptP95 >= 80.0) {
+  private static String gradeKey(
+      double tpsAvg, double severeStallRatio, double msptAvg, double msptP95) {
+    if (msptAvg >= 70.0 || msptP95 >= 80.0 || tpsAvg < 15.0 || severeStallRatio >= 0.10) {
       return "message.debug_load_grade_awful";
     }
-    if (tpsAvg < 16.0 || tpsP1 < 15.0 || msptAvg >= 60.0 || msptP95 >= 70.0) {
+    if (msptAvg >= 60.0 || msptP95 >= 70.0 || tpsAvg < 16.0 || severeStallRatio >= 0.05) {
       return "message.debug_load_grade_bad";
     }
-    if (tpsAvg < 18.5 || tpsP1 < 17.0 || msptAvg > 50.0 || msptP95 > 60.0) {
+    if (msptAvg > 50.0 || msptP95 > 60.0 || tpsAvg < 18.0 || severeStallRatio >= 0.02) {
       return "message.debug_load_grade_poor";
     }
-    if (tpsAvg >= 19.5 && tpsP1 >= 18.0 && msptAvg <= 35.0 && msptP95 <= 45.0) {
+    if (msptAvg <= 35.0 && msptP95 <= 45.0 && tpsAvg >= 18.5 && severeStallRatio <= 0.01) {
       return "message.debug_load_grade_good";
     }
     return "message.debug_load_grade_warn";

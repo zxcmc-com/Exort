@@ -81,7 +81,7 @@ import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCacheProvider {
-  static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
+  static final String MODE_SET_RESOURCE_COMMAND = "/exort mode set RESOURCE";
   private static final MinecraftVersionRequirement MIN_MC_VERSION =
       MinecraftVersionRequirement.atLeast(1, 21, 7);
   private Database database;
@@ -529,14 +529,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         RuntimeModeCoordinator.evaluate(
             getConfig().getString("mode", ModePolicy.DEFAULT_MODE),
             this::isChorusUpdatesDisabled,
-            MODE_FIX_RESOURCE_COMMAND);
+            MODE_SET_RESOURCE_COMMAND);
     configuredMode = state.configuredMode();
     resourceMode = state.resourceMode();
     modeFallbackReason = state.fallbackReason();
   }
 
   static List<String> chorusFallbackHelpLines() {
-    return RuntimeModeCoordinator.chorusFallbackHelpLines(MODE_FIX_RESOURCE_COMMAND);
+    return RuntimeModeCoordinator.chorusFallbackHelpLines(MODE_SET_RESOURCE_COMMAND);
   }
 
   public PaperChorusPlantUpdates.Status chorusPlantUpdateStatus() {
@@ -651,7 +651,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> resourceMode ? "RESOURCE" : "VANILLA",
         () -> modeFallbackReason,
         () -> getPluginMeta().getVersion(),
-        this::chorusPlantUpdateStatus,
         this::disableChorusPlantUpdatesInPaperConfig,
         () -> StorageRuntimeConfig.fromConfig(getConfig()).cacheIdleUnloadSeconds(),
         () -> wireLimit,
