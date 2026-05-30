@@ -10,11 +10,7 @@ import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.display.StorageDisplayManager;
 import com.zxcmc.exort.display.TerminalDisplayManager;
-import com.zxcmc.exort.display.WireAutoRenderConfig;
-import com.zxcmc.exort.display.WireBlockIndex;
 import com.zxcmc.exort.display.WireDisplayManager;
-import com.zxcmc.exort.display.WireRenderMode;
-import com.zxcmc.exort.display.WireRenderPolicy;
 import com.zxcmc.exort.sanity.ChunkSanityService;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;
@@ -35,12 +31,6 @@ public final class RuntimeDisplayServicesFactory {
     DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
     DisplayMetadataService metadataService =
         new DisplayMetadataService(displayEntityIndex, displayCullingConfig);
-    WireBlockIndex wireBlockIndex = new WireBlockIndex();
-    WireRenderMode wireRenderMode =
-        WireRenderMode.fromString(deps.config().getString("resourceMode.wire.renderMode"));
-    WireRenderPolicy wireRenderPolicy =
-        new WireRenderPolicy(
-            wireRenderMode, WireAutoRenderConfig.fromConfig(deps.config()), wireBlockIndex);
 
     ItemHologramManager hologramManager =
         new ItemHologramManager(
@@ -57,9 +47,7 @@ public final class RuntimeDisplayServicesFactory {
     hologramManager.start();
     Bukkit.getPluginManager().registerEvents(hologramManager, deps.plugin());
 
-    WireDisplayManager wireDisplayManager =
-        createWireDisplayManager(
-            deps, displayModels, metadataService, wireBlockIndex, wireRenderPolicy, wireRenderMode);
+    WireDisplayManager wireDisplayManager = createWireDisplayManager(deps, metadataService);
     if (wireDisplayManager.isEnabled()) {
       Bukkit.getScheduler().runTask(deps.plugin(), wireDisplayManager::scanLoadedChunks);
     }
@@ -88,8 +76,7 @@ public final class RuntimeDisplayServicesFactory {
             deps.protocolLibEnhancements(),
             displayEntityIndex,
             metadataService,
-            deps.database(),
-            wireDisplayManager::runAutoMaintenance);
+            deps.database());
     displayCullingService.start();
 
     DisplayRefreshService displayRefreshService =
@@ -120,12 +107,7 @@ public final class RuntimeDisplayServicesFactory {
   }
 
   private static WireDisplayManager createWireDisplayManager(
-      RuntimeDisplayServicesDependencies deps,
-      RuntimeDisplayModelConfig displayModels,
-      DisplayMetadataService metadataService,
-      WireBlockIndex wireBlockIndex,
-      WireRenderPolicy wireRenderPolicy,
-      WireRenderMode wireRenderMode) {
+      RuntimeDisplayServicesDependencies deps, DisplayMetadataService metadataService) {
     RuntimeDisplayConfig wireDisplay =
         RuntimeDisplayConfig.fromConfig(
             deps.config(), deps.resourceMode(), "resourceMode.wire", deps.materialResolver());
@@ -139,19 +121,15 @@ public final class RuntimeDisplayServicesFactory {
         materials.monitorCarrier(),
         materials.busCarrier(),
         deps.itemModels().displayNamespace(),
-        displayModels.wireCenter(),
-        displayModels.wireConnection(),
+        deps.itemModels().wireItemModel(),
         deps.resourceMode(),
-        wireRenderMode,
         wireDisplay.displayBaseMaterial(),
         wireDisplay.displayScale(),
         wireDisplay.offsetX(),
         wireDisplay.offsetY(),
         wireDisplay.offsetZ(),
         deps.lang().tr("item.wire"),
-        metadataService,
-        wireBlockIndex,
-        wireRenderPolicy);
+        metadataService);
   }
 
   private static StorageDisplayManager createStorageDisplayManager(

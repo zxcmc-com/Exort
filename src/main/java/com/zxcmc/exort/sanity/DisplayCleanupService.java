@@ -97,12 +97,6 @@ public final class DisplayCleanupService {
         continue;
       }
       Block block = ent.getLocation().getBlock();
-      if (isTaggedWireDisplay(tags)) {
-        if (!isValidWireBlock(block)) {
-          display.remove();
-        }
-        continue;
-      }
       String markerBackedType = markerBackedDisplayType(tags);
       if (markerBackedType != null) {
         if (!isCurrentMarkerBackedDisplay(display, block, markerBackedType)) {
@@ -110,7 +104,7 @@ public final class DisplayCleanupService {
         }
         continue;
       }
-      if (isUntypedDisplay(tags) && !isCurrentLegacyWireDisplay(display, block)) {
+      if (isUntypedDisplay(tags) && !isCurrentWireDisplay(display, block)) {
         display.remove();
         continue;
       }
@@ -121,16 +115,11 @@ public final class DisplayCleanupService {
     }
   }
 
-  private boolean isTaggedWireDisplay(Set<String> tags) {
-    return tags.contains(DisplayTags.WIRE_CENTER_TAG)
-        || tags.stream().anyMatch(tag -> tag.startsWith(DisplayTags.WIRE_CONNECTION_PREFIX));
-  }
-
   private boolean isUntypedDisplay(Set<String> tags) {
     return tags.contains(DisplayTags.DISPLAY_TAG) && !tags.contains(DisplayTags.HOLOGRAM_TAG);
   }
 
-  private boolean isCurrentLegacyWireDisplay(Display display, Block block) {
+  private boolean isCurrentWireDisplay(Display display, Block block) {
     if (!isValidWireBlock(block)) {
       return false;
     }

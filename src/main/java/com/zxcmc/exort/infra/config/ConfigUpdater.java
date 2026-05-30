@@ -18,7 +18,16 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ConfigUpdater {
   private static final Set<String> RETIRED_KEYS =
-      Set.of("performance.displayCulling.clientCullingBypass.players");
+      Set.of(
+          "performance.displayCulling.clientCullingBypass.players",
+          "resourceMode.wire.renderMode",
+          "resourceMode.wire.autoRender.chunkRadius",
+          "resourceMode.wire.autoRender.enterCompactWires",
+          "resourceMode.wire.autoRender.exitCompactWires",
+          "resourceMode.wire.autoRender.idlePlayerRadiusBlocks",
+          "resourceMode.wire.autoRender.maintenanceBlocksPerTick",
+          "resourceMode.wire.displayModelCenter",
+          "resourceMode.wire.displayModelConnection");
 
   private ConfigUpdater() {}
 

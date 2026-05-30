@@ -9,8 +9,6 @@ public final class DisplayTags {
   public static final String BREAK_OVERLAY_TAG = "exort_break_overlay";
   public static final String BUS_TAG = "bus";
   public static final String WIRE_COMPACT_TAG = "exort_wire_compact";
-  public static final String WIRE_CENTER_TAG = "exort_wire_center";
-  public static final String WIRE_CONNECTION_PREFIX = "exort_wire_conn_";
 
   private DisplayTags() {}
 }

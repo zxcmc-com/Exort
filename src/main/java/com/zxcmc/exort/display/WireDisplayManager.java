@@ -1,7 +1,6 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
-import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.items.ItemModelUtil;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
@@ -10,7 +9,10 @@ import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
@@ -29,10 +31,7 @@ import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Wire rendering: - VANILLA: single ItemDisplay - RESOURCE/COMPACT: one ItemDisplay per wire with a
- * connection-mask model - RESOURCE/DETAILED: center + per-face connection ItemDisplays
- */
+/** Wire rendering: one ItemDisplay per wire block with a baked connection-mask model. */
 public class WireDisplayManager {
   private static final BlockFace[] FACES =
       new BlockFace[] {
@@ -43,9 +42,9 @@ public class WireDisplayManager {
         BlockFace.EAST,
         BlockFace.WEST
       };
-  private static final int ALL_MASK = 0b11_1111;
+  // Minecraft's ItemDisplayRenderer applies an implicit Y+180 to item models. This compensates
+  // that renderer transform so RESOURCE wire model axes match block-space axes.
   private static final Quaternionf MIRROR_Y_180 = new Quaternionf().rotateY((float) Math.PI);
-  private static final List<Rotation> ROTATIONS = generateRotations();
 
   private final Plugin plugin;
   private final boolean enabled;
@@ -55,10 +54,8 @@ public class WireDisplayManager {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final String displayNamespace;
-  private final String displayCenter;
-  private final String displayConnection;
+  private final String wireModel;
   private final boolean resourceMode;
-  private final WireRenderMode renderMode;
   private final Material displayBaseMaterial;
   private final double displayScale;
   private final double offsetX;
@@ -66,12 +63,8 @@ public class WireDisplayManager {
   private final double offsetZ;
   private final String entityName;
   private final DisplayMetadataService metadataService;
-  private final WireBlockIndex wireBlockIndex;
-  private final WireRenderPolicy renderPolicy;
-  private int maintenanceCursor;
   private final Set<String> warnedItemModels = Collections.synchronizedSet(new HashSet<>());
   private final Set<String> warnedModelIds = Collections.synchronizedSet(new HashSet<>());
-  private final Map<BlockFace, Quaternionf> connectionRotations = new EnumMap<>(BlockFace.class);
 
   public WireDisplayManager(
       Plugin plugin,
@@ -82,19 +75,15 @@ public class WireDisplayManager {
       Material monitorCarrier,
       Material busCarrier,
       String displayNamespace,
-      String displayCenter,
-      String displayConnection,
+      String wireModel,
       boolean resourceMode,
-      WireRenderMode renderMode,
       Material displayBaseMaterial,
       double displayScale,
       double offsetX,
       double offsetY,
       double offsetZ,
       String entityName,
-      DisplayMetadataService metadataService,
-      WireBlockIndex wireBlockIndex,
-      WireRenderPolicy renderPolicy) {
+      DisplayMetadataService metadataService) {
     this.plugin = plugin;
     this.enabled = enabled;
     this.wireCarrierMaterial = wireCarrierMaterial;
@@ -103,10 +92,8 @@ public class WireDisplayManager {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.displayNamespace = displayNamespace == null ? "" : displayNamespace.trim();
-    this.displayCenter = displayCenter == null ? "" : displayCenter.trim();
-    this.displayConnection = displayConnection == null ? "" : displayConnection.trim();
+    this.wireModel = wireModel == null ? "" : wireModel.trim();
     this.resourceMode = resourceMode;
-    this.renderMode = renderMode == null ? WireRenderMode.AUTO : renderMode;
     this.displayBaseMaterial = displayBaseMaterial;
     this.displayScale = displayScale;
     this.offsetX = offsetX;
@@ -114,17 +101,6 @@ public class WireDisplayManager {
     this.offsetZ = offsetZ;
     this.entityName = entityName == null ? "" : entityName;
     this.metadataService = metadataService;
-    this.wireBlockIndex = wireBlockIndex;
-    this.renderPolicy = renderPolicy;
-    if (resourceMode) {
-      int baseMask = bit(BlockFace.NORTH);
-      for (BlockFace face : FACES) {
-        Rotation rot = findRotation(baseMask, bit(face));
-        Quaternionf q = rot == null ? new Quaternionf() : new Quaternionf(rot.quat());
-        q.mul(MIRROR_Y_180);
-        connectionRotations.put(face, q);
-      }
-    }
   }
 
   public boolean isEnabled() {
@@ -187,33 +163,15 @@ public class WireDisplayManager {
   }
 
   private void updateWire(Block wire) {
-    if (wireBlockIndex != null) {
-      wireBlockIndex.register(wire);
-    }
-    WireRenderMode desiredMode = desiredModeFor(wire);
-    WireRenderMode existingMode = existingMode(wire);
-    if (renderPolicy != null
-        && renderPolicy.auto()
-        && existingMode != null
-        && existingMode != desiredMode
-        && renderPolicy.hasNearbyPlayers(wire)) {
-      desiredMode = existingMode;
-    }
-    if (desiredMode == WireRenderMode.DETAILED) {
-      updateWireMulti(wire);
-      return;
-    }
     updateWireCompact(wire);
   }
 
   private void updateWireCompact(Block wire) {
-    PerfStats.incrementCounter("wire.compactUpdates");
     WireRender render = renderFor(wire);
     if (render == null) {
       removeDisplay(wire);
       return;
     }
-    cleanupDetailedDisplays(wire, false);
 
     UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
     var existing = existingId != null ? Bukkit.getEntity(existingId) : null;
@@ -232,6 +190,7 @@ public class WireDisplayManager {
       if (display == null) return;
       DisplayMarker.set(plugin, "wire", wire, display.getUniqueId());
     } else {
+      display.addScoreboardTag(DisplayTags.WIRE_COMPACT_TAG);
       applySettings(display);
       applyModel(display, render.modelId());
       display.teleport(targetLoc(wire));
@@ -241,11 +200,7 @@ public class WireDisplayManager {
   }
 
   private void removeDisplay(Block wire) {
-    if (wireBlockIndex != null) {
-      wireBlockIndex.unregister(wire);
-    }
     removeCompactDisplay(wire);
-    removeMultiDisplays(wire);
     // Fallback: remove any stray displays in the block space with our tag
     var loc = targetLoc(wire);
     for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
@@ -289,68 +244,6 @@ public class WireDisplayManager {
             });
   }
 
-  private void updateWireMulti(Block wire) {
-    if (displayCenter.isBlank()) {
-      removeMultiDisplays(wire);
-      return;
-    }
-    removeCompactDisplay(wire);
-    int mask = connectionsMask(wire);
-
-    ItemDisplay center = findTaggedDisplay(wire, DisplayTags.WIRE_CENTER_TAG);
-    if (center == null || center.isDead()) {
-      center = spawnTaggedDisplay(wire, displayCenter, MIRROR_Y_180, DisplayTags.WIRE_CENTER_TAG);
-    } else {
-      applySettings(center);
-      applyModel(center, displayCenter);
-      center.teleport(targetLoc(wire));
-      applyOrientation(center, MIRROR_Y_180);
-      metadataService.normalize(center);
-    }
-
-    for (BlockFace face : FACES) {
-      boolean connected = (mask & bit(face)) != 0;
-      String tag = DisplayTags.WIRE_CONNECTION_PREFIX + face.name().toLowerCase();
-      ItemDisplay display = findTaggedDisplay(wire, tag);
-      if (!connected) {
-        if (display != null && !display.isDead()) {
-          removeManagedDisplay(display);
-        }
-        continue;
-      }
-      if (display == null || display.isDead()) {
-        display = spawnTaggedDisplay(wire, displayConnection, connectionRotations.get(face), tag);
-      } else {
-        applySettings(display);
-        applyModel(display, displayConnection);
-        display.teleport(targetLoc(wire));
-        applyOrientation(display, connectionRotations.get(face));
-        metadataService.normalize(display);
-      }
-    }
-  }
-
-  private void removeMultiDisplays(Block wire) {
-    cleanupDetailedDisplays(wire, true);
-  }
-
-  private void cleanupDetailedDisplays(Block wire, boolean clearMarker) {
-    if (clearMarker) {
-      DisplayMarker.clear(plugin, "wire", wire);
-    }
-    var loc = targetLoc(wire);
-    for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
-      if (!(ent instanceof ItemDisplay display)) continue;
-      var tags = display.getScoreboardTags();
-      if (!tags.contains(DisplayTags.DISPLAY_TAG)) continue;
-      if (!display.getLocation().getBlock().equals(wire)) continue;
-      if (tags.contains(DisplayTags.WIRE_CENTER_TAG)
-          || tags.stream().anyMatch(tag -> tag.startsWith(DisplayTags.WIRE_CONNECTION_PREFIX))) {
-        removeManagedDisplay(display);
-      }
-    }
-  }
-
   private void removeCompactDisplay(Block wire) {
     UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
     if (existingId != null) {
@@ -377,35 +270,6 @@ public class WireDisplayManager {
     }
     metadataService.unregister(display);
     display.remove();
-  }
-
-  private ItemDisplay findTaggedDisplay(Block wire, String tag) {
-    var loc = targetLoc(wire);
-    for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
-      if (!(ent instanceof ItemDisplay display)) continue;
-      var tags = display.getScoreboardTags();
-      if (!tags.contains(DisplayTags.DISPLAY_TAG)) continue;
-      if (!tags.contains(tag)) continue;
-      if (!display.getLocation().getBlock().equals(wire)) continue;
-      return display;
-    }
-    return null;
-  }
-
-  private ItemDisplay spawnTaggedDisplay(
-      Block wire, String modelId, Quaternionf rotation, String tag) {
-    if (modelId == null || modelId.isBlank()) return null;
-    Location loc = targetLoc(wire);
-    return loc.getWorld()
-        .spawn(
-            loc,
-            ItemDisplay.class,
-            item -> {
-              item.addScoreboardTag(tag);
-              applySettings(item);
-              applyModel(item, modelId);
-              applyOrientation(item, rotation == null ? new Quaternionf() : rotation);
-            });
   }
 
   private void applySettings(ItemDisplay item) {
@@ -466,108 +330,15 @@ public class WireDisplayManager {
   private WireRender renderFor(Block wire) {
     int mask = connectionsMask(wire);
     if (!resourceMode) {
-      if (displayCenter.isBlank()) return null;
-      return new WireRender(displayCenter, new Quaternionf(MIRROR_Y_180));
+      if (wireModel.isBlank()) return null;
+      return new WireRender(wireModel, new Quaternionf(MIRROR_Y_180));
     }
     if (mask == 0) {
-      if (displayCenter.isBlank()) return null;
-      return new WireRender(displayCenter, new Quaternionf(MIRROR_Y_180));
+      if (wireModel.isBlank()) return null;
+      return new WireRender(wireModel, new Quaternionf(MIRROR_Y_180));
     }
 
-    ModelBase base = baseForMask(mask);
-    if (base == null) {
-      return new WireRender(compactModelId(suffix(mask)), new Quaternionf(MIRROR_Y_180));
-    }
-
-    Rotation rot = findRotation(base.baseMask(), mask);
-    Quaternionf q = rot == null ? new Quaternionf() : new Quaternionf(rot.quat());
-    q.mul(MIRROR_Y_180);
-    return new WireRender(compactModelId(base.modelKey()), q);
-  }
-
-  private WireRenderMode desiredModeFor(Block wire) {
-    if (!resourceMode) {
-      return WireRenderMode.COMPACT;
-    }
-    if (renderPolicy != null) {
-      return renderPolicy.desiredMode(wire);
-    }
-    return renderMode == WireRenderMode.DETAILED ? WireRenderMode.DETAILED : WireRenderMode.COMPACT;
-  }
-
-  private WireRenderMode existingMode(Block wire) {
-    if (hasCompactDisplay(wire)) {
-      return WireRenderMode.COMPACT;
-    }
-    if (findTaggedDisplay(wire, DisplayTags.WIRE_CENTER_TAG) != null) {
-      return WireRenderMode.DETAILED;
-    }
-    for (BlockFace face : FACES) {
-      String tag = DisplayTags.WIRE_CONNECTION_PREFIX + face.name().toLowerCase();
-      if (findTaggedDisplay(wire, tag) != null) {
-        return WireRenderMode.DETAILED;
-      }
-    }
-    return null;
-  }
-
-  private boolean hasCompactDisplay(Block wire) {
-    UUID existingId = DisplayMarker.get(plugin, "wire", wire).orElse(null);
-    if (existingId != null) {
-      var existing = Bukkit.getEntity(existingId);
-      if (existing instanceof ItemDisplay display
-          && !display.isDead()
-          && display.getScoreboardTags().contains(DisplayTags.WIRE_COMPACT_TAG)) {
-        return true;
-      }
-    }
-    var loc = targetLoc(wire);
-    for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
-      if (!(ent instanceof ItemDisplay display)) continue;
-      var tags = display.getScoreboardTags();
-      if (!tags.contains(DisplayTags.DISPLAY_TAG)) continue;
-      if (!tags.contains(DisplayTags.WIRE_COMPACT_TAG)) continue;
-      if (!display.getLocation().getBlock().equals(wire)) continue;
-      return true;
-    }
-    return false;
-  }
-
-  public void runAutoMaintenance() {
-    if (!isEnabled() || renderPolicy == null || !renderPolicy.auto() || wireBlockIndex == null) {
-      return;
-    }
-    List<WireBlockIndex.BlockKey> blocks = wireBlockIndex.snapshotBlocks();
-    if (blocks.isEmpty()) {
-      PerfStats.setGauge("wire.autoRender.maintenanceQueue", 0L);
-      return;
-    }
-    int budget = renderPolicy.config().maintenanceBlocksPerTick();
-    int processed = 0;
-    while (processed < budget && !blocks.isEmpty()) {
-      if (maintenanceCursor >= blocks.size()) {
-        maintenanceCursor = 0;
-      }
-      WireBlockIndex.BlockKey key = blocks.get(maintenanceCursor++);
-      Block block = wireBlockIndex.loadedBlock(key);
-      if (block == null || !isWire(block)) {
-        wireBlockIndex.unregister(key);
-        processed++;
-        continue;
-      }
-      WireRenderMode desired = desiredModeFor(block);
-      WireRenderMode existing = existingMode(block);
-      if (existing != null && existing != desired && !renderPolicy.hasNearbyPlayers(block)) {
-        if (desired == WireRenderMode.DETAILED) {
-          updateWireMulti(block);
-        } else {
-          updateWireCompact(block);
-        }
-        PerfStats.incrementCounter("wire.autoRender.maintenanceConverted");
-      }
-      processed++;
-    }
-    PerfStats.setGauge("wire.autoRender.maintenanceQueue", blocks.size());
+    return new WireRender(compactModelId(suffix(mask)), new Quaternionf(MIRROR_Y_180));
   }
 
   private String compactModelId(String key) {
@@ -655,18 +426,6 @@ public class WireDisplayManager {
     };
   }
 
-  private static BlockFace indexFace(int index) {
-    return switch (index) {
-      case 0 -> BlockFace.UP;
-      case 1 -> BlockFace.DOWN;
-      case 2 -> BlockFace.NORTH;
-      case 3 -> BlockFace.SOUTH;
-      case 4 -> BlockFace.EAST;
-      case 5 -> BlockFace.WEST;
-      default -> throw new IllegalArgumentException("Bad face index: " + index);
-    };
-  }
-
   private static String suffix(int mask) {
     StringBuilder sb = new StringBuilder(6);
     if ((mask & bit(BlockFace.UP)) != 0) sb.append('u');
@@ -678,156 +437,9 @@ public class WireDisplayManager {
     return sb.toString();
   }
 
-  private static boolean isOppositePairMask(int mask) {
-    return mask == (bit(BlockFace.UP) | bit(BlockFace.DOWN))
-        || mask == (bit(BlockFace.NORTH) | bit(BlockFace.SOUTH))
-        || mask == (bit(BlockFace.EAST) | bit(BlockFace.WEST));
-  }
-
-  private static boolean hasOppositePair(int mask) {
-    return (mask & (bit(BlockFace.UP) | bit(BlockFace.DOWN)))
-            == (bit(BlockFace.UP) | bit(BlockFace.DOWN))
-        || (mask & (bit(BlockFace.NORTH) | bit(BlockFace.SOUTH)))
-            == (bit(BlockFace.NORTH) | bit(BlockFace.SOUTH))
-        || (mask & (bit(BlockFace.EAST) | bit(BlockFace.WEST)))
-            == (bit(BlockFace.EAST) | bit(BlockFace.WEST));
-  }
-
-  private static ModelBase baseForMask(int mask) {
-    int count = Integer.bitCount(mask);
-    return switch (count) {
-      case 1 -> new ModelBase("n", bit(BlockFace.NORTH));
-      case 2 ->
-          isOppositePairMask(mask)
-              ? new ModelBase("ns", bit(BlockFace.NORTH) | bit(BlockFace.SOUTH))
-              : new ModelBase("ne", bit(BlockFace.NORTH) | bit(BlockFace.EAST));
-      case 3 ->
-          hasOppositePair(mask)
-              ? new ModelBase(
-                  "nse", bit(BlockFace.NORTH) | bit(BlockFace.SOUTH) | bit(BlockFace.EAST))
-              : new ModelBase(
-                  "une", bit(BlockFace.UP) | bit(BlockFace.NORTH) | bit(BlockFace.EAST));
-      case 4 -> {
-        int missing = ALL_MASK ^ mask;
-        if (isOppositePairMask(missing)) {
-          yield new ModelBase(
-              "udns",
-              bit(BlockFace.UP)
-                  | bit(BlockFace.DOWN)
-                  | bit(BlockFace.NORTH)
-                  | bit(BlockFace.SOUTH));
-        }
-        yield new ModelBase(
-            "unse",
-            bit(BlockFace.UP) | bit(BlockFace.NORTH) | bit(BlockFace.SOUTH) | bit(BlockFace.EAST));
-      }
-      case 5 ->
-          new ModelBase(
-              "dnsew",
-              bit(BlockFace.DOWN)
-                  | bit(BlockFace.NORTH)
-                  | bit(BlockFace.SOUTH)
-                  | bit(BlockFace.EAST)
-                  | bit(BlockFace.WEST));
-      case 6 -> new ModelBase("udnsew", ALL_MASK);
-      default -> null;
-    };
-  }
-
   static String compactModelKeyForMask(int mask) {
-    ModelBase base = baseForMask(mask);
-    return base == null ? suffix(mask) : base.modelKey();
-  }
-
-  static boolean hasCompactRotationForMask(int mask) {
-    if (mask == 0) {
-      return true;
-    }
-    ModelBase base = baseForMask(mask);
-    return base != null && findRotation(base.baseMask(), mask) != null;
-  }
-
-  private static Rotation findRotation(int baseMask, int targetMask) {
-    for (Rotation r : ROTATIONS) {
-      if (r.applyMask(baseMask) == targetMask) return r;
-    }
-    return null;
-  }
-
-  private static List<Rotation> generateRotations() {
-    Quaternionf rx = new Quaternionf().rotateX((float) (Math.PI / 2.0));
-    Quaternionf ry = new Quaternionf().rotateY((float) (Math.PI / 2.0));
-    Quaternionf rz = new Quaternionf().rotateZ((float) (Math.PI / 2.0));
-
-    Queue<Quaternionf> q = new ArrayDeque<>();
-    q.add(new Quaternionf()); // identity
-
-    Map<String, Rotation> unique = new LinkedHashMap<>();
-    while (!q.isEmpty() && unique.size() < 24) {
-      Quaternionf cur = q.poll();
-      Rotation rot = Rotation.from(cur);
-      if (unique.containsKey(rot.key())) continue;
-      unique.put(rot.key(), rot);
-
-      q.add(new Quaternionf(cur).mul(rx));
-      q.add(new Quaternionf(cur).mul(ry));
-      q.add(new Quaternionf(cur).mul(rz));
-    }
-    return List.copyOf(unique.values());
+    return suffix(mask);
   }
 
   private record WireRender(String modelId, Quaternionf rotation) {}
-
-  private record ModelBase(String modelKey, int baseMask) {}
-
-  private record Rotation(String key, Quaternionf quat, int[] faceMap) {
-    int applyMask(int mask) {
-      int out = 0;
-      for (int i = 0; i < 6; i++) {
-        if ((mask & (1 << i)) == 0) continue;
-        out |= 1 << faceMap[i];
-      }
-      return out;
-    }
-
-    static Rotation from(Quaternionf q) {
-      int[] map = new int[6];
-      StringBuilder sb = new StringBuilder(12);
-      for (int i = 0; i < 6; i++) {
-        BlockFace src = indexFace(i);
-        BlockFace dst = rotateFace(q, src);
-        int di = faceIndex(dst);
-        map[i] = di;
-        sb.append(i).append("->").append(di).append(';');
-      }
-      return new Rotation(sb.toString(), new Quaternionf(q), map);
-    }
-
-    private static BlockFace rotateFace(Quaternionf q, BlockFace face) {
-      Vector3f v = faceVector(face);
-      q.transform(v);
-      int x = Math.round(v.x);
-      int y = Math.round(v.y);
-      int z = Math.round(v.z);
-      if (x == 1 && y == 0 && z == 0) return BlockFace.EAST;
-      if (x == -1 && y == 0 && z == 0) return BlockFace.WEST;
-      if (x == 0 && y == 1 && z == 0) return BlockFace.UP;
-      if (x == 0 && y == -1 && z == 0) return BlockFace.DOWN;
-      if (x == 0 && y == 0 && z == 1) return BlockFace.SOUTH;
-      if (x == 0 && y == 0 && z == -1) return BlockFace.NORTH;
-      return face;
-    }
-
-    private static Vector3f faceVector(BlockFace face) {
-      return switch (face) {
-        case EAST -> new Vector3f(1, 0, 0);
-        case WEST -> new Vector3f(-1, 0, 0);
-        case UP -> new Vector3f(0, 1, 0);
-        case DOWN -> new Vector3f(0, -1, 0);
-        case SOUTH -> new Vector3f(0, 0, 1);
-        case NORTH -> new Vector3f(0, 0, -1);
-        default -> new Vector3f(0, 0, 0);
-      };
-    }
-  }
 }

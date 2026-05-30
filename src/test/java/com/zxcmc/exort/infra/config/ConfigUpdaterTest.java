@@ -87,4 +87,38 @@ class ConfigUpdaterTest {
     assertEquals(-1, merged.indexOf("clientCullingBypass.players"), merged);
     assertEquals(-1, merged.indexOf("00000000-0000-0000-0000-000000000123"), merged);
   }
+
+  @Test
+  void mergeDropsRetiredWireRenderKeys() {
+    YamlConfiguration defaults = new YamlConfiguration();
+    defaults.set("resourceMode.wire.itemModel", "wire/center");
+    defaults.set("resourceMode.wire.displayBaseMaterial", "PAPER");
+    YamlConfiguration user = new YamlConfiguration();
+    user.set("resourceMode.wire.itemModel", "wire/custom_center");
+    user.set("resourceMode.wire.displayBaseMaterial", "PAPER");
+    user.set("resourceMode.wire.renderMode", "AUTO");
+    user.set("resourceMode.wire.autoRender.chunkRadius", 1);
+    user.set("resourceMode.wire.autoRender.enterCompactWires", 48);
+    user.set("resourceMode.wire.autoRender.exitCompactWires", 32);
+    user.set("resourceMode.wire.autoRender.idlePlayerRadiusBlocks", 96);
+    user.set("resourceMode.wire.autoRender.maintenanceBlocksPerTick", 16);
+    user.set("resourceMode.wire.displayModelCenter", "wire/center");
+    user.set("resourceMode.wire.displayModelConnection", "wire/connection");
+    List<String> defaultLines =
+        List.of(
+            "resourceMode:",
+            "  wire:",
+            "    itemModel: wire/center",
+            "    displayBaseMaterial: PAPER");
+
+    String merged =
+        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
+
+    assertTrue(merged.contains("    itemModel: wire/custom_center"), merged);
+    assertEquals(-1, merged.indexOf("renderMode"), merged);
+    assertEquals(-1, merged.indexOf("autoRender"), merged);
+    assertEquals(-1, merged.indexOf("displayModelCenter"), merged);
+    assertEquals(-1, merged.indexOf("displayModelConnection"), merged);
+    assertEquals(-1, merged.indexOf("wire/connection"), merged);
+  }
 }

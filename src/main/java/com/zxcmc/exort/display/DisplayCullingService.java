@@ -51,7 +51,6 @@ public final class DisplayCullingService implements Listener {
   private final DisplayEntityIndex index;
   private final DisplayMetadataService metadataService;
   private final Database database;
-  private final Runnable maintenanceTask;
   private final Map<UUID, Map<UUID, TrackedDisplay>> trackedByPlayer = new ConcurrentHashMap<>();
   private final Map<UUID, AdaptiveViewRangeState> adaptiveStates = new ConcurrentHashMap<>();
   private final Map<UUID, PlayerMotionState> motionStates = new ConcurrentHashMap<>();
@@ -85,15 +84,13 @@ public final class DisplayCullingService implements Listener {
       ProtocolLibEnhancements protocolLibEnhancements,
       DisplayEntityIndex index,
       DisplayMetadataService metadataService,
-      Database database,
-      Runnable maintenanceTask) {
+      Database database) {
     this.plugin = plugin;
     this.config = config;
     this.protocolLibEnhancements = protocolLibEnhancements;
     this.index = index;
     this.metadataService = metadataService;
     this.database = database;
-    this.maintenanceTask = maintenanceTask == null ? () -> {} : maintenanceTask;
     loadPersistentClientCullingStates();
     this.translationProbe =
         new ClientCullingTranslationProbe(
@@ -445,8 +442,6 @@ public final class DisplayCullingService implements Listener {
     int maxAdaptiveLevel = 0;
     EnumMap<DisplayRole, Integer> roles = new EnumMap<>(DisplayRole.class);
     Set<UUID> onlinePlayers = new HashSet<>();
-
-    maintenanceTask.run();
 
     for (Player player : Bukkit.getOnlinePlayers()) {
       UUID playerId = player.getUniqueId();

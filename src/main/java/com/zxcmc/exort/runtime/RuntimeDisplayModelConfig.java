@@ -6,8 +6,6 @@ import java.util.Objects;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record RuntimeDisplayModelConfig(
-    String wireCenter,
-    String wireConnection,
     String storage,
     String terminal,
     String terminalDisabled,
@@ -26,11 +24,6 @@ public record RuntimeDisplayModelConfig(
   private static RuntimeDisplayModelConfig resourceConfig(
       ConfigurationSection config, String namespace) {
     return new RuntimeDisplayModelConfig(
-        normalizeModelId(
-            config.getString("resourceMode.wire.displayModelCenter", "wire/center"), namespace),
-        normalizeModelId(
-            config.getString("resourceMode.wire.displayModelConnection", "wire/connection"),
-            namespace),
         normalizeModelId(
             config.getString("resourceMode.storage.modelId", "storage/storage"), namespace),
         normalizeModelId(
@@ -64,9 +57,6 @@ public record RuntimeDisplayModelConfig(
         config.getString("vanillaMode.craftingTerminal.modelId", "crafting_table");
     String monitor = config.getString("vanillaMode.monitor.modelId", "smooth_stone");
     return new RuntimeDisplayModelConfig(
-        normalizeModelId(
-            config.getString("vanillaMode.wire.modelId", "black_stained_glass"), namespace),
-        "",
         normalizeModelId(config.getString("vanillaMode.storage.modelId", "vault"), namespace),
         normalizeModelId(terminal, namespace),
         normalizeModelId(terminal, namespace),

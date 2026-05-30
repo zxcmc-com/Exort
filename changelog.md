@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.6 — 2026-05-30
+- RESOURCE wire rendering now always uses one baked `ItemDisplay` model per connection mask, matching the previous multi-display texture alignment without per-segment display entities.
+- Removed the obsolete wire render-mode and auto-render configuration keys; `resourceMode.wire.itemModel` remains the fallback model for isolated wires and the wire item.
+
 ## 0.12.5 — 2026-05-29
 - Added automatic EntityCulling detection for client culling bypass: after a client brand is available, Exort probes non-vanilla clients with EntityCulling translation keys on a virtual sign placed 5 blocks behind and 5 blocks below the player, skips explicit `vanilla` clients, and enables bypass automatically when those language keys are translated. Previous same-brand matches are reused for up to 12 hours from the player's last online timestamp, avoiding repeat probes on normal reconnects.
 - Removed `performance.displayCulling.clientCullingBypass.players`; manual bypass state and auto-detect history now live in the plugin database.

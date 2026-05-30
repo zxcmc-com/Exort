@@ -332,25 +332,8 @@ resourceMode:
     # Random particle position spread from block center.
     spread: 0.31
   wire:
-    # AUTO uses DETAILED normally and switches dense wire zones to COMPACT; DETAILED and COMPACT force one mode.
-    renderMode: AUTO
-    autoRender:
-      # Count wire density in a square chunk window around each cable.
-      chunkRadius: 1
-      # Switch new/missing displays in dense zones to COMPACT at or above this wire count.
-      enterCompactWires: 48
-      # Recover dense zones back to DETAILED at or below this wire count.
-      exitCompactWires: 32
-      # Existing displays are converted only when no players are this close.
-      idlePlayerRadiusBlocks: 96
-      # Max idle wire display conversions per maintenance tick.
-      maintenanceBlocksPerTick: 16
-    # Optional item_model for the wire item (inventory/hand). Example: center
+    # Optional item_model for the wire item and isolated wire display. Example: wire/center
     itemModel: wire/center
-    # Model used for the wire center. Default matches the provided pack: wire/center
-    displayModelCenter: wire/center
-    # Model used for a single connection segment. Default matches the provided pack: wire/connection
-    displayModelConnection: wire/connection
     # ItemDisplay settings
     displayBaseMaterial: PAPER
     displayScale: 1.0

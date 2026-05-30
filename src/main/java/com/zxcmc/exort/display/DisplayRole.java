@@ -21,9 +21,7 @@ public enum DisplayRole {
     if (tags.contains(DisplayTags.HOLOGRAM_TAG)) {
       return HOLOGRAM;
     }
-    if (tags.contains(DisplayTags.WIRE_COMPACT_TAG)
-        || tags.contains(DisplayTags.WIRE_CENTER_TAG)
-        || tags.stream().anyMatch(tag -> tag.startsWith(DisplayTags.WIRE_CONNECTION_PREFIX))) {
+    if (tags.contains(DisplayTags.WIRE_COMPACT_TAG)) {
       return WIRE;
     }
     return BLOCK;

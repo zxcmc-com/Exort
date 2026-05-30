@@ -18,12 +18,6 @@ class DisplayCullingServiceTest {
     assertTrue(
         DisplayCullingService.isCullableDisplayTags(
             Set.of(DisplayTags.DISPLAY_TAG, DisplayTags.WIRE_COMPACT_TAG)));
-    assertTrue(
-        DisplayCullingService.isCullableDisplayTags(
-            Set.of(DisplayTags.DISPLAY_TAG, DisplayTags.WIRE_CENTER_TAG)));
-    assertTrue(
-        DisplayCullingService.isCullableDisplayTags(
-            Set.of(DisplayTags.DISPLAY_TAG, DisplayTags.WIRE_CONNECTION_PREFIX + "north")));
     assertTrue(DisplayCullingService.isCullableDisplayTags(Set.of(DisplayTags.DISPLAY_TAG)));
     assertTrue(
         DisplayCullingService.isCullableDisplayTags(Set.of(DisplayTags.DISPLAY_TAG, "storage")));
