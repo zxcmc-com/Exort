@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.8 — 2026-05-30
+- RESOURCE wire carriers are now protected against targeted water-flow replacement.
+- `/exort mode set RESOURCE` now replaces the separate `/exort mode fix RESOURCE` flow: it checks and updates the active Paper chorus-plant update setting itself, scheduling the required restart even when `paper-global.yml` already contains the correct value.
+- `/exort debug benchmark start` now builds static budgeted contained water-flow stress lanes with max-length real RESOURCE wires, water sources, floors, and borders, then starts the measured window only after setup and water-flow stabilization so construction spikes do not dominate the final verdict.
+- Benchmark verdicts now grade sustained MSPT and frequent TPS loss separately from rare wall-clock scheduler stalls, keeping one-off spikes visible as warnings without misclassifying an otherwise stable run.
+- Benchmark result lines now color individual verdicts, TPS/MSPT values, stall counts, synthetic shares, measured profile hotspots, queues, and metadata in chat and the Purpur console, making the final summary easier to scan on dark and light console themes.
+
 ## 0.12.7 — 2026-05-30
 - RESOURCE storage, terminal, monitor, and bus carriers can now use budgeted per-player netherite-block proxies at long distance: real world blocks stay unchanged, wires are excluded, and the matching display is hidden only for that player until the carrier is restored near the configured BLOCK render range.
 - Exort block placement now starts a vanilla-like hand swing immediately after the carrier and marker are written, before display and network refresh work, matching the actual hand used for main-hand and off-hand placement.

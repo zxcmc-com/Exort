@@ -60,7 +60,6 @@ class LangTest {
             "message.usage_mode_header",
             "message.usage_mode_info",
             "message.usage_mode_set",
-            "message.usage_mode_fix",
             "message.usage_debug_header",
             "message.usage_debug_player",
             "message.usage_debug_storage",

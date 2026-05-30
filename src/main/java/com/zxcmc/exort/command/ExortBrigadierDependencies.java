@@ -49,7 +49,6 @@ public record ExortBrigadierDependencies(
     Supplier<String> effectiveMode,
     Supplier<String> modeFallbackReason,
     Supplier<String> pluginVersion,
-    Supplier<PaperChorusPlantUpdates.Status> chorusPlantUpdateStatus,
     Supplier<PaperChorusPlantUpdates.FixResult> chorusPlantUpdateDisabler,
     LongSupplier cacheIdleUnloadSeconds,
     IntSupplier wireLimit,
@@ -81,7 +80,6 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(effectiveMode, "effectiveMode");
     Objects.requireNonNull(modeFallbackReason, "modeFallbackReason");
     Objects.requireNonNull(pluginVersion, "pluginVersion");
-    Objects.requireNonNull(chorusPlantUpdateStatus, "chorusPlantUpdateStatus");
     Objects.requireNonNull(chorusPlantUpdateDisabler, "chorusPlantUpdateDisabler");
     Objects.requireNonNull(cacheIdleUnloadSeconds, "cacheIdleUnloadSeconds");
     Objects.requireNonNull(wireLimit, "wireLimit");

@@ -15,8 +15,10 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -82,6 +84,16 @@ public class WireListener implements Listener {
     event.setUseInteractedBlock(Result.DENY);
     event.setUseItemInHand(Result.DENY);
     if (!allowPlacement(event.getItem())) {
+      event.setCancelled(true);
+    }
+  }
+
+  @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+  public void onWaterFlow(BlockFromToEvent event) {
+    if (wireMaterial != Material.CHORUS_PLANT) return;
+    Block target = event.getToBlock();
+    if (target.getType() != wireMaterial) return;
+    if (WireMarker.isWire(plugin, target)) {
       event.setCancelled(true);
     }
   }

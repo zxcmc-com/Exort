@@ -46,14 +46,7 @@ final class ModeCommand {
                 .then(
                     Commands.argument(ARG_MODE, StringArgumentType.word())
                         .suggests(this::suggestModes)
-                        .executes(this::set)))
-        .then(
-            Commands.literal("fix")
-                .executes(this::usage)
-                .then(
-                    Commands.argument(ARG_MODE, StringArgumentType.word())
-                        .suggests(this::suggestResourceMode)
-                        .executes(this::fix)));
+                        .executes(this::set)));
   }
 
   private int usage(CommandContext<CommandSourceStack> context) {
@@ -63,8 +56,7 @@ final class ModeCommand {
         Component.text(dependencies.lang().tr("message.usage_mode_header")),
         List.of(
             usageLine("/exort mode info", "message.usage_mode_info"),
-            usageLine("/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set"),
-            usageLine("/exort mode fix RESOURCE", "message.usage_mode_fix")));
+            usageLine("/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set")));
     return 1;
   }
 
@@ -108,56 +100,34 @@ final class ModeCommand {
       sendMessage(sender, dependencies.lang().tr("message.mode_invalid", raw));
       return 1;
     }
-    setMode(sender, normalized);
+    if (normalized.equals("RESOURCE")) {
+      enableResourceMode(sender);
+    } else {
+      setMode(sender, normalized);
+    }
     return 1;
   }
 
-  private int fix(CommandContext<CommandSourceStack> context) {
-    if (!ensurePermission(context)) return 0;
-    CommandSender sender = sender(context.getSource());
-    String raw = StringArgumentType.getString(context, ARG_MODE);
-    String normalized = raw.toUpperCase(Locale.ROOT);
-    if (!normalized.equals("RESOURCE")) {
-      sendMessage(sender, dependencies.lang().tr("message.mode_fix_resource_only"));
-      return 1;
-    }
-
-    PaperChorusPlantUpdates.Status status = dependencies.chorusPlantUpdateStatus().get();
-    if (status.state() == PaperChorusPlantUpdates.State.MISSING) {
-      sendMessage(
-          sender,
-          dependencies.lang().tr("message.mode_fix_paper_missing", status.file().getPath()));
-      return 1;
-    }
-    if (status.state() == PaperChorusPlantUpdates.State.ERROR) {
-      sendPaperFixError(sender, status.file().getPath(), status.accessDenied(), status.error());
-      return 1;
-    }
-    if (status.disabled()) {
-      setMode(sender, "RESOURCE");
-      return 1;
-    }
-
+  private void enableResourceMode(CommandSender sender) {
     PaperChorusPlantUpdates.FixResult result = dependencies.chorusPlantUpdateDisabler().get();
     if (result.state() == PaperChorusPlantUpdates.State.MISSING) {
       sendMessage(
           sender,
           dependencies.lang().tr("message.mode_fix_paper_missing", result.file().getPath()));
-      return 1;
+      return;
     }
     if (result.state() == PaperChorusPlantUpdates.State.ERROR) {
       sendPaperFixError(sender, result.file().getPath(), result.accessDenied(), result.error());
-      return 1;
+      return;
     }
-    if (!result.changed()) {
+    if (!result.restartRequired()) {
       setMode(sender, "RESOURCE");
-      return 1;
+      return;
     }
 
     dependencies.configuredModeSaver().accept("RESOURCE");
-    notifyModeFixRestart(sender, result.file().getPath());
+    notifyModeFixRestart(sender, result.file().getPath(), result.changed());
     scheduleRestartAfterModeFix();
-    return 1;
   }
 
   private void sendPaperFixError(
@@ -218,15 +188,17 @@ final class ModeCommand {
             });
   }
 
-  private void notifyModeFixRestart(CommandSender sender, String paperConfigPath) {
+  private void notifyModeFixRestart(
+      CommandSender sender, String paperConfigPath, boolean paperConfigChanged) {
+    String paperLineKey =
+        paperConfigChanged
+            ? "message.mode_fix_paper_changed"
+            : "message.mode_fix_paper_restart_required";
     List<String> lines =
         List.of(
             dependencies
                 .lang()
-                .tr(
-                    "message.mode_fix_paper_changed",
-                    PaperChorusPlantUpdates.SETTING_PATH,
-                    paperConfigPath),
+                .tr(paperLineKey, PaperChorusPlantUpdates.SETTING_PATH, paperConfigPath),
             dependencies.lang().tr("message.mode_fix_exort_changed"),
             dependencies.lang().tr("message.mode_fix_restart_scheduled"));
     sendBlockToSenderAndPlayers(sender, lines);
@@ -282,16 +254,6 @@ final class ModeCommand {
   private CompletableFuture<Suggestions> suggestModes(
       CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
     List<String> options = List.of("VANILLA", "RESOURCE");
-    List<String> matches =
-        StringUtil.copyPartialMatches(
-            builder.getRemaining().toUpperCase(Locale.ROOT), options, new ArrayList<>());
-    matches.forEach(builder::suggest);
-    return builder.buildFuture();
-  }
-
-  private CompletableFuture<Suggestions> suggestResourceMode(
-      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-    List<String> options = List.of("RESOURCE");
     List<String> matches =
         StringUtil.copyPartialMatches(
             builder.getRemaining().toUpperCase(Locale.ROOT), options, new ArrayList<>());

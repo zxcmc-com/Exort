@@ -17,6 +17,8 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -138,6 +140,7 @@ public final class LoadTestService {
   private boolean loadChunks;
   private int busCountPerChunk;
   private int monitorCountPerChunk;
+  private boolean measurementStarted;
   private int guardPlayers;
   private int effectiveGuardPlayers;
   private int targetGuardEntities;
@@ -190,6 +193,7 @@ public final class LoadTestService {
     this.startTick = Bukkit.getCurrentTick();
     this.lastTickNs = 0L;
     this.sampleIndex = 0;
+    this.measurementStarted = false;
     this.tickMs = new double[Math.max(1, durationTicks - warmupTicks)];
     this.msptSamples = new double[tickMs.length];
     this.jitterRandom = new Random(System.nanoTime());
@@ -244,7 +248,7 @@ public final class LoadTestService {
     long elapsed = Bukkit.getCurrentTick() - startTick;
     long now = System.nanoTime();
     if (lastTickNs != 0L) {
-      if (elapsed >= warmupTicks && sampleIndex < tickMs.length) {
+      if (measurementStarted && sampleIndex < tickMs.length) {
         double ms = (now - lastTickNs) / 1_000_000.0;
         tickMs[sampleIndex] = ms;
         msptSamples[sampleIndex] = currentMspt();
@@ -264,19 +268,49 @@ public final class LoadTestService {
     simulateGuardChurn();
     simulateWorldWorkload(elapsed);
 
-    if (elapsed % Math.max(1, progressIntervalTicks) == 0L) {
-      sendProgress((int) elapsed);
+    if (!measurementStarted && readyToStartMeasurement(elapsed)) {
+      startMeasurement();
+      return;
+    }
+
+    if (measurementStarted && sampleIndex % Math.max(1, progressIntervalTicks) == 0) {
+      sendProgress(sampleIndex);
     }
     if (elapsed % Math.max(1, monitorIntervalTicks) == 0L) {
       simulateMonitorUpdates();
     }
-    if (stopTpsThreshold > 0 && currentTps() < stopTpsThreshold) {
+    if (measurementStarted && stopTpsThreshold > 0 && currentTps() < stopTpsThreshold) {
       finishForced("message.debug_load_grade_awful");
       return;
     }
-    if (elapsed >= durationTicks) {
+    if (measurementStarted && sampleIndex >= tickMs.length) {
       finish();
     }
+  }
+
+  private boolean readyToStartMeasurement(long elapsedTicks) {
+    if (elapsedTicks < warmupTicks) {
+      return false;
+    }
+    if (worldWorkload == null || worldWorkload.readyForMeasurement(elapsedTicks)) {
+      return true;
+    }
+    int fallbackTicks = Math.max(20 * 30, durationTicks);
+    return elapsedTicks >= warmupTicks + fallbackTicks;
+  }
+
+  private void startMeasurement() {
+    measurementStarted = true;
+    sampleIndex = 0;
+    Arrays.fill(tickMs, 0.0);
+    Arrays.fill(msptSamples, 0.0);
+    PerfStats.resetAndEnable();
+    lastTickNs = System.nanoTime();
+    String started = lang.tr("message.debug_load_measurement_started");
+    if (owner != null) {
+      CommandFeedback.send(owner, started);
+    }
+    sendToConsoleIfNeeded(started);
   }
 
   private void finish() {
@@ -285,54 +319,30 @@ public final class LoadTestService {
 
   private void finishForced(String forcedGradeKey) {
     LoadTestVerdictCalculator.Result result = verdictResult(forcedGradeKey);
-    String verdict = formatVerdict(result);
-    if (owner != null) {
-      CommandFeedback.send(owner, verdict);
+    sendBenchmarkResultLine(formatVerdictComponent(result));
+    String sustainableGradeKey = sustainableMsptGrade(result.msptAvg(), result.msptP95());
+    sendBenchmarkResultLine(sustainableMsptComponent(result, sustainableGradeKey));
+    Component stallWarning = rareStallWarningComponent(result);
+    if (stallWarning != null) {
+      sendBenchmarkResultLine(stallWarning);
     }
-    sendToConsoleIfNeeded(verdict);
-    String sustainable = sustainableMsptLine(result);
-    if (owner != null) {
-      CommandFeedback.send(owner, sustainable);
+    Component hints = profileHintsComponent();
+    if (hints != null) {
+      sendBenchmarkResultLine(hints);
     }
-    sendToConsoleIfNeeded(sustainable);
-    String stallWarning = rareStallWarning(result);
-    if (stallWarning != null && !stallWarning.isBlank()) {
-      if (owner != null) {
-        CommandFeedback.send(owner, stallWarning);
-      }
-      sendToConsoleIfNeeded(stallWarning);
+    Component measured = measuredProfileComponent();
+    if (measured != null) {
+      sendBenchmarkResultLine(measured);
     }
-    String hints = profileHints();
-    if (hints != null && !hints.isBlank()) {
-      if (owner != null) {
-        CommandFeedback.send(owner, hints);
-      }
-      sendToConsoleIfNeeded(hints);
-    }
-    String measured = measuredProfileLine();
-    if (measured != null && !measured.isBlank()) {
-      if (owner != null) {
-        CommandFeedback.send(owner, measured);
-      }
-      sendToConsoleIfNeeded(measured);
-    }
-    String meta = metadataLine();
-    if (owner != null) {
-      CommandFeedback.send(owner, meta);
-    }
-    sendToConsoleIfNeeded(meta);
-    String runs = rememberAndFormatRuns(result);
-    if (runs != null && !runs.isBlank()) {
-      if (owner != null) {
-        CommandFeedback.send(owner, runs);
-      }
-      sendToConsoleIfNeeded(runs);
+    sendBenchmarkResultLine(metadataComponent());
+    Component runs = rememberAndFormatRunsComponent(result);
+    if (runs != null) {
+      sendBenchmarkResultLine(runs);
     }
     stop(false);
   }
 
-  private String sustainableMsptLine(LoadTestVerdictCalculator.Result result) {
-    String gradeKey = sustainableMsptGrade(result.msptAvg(), result.msptP95());
+  private String sustainableMsptLine(LoadTestVerdictCalculator.Result result, String gradeKey) {
     return lang.tr(
         "message.debug_load_mspt_verdict",
         lang.tr(gradeKey),
@@ -349,18 +359,108 @@ public final class LoadTestService {
     return "message.debug_load_grade_warn";
   }
 
-  private String measuredProfileLine() {
+  private NamedTextColor gradeColor(String gradeKey) {
+    return switch (gradeKey) {
+      case "message.debug_load_grade_good" -> NamedTextColor.GREEN;
+      case "message.debug_load_grade_warn" -> NamedTextColor.YELLOW;
+      case "message.debug_load_grade_poor" -> NamedTextColor.GOLD;
+      case "message.debug_load_grade_bad" -> NamedTextColor.RED;
+      case "message.debug_load_grade_awful" -> NamedTextColor.RED;
+      default -> NamedTextColor.GRAY;
+    };
+  }
+
+  private void sendBenchmarkResultLine(Component component) {
+    if (component == null) {
+      return;
+    }
+    if (owner != null) {
+      CommandFeedback.send(owner, component);
+    }
+    sendToConsoleIfNeeded(component);
+  }
+
+  private Component formatVerdictComponent(LoadTestVerdictCalculator.Result result) {
+    HighlightedLine line = new HighlightedLine(formatVerdict(result));
+    line.highlight(lang.tr(result.gradeKey()), gradeColor(result.gradeKey()));
+    line.highlight(TWO_DECIMALS.format(result.tpsMin()), tpsColor(result.tpsMin()));
+    line.highlight(TWO_DECIMALS.format(result.tpsMax()), tpsColor(result.tpsMax()));
+    line.highlight(TWO_DECIMALS.format(result.tpsAvg()), tpsColor(result.tpsAvg()));
+    line.highlight(TWO_DECIMALS.format(result.tpsP1()), tpsColor(result.tpsP1()));
+    line.highlight(ONE_DECIMAL.format(result.msptMin()), msptColor(result.msptMin()));
+    line.highlight(ONE_DECIMAL.format(result.msptMax()), msptColor(result.msptMax()));
+    line.highlight(ONE_DECIMAL.format(result.msptAvg()), msptColor(result.msptAvg()));
+    line.highlight(ONE_DECIMAL.format(result.msptP95()), msptColor(result.msptP95()));
+    line.highlight(ONE_DECIMAL.format(result.msptP99()), msptColor(result.msptP99()));
+    return line.finish();
+  }
+
+  private Component sustainableMsptComponent(
+      LoadTestVerdictCalculator.Result result, String gradeKey) {
+    HighlightedLine line = new HighlightedLine(sustainableMsptLine(result, gradeKey));
+    line.highlight(lang.tr(gradeKey), gradeColor(gradeKey));
+    line.highlight(ONE_DECIMAL.format(result.msptAvg()), msptColor(result.msptAvg()));
+    line.highlight(ONE_DECIMAL.format(result.msptP95()), msptColor(result.msptP95()));
+    line.highlight(ONE_DECIMAL.format(result.msptP99()), msptColor(result.msptP99()));
+    return line.finish();
+  }
+
+  private Component rareStallWarningComponent(LoadTestVerdictCalculator.Result result) {
+    String message = rareStallWarning(result);
+    if (message == null || message.isBlank()) {
+      return null;
+    }
+    HighlightedLine line = new HighlightedLine(message);
+    line.highlight(Integer.toString(result.severeStalls()), NamedTextColor.RED);
+    line.highlight(TWO_DECIMALS.format(result.tpsMin()), tpsColor(result.tpsMin()));
+    return line.finish();
+  }
+
+  private Component profileHintsComponent() {
+    ProfileHints hints = profileHintsData();
+    if (hints == null) {
+      return null;
+    }
+    String message =
+        lang.tr(
+            "message.debug_load_hints",
+            hints.dominant(),
+            hints.cpuPct(),
+            hints.wirePct(),
+            hints.monitorPct(),
+            hints.dbPct(),
+            hints.wirelessPct(),
+            hints.guardPct(),
+            hints.worldPct(),
+            hints.placements());
+    HighlightedLine line = new HighlightedLine(message);
+    line.highlight(hints.dominant(), NamedTextColor.AQUA);
+    line.highlight(hints.cpuPct() + "%", percentageColor(hints.cpuPct()));
+    line.highlight(hints.wirePct() + "%", percentageColor(hints.wirePct()));
+    line.highlight(hints.monitorPct() + "%", percentageColor(hints.monitorPct()));
+    line.highlight(hints.dbPct() + "%", percentageColor(hints.dbPct()));
+    line.highlight(hints.wirelessPct() + "%", percentageColor(hints.wirelessPct()));
+    line.highlight(hints.guardPct() + "%", percentageColor(hints.guardPct()));
+    line.highlight(hints.worldPct() + "%", percentageColor(hints.worldPct()));
+    line.highlight(messageNumber(hints.placements()), placementsColor(hints.placements()));
+    return line.finish();
+  }
+
+  private Component measuredProfileComponent() {
     PerfStats.Snapshot snapshot = PerfStats.snapshot();
     if (!snapshot.hasSamples()) {
       return null;
     }
     List<String> parts = new ArrayList<>();
+    HighlightedLineTokens tokens = new HighlightedLineTokens();
     for (PerfStats.MetricStats metric : snapshot.metrics()) {
       if (metric.calls() <= 0L) continue;
       int pct =
           snapshot.totalNanos() <= 0L
               ? 0
               : (int) Math.round(metric.totalNanos() * 100.0 / snapshot.totalNanos());
+      String p95 = ONE_DECIMAL.format(metric.p95Micros());
+      String tickP95 = ONE_DECIMAL.format(metric.p95TickMicros());
       parts.add(
           metric.label()
               + " "
@@ -368,22 +468,33 @@ public final class LoadTestService {
               + "%/"
               + metric.calls()
               + " calls p95 "
-              + ONE_DECIMAL.format(metric.p95Micros())
+              + p95
               + "us tick-p95 "
-              + ONE_DECIMAL.format(metric.p95TickMicros())
+              + tickP95
               + "us");
+      tokens.add(metric.label(), subsystemColor(metric.label()));
+      tokens.add(pct + "%", percentageColor(pct));
+      tokens.add(metric.calls() + " calls", neutralValueColor(parts.size()));
+      tokens.add(p95 + "us", latencyMicrosColor(metric.p95Micros()));
+      tokens.add(tickP95 + "us", latencyMicrosColor(metric.p95TickMicros()));
       if (parts.size() >= 5) {
         break;
       }
     }
-    appendMeasuredQueueStats(snapshot, parts);
+    appendMeasuredQueueStats(snapshot, parts, tokens);
     if (parts.isEmpty()) {
       return null;
     }
-    return lang.tr("message.debug_load_measured_profile", String.join(", ", parts));
+    HighlightedLine line =
+        new HighlightedLine(
+            lang.tr("message.debug_load_measured_profile", String.join(", ", parts)));
+    tokens.apply(line);
+    return line.finish();
   }
 
-  private void appendMeasuredQueueStats(PerfStats.Snapshot snapshot, List<String> parts) {
+  private void appendMeasuredQueueStats(
+      PerfStats.Snapshot snapshot, List<String> parts, HighlightedLineTokens tokens) {
+    List<MeasuredQueueStat> queues = new ArrayList<>();
     long storageQueue = snapshot.gauges().getOrDefault("storage-db.queueDepth", -1L);
     long displayQueue = snapshot.gauges().getOrDefault("display.queueDepth", -1L);
     long monitorQueue = snapshot.gauges().getOrDefault("monitor.queueDepth", -1L);
@@ -391,20 +502,30 @@ public final class LoadTestService {
     long displayOverruns = snapshot.counters().getOrDefault("display.budgetOverrun", 0L);
     long monitorOverruns = snapshot.counters().getOrDefault("monitor.budgetOverrun", 0L);
     long busOverruns = snapshot.counters().getOrDefault("bus.budgetOverrun", 0L);
-    List<String> queues = new ArrayList<>();
-    if (storageQueue >= 0L) queues.add("dbQ " + storageQueue);
-    if (displayQueue >= 0L) queues.add("displayQ " + displayQueue);
-    if (monitorQueue >= 0L) queues.add("monitorQ " + monitorQueue);
-    if (busDue >= 0L) queues.add("busDue " + busDue);
-    if (displayOverruns > 0L) queues.add("displayOverruns " + displayOverruns);
-    if (monitorOverruns > 0L) queues.add("monitorOverruns " + monitorOverruns);
-    if (busOverruns > 0L) queues.add("busOverruns " + busOverruns);
-    if (!queues.isEmpty()) {
-      parts.add(String.join(" ", queues));
+    if (storageQueue >= 0L) queues.add(new MeasuredQueueStat("dbQ", storageQueue, false));
+    if (displayQueue >= 0L) queues.add(new MeasuredQueueStat("displayQ", displayQueue, false));
+    if (monitorQueue >= 0L) queues.add(new MeasuredQueueStat("monitorQ", monitorQueue, false));
+    if (busDue >= 0L) queues.add(new MeasuredQueueStat("busDue", busDue, false));
+    if (displayOverruns > 0L) {
+      queues.add(new MeasuredQueueStat("displayOverruns", displayOverruns, true));
     }
+    if (monitorOverruns > 0L) {
+      queues.add(new MeasuredQueueStat("monitorOverruns", monitorOverruns, true));
+    }
+    if (busOverruns > 0L) queues.add(new MeasuredQueueStat("busOverruns", busOverruns, true));
+    if (queues.isEmpty()) {
+      return;
+    }
+    List<String> rendered = new ArrayList<>(queues.size());
+    for (MeasuredQueueStat queue : queues) {
+      String text = queue.label() + " " + queue.value();
+      rendered.add(text);
+      tokens.add(text, queueColor(queue.value(), queue.overrun()));
+    }
+    parts.add(String.join(" ", rendered));
   }
 
-  private String metadataLine() {
+  private Component metadataComponent() {
     String server = Bukkit.getName() + " " + Bukkit.getMinecraftVersion();
     String java = System.getProperty("java.version", "unknown");
     String plugins =
@@ -413,11 +534,25 @@ public final class LoadTestService {
             .limit(12)
             .reduce((left, right) -> left + ", " + right)
             .orElse("-");
-    return lang.tr(
-        "message.debug_load_metadata", server, plugin.getPluginMeta().getVersion(), java, plugins);
+    HighlightedLine line =
+        new HighlightedLine(
+            lang.tr(
+                "message.debug_load_metadata",
+                server,
+                plugin.getPluginMeta().getVersion(),
+                java,
+                plugins));
+    line.highlight(server, NamedTextColor.AQUA);
+    line.highlight(plugin.getPluginMeta().getVersion(), NamedTextColor.GREEN);
+    line.highlight(java, NamedTextColor.YELLOW);
+    String[] pluginNames = plugins.split(", ");
+    for (int i = 0; i < pluginNames.length; i++) {
+      line.highlight(pluginNames[i], neutralValueColor(i));
+    }
+    return line.finish();
   }
 
-  private String rememberAndFormatRuns(LoadTestVerdictCalculator.Result result) {
+  private Component rememberAndFormatRunsComponent(LoadTestVerdictCalculator.Result result) {
     synchronized (RECENT_RUNS) {
       RECENT_RUNS.addLast(
           new RunSummary(result.gradeKey(), result.tpsAvg(), result.msptAvg(), result.msptP95()));
@@ -436,19 +571,89 @@ public final class LoadTestService {
         msptP95 += run.msptP95();
       }
       int count = RECENT_RUNS.size();
-      return lang.tr(
-          "message.debug_load_recent_runs",
-          count,
-          TWO_DECIMALS.format(tpsAvg / count),
-          ONE_DECIMAL.format(msptAvg / count),
-          ONE_DECIMAL.format(msptP95 / count));
+      double avgTps = tpsAvg / count;
+      double avgMspt = msptAvg / count;
+      double avgMsptP95 = msptP95 / count;
+      HighlightedLine line =
+          new HighlightedLine(
+              lang.tr(
+                  "message.debug_load_recent_runs",
+                  count,
+                  TWO_DECIMALS.format(avgTps),
+                  ONE_DECIMAL.format(avgMspt),
+                  ONE_DECIMAL.format(avgMsptP95)));
+      line.highlight(Integer.toString(count), NamedTextColor.AQUA);
+      line.highlight(TWO_DECIMALS.format(avgTps), tpsColor(avgTps));
+      line.highlight(ONE_DECIMAL.format(avgMspt), msptColor(avgMspt));
+      line.highlight(ONE_DECIMAL.format(avgMsptP95), msptColor(avgMsptP95));
+      return line.finish();
     }
   }
 
-  private void sendProgress(int elapsedTicks) {
-    int remainingTicks = Math.max(0, durationTicks - elapsedTicks);
+  private NamedTextColor neutralValueColor(int index) {
+    return index % 2 == 0 ? NamedTextColor.WHITE : NamedTextColor.GRAY;
+  }
+
+  private NamedTextColor tpsColor(double tps) {
+    if (tps >= 19.5) return NamedTextColor.GREEN;
+    if (tps >= 18.0) return NamedTextColor.YELLOW;
+    if (tps >= 15.0) return NamedTextColor.GOLD;
+    return NamedTextColor.RED;
+  }
+
+  private NamedTextColor msptColor(double mspt) {
+    if (mspt <= 35.0) return NamedTextColor.GREEN;
+    if (mspt <= 45.0) return NamedTextColor.YELLOW;
+    if (mspt <= 60.0) return NamedTextColor.GOLD;
+    return NamedTextColor.RED;
+  }
+
+  private NamedTextColor percentageColor(int percentage) {
+    if (percentage >= 50) return NamedTextColor.GOLD;
+    if (percentage >= 20) return NamedTextColor.YELLOW;
+    if (percentage > 0) return NamedTextColor.WHITE;
+    return NamedTextColor.GRAY;
+  }
+
+  private NamedTextColor subsystemColor(String label) {
+    if (label == null) return NamedTextColor.WHITE;
+    if (label.startsWith("bus")) return NamedTextColor.GOLD;
+    if (label.startsWith("network")) return NamedTextColor.AQUA;
+    if (label.startsWith("display") || label.startsWith("monitor")) {
+      return NamedTextColor.LIGHT_PURPLE;
+    }
+    if (label.startsWith("storage-db") || label.startsWith("db")) return NamedTextColor.YELLOW;
+    if (label.startsWith("placement-guard")) return NamedTextColor.GREEN;
+    return NamedTextColor.WHITE;
+  }
+
+  private NamedTextColor latencyMicrosColor(double micros) {
+    if (micros >= 10_000.0) return NamedTextColor.RED;
+    if (micros >= 5_000.0) return NamedTextColor.GOLD;
+    if (micros >= 1_000.0) return NamedTextColor.YELLOW;
+    return NamedTextColor.GREEN;
+  }
+
+  private NamedTextColor queueColor(long value, boolean overrun) {
+    if (overrun) return NamedTextColor.RED;
+    if (value <= 0L) return NamedTextColor.GRAY;
+    if (value >= 100L) return NamedTextColor.GOLD;
+    return NamedTextColor.YELLOW;
+  }
+
+  private NamedTextColor placementsColor(long placements) {
+    return placements > 0L ? NamedTextColor.AQUA : NamedTextColor.GRAY;
+  }
+
+  private String messageNumber(long value) {
+    return java.text.MessageFormat.format("{0}", value);
+  }
+
+  private void sendProgress(int measuredTicks) {
+    int totalMeasuredTicks = Math.max(1, tickMs.length);
+    int remainingTicks = Math.max(0, totalMeasuredTicks - measuredTicks);
     int remainingSeconds = remainingTicks / 20;
-    double progress = Math.min(1.0, elapsedTicks / (double) durationTicks);
+    double progress = Math.min(1.0, measuredTicks / (double) totalMeasuredTicks);
     int percent = (int) Math.round(progress * 100.0);
     double tps = currentTps();
     double mspt = currentMspt();
@@ -644,7 +849,7 @@ public final class LoadTestService {
     return Math.max(0, dbOps);
   }
 
-  private String profileHints() {
+  private ProfileHints profileHintsData() {
     int ops = estimateOperationsPerTick();
     int dbOps = estimateDbOpsPerTick(ops);
     int chunks = activeChunkCount();
@@ -717,8 +922,7 @@ public final class LoadTestService {
     if (worldCost > max) {
       dominant = "WORLD";
     }
-    return lang.tr(
-        "message.debug_load_hints",
+    return new ProfileHints(
         dominant,
         cpuPct,
         wirePct,
@@ -737,6 +941,9 @@ public final class LoadTestService {
     int worldLanes = worldWorkload == null ? 0 : worldWorkload.laneCount();
     int worldBudget = worldWorkload == null ? 0 : worldWorkload.operationBudget();
     int worldBlocks = worldWorkload == null ? 0 : worldWorkload.plannedBlockCount();
+    int waterWireLength = worldWorkload == null ? 0 : worldWorkload.waterWireLength();
+    int waterSources = worldWorkload == null ? 0 : worldWorkload.waterSourceCount();
+    int waterExtraChunks = worldWorkload == null ? 0 : worldWorkload.extraChunkTicketCount();
     return lang.tr(
         "message.debug_load_summary",
         simulatedPlayers,
@@ -754,7 +961,7 @@ public final class LoadTestService {
         wireHardCap <= 0 ? "-" : Integer.toString(wireHardCap),
         ONE_DECIMAL.format(Math.max(0.0, wireScanMissRatio * 100.0)),
         ONE_DECIMAL.format(Math.max(0.0, wireScanCoverage * 100.0)),
-        Math.max(1, durationTicks / 20),
+        Math.max(1, tickMs == null ? (durationTicks - warmupTicks) / 20 : tickMs.length / 20),
         Math.max(0, warmupTicks / 20),
         ONE_DECIMAL.format(Math.max(0.0, opsJitterPercent * 100.0)),
         guardPlayers,
@@ -763,7 +970,10 @@ public final class LoadTestService {
         guardChurnPerTick,
         worldLanes,
         worldBudget,
-        worldBlocks);
+        worldBlocks,
+        waterWireLength,
+        waterSources,
+        waterExtraChunks);
   }
 
   private long requestedGuardEntities() {
@@ -1172,6 +1382,16 @@ public final class LoadTestService {
     ExortLog.info(message);
   }
 
+  private void sendToConsoleIfNeeded(Component message) {
+    if (owner != null && owner == Bukkit.getConsoleSender()) {
+      return;
+    }
+    if (message == null) {
+      return;
+    }
+    Bukkit.getConsoleSender().sendMessage(CommandFeedback.prefixed(message));
+  }
+
   private void computeCounts() {
     double ratioSum = busRatio + monitorRatio;
     if (ratioSum <= 0) {
@@ -1294,6 +1514,63 @@ public final class LoadTestService {
     return positions;
   }
 
+  private static final class HighlightedLine {
+    private static final NamedTextColor PLAIN_COLOR = NamedTextColor.GRAY;
+
+    private final String text;
+    private Component component = Component.empty();
+    private int cursor;
+
+    HighlightedLine(String text) {
+      this.text = text == null ? "" : text;
+    }
+
+    void highlight(String token, NamedTextColor color) {
+      if (token == null || token.isBlank()) {
+        return;
+      }
+      int index = text.indexOf(token, cursor);
+      if (index < 0) {
+        return;
+      }
+      appendPlain(index);
+      component =
+          component.append(
+              Component.text(
+                  text.substring(index, index + token.length()),
+                  color == null ? NamedTextColor.WHITE : color));
+      cursor = index + token.length();
+    }
+
+    Component finish() {
+      appendPlain(text.length());
+      return component;
+    }
+
+    private void appendPlain(int endExclusive) {
+      if (endExclusive <= cursor) {
+        return;
+      }
+      component =
+          component.append(Component.text(text.substring(cursor, endExclusive), PLAIN_COLOR));
+      cursor = endExclusive;
+    }
+  }
+
+  private static final class HighlightedLineTokens {
+    private final List<HighlightedLineToken> tokens = new ArrayList<>();
+
+    void add(String token, NamedTextColor color) {
+      tokens.add(new HighlightedLineToken(token, color));
+    }
+
+    void apply(HighlightedLine line) {
+      for (HighlightedLineToken token : tokens) {
+        line.highlight(token.token(), token.color());
+      }
+    }
+  }
+
   private static final class GuardSimulationState {
     private final int playerIndex;
     private int rowPosition;
@@ -1309,6 +1586,21 @@ public final class LoadTestService {
   }
 
   private record ChunkPos(int x, int z) {}
+
+  private record ProfileHints(
+      String dominant,
+      int cpuPct,
+      int wirePct,
+      int monitorPct,
+      int dbPct,
+      int wirelessPct,
+      int guardPct,
+      int worldPct,
+      long placements) {}
+
+  private record HighlightedLineToken(String token, NamedTextColor color) {}
+
+  private record MeasuredQueueStat(String label, long value, boolean overrun) {}
 
   private record RunSummary(String gradeKey, double tpsAvg, double msptAvg, double msptP95) {}
 

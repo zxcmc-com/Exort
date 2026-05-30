@@ -107,9 +107,15 @@ public class Lang {
         "message.debug_load_summary",
         "Benchmark model: players {0}, chunks {1}, storages/chunk {2}, buses/chunk {3},"
             + " monitors/chunk {4}, est ops/tick {5} (global {6}, chunk {7}), db/tick {8}, monitor"
-            + " updates {9}/t{10}, wire {11}/{12} miss {13}% cover {14}%, duration {15}s (warmup"
-            + " {16}s), jitter {17}%, guard players {18}, guard entities {19}/{20}, guard churn"
-            + " {21}/tick, world lanes {22}, world ops/tick {23}, world blocks {24}");
+            + " updates {9}/t{10}, wire {11}/{12} miss {13}% cover {14}%, measured window {15}s"
+            + " after setup (min warmup {16}s), jitter {17}%, guard players {18}, guard entities"
+            + " {19}/{20}, guard churn {21}/tick, world lanes {22}, world ops/tick {23}, world"
+            + " blocks {24}, water-test wire length {25}, water sources {26}, water extra chunks"
+            + " {27}");
+    put(
+        defaultsEn,
+        "message.debug_load_measurement_started",
+        "Benchmark measurement started after setup and water-flow stabilization.");
     put(
         defaultsEn,
         "message.debug_load_hints",
@@ -223,7 +229,6 @@ public class Lang {
     put(defaultsEn, "message.usage_mode_header", "Display mode settings:");
     put(defaultsEn, "message.usage_mode_info", "show configured and effective mode");
     put(defaultsEn, "message.usage_mode_set", "switch display mode");
-    put(defaultsEn, "message.usage_mode_fix", "prepare Paper config for RESOURCE mode");
     put(defaultsEn, "message.usage_resourcepack_header", "Resource pack management:");
     put(defaultsEn, "message.usage_resourcepack_status", "show resource-pack pipeline status");
     put(defaultsEn, "message.usage_resourcepack_rebuild", "rebuild and reload the pack pipeline");
@@ -235,25 +240,29 @@ public class Lang {
     put(defaultsEn, "message.mode_set", "Configured mode set to {0}; effective mode: {1}.");
     put(defaultsEn, "message.mode_fallback", "Mode fallback reason: {0}");
     put(defaultsEn, "message.mode_invalid", "Unknown mode: {0}");
-    put(defaultsEn, "message.mode_fix_resource_only", "Mode fix currently supports RESOURCE only.");
     put(
         defaultsEn,
         "message.mode_fix_paper_missing",
-        "Cannot fix RESOURCE mode: Paper config file was not found at {0}.");
+        "Cannot enable RESOURCE mode: Paper config file was not found at {0}.");
     put(
         defaultsEn,
         "message.mode_fix_paper_error",
-        "Cannot fix RESOURCE mode: failed to read or update {0}: {1}. Set {2}: true manually"
+        "Cannot enable RESOURCE mode: failed to read or update {0}: {1}. Set {2}: true manually"
             + " in this file and restart the server.");
     put(
         defaultsEn,
         "message.mode_fix_paper_access_denied",
-        "Cannot fix RESOURCE mode: Exort cannot write {0}. Check file permissions, or set {1}:"
-            + " true manually and restart the server.");
+        "Cannot enable RESOURCE mode: Exort cannot write {0}. Check file permissions, or set"
+            + " {1}: true manually and restart the server.");
     put(
         defaultsEn,
         "message.mode_fix_paper_changed",
         "Paper config updated: {0} set to true in {1}.");
+    put(
+        defaultsEn,
+        "message.mode_fix_paper_restart_required",
+        "Paper config already has {0}: true in {1}, but the current Paper runtime still needs a"
+            + " restart.");
     put(
         defaultsEn,
         "message.mode_fix_exort_changed",
@@ -521,10 +530,15 @@ public class Lang {
         "message.debug_load_summary",
         "Модель бенчмарка: игроков {0}, чанков {1}, хранилищ/чанк {2}, шин/чанк {3}, мониторов/чанк"
             + " {4}, оценка оп/тик {5} (глобал {6}, чанк {7}), БД/тик {8}, обновления мониторов"
-            + " {9}/t{10}, кабель {11}/{12} miss {13}% cover {14}%, длительность {15}с (прогрев"
-            + " {16}с), джиттер {17}%, guard-игроков {18}, guard-сущностей {19}/{20},"
-            + " пересоздание guard {21}/тик, world lanes {22}, world ops/tick {23}, world blocks"
-            + " {24}");
+            + " {9}/t{10}, кабель {11}/{12} miss {13}% cover {14}%, окно измерения {15}с после"
+            + " сборки нагрузки (мин. прогрев {16}с), джиттер {17}%, guard-игроков {18},"
+            + " guard-сущностей {19}/{20}, пересоздание guard {21}/тик, world lanes {22}, world"
+            + " ops/tick {23}, world blocks {24}, длина кабеля в водном тесте {25}, источники воды"
+            + " {26}, доп. чанки воды {27}");
+    put(
+        defaultsRu,
+        "message.debug_load_measurement_started",
+        "Измерение бенчмарка начато после сборки нагрузки и стабилизации потока воды.");
     put(
         defaultsRu,
         "message.debug_load_hints",
@@ -641,7 +655,6 @@ public class Lang {
     put(defaultsRu, "message.usage_mode_header", "Настройки режима отображения:");
     put(defaultsRu, "message.usage_mode_info", "показать режим из конфига и фактический режим");
     put(defaultsRu, "message.usage_mode_set", "переключить режим отображения");
-    put(defaultsRu, "message.usage_mode_fix", "подготовить конфиг Paper для RESOURCE");
     put(defaultsRu, "message.usage_resourcepack_header", "Управление ресурс-паком:");
     put(
         defaultsRu,
@@ -658,26 +671,27 @@ public class Lang {
     put(defaultsRu, "message.mode_invalid", "Неизвестный режим: {0}");
     put(
         defaultsRu,
-        "message.mode_fix_resource_only",
-        "Исправление режима сейчас поддерживает только RESOURCE.");
-    put(
-        defaultsRu,
         "message.mode_fix_paper_missing",
-        "Нельзя исправить режим RESOURCE: файл конфигурации Paper не найден по пути {0}.");
+        "Нельзя включить режим RESOURCE: файл конфигурации Paper не найден по пути {0}.");
     put(
         defaultsRu,
         "message.mode_fix_paper_error",
-        "Нельзя исправить режим RESOURCE: не удалось прочитать или обновить {0}: {1}. Вручную"
+        "Нельзя включить режим RESOURCE: не удалось прочитать или обновить {0}: {1}. Вручную"
             + " установите {2}: true в этом файле и перезапустите сервер.");
     put(
         defaultsRu,
         "message.mode_fix_paper_access_denied",
-        "Нельзя исправить режим RESOURCE: Exort не может записать {0}. Проверьте права доступа к"
+        "Нельзя включить режим RESOURCE: Exort не может записать {0}. Проверьте права доступа к"
             + " файлу или вручную установите {1}: true и перезапустите сервер.");
     put(
         defaultsRu,
         "message.mode_fix_paper_changed",
         "Конфиг Paper обновлен: {0} установлен в true в {1}.");
+    put(
+        defaultsRu,
+        "message.mode_fix_paper_restart_required",
+        "В конфиге Paper уже указано {0}: true в {1}, но текущему рантайму Paper все еще нужен"
+            + " рестарт.");
     put(
         defaultsRu,
         "message.mode_fix_exort_changed",
