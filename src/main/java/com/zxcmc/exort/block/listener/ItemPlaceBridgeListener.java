@@ -153,9 +153,9 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), wireMaterial)) return;
       if (!wirePlacementLimitGuard.canPlace(event.getPlayer(), target)) return;
-      placeWire(event, target);
-      consume(event);
-      playPlaceSound(target, BreakType.WIRE);
+      placeWire(target);
+      finishPlacement(event, target, BreakType.WIRE);
+      refreshWirePlacement(target);
       return;
     }
 
@@ -167,24 +167,24 @@ public class ItemPlaceBridgeListener implements Listener {
         return;
       ItemStack placedItem = stack.clone();
       placedItem.setAmount(1);
-      placeStorage(
-          event,
-          target,
-          tierOpt.get(),
-          customItems.storageId(stack).orElse(UUID.randomUUID().toString()),
-          placedItem,
-          shouldRefundPlacementItem(event.getPlayer(), placedItem));
-      consume(event);
-      playPlaceSound(target, BreakType.STORAGE);
+      StorageTier tier = tierOpt.get();
+      String storageId = customItems.storageId(stack).orElse(UUID.randomUUID().toString());
+      boolean shouldRefund = shouldRefundPlacementItem(event.getPlayer(), placedItem);
+      placeStorage(event, target, tier, storageId);
+      finishPlacement(event, target, BreakType.STORAGE);
+      persistStorageTier(
+          event.getPlayer(), target, storageId, tier.key(), placedItem, shouldRefund);
+      preloadStorage(event.getPlayer(), storageId);
+      refreshStoragePlacement(target);
       return;
     }
     if (customItems.isStorageCore(stack)) {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), storageCarrier))
         return;
-      placeStorageCore(event, target);
-      consume(event);
-      playPlaceSound(target, BreakType.STORAGE);
+      placeStorageCore(target);
+      finishPlacement(event, target, BreakType.STORAGE);
+      refreshStorageCorePlacement(target);
       return;
     }
 
@@ -194,8 +194,8 @@ public class ItemPlaceBridgeListener implements Listener {
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), terminalCarrier))
         return;
       placeTerminal(event, target, TerminalKind.TERMINAL);
-      consume(event);
-      playPlaceSound(target, BreakType.TERMINAL);
+      finishPlacement(event, target, BreakType.TERMINAL);
+      refreshTerminalPlacement(target);
       return;
     }
 
@@ -205,8 +205,8 @@ public class ItemPlaceBridgeListener implements Listener {
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), terminalCarrier))
         return;
       placeTerminal(event, target, TerminalKind.CRAFTING);
-      consume(event);
-      playPlaceSound(target, BreakType.TERMINAL);
+      finishPlacement(event, target, BreakType.TERMINAL);
+      refreshTerminalPlacement(target);
       return;
     }
 
@@ -216,8 +216,9 @@ public class ItemPlaceBridgeListener implements Listener {
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), monitorCarrier))
         return;
       placeMonitor(event, target);
-      consume(event);
-      playPlaceSound(target, BreakType.MONITOR);
+      finishPlacement(event, target, BreakType.MONITOR);
+      monitorPlacedRecorder.accept(target);
+      refreshMonitorPlacement(target);
       return;
     }
 
@@ -226,14 +227,17 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), busCarrier)) return;
       placeBus(event, target, customItems.isExportBus(stack));
-      consume(event);
-      playPlaceSound(target, BreakType.BUS);
+      finishPlacement(event, target, BreakType.BUS);
+      refreshBusPlacement(target);
     }
   }
 
-  private void placeWire(PlayerInteractEvent event, Block target) {
+  private void placeWire(Block target) {
     Carriers.applyCarrier(target, wireMaterial);
     WireMarker.setWire(plugin, target);
+  }
+
+  private void refreshWirePlacement(Block target) {
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshWireAndNeighbors(target);
@@ -251,17 +255,13 @@ public class ItemPlaceBridgeListener implements Listener {
   }
 
   private void placeStorage(
-      PlayerInteractEvent event,
-      Block target,
-      StorageTier tier,
-      String storageId,
-      ItemStack refund,
-      boolean shouldRefund) {
+      PlayerInteractEvent event, Block target, StorageTier tier, String storageId) {
     Carriers.applyCarrier(target, storageCarrier);
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     StorageMarker.set(plugin, target, storageId, tier, face);
-    persistStorageTier(event.getPlayer(), target, storageId, tier.key(), refund, shouldRefund);
-    preloadStorage(event.getPlayer(), storageId);
+  }
+
+  private void refreshStoragePlacement(Block target) {
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshStorage(target);
@@ -280,9 +280,12 @@ public class ItemPlaceBridgeListener implements Listener {
     }
   }
 
-  private void placeStorageCore(PlayerInteractEvent event, Block target) {
+  private void placeStorageCore(Block target) {
     Carriers.applyCarrier(target, storageCarrier);
     StorageCoreMarker.set(plugin, target);
+  }
+
+  private void refreshStorageCorePlacement(Block target) {
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshStorage(target);
@@ -294,6 +297,9 @@ public class ItemPlaceBridgeListener implements Listener {
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     Carriers.applyCarrier(target, terminalCarrier);
     TerminalMarker.set(plugin, target, kind, face);
+  }
+
+  private void refreshTerminalPlacement(Block target) {
     invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     if (refresh != null) {
@@ -314,13 +320,15 @@ public class ItemPlaceBridgeListener implements Listener {
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     Carriers.applyCarrier(target, monitorCarrier);
     MonitorMarker.set(plugin, target, face);
+  }
+
+  private void refreshMonitorPlacement(Block target) {
     invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     var monitorDisplays = monitorDisplayManager.get();
     if (monitorDisplays != null) {
       monitorDisplays.registerMonitor(target);
     }
-    monitorPlacedRecorder.accept(target);
     if (refresh != null) {
       refresh.refreshBlockAndNeighbors(target);
       refresh.refreshNetworkFrom(target);
@@ -337,6 +345,9 @@ public class ItemPlaceBridgeListener implements Listener {
         exportBus ? BusType.EXPORT : BusType.IMPORT,
         face,
         defaultBusMode(exportBus));
+  }
+
+  private void refreshBusPlacement(Block target) {
     invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     if (refresh != null) {
@@ -369,6 +380,12 @@ public class ItemPlaceBridgeListener implements Listener {
         soundConfig.range(),
         soundConfig.volume(),
         soundConfig.pitch());
+  }
+
+  private void finishPlacement(PlayerInteractEvent event, Block target, BreakType type) {
+    consume(event);
+    event.getPlayer().swingHand(event.getHand());
+    playPlaceSound(target, type);
   }
 
   private boolean isWire(ItemStack stack) {

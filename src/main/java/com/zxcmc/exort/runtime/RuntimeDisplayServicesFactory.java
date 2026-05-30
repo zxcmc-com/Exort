@@ -6,6 +6,7 @@ import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.display.DisplayEntityIndex;
 import com.zxcmc.exort.display.DisplayMetadataService;
 import com.zxcmc.exort.display.DisplayRefreshService;
+import com.zxcmc.exort.display.ExortBlockProxyService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.display.StorageDisplayManager;
@@ -69,6 +70,17 @@ public final class RuntimeDisplayServicesFactory {
     Bukkit.getScheduler().runTask(deps.plugin(), busDisplayManager::scanLoadedChunks);
     Bukkit.getScheduler().runTask(deps.plugin(), metadataService::rebuildLoadedDisplays);
 
+    ExortBlockProxyService blockProxyService =
+        new ExortBlockProxyService(
+            deps.plugin(),
+            displayCullingConfig.blockProxy(),
+            deps.resourceMode() && displayCullingConfig.enabled(),
+            materials.storageCarrier(),
+            materials.terminalCarrier(),
+            materials.monitorCarrier(),
+            materials.busCarrier());
+    blockProxyService.start();
+
     DisplayCullingService displayCullingService =
         new DisplayCullingService(
             deps.plugin(),
@@ -76,6 +88,7 @@ public final class RuntimeDisplayServicesFactory {
             deps.protocolLibEnhancements(),
             displayEntityIndex,
             metadataService,
+            blockProxyService,
             deps.database());
     displayCullingService.start();
 
@@ -92,7 +105,8 @@ public final class RuntimeDisplayServicesFactory {
             storageDisplayManager,
             terminalDisplayManager,
             monitorDisplayManager,
-            busDisplayManager);
+            busDisplayManager,
+            blockProxyService);
     registerSanityServices(deps, hologramManager, displayRefreshService);
 
     return new RuntimeDisplayServices(
@@ -102,6 +116,7 @@ public final class RuntimeDisplayServicesFactory {
         terminalDisplayManager,
         monitorDisplayManager,
         busDisplayManager,
+        blockProxyService,
         displayCullingService,
         displayRefreshService);
   }

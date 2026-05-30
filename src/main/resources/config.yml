@@ -72,6 +72,21 @@ performance:
     forceVisibleDistance: 6
     # Visibility/range packet changes are capped per tick to avoid moving render cost to MSPT.
     maxVisibilityChangesPerTick: 600
+    blockProxy:
+      # Client-side netherite proxies for distant RESOURCE carrier blocks whose models are not visible.
+      enabled: true
+      # Wires are excluded; only storage, terminal, monitor, and bus carrier blocks are proxied.
+      material: NETHERITE_BLOCK
+      # Base distance where block ItemDisplays are expected to stop rendering.
+      baseRenderDistanceBlocks: 64
+      # Extra hysteresis after the restore distance before a real carrier is replaced by the proxy.
+      enterBufferBlocks: 2
+      # Restore this many blocks beyond the render distance so the model never overlaps the proxy.
+      restoreBufferBlocks: 6
+      # Always restore the real carrier this close to the player.
+      forceRealDistance: 8
+      # Client-side block changes per tick; restores are sent before new proxies.
+      maxBlockChangesPerTick: 1200
     adaptiveViewRange:
       # Reduce display view ranges when many Exort displays are near a player.
       enabled: true

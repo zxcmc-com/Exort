@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.7 — 2026-05-30
+- RESOURCE storage, terminal, monitor, and bus carriers can now use budgeted per-player netherite-block proxies at long distance: real world blocks stay unchanged, wires are excluded, and the matching display is hidden only for that player until the carrier is restored near the configured BLOCK render range.
+- Exort block placement now starts a vanilla-like hand swing immediately after the carrier and marker are written, before display and network refresh work, matching the actual hand used for main-hand and off-hand placement.
+
 ## 0.12.6 — 2026-05-30
 - RESOURCE wire rendering now always uses one baked `ItemDisplay` model per connection mask, matching the previous multi-display texture alignment without per-segment display entities.
 - Removed the obsolete wire render-mode and auto-render configuration keys; `resourceMode.wire.itemModel` remains the fallback model for isolated wires and the wire item.

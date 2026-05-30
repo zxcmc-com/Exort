@@ -8,6 +8,7 @@ import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.display.BusDisplayManager;
 import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.display.DisplayRefreshService;
+import com.zxcmc.exort.display.ExortBlockProxyService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.display.StorageDisplayManager;
@@ -38,6 +39,7 @@ public record ExortRuntimeServices(
     TerminalDisplayManager terminalDisplayManager,
     MonitorDisplayManager monitorDisplayManager,
     BusDisplayManager busDisplayManager,
+    ExortBlockProxyService blockProxyService,
     DisplayCullingService displayCullingService,
     DisplayRefreshService displayRefreshService,
     BusService busService,

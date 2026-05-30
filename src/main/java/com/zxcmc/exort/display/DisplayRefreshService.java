@@ -46,6 +46,7 @@ public final class DisplayRefreshService {
   private final TerminalDisplayManager terminalDisplayManager;
   private final MonitorDisplayManager monitorDisplayManager;
   private final BusDisplayManager busDisplayManager;
+  private final ExortBlockProxyService blockProxyService;
   private final Set<BlockKey> queuedBlocks = new HashSet<>();
   private final Set<ChunkKey> queuedChunks = new HashSet<>();
   private final Set<BlockKey> queuedNetworkStarts = new HashSet<>();
@@ -63,7 +64,8 @@ public final class DisplayRefreshService {
       StorageDisplayManager storageDisplayManager,
       TerminalDisplayManager terminalDisplayManager,
       MonitorDisplayManager monitorDisplayManager,
-      BusDisplayManager busDisplayManager) {
+      BusDisplayManager busDisplayManager,
+      ExortBlockProxyService blockProxyService) {
     this.plugin = plugin;
     this.wireHardCap = wireHardCap;
     this.wireMaterial = wireMaterial;
@@ -76,6 +78,7 @@ public final class DisplayRefreshService {
     this.terminalDisplayManager = terminalDisplayManager;
     this.monitorDisplayManager = monitorDisplayManager;
     this.busDisplayManager = busDisplayManager;
+    this.blockProxyService = blockProxyService;
   }
 
   public void refreshChunk(Chunk chunk) {
@@ -134,6 +137,9 @@ public final class DisplayRefreshService {
     if (hasBus && busDisplayManager != null) {
       busDisplayManager.refreshChunk(chunk);
     }
+    if (blockProxyService != null) {
+      blockProxyService.refreshChunk(chunk);
+    }
   }
 
   public void refreshWireAndNeighbors(Block block) {
@@ -184,6 +190,9 @@ public final class DisplayRefreshService {
     }
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       refreshBus(block);
+    }
+    if (blockProxyService != null) {
+      blockProxyService.refreshBlock(block);
     }
   }
 
@@ -344,47 +353,67 @@ public final class DisplayRefreshService {
     if (storageDisplayManager != null) {
       storageDisplayManager.refresh(block);
     }
+    refreshProxyBlock(block);
   }
 
   public void refreshTerminal(Block block) {
     if (terminalDisplayManager != null) {
       terminalDisplayManager.refresh(block);
     }
+    refreshProxyBlock(block);
   }
 
   public void refreshMonitor(Block block) {
     if (monitorDisplayManager != null) {
       monitorDisplayManager.refresh(block);
     }
+    refreshProxyBlock(block);
   }
 
   public void refreshBus(Block block) {
     if (busDisplayManager != null) {
       busDisplayManager.refresh(block);
     }
+    refreshProxyBlock(block);
   }
 
   public void removeStorageDisplay(Block block) {
     if (storageDisplayManager != null) {
       storageDisplayManager.removeDisplay(block);
     }
+    restoreProxyBlock(block);
   }
 
   public void removeTerminalDisplay(Block block) {
     if (terminalDisplayManager != null) {
       terminalDisplayManager.removeDisplay(block);
     }
+    restoreProxyBlock(block);
   }
 
   public void removeMonitorDisplay(Block block) {
     if (monitorDisplayManager != null) {
       monitorDisplayManager.removeDisplay(block);
     }
+    restoreProxyBlock(block);
   }
 
   public void removeBusDisplay(Block block) {
     if (busDisplayManager != null) {
       busDisplayManager.removeDisplay(block);
+    }
+    restoreProxyBlock(block);
+  }
+
+  private void refreshProxyBlock(Block block) {
+    if (blockProxyService != null) {
+      blockProxyService.refreshBlock(block);
+    }
+  }
+
+  private void restoreProxyBlock(Block block) {
+    if (blockProxyService != null) {
+      blockProxyService.restoreAndForget(block);
     }
   }
 }

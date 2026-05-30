@@ -14,6 +14,7 @@ import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.DisplayBreakAnimationSender;
 import com.zxcmc.exort.display.DisplayCullingService;
+import com.zxcmc.exort.display.ExortBlockProxyService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.feedback.BossBarManager;
@@ -105,6 +106,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private ItemHologramManager hologramManager;
   private boolean dialogSupported;
   private MonitorDisplayManager monitorDisplayManager;
+  private ExortBlockProxyService blockProxyService;
   private DisplayCullingService displayCullingService;
   private BusService busService;
   private BusSessionManager busSessionManager;
@@ -272,6 +274,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   private void stopDisplayState() {
+    if (blockProxyService != null) {
+      blockProxyService.stop();
+      blockProxyService = null;
+    }
     if (displayCullingService != null) {
       displayCullingService.stop();
       displayCullingService = null;
@@ -409,6 +415,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   private void resetReloadableDisplayState() {
     stopBusService();
+    if (blockProxyService != null) {
+      blockProxyService.stop();
+      blockProxyService = null;
+    }
     if (displayCullingService != null) {
       displayCullingService.stop();
       displayCullingService = null;
@@ -487,6 +497,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     wireHardCap = services.wireHardCap();
     hologramManager = services.hologramManager();
     monitorDisplayManager = services.monitorDisplayManager();
+    blockProxyService = services.blockProxyService();
     displayCullingService = services.displayCullingService();
     busService = services.busService();
     busSessionManager = services.busSessionManager();

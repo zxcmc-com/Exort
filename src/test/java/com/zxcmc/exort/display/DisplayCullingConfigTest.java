@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Set;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +21,13 @@ class DisplayCullingConfigTest {
     assertEquals(64.0, config.maxDistance());
     assertEquals(6.0, config.forceVisibleDistance());
     assertEquals(600, config.maxVisibilityChangesPerTick());
+    assertTrue(config.blockProxy().enabled());
+    assertEquals(Material.NETHERITE_BLOCK, config.blockProxy().material());
+    assertEquals(64.0, config.blockProxy().baseRenderDistanceBlocks());
+    assertEquals(2.0, config.blockProxy().enterBufferBlocks());
+    assertEquals(6.0, config.blockProxy().restoreBufferBlocks());
+    assertEquals(8.0, config.blockProxy().forceRealDistance());
+    assertEquals(1200, config.blockProxy().maxBlockChangesPerTick());
     assertTrue(config.adaptiveViewRange().enabled());
     assertEquals(List.of(320, 640, 1200), config.adaptiveViewRange().entityThresholds());
     assertEquals(List.of(240, 520, 960), config.adaptiveViewRange().recoverThresholds());
@@ -52,6 +60,12 @@ class DisplayCullingConfigTest {
     yaml.set("performance.displayCulling.maxDistance", 0.0);
     yaml.set("performance.displayCulling.forceVisibleDistance", 999.0);
     yaml.set("performance.displayCulling.maxVisibilityChangesPerTick", 0);
+    yaml.set("performance.displayCulling.blockProxy.material", "AIR");
+    yaml.set("performance.displayCulling.blockProxy.baseRenderDistanceBlocks", -1.0);
+    yaml.set("performance.displayCulling.blockProxy.enterBufferBlocks", -2.0);
+    yaml.set("performance.displayCulling.blockProxy.restoreBufferBlocks", -3.0);
+    yaml.set("performance.displayCulling.blockProxy.forceRealDistance", -4.0);
+    yaml.set("performance.displayCulling.blockProxy.maxBlockChangesPerTick", 0);
     yaml.set("performance.displayCulling.adaptiveViewRange.entityThresholds", List.of(-10, 20));
     yaml.set("performance.displayCulling.adaptiveViewRange.recoverThresholds", List.of(999));
     yaml.set("performance.displayCulling.adaptiveViewRange.denseIntervalsToStepDown", 0);
@@ -67,6 +81,12 @@ class DisplayCullingConfigTest {
     assertEquals(1.0, config.maxDistance());
     assertEquals(1.0, config.forceVisibleDistance());
     assertEquals(1, config.maxVisibilityChangesPerTick());
+    assertEquals(Material.NETHERITE_BLOCK, config.blockProxy().material());
+    assertEquals(1.0, config.blockProxy().baseRenderDistanceBlocks());
+    assertEquals(0.0, config.blockProxy().enterBufferBlocks());
+    assertEquals(0.0, config.blockProxy().restoreBufferBlocks());
+    assertEquals(0.0, config.blockProxy().forceRealDistance());
+    assertEquals(1, config.blockProxy().maxBlockChangesPerTick());
     assertEquals(List.of(20), config.adaptiveViewRange().entityThresholds());
     assertEquals(List.of(20), config.adaptiveViewRange().recoverThresholds());
     assertEquals(1, config.adaptiveViewRange().denseIntervalsToStepDown());

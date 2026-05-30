@@ -229,6 +229,7 @@ public final class ExortRuntimeFactory {
         displayServices.terminalDisplayManager(),
         displayServices.monitorDisplayManager(),
         displayServices.busDisplayManager(),
+        displayServices.blockProxyService(),
         displayServices.displayCullingService(),
         displayServices.displayRefreshService(),
         busServices.busService(),

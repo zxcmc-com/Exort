@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.12.6'
+version = '0.12.7'
 description = 'Exort Storage Network'
 
 base {

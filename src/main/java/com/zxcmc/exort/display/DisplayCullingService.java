@@ -50,6 +50,7 @@ public final class DisplayCullingService implements Listener {
   private final ProtocolLibEnhancements protocolLibEnhancements;
   private final DisplayEntityIndex index;
   private final DisplayMetadataService metadataService;
+  private final ExortBlockProxyService blockProxyService;
   private final Database database;
   private final Map<UUID, Map<UUID, TrackedDisplay>> trackedByPlayer = new ConcurrentHashMap<>();
   private final Map<UUID, AdaptiveViewRangeState> adaptiveStates = new ConcurrentHashMap<>();
@@ -84,12 +85,14 @@ public final class DisplayCullingService implements Listener {
       ProtocolLibEnhancements protocolLibEnhancements,
       DisplayEntityIndex index,
       DisplayMetadataService metadataService,
+      ExortBlockProxyService blockProxyService,
       Database database) {
     this.plugin = plugin;
     this.config = config;
     this.protocolLibEnhancements = protocolLibEnhancements;
     this.index = index;
     this.metadataService = metadataService;
+    this.blockProxyService = blockProxyService;
     this.database = database;
     loadPersistentClientCullingStates();
     this.translationProbe =
@@ -449,6 +452,7 @@ public final class DisplayCullingService implements Listener {
       if (isClientCullingBypassed(playerId)) {
         clientBypassPlayers++;
         restorePlayer(player);
+        processBlockProxies(player, 1.0);
         trackedByPlayer.remove(playerId);
         adaptiveStates.remove(playerId);
         motionStates.remove(playerId);
@@ -528,6 +532,7 @@ public final class DisplayCullingService implements Listener {
       PerfStats.incrementCounter("display.culling.adaptiveLevelChanged");
     }
     int rangeLevel = effectiveRangeLevel(adaptiveState);
+    processBlockProxies(player, blockProxyRangeMultiplier(rangeLevel));
     MotionSnapshot motion =
         motionStates
             .computeIfAbsent(player.getUniqueId(), ignored -> new PlayerMotionState())
@@ -595,6 +600,9 @@ public final class DisplayCullingService implements Listener {
       adaptiveSkipsThisTick++;
     }
     applyVisibility(player, display, tracked, hide, effectiveViewRange, roleLevel);
+    if (role == DisplayRole.BLOCK) {
+      processBlockDisplayDecision(player, display, tracked);
+    }
   }
 
   private void applyTrackedDisplayImmediately(Player player, Display display) {
@@ -808,6 +816,34 @@ public final class DisplayCullingService implements Listener {
     return role == DisplayRole.WIRE
         || role == DisplayRole.MONITOR_CONTENT
         || role == DisplayRole.HOLOGRAM;
+  }
+
+  private double blockProxyRangeMultiplier(int rangeLevel) {
+    if (backend == null || !backend.supportsPerPlayerViewRange()) {
+      return 1.0;
+    }
+    return config
+        .adaptiveViewRange()
+        .rangeMultiplier(DisplayRole.BLOCK, rangeLevelForRole(rangeLevel));
+  }
+
+  private void processBlockProxies(Player player, double viewRangeMultiplier) {
+    if (blockProxyService != null) {
+      blockProxyService.processPlayer(player, viewRangeMultiplier);
+    }
+  }
+
+  private void processBlockDisplayDecision(Player player, Display display, TrackedDisplay tracked) {
+    if (blockProxyService == null || player == null || display == null || tracked == null) {
+      return;
+    }
+    double multiplier = 1.0;
+    if (backend != null && backend.supportsPerPlayerViewRange()) {
+      float baseViewRange = Math.max(0.05f, metadataService.baseViewRange(DisplayRole.BLOCK));
+      float activeViewRange = tracked.sentViewRange == null ? baseViewRange : tracked.sentViewRange;
+      multiplier = Math.max(0.05, activeViewRange / baseViewRange);
+    }
+    blockProxyService.updateBlockDisplayDecision(player, display.getLocation(), multiplier);
   }
 
   private int effectiveRangeLevel(AdaptiveViewRangeState adaptiveState) {
