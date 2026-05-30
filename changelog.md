@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.9 — 2026-05-30
+- RESOURCE wire placement into flowing water now refreshes nearby water immediately, preventing stale floating water visuals from lingering until another neighboring block update.
+
 ## 0.12.8 — 2026-05-30
 - RESOURCE wire carriers are now protected against targeted water-flow replacement.
 - `/exort mode set RESOURCE` now replaces the separate `/exort mode fix RESOURCE` flow: it checks and updates the active Paper chorus-plant update setting itself, scheduling the required restart even when `paper-global.yml` already contains the correct value.

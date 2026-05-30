@@ -261,6 +261,7 @@ public class BlockListener implements Listener {
     }
 
     if (Carriers.matchesCarrier(block, wireMaterial)) {
+      Material replacedType = event.getBlockReplacedState().getType();
       ItemStack inHand = event.getItemInHand();
       if (inHand == null || !inHand.hasItemMeta()) return;
       var itemPdc = inHand.getItemMeta().getPersistentDataContainer();
@@ -276,6 +277,7 @@ public class BlockListener implements Listener {
       }
       Carriers.applyCarrier(block, wireMaterial);
       WireMarker.setWire(plugin, block);
+      WireWaterFlowRefresh.refreshAfterWirePlacement(block, replacedType);
       consumeIfInitialized(event); // consumes initialized storage blocks; for wire mostly no-op
       if (wireDisplayManager != null) {
         wireDisplayManager.updateWireAndNeighbors(block);

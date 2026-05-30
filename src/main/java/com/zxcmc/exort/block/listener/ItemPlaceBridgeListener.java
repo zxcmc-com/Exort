@@ -153,7 +153,9 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), wireMaterial)) return;
       if (!wirePlacementLimitGuard.canPlace(event.getPlayer(), target)) return;
+      Material replacedType = target.getType();
       placeWire(target);
+      WireWaterFlowRefresh.refreshAfterWirePlacement(target, replacedType);
       finishPlacement(event, target, BreakType.WIRE);
       refreshWirePlacement(target);
       return;
