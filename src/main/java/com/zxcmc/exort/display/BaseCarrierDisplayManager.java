@@ -73,9 +73,13 @@ public abstract class BaseCarrierDisplayManager {
         chunk,
         (block, root) -> {
           if (!Carriers.matchesCarrier(block, carrierMaterial)) return;
-          if (!ChunkMarkerStore.hasSection(plugin, block, markerType)) return;
+          if (!hasRefreshMarker(block)) return;
           refresh(block);
         });
+  }
+
+  protected boolean hasRefreshMarker(Block block) {
+    return ChunkMarkerStore.hasSection(plugin, block, markerType);
   }
 
   public void refresh(Block block) {

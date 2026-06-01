@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.10 — 2026-06-01
+- RESOURCE block proxies now wait for the player's actually sent chunks before sending fake carrier block changes, preventing early proxy swaps and stale client visuals when client render distance is below the server radius with culling bypass enabled.
+- RESOURCE block proxy distance now follows the current 3D display distance with a single transition near the display render edge, keeping tall storage/terminal/monitor/bus stacks from mixing real textures, proxy blocks, and visible carriers based on player height or approach direction without replacing still-visible displays far too early.
+- Placed Storage Core blocks now refresh their display name after language changes.
+
 ## 0.12.9 — 2026-05-30
 - RESOURCE wire placement into flowing water now refreshes nearby water immediately, preventing stale floating water visuals from lingering until another neighboring block update.
 

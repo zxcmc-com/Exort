@@ -51,6 +51,11 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
   }
 
   @Override
+  protected boolean hasRefreshMarker(Block block) {
+    return StorageMarker.get(plugin, block).isPresent() || StorageCoreMarker.isCore(plugin, block);
+  }
+
+  @Override
   protected void decorateMeta(ItemMeta meta, Block block) {
     StorageMarker.get(plugin, block)
         .ifPresentOrElse(
