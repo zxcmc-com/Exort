@@ -1,1 +1,16 @@
-{"variants":{"east=false,west=false,south=false,north=false,up=false,down=false":{"model":"block/chorus_plant"},"west=true,down=true,south=true,east=true,up=true,north=true":{"model":"exort:none"}}}
+{
+  "variants": {
+    "down=false,east=false,north=false,south=false,up=false,west=false": {
+      "model": "block/chorus_plant"
+    },
+    "down=true,east=true,north=false,south=true,up=true,west=true": {
+      "model": "exort:proxy"
+    },
+    "down=true,east=true,north=true,south=false,up=true,west=true": {
+      "model": "exort:storage/storage"
+    },
+    "down=true,east=true,north=true,south=true,up=true,west=true": {
+      "model": "exort:none"
+    }
+  }
+}

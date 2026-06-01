@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.11 — 2026-06-01
+- RESOURCE block proxy restores now reveal the matching display before removing the client-side proxy block, and proxy entry hides displays only after the fake block change is sent, reducing blank texture pop-in while moving through the display-culling transition.
+- RESOURCE block proxies now use two dedicated chorus-plant model states: storage carriers keep the storage proxy model, while terminal, monitor, and bus carriers share a lightweight terminal-textured proxy model without changing real carrier blocks.
+
 ## 0.12.10 — 2026-06-01
 - RESOURCE block proxies now wait for the player's actually sent chunks before sending fake carrier block changes, preventing early proxy swaps and stale client visuals when client render distance is below the server radius with culling bypass enabled.
 - RESOURCE block proxy distance now follows the current 3D display distance with a single transition near the display render edge, keeping tall storage/terminal/monitor/bus stacks from mixing real textures, proxy blocks, and visible carriers based on player height or approach direction without replacing still-visible displays far too early.

@@ -300,8 +300,7 @@ final class LoadTestWorldWorkload {
       }
       cleanupBenchmarkBlock(block);
       place(lane, block, placement.kind());
-      markBenchmark(block);
-      track(lane, block);
+      markAndTrack(lane, block);
       operations++;
       totalPlacements++;
     }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Set;
-import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +21,6 @@ class DisplayCullingConfigTest {
     assertEquals(6.0, config.forceVisibleDistance());
     assertEquals(600, config.maxVisibilityChangesPerTick());
     assertTrue(config.blockProxy().enabled());
-    assertEquals(Material.NETHERITE_BLOCK, config.blockProxy().material());
     assertEquals(64.0, config.blockProxy().baseRenderDistanceBlocks());
     assertEquals(2.0, config.blockProxy().enterBufferBlocks());
     assertEquals(6.0, config.blockProxy().restoreBufferBlocks());
@@ -60,7 +58,6 @@ class DisplayCullingConfigTest {
     yaml.set("performance.displayCulling.maxDistance", 0.0);
     yaml.set("performance.displayCulling.forceVisibleDistance", 999.0);
     yaml.set("performance.displayCulling.maxVisibilityChangesPerTick", 0);
-    yaml.set("performance.displayCulling.blockProxy.material", "AIR");
     yaml.set("performance.displayCulling.blockProxy.baseRenderDistanceBlocks", -1.0);
     yaml.set("performance.displayCulling.blockProxy.enterBufferBlocks", -2.0);
     yaml.set("performance.displayCulling.blockProxy.restoreBufferBlocks", -3.0);
@@ -81,7 +78,6 @@ class DisplayCullingConfigTest {
     assertEquals(1.0, config.maxDistance());
     assertEquals(1.0, config.forceVisibleDistance());
     assertEquals(1, config.maxVisibilityChangesPerTick());
-    assertEquals(Material.NETHERITE_BLOCK, config.blockProxy().material());
     assertEquals(1.0, config.blockProxy().baseRenderDistanceBlocks());
     assertEquals(0.0, config.blockProxy().enterBufferBlocks());
     assertEquals(0.0, config.blockProxy().restoreBufferBlocks());

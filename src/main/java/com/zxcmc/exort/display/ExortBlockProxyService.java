@@ -28,7 +28,9 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -52,7 +54,8 @@ public final class ExortBlockProxyService implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final BlockData proxyData;
+  private final BlockData terminalMonitorBusProxyData;
+  private final BlockData storageProxyData;
   private final Map<UUID, PlayerState> playerStates = new HashMap<>();
   private final LinkedHashMap<PlayerBlockKey, ChangeRequest> restoreQueue = new LinkedHashMap<>();
   private final LinkedHashMap<PlayerBlockKey, ChangeRequest> proxyQueue = new LinkedHashMap<>();
@@ -78,7 +81,8 @@ public final class ExortBlockProxyService implements Listener {
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
-    this.proxyData = createProxyData(this.config.material());
+    this.terminalMonitorBusProxyData = createProxyData(ProxyVisual.TERMINAL_MONITOR_BUS);
+    this.storageProxyData = createProxyData(ProxyVisual.STORAGE);
   }
 
   public void start() {
@@ -335,7 +339,8 @@ public final class ExortBlockProxyService implements Listener {
     }
     if (decision == VisualDecision.REAL) {
       if (candidate.proxied) {
-        hideBlockDisplays(player, candidate.key);
+        // Prefer a short overlap over a blank frame while the client reloads ItemDisplay textures.
+        showHiddenBlockDisplays(player, candidate.key);
         enqueueRestore(player.getUniqueId(), candidate.key, false);
       }
       return;
@@ -445,11 +450,11 @@ public final class ExortBlockProxyService implements Listener {
     }
     PlayerState state = playerStates.get(request.playerId());
     boolean candidateTracked = state != null && state.candidates.containsKey(request.blockKey());
-    boolean proxyCandidate = request.restore() || isProxyCandidate(block);
+    BlockData blockData = request.restore() ? block.getBlockData() : proxyDataFor(block);
+    boolean proxyCandidate = request.restore() || blockData != null;
     if (!shouldPrepareChange(chunkSent, request.restore(), candidateTracked, proxyCandidate)) {
       return null;
     }
-    BlockData blockData = request.restore() ? block.getBlockData() : proxyData;
     return new PreparedChange(player, request, blockData);
   }
 
@@ -475,11 +480,6 @@ public final class ExortBlockProxyService implements Listener {
       }
       if (sentChunkChanges.isEmpty()) {
         continue;
-      }
-      for (PreparedChange change : sentChunkChanges) {
-        if (!change.request.restore()) {
-          hideBlockDisplays(change.player, change.request.blockKey());
-        }
       }
       try {
         entry.getKey().sendMultiBlockChange(packetChanges);
@@ -550,22 +550,40 @@ public final class ExortBlockProxyService implements Listener {
   }
 
   private boolean isProxyCandidate(Block block) {
+    return proxyVisualFor(block) != null;
+  }
+
+  private BlockData proxyDataFor(Block block) {
+    ProxyVisual visual = proxyVisualFor(block);
+    if (visual == null) {
+      return null;
+    }
+    return switch (visual) {
+      case TERMINAL_MONITOR_BUS -> terminalMonitorBusProxyData;
+      case STORAGE -> storageProxyData;
+    };
+  }
+
+  private ProxyVisual proxyVisualFor(Block block) {
     if (block == null || block.getWorld() == null) {
-      return false;
+      return null;
     }
     if (Carriers.matchesCarrier(block, storageCarrier)
         && (StorageMarker.get(plugin, block).isPresent()
             || StorageCoreMarker.isCore(plugin, block))) {
-      return true;
+      return ProxyVisual.STORAGE;
     }
     if (Carriers.matchesCarrier(block, terminalCarrier)
         && TerminalMarker.isTerminal(plugin, block)) {
-      return true;
+      return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     if (Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block)) {
-      return true;
+      return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
-    return Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
+    if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
+      return ProxyVisual.TERMINAL_MONITOR_BUS;
+    }
+    return null;
   }
 
   private void hideBlockDisplays(Player player, BlockKey key) {
@@ -801,13 +819,15 @@ public final class ExortBlockProxyService implements Listener {
     return Math.max(MIN_VIEW_RANGE_MULTIPLIER, viewRangeMultiplier);
   }
 
-  private static BlockData createProxyData(Material material) {
-    Material safeMaterial = material == null ? Material.NETHERITE_BLOCK : material;
-    try {
-      return safeMaterial.createBlockData();
-    } catch (IllegalArgumentException ex) {
-      return Material.NETHERITE_BLOCK.createBlockData();
+  private static BlockData createProxyData(ProxyVisual visual) {
+    BlockData data = Material.CHORUS_PLANT.createBlockData();
+    if (!(data instanceof MultipleFacing facing)) {
+      throw new IllegalStateException("minecraft:chorus_plant must support multiple faces");
     }
+    for (BlockFace face : ProxyVisual.CHORUS_FACES) {
+      facing.setFace(face, visual.hasFace(face));
+    }
+    return data;
   }
 
   static double visualDistanceToBlock(
@@ -832,6 +852,66 @@ public final class ExortBlockProxyService implements Listener {
     PROXY,
     REAL,
     KEEP
+  }
+
+  enum ProxyVisual {
+    TERMINAL_MONITOR_BUS("exort:proxy", true, true, false, true, true, true),
+    STORAGE("exort:storage/storage", true, true, true, false, true, true);
+
+    private static final List<BlockFace> CHORUS_FACES =
+        List.of(
+            BlockFace.DOWN,
+            BlockFace.EAST,
+            BlockFace.NORTH,
+            BlockFace.SOUTH,
+            BlockFace.UP,
+            BlockFace.WEST);
+
+    private final String modelId;
+    private final boolean down;
+    private final boolean east;
+    private final boolean north;
+    private final boolean south;
+    private final boolean up;
+    private final boolean west;
+
+    ProxyVisual(
+        String modelId,
+        boolean down,
+        boolean east,
+        boolean north,
+        boolean south,
+        boolean up,
+        boolean west) {
+      this.modelId = modelId;
+      this.down = down;
+      this.east = east;
+      this.north = north;
+      this.south = south;
+      this.up = up;
+      this.west = west;
+    }
+
+    String modelId() {
+      return modelId;
+    }
+
+    boolean hasFace(BlockFace face) {
+      return switch (face) {
+        case DOWN -> down;
+        case EAST -> east;
+        case NORTH -> north;
+        case SOUTH -> south;
+        case UP -> up;
+        case WEST -> west;
+        default -> false;
+      };
+    }
+
+    String stateKey() {
+      return "down=" + down + ",east=" + east + ",north=" + north + ",south=" + south + ",up=" + up
+          + ",west=" + west;
+    }
   }
 
   private static final class PlayerState {
