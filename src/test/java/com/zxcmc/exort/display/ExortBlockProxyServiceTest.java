@@ -2,16 +2,19 @@ package com.zxcmc.exort.display;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.bukkit.Material;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ExortBlockProxyServiceTest {
   private static final DisplayCullingConfig.BlockProxyConfig CONFIG =
-      new DisplayCullingConfig.BlockProxyConfig(
-              true, Material.NETHERITE_BLOCK, 64.0, 2.0, 6.0, 8.0, 1200)
-          .normalized();
+      new DisplayCullingConfig.BlockProxyConfig(true, 64.0, 2.0, 6.0, 8.0, 1200).normalized();
 
   @Test
   void proxiesAtSingleTransitionBeforeRenderEdge() {
@@ -103,14 +106,73 @@ class ExortBlockProxyServiceTest {
   @Test
   void restoreBufferDoesNotMoveTransitionFarInsideVisibleRange() {
     DisplayCullingConfig.BlockProxyConfig config =
-        new DisplayCullingConfig.BlockProxyConfig(
-                true, Material.NETHERITE_BLOCK, 64.0, 2.0, 12.0, 8.0, 1200)
-            .normalized();
+        new DisplayCullingConfig.BlockProxyConfig(true, 64.0, 2.0, 12.0, 8.0, 1200).normalized();
     assertEquals(
         ExortBlockProxyService.VisualDecision.KEEP,
         ExortBlockProxyService.decideVisual(false, 61.9, 1.0, config));
     assertEquals(
         ExortBlockProxyService.VisualDecision.PROXY,
         ExortBlockProxyService.decideVisual(false, 62.0, 1.0, config));
+  }
+
+  @Test
+  void usesDedicatedChorusStatesForProxyModels() {
+    assertEquals(
+        "down=true,east=true,north=false,south=true,up=true,west=true",
+        ExortBlockProxyService.ProxyVisual.TERMINAL_MONITOR_BUS.stateKey());
+    assertEquals(
+        "down=true,east=true,north=true,south=false,up=true,west=true",
+        ExortBlockProxyService.ProxyVisual.STORAGE.stateKey());
+  }
+
+  @Test
+  void proxyStatesAreUniqueAndNotReserved() {
+    for (ExortBlockProxyService.ProxyVisual visual : ExortBlockProxyService.ProxyVisual.values()) {
+      assertFalse(visual.stateKey().contains("down=false"));
+      assertFalse(
+          visual.stateKey().equals("down=true,east=true,north=true,south=true,up=true,west=true"));
+    }
+    assertFalse(
+        ExortBlockProxyService.ProxyVisual.TERMINAL_MONITOR_BUS
+            .stateKey()
+            .equals(ExortBlockProxyService.ProxyVisual.STORAGE.stateKey()));
+  }
+
+  @Test
+  void resourcePackDefinesEveryProxyVisual() throws Exception {
+    String source =
+        Files.readString(
+            Path.of("src/main/resources/pack/assets/minecraft/blockstates/chorus_plant.json"));
+    JsonObject variants =
+        JsonParser.parseString(source).getAsJsonObject().getAsJsonObject("variants");
+
+    for (ExortBlockProxyService.ProxyVisual visual : ExortBlockProxyService.ProxyVisual.values()) {
+      JsonObject entry = variants.getAsJsonObject(visual.stateKey());
+      assertNotNull(entry, visual.name());
+      assertEquals(visual.modelId(), entry.get("model").getAsString(), visual.name());
+      assertFalse(entry.has("x"), visual.name());
+      assertFalse(entry.has("y"), visual.name());
+    }
+    assertNotNull(
+        variants.getAsJsonObject("down=true,east=true,north=true,south=true,up=true,west=true"));
+  }
+
+  @Test
+  void proxyModelUsesLeftTerminalTextureOnEveryFace() throws Exception {
+    String source =
+        Files.readString(Path.of("src/main/resources/pack/assets/exort/models/proxy.json"));
+    JsonObject root = JsonParser.parseString(source).getAsJsonObject();
+
+    assertEquals("exort:block/terminal", root.getAsJsonObject("textures").get("0").getAsString());
+    JsonObject faces =
+        root.getAsJsonArray("elements").get(0).getAsJsonObject().getAsJsonObject("faces");
+    for (String face : List.of("north", "east", "south", "west", "up", "down")) {
+      JsonObject faceData = faces.getAsJsonObject(face);
+      assertEquals("#0", faceData.get("texture").getAsString(), face);
+      assertEquals(0.0, faceData.getAsJsonArray("uv").get(0).getAsDouble(), 0.0001, face);
+      assertEquals(0.0, faceData.getAsJsonArray("uv").get(1).getAsDouble(), 0.0001, face);
+      assertEquals(8.0, faceData.getAsJsonArray("uv").get(2).getAsDouble(), 0.0001, face);
+      assertEquals(16.0, faceData.getAsJsonArray("uv").get(3).getAsDouble(), 0.0001, face);
+    }
   }
 }

@@ -73,10 +73,9 @@ performance:
     # Visibility/range packet changes are capped per tick to avoid moving render cost to MSPT.
     maxVisibilityChangesPerTick: 600
     blockProxy:
-      # Client-side netherite proxies for distant RESOURCE carrier blocks whose models are not visible.
+      # Client-side chorus_plant model proxies for distant RESOURCE carrier blocks whose displays are not visible.
       enabled: true
-      # Wires are excluded; only storage, terminal, monitor, and bus carrier blocks are proxied.
-      material: NETHERITE_BLOCK
+      # Wires are excluded; real carrier blocks are not changed.
       # Base distance where block ItemDisplays are expected to stop rendering.
       baseRenderDistanceBlocks: 64
       # Safety lead before the display render edge when entering proxy state.

@@ -5,7 +5,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record DisplayCullingConfig(
@@ -66,16 +65,13 @@ public record DisplayCullingConfig(
 
   public record BlockProxyConfig(
       boolean enabled,
-      Material material,
       double baseRenderDistanceBlocks,
       double enterBufferBlocks,
       double restoreBufferBlocks,
       double forceRealDistance,
       int maxBlockChangesPerTick) {
-    private static final Material DEFAULT_MATERIAL = Material.NETHERITE_BLOCK;
-
     static BlockProxyConfig defaults() {
-      return new BlockProxyConfig(true, DEFAULT_MATERIAL, 64.0, 2.0, 6.0, 8.0, 1200);
+      return new BlockProxyConfig(true, 64.0, 2.0, 6.0, 8.0, 1200);
     }
 
     static BlockProxyConfig fromConfig(ConfigurationSection config) {
@@ -83,7 +79,6 @@ public record DisplayCullingConfig(
       BlockProxyConfig defaults = defaults();
       return new BlockProxyConfig(
           config.getBoolean(path + "enabled", defaults.enabled()),
-          parseMaterial(config.getString(path + "material"), defaults.material()),
           config.getDouble(path + "baseRenderDistanceBlocks", defaults.baseRenderDistanceBlocks()),
           config.getDouble(path + "enterBufferBlocks", defaults.enterBufferBlocks()),
           config.getDouble(path + "restoreBufferBlocks", defaults.restoreBufferBlocks()),
@@ -92,30 +87,13 @@ public record DisplayCullingConfig(
     }
 
     BlockProxyConfig normalized() {
-      Material safeMaterial =
-          material == null || isAirMaterial(material) ? DEFAULT_MATERIAL : material;
       return new BlockProxyConfig(
           enabled,
-          safeMaterial,
           Math.max(1.0, baseRenderDistanceBlocks),
           Math.max(0.0, enterBufferBlocks),
           Math.max(0.0, restoreBufferBlocks),
           Math.max(0.0, forceRealDistance),
           Math.max(1, maxBlockChangesPerTick));
-    }
-
-    private static Material parseMaterial(String raw, Material fallback) {
-      if (raw == null || raw.isBlank()) {
-        return fallback;
-      }
-      Material material = Material.matchMaterial(raw.trim());
-      return material == null ? fallback : material;
-    }
-
-    private static boolean isAirMaterial(Material material) {
-      return material == Material.AIR
-          || material == Material.CAVE_AIR
-          || material == Material.VOID_AIR;
     }
   }
 
