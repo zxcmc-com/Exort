@@ -79,9 +79,10 @@ performance:
       material: NETHERITE_BLOCK
       # Base distance where block ItemDisplays are expected to stop rendering.
       baseRenderDistanceBlocks: 64
-      # Extra hysteresis after the restore distance before a real carrier is replaced by the proxy.
+      # Safety lead before the display render edge when entering proxy state.
       enterBufferBlocks: 2
-      # Restore this many blocks beyond the render distance so the model never overlaps the proxy.
+      # Compatibility restore lead; with the single transition, the smaller enter/restore lead is
+      # used so proxy blocks do not start far inside the visible display range.
       restoreBufferBlocks: 6
       # Always restore the real carrier this close to the player.
       forceRealDistance: 8

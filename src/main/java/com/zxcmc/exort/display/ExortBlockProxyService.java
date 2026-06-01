@@ -89,7 +89,7 @@ public final class ExortBlockProxyService implements Listener {
     started = true;
     Bukkit.getPluginManager().registerEvents(this, plugin);
     for (Player player : Bukkit.getOnlinePlayers()) {
-      scanLoadedChunks(player);
+      scanSentChunks(player);
     }
     updateGauges(0, 0);
   }
@@ -170,7 +170,9 @@ public final class ExortBlockProxyService implements Listener {
     ChunkKey chunkKey = ChunkKey.from(chunk);
     for (Player player : Bukkit.getOnlinePlayers()) {
       PlayerState state = playerStates.get(player.getUniqueId());
-      if (state != null && state.loadedChunks.contains(chunkKey)) {
+      if (state != null
+          && state.sentChunks.contains(chunkKey)
+          && isChunkSentToPlayer(player, chunkKey)) {
         scanChunkForPlayer(player, state, chunk);
       }
     }
@@ -185,7 +187,9 @@ public final class ExortBlockProxyService implements Listener {
     ChunkKey chunkKey = key.chunkKey();
     for (Player player : Bukkit.getOnlinePlayers()) {
       PlayerState state = playerStates.get(player.getUniqueId());
-      if (state == null || !state.loadedChunks.contains(chunkKey)) {
+      if (state == null
+          || !state.sentChunks.contains(chunkKey)
+          || !isChunkSentToPlayer(player, chunkKey)) {
         continue;
       }
       if (!isProxyCandidate(block)) {
@@ -219,7 +223,7 @@ public final class ExortBlockProxyService implements Listener {
     }
     Player player = event.getPlayer();
     PlayerState state = stateFor(player);
-    state.loadedChunks.add(ChunkKey.from(event.getChunk()));
+    state.sentChunks.add(ChunkKey.from(event.getChunk()));
     scanChunkForPlayer(player, state, event.getChunk());
     chunkLoads++;
     PerfStats.setGauge("display.blockProxy.chunkLoads", chunkLoads);
@@ -236,7 +240,7 @@ public final class ExortBlockProxyService implements Listener {
       return;
     }
     ChunkKey chunkKey = ChunkKey.from(event.getChunk());
-    state.loadedChunks.remove(chunkKey);
+    state.sentChunks.remove(chunkKey);
     state.candidates.keySet().removeIf(key -> key.chunkKey().equals(chunkKey));
     removeQueuedInChunk(playerId, chunkKey);
     removeHiddenInChunk(playerId, chunkKey);
@@ -255,30 +259,25 @@ public final class ExortBlockProxyService implements Listener {
   public void onChangedWorld(PlayerChangedWorldEvent event) {
     if (event != null && event.getPlayer() != null) {
       clearPlayer(event.getPlayer().getUniqueId());
-      scanLoadedChunks(event.getPlayer());
+      scanSentChunks(event.getPlayer());
     }
   }
 
-  private void scanLoadedChunks(Player player) {
+  private void scanSentChunks(Player player) {
     if (player == null || !player.isOnline()) {
       return;
     }
-    World world = player.getWorld();
-    int centerX = player.getLocation().getBlockX() >> 4;
-    int centerZ = player.getLocation().getBlockZ() >> 4;
-    int radius = Math.max(1, plugin.getServer().getViewDistance());
     PlayerState state = stateFor(player);
-    for (int dx = -radius; dx <= radius; dx++) {
-      for (int dz = -radius; dz <= radius; dz++) {
-        int chunkX = centerX + dx;
-        int chunkZ = centerZ + dz;
-        if (!world.isChunkLoaded(chunkX, chunkZ)) {
-          continue;
-        }
-        Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-        state.loadedChunks.add(ChunkKey.from(chunk));
-        scanChunkForPlayer(player, state, chunk);
+    for (Chunk chunk : player.getSentChunks()) {
+      if (chunk == null || chunk.getWorld() == null) {
+        continue;
       }
+      ChunkKey chunkKey = ChunkKey.from(chunk);
+      if (!isChunkSentToPlayer(player, chunkKey)) {
+        continue;
+      }
+      state.sentChunks.add(chunkKey);
+      scanChunkForPlayer(player, state, chunk);
     }
   }
 
@@ -326,7 +325,10 @@ public final class ExortBlockProxyService implements Listener {
       double viewRangeMultiplier) {
     VisualDecision decision =
         decideVisual(
-            candidate.proxied, distanceToBlock(origin, candidate.key), viewRangeMultiplier, config);
+            candidate.proxied,
+            visualDistanceToBlock(origin, candidate.key),
+            viewRangeMultiplier,
+            config);
     PlayerBlockKey playerBlockKey = new PlayerBlockKey(player.getUniqueId(), candidate.key);
     if (decision != VisualDecision.PROXY) {
       proxyQueue.remove(playerBlockKey);
@@ -433,17 +435,19 @@ public final class ExortBlockProxyService implements Listener {
     if (player == null || !player.isOnline()) {
       return null;
     }
+    boolean chunkSent = isChunkSentToPlayer(player, request.blockKey().chunkKey());
+    if (!chunkSent) {
+      return null;
+    }
     Block block = loadedBlock(request.blockKey());
     if (block == null) {
       return null;
     }
     PlayerState state = playerStates.get(request.playerId());
-    if (!request.restore()) {
-      if (state == null
-          || !state.candidates.containsKey(request.blockKey())
-          || !isProxyCandidate(block)) {
-        return null;
-      }
+    boolean candidateTracked = state != null && state.candidates.containsKey(request.blockKey());
+    boolean proxyCandidate = request.restore() || isProxyCandidate(block);
+    if (!shouldPrepareChange(chunkSent, request.restore(), candidateTracked, proxyCandidate)) {
+      return null;
     }
     BlockData blockData = request.restore() ? block.getBlockData() : proxyData;
     return new PreparedChange(player, request, blockData);
@@ -459,12 +463,20 @@ public final class ExortBlockProxyService implements Listener {
     }
     int sent = 0;
     for (Map.Entry<Player, List<PreparedChange>> entry : byPlayer.entrySet()) {
+      List<PreparedChange> sentChunkChanges = new ArrayList<>();
       Map<Position, BlockData> packetChanges = new LinkedHashMap<>();
       for (PreparedChange change : entry.getValue()) {
+        if (!isChunkSentToPlayer(change.player, change.request.blockKey().chunkKey())) {
+          continue;
+        }
+        sentChunkChanges.add(change);
         BlockKey key = change.request.blockKey();
         packetChanges.put(Position.block(key.x(), key.y(), key.z()), change.blockData);
       }
-      for (PreparedChange change : entry.getValue()) {
+      if (sentChunkChanges.isEmpty()) {
+        continue;
+      }
+      for (PreparedChange change : sentChunkChanges) {
         if (!change.request.restore()) {
           hideBlockDisplays(change.player, change.request.blockKey());
         }
@@ -472,7 +484,7 @@ public final class ExortBlockProxyService implements Listener {
       try {
         entry.getKey().sendMultiBlockChange(packetChanges);
       } catch (RuntimeException ignored) {
-        for (PreparedChange change : entry.getValue()) {
+        for (PreparedChange change : sentChunkChanges) {
           if (!change.request.restore()) {
             showHiddenBlockDisplays(change.player, change.request.blockKey());
           }
@@ -480,7 +492,7 @@ public final class ExortBlockProxyService implements Listener {
         continue;
       }
       sent += packetChanges.size();
-      for (PreparedChange change : entry.getValue()) {
+      for (PreparedChange change : sentChunkChanges) {
         markApplied(change);
       }
     }
@@ -651,6 +663,14 @@ public final class ExortBlockProxyService implements Listener {
     return world.getBlockAt(key.x(), key.y(), key.z());
   }
 
+  private boolean isChunkSentToPlayer(Player player, ChunkKey chunkKey) {
+    if (player == null || chunkKey == null || player.getWorld() == null) {
+      return false;
+    }
+    return player.getWorld().getUID().equals(chunkKey.world())
+        && player.isChunkSent(chunkKey.paperKey());
+  }
+
   private PlayerState stateFor(Player player) {
     return playerStates.computeIfAbsent(player.getUniqueId(), ignored -> new PlayerState());
   }
@@ -721,7 +741,7 @@ public final class ExortBlockProxyService implements Listener {
   }
 
   private void removeEmptyState(UUID playerId, PlayerState state) {
-    if (state != null && state.loadedChunks.isEmpty() && state.candidates.isEmpty()) {
+    if (state != null && state.sentChunks.isEmpty() && state.candidates.isEmpty()) {
       playerStates.remove(playerId);
     }
   }
@@ -758,16 +778,20 @@ public final class ExortBlockProxyService implements Listener {
         Double.isFinite(distanceBlocks) ? Math.max(0.0, distanceBlocks) : Double.MAX_VALUE;
     double multiplier = normalizeMultiplier(viewRangeMultiplier);
     double renderDistance = safeConfig.baseRenderDistanceBlocks() * multiplier;
-    double restoreDistance =
-        Math.max(safeConfig.forceRealDistance(), renderDistance + safeConfig.restoreBufferBlocks());
-    double proxyDistance = restoreDistance + safeConfig.enterBufferBlocks();
+    double edgeLead = Math.min(safeConfig.enterBufferBlocks(), safeConfig.restoreBufferBlocks());
+    double transitionDistance = Math.max(safeConfig.forceRealDistance(), renderDistance - edgeLead);
     if (distance <= safeConfig.forceRealDistance()) {
       return VisualDecision.REAL;
     }
     if (currentlyProxied) {
-      return distance <= restoreDistance ? VisualDecision.REAL : VisualDecision.KEEP;
+      return distance < transitionDistance ? VisualDecision.REAL : VisualDecision.KEEP;
     }
-    return distance >= proxyDistance ? VisualDecision.PROXY : VisualDecision.KEEP;
+    return distance >= transitionDistance ? VisualDecision.PROXY : VisualDecision.KEEP;
+  }
+
+  static boolean shouldPrepareChange(
+      boolean chunkSent, boolean restore, boolean candidateTracked, boolean proxyCandidate) {
+    return chunkSent && (restore || (candidateTracked && proxyCandidate));
   }
 
   private static double normalizeMultiplier(double viewRangeMultiplier) {
@@ -786,16 +810,22 @@ public final class ExortBlockProxyService implements Listener {
     }
   }
 
-  private static double distanceToBlock(Location origin, BlockKey key) {
+  static double visualDistanceToBlock(
+      double originX, double originY, double originZ, int blockX, int blockY, int blockZ) {
+    double dx = originX - (blockX + 0.5);
+    double dy = originY - (blockY + 0.5);
+    double dz = originZ - (blockZ + 0.5);
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
+  private static double visualDistanceToBlock(Location origin, BlockKey key) {
     if (origin == null
         || origin.getWorld() == null
         || !origin.getWorld().getUID().equals(key.world())) {
       return Double.POSITIVE_INFINITY;
     }
-    double dx = origin.getX() - (key.x() + 0.5);
-    double dy = origin.getY() - (key.y() + 0.5);
-    double dz = origin.getZ() - (key.z() + 0.5);
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    return visualDistanceToBlock(
+        origin.getX(), origin.getY(), origin.getZ(), key.x(), key.y(), key.z());
   }
 
   enum VisualDecision {
@@ -805,7 +835,7 @@ public final class ExortBlockProxyService implements Listener {
   }
 
   private static final class PlayerState {
-    private final Set<ChunkKey> loadedChunks = new HashSet<>();
+    private final Set<ChunkKey> sentChunks = new HashSet<>();
     private final Map<BlockKey, CandidateState> candidates = new HashMap<>();
     private double viewRangeMultiplier = 1.0;
   }
@@ -822,6 +852,10 @@ public final class ExortBlockProxyService implements Listener {
   private record ChunkKey(UUID world, int x, int z) {
     private static ChunkKey from(Chunk chunk) {
       return new ChunkKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+    }
+
+    private long paperKey() {
+      return Chunk.getChunkKey(x, z);
     }
   }
 
