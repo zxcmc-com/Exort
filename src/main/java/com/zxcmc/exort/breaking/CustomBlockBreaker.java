@@ -2,6 +2,7 @@ package com.zxcmc.exort.breaking;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -27,6 +28,7 @@ import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 public final class CustomBlockBreaker implements Listener, Runnable {
@@ -35,6 +37,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
 
   private final Plugin plugin;
   private final RegionProtection regionProtection;
+  private final WorldEditWandGuard worldEditWandGuard;
   private final BlockBreakHandler breakHandler;
   private final BreakConfig breakConfig;
   private final BreakSoundService soundService;
@@ -54,6 +57,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
   public CustomBlockBreaker(
       Plugin plugin,
       RegionProtection regionProtection,
+      WorldEditWandGuard worldEditWandGuard,
       BlockBreakHandler breakHandler,
       BreakConfig breakConfig,
       BreakSoundConfig soundConfig,
@@ -65,6 +69,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       Material busCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
+    this.worldEditWandGuard = worldEditWandGuard;
     this.breakHandler = breakHandler;
     this.breakConfig = breakConfig;
     this.soundService = new BreakSoundService(soundConfig);
@@ -96,6 +101,10 @@ public final class CustomBlockBreaker implements Listener, Runnable {
 
   public void handlePlacementGuardAttack(Player player, Block block) {
     if (player == null || block == null) return;
+    if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
+      stopBreaking(player);
+      return;
+    }
     BreakType type = resolveType(block);
     if (type == BreakType.NONE) {
       stopBreaking(player);
@@ -110,6 +119,10 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     BreakType type = resolveType(block);
     if (type == BreakType.NONE) {
       rememberVanillaDamageIntent(event.getPlayer(), block);
+      return;
+    }
+    if (isWorldEditWand(event.getPlayer(), event.getItemInHand())) {
+      stopBreaking(event.getPlayer());
       return;
     }
     clearVanillaDamageIntent(event.getPlayer());
@@ -139,6 +152,10 @@ public final class CustomBlockBreaker implements Listener, Runnable {
   }
 
   private void tryStartOrContinueBreaking(Player player) {
+    if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
+      stopBreaking(player);
+      return;
+    }
     Block target = player.getTargetBlockExact((int) DEFAULT_REACH, FluidCollisionMode.NEVER);
     if (target == null) {
       stopBreaking(player);
@@ -153,6 +170,10 @@ public final class CustomBlockBreaker implements Listener, Runnable {
   }
 
   private void tryStartOrContinueBreaking(Player player, Block block, BreakType type) {
+    if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
+      stopBreaking(player);
+      return;
+    }
     clearVanillaDamageIntent(player);
     if (!regionProtection.canBreak(player, block)) {
       stopBreaking(player);
@@ -376,6 +397,10 @@ public final class CustomBlockBreaker implements Listener, Runnable {
         || target.getY() != block.getY()
         || target.getZ() != block.getZ()) return false;
     return true;
+  }
+
+  private boolean isWorldEditWand(Player player, ItemStack item) {
+    return worldEditWandGuard.isWorldEditWand(player, item);
   }
 
   private BreakType resolveType(Block block) {

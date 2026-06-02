@@ -4,8 +4,10 @@ import com.zxcmc.exort.bus.BusSession;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.command.ExortGiveMenu;
 import com.zxcmc.exort.gui.CraftingSession;
+import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.gui.StorageSession;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,18 +16,30 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.InventoryHolder;
 
 public final class InventoryEvents implements Listener {
   private final SessionManager sessionManager;
   private final BusSessionManager busSessionManager;
+  private final AuthenticationGate authenticationGate;
 
-  public InventoryEvents(SessionManager sessionManager, BusSessionManager busSessionManager) {
+  public InventoryEvents(
+      SessionManager sessionManager,
+      BusSessionManager busSessionManager,
+      AuthenticationGate authenticationGate) {
     this.sessionManager = sessionManager;
     this.busSessionManager = busSessionManager;
+    this.authenticationGate = authenticationGate;
   }
 
-  @EventHandler
+  @EventHandler(ignoreCancelled = true)
   public void onClick(InventoryClickEvent event) {
+    if (blockedByAuthentication(
+        event.getWhoClicked() instanceof Player player ? player : null,
+        event.getView().getTopInventory().getHolder())) {
+      event.setCancelled(true);
+      return;
+    }
     if (event.getView().getTopInventory().getHolder() instanceof ExortGiveMenu menu) {
       menu.handleClick(event);
       return;
@@ -75,8 +89,14 @@ public final class InventoryEvents implements Listener {
     }
   }
 
-  @EventHandler
+  @EventHandler(ignoreCancelled = true)
   public void onDrag(InventoryDragEvent event) {
+    if (blockedByAuthentication(
+        event.getWhoClicked() instanceof Player player ? player : null,
+        event.getView().getTopInventory().getHolder())) {
+      event.setCancelled(true);
+      return;
+    }
     if (event.getView().getTopInventory().getHolder() instanceof ExortGiveMenu menu) {
       menu.handleDrag(event);
       return;
@@ -129,5 +149,22 @@ public final class InventoryEvents implements Listener {
     sessionManager.closeSession(event.getPlayer());
     busSessionManager.closeSession(event.getPlayer());
     sessionManager.bossBarManager().remove(event.getPlayer());
+  }
+
+  private boolean blockedByAuthentication(Player player, InventoryHolder holder) {
+    if (player == null || !isExortInventory(holder) || !authenticationGate.blocks(player)) {
+      return false;
+    }
+    sessionManager.closeSession(player);
+    busSessionManager.closeSession(player);
+    sessionManager.bossBarManager().remove(player);
+    player.closeInventory();
+    return true;
+  }
+
+  private static boolean isExortInventory(InventoryHolder holder) {
+    return holder instanceof ExortGiveMenu
+        || holder instanceof GuiSession
+        || holder instanceof BusSession;
   }
 }

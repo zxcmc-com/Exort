@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0 — 2026-06-01
+- Exort now respects AuthMe and LoginSecurity unauthenticated-player restrictions for wireless terminals, monitors, and Exort GUI clicks, preventing storage access or monitor edits before login while keeping normal authenticated gameplay unchanged.
+- WorldEdit/FAWE selection wand clicks are now ignored by Exort block interactions and custom breaking, so selecting a monitor/storage/terminal/bus/wire block does not open Exort UI, show Exort peek data, or set a monitor item.
+- Fixed terminal and crafting-terminal category rendering when padded GUI slots are visible, preventing repeated sort/search clicks from logging task exceptions and interrupting terminal rendering.
+
 ## 0.12.11 — 2026-06-01
 - RESOURCE block proxy restores now reveal the matching display before removing the client-side proxy block, and proxy entry hides displays only after the fake block change is sent, reducing blank texture pop-in while moving through the display-culling transition.
 - RESOURCE block proxies now use two dedicated chorus-plant model states: storage carriers keep the storage proxy model, while terminal, monitor, and bus carriers share a lightweight terminal-textured proxy model without changing real carrier blocks.

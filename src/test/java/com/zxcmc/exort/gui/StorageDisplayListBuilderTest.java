@@ -59,6 +59,31 @@ class StorageDisplayListBuilderTest {
     assertEquals(64, result.displayList().get(45).amount());
   }
 
+  @Test
+  void categoryModeAllowsVisibleNullPadding() {
+    ItemStack sample = new TestItemStack();
+    StorageCache.StorageItem item =
+        new StorageCache.StorageItem("minecraft:stone", sample, 64L, 1L, null);
+
+    StorageDisplayListBuilder.Result result =
+        StorageDisplayListBuilder.build(
+            List.of(item),
+            SortMode.CATEGORY,
+            false,
+            List.of(),
+            SearchQuery.from("diamond"),
+            null,
+            0,
+            9,
+            StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES,
+            StorageCache.StorageItem::sample);
+
+    assertEquals(10, result.displayList().size());
+    assertNull(result.displayList().get(0));
+    assertNull(result.displayCategories().get(0));
+    assertEquals(0, result.searchResultsCount());
+  }
+
   private static final class TestItemStack extends ItemStack {
     @Override
     public Material getType() {

@@ -18,8 +18,10 @@ import com.zxcmc.exort.gui.SearchDialogService;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.InventoryRefreshService;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -44,6 +46,8 @@ public record RuntimeListenerDependencies(
     CustomItems customItems,
     WirelessTerminalService wirelessService,
     RegionProtection regionProtection,
+    AuthenticationGate authenticationGate,
+    WorldEditWandGuard worldEditWandGuard,
     PlayerFeedback playerFeedback,
     BossBarManager bossBarManager,
     SearchDialogService searchDialogService,
@@ -83,6 +87,8 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(customItems, "customItems");
     Objects.requireNonNull(wirelessService, "wirelessService");
     Objects.requireNonNull(regionProtection, "regionProtection");
+    Objects.requireNonNull(authenticationGate, "authenticationGate");
+    Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(searchDialogService, "searchDialogService");

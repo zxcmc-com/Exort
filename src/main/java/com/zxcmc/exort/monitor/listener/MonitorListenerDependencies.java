@@ -2,7 +2,9 @@ package com.zxcmc.exort.monitor.listener;
 
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -19,6 +21,8 @@ public record MonitorListenerDependencies(
     StorageKeys keys,
     BossBarManager bossBarManager,
     ItemNameService itemNameService,
+    AuthenticationGate authenticationGate,
+    WorldEditWandGuard worldEditWandGuard,
     Material monitorCarrier,
     Material wireMaterial,
     Material storageCarrier,
@@ -33,6 +37,8 @@ public record MonitorListenerDependencies(
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(itemNameService, "itemNameService");
+    Objects.requireNonNull(authenticationGate, "authenticationGate");
+    Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");
     Objects.requireNonNull(storagePeekTicks, "storagePeekTicks");

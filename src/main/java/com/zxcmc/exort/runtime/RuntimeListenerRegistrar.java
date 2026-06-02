@@ -93,6 +93,7 @@ public final class RuntimeListenerRegistrar {
         new TerminalListener(
             deps.plugin(),
             deps.regionProtection(),
+            deps.worldEditWandGuard(),
             deps.playerFeedback(),
             block -> {
               if (deps.terminalDisplayManager() != null) {
@@ -113,6 +114,7 @@ public final class RuntimeListenerRegistrar {
         new BusListener(
             deps.plugin(),
             deps.regionProtection(),
+            deps.worldEditWandGuard(),
             block -> {
               if (deps.busDisplayManager() != null) {
                 deps.busDisplayManager().refresh(block);
@@ -120,7 +122,10 @@ public final class RuntimeListenerRegistrar {
             },
             deps.busSessionManager(),
             materials.busCarrier()));
-    register(deps, new InventoryEvents(deps.sessionManager(), deps.busSessionManager()));
+    register(
+        deps,
+        new InventoryEvents(
+            deps.sessionManager(), deps.busSessionManager(), deps.authenticationGate()));
     register(
         deps,
         new SearchDialogListener(deps.sessionManager(), deps.searchDialogService(), deps.plugin()));
@@ -133,6 +138,7 @@ public final class RuntimeListenerRegistrar {
         new StorageListener(
             deps.plugin(),
             deps.regionProtection(),
+            deps.worldEditWandGuard(),
             deps.bossBarManager(),
             deps.storagePeekTicks(),
             materials.storageCarrier()));
@@ -142,6 +148,7 @@ public final class RuntimeListenerRegistrar {
             new WireListenerDependencies(
                 deps.plugin(),
                 deps.regionProtection(),
+                deps.worldEditWandGuard(),
                 deps.bossBarManager(),
                 deps.keys(),
                 deps.wireLimit(),
@@ -211,6 +218,8 @@ public final class RuntimeListenerRegistrar {
                 deps.keys(),
                 deps.bossBarManager(),
                 deps.itemNameService(),
+                deps.authenticationGate(),
+                deps.worldEditWandGuard(),
                 materials.monitorCarrier(),
                 materials.wire(),
                 materials.storageCarrier(),
@@ -331,6 +340,7 @@ public final class RuntimeListenerRegistrar {
                 deps.storageManager(),
                 deps.customItems(),
                 deps.regionProtection(),
+                deps.authenticationGate(),
                 deps.bossBarManager(),
                 deps.playerFeedback(),
                 deps.database(),

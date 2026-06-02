@@ -8,6 +8,7 @@ import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -42,6 +43,7 @@ public class WirelessListener implements Listener {
   private final StorageManager storageManager;
   private final CustomItems customItems;
   private final RegionProtection regionProtection;
+  private final AuthenticationGate authenticationGate;
   private final BossBarManager bossBarManager;
   private final PlayerFeedback playerFeedback;
   private final Database database;
@@ -58,6 +60,7 @@ public class WirelessListener implements Listener {
     this.storageManager = dependencies.storageManager();
     this.customItems = dependencies.customItems();
     this.regionProtection = dependencies.regionProtection();
+    this.authenticationGate = dependencies.authenticationGate();
     this.bossBarManager = dependencies.bossBarManager();
     this.playerFeedback = dependencies.playerFeedback();
     this.database = dependencies.database();
@@ -74,7 +77,13 @@ public class WirelessListener implements Listener {
     if (event.getHand() != EquipmentSlot.HAND && event.getHand() != EquipmentSlot.OFF_HAND) return;
     ItemStack stack = event.getItem();
     if (!service.isWireless(stack)) return;
+    if (authenticationGate.blocks(event.getPlayer())) return;
+    if (hasDeniedUse(event) && event.getAction() != Action.RIGHT_CLICK_AIR) return;
     PerfStats.measure(PerfStats.Area.WIRELESS, () -> onWirelessInteract(event, stack));
+  }
+
+  private static boolean hasDeniedUse(PlayerInteractEvent event) {
+    return event.useInteractedBlock() == Result.DENY || event.useItemInHand() == Result.DENY;
   }
 
   private void onWirelessInteract(PlayerInteractEvent event, ItemStack stack) {

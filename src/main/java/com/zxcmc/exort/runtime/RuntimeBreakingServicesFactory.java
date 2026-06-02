@@ -39,6 +39,7 @@ public final class RuntimeBreakingServicesFactory {
         new CustomBlockBreaker(
             deps.plugin(),
             deps.regionProtection(),
+            deps.worldEditWandGuard(),
             breakHandler,
             breakConfig,
             breakSoundConfig,

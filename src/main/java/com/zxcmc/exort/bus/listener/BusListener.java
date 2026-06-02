@@ -3,6 +3,7 @@ package com.zxcmc.exort.bus.listener;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.marker.BusMarker;
 import java.util.function.Consumer;
 import org.bukkit.Material;
@@ -18,6 +19,7 @@ import org.bukkit.plugin.Plugin;
 public class BusListener implements Listener {
   private final Plugin plugin;
   private final RegionProtection regionProtection;
+  private final WorldEditWandGuard worldEditWandGuard;
   private final Consumer<Block> busDisplayRefresh;
   private final BusSessionManager busSessionManager;
   private final Material busCarrier;
@@ -25,11 +27,13 @@ public class BusListener implements Listener {
   public BusListener(
       Plugin plugin,
       RegionProtection regionProtection,
+      WorldEditWandGuard worldEditWandGuard,
       Consumer<Block> busDisplayRefresh,
       BusSessionManager busSessionManager,
       Material busCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
+    this.worldEditWandGuard = worldEditWandGuard;
     this.busDisplayRefresh = busDisplayRefresh;
     this.busSessionManager = busSessionManager;
     this.busCarrier = busCarrier;
@@ -42,6 +46,7 @@ public class BusListener implements Listener {
     Block block = event.getClickedBlock();
     if (block == null) return;
     if (!isBus(block)) return;
+    if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
     if (event.getPlayer().isSneaking()) {
       return;
     }

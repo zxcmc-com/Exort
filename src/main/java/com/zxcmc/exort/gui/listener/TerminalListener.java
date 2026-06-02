@@ -6,6 +6,7 @@ import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
@@ -31,6 +32,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class TerminalListener implements Listener {
   private final JavaPlugin plugin;
   private final RegionProtection regionProtection;
+  private final WorldEditWandGuard worldEditWandGuard;
   private final PlayerFeedback playerFeedback;
   private final Consumer<Block> terminalDisplayRefresh;
   private final BiFunction<String, String, CompletableFuture<Void>> storageTierWriter;
@@ -46,6 +48,7 @@ public class TerminalListener implements Listener {
   public TerminalListener(
       JavaPlugin plugin,
       RegionProtection regionProtection,
+      WorldEditWandGuard worldEditWandGuard,
       PlayerFeedback playerFeedback,
       Consumer<Block> terminalDisplayRefresh,
       BiFunction<String, String, CompletableFuture<Void>> storageTierWriter,
@@ -59,6 +62,7 @@ public class TerminalListener implements Listener {
       Material terminalCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
+    this.worldEditWandGuard = worldEditWandGuard;
     this.playerFeedback = playerFeedback;
     this.terminalDisplayRefresh = terminalDisplayRefresh;
     this.storageTierWriter = storageTierWriter;
@@ -79,6 +83,7 @@ public class TerminalListener implements Listener {
     Block block = event.getClickedBlock();
     if (block == null) return;
     if (!isOurTerminal(block)) return;
+    if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
     if (event.getPlayer().isSneaking()) {
       // Allow vanilla block placement with shift-right-click
       return;

@@ -3,6 +3,7 @@ package com.zxcmc.exort.storage.listener;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.marker.StorageMarker;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -15,6 +16,7 @@ import org.bukkit.plugin.Plugin;
 public class StorageListener implements Listener {
   private final Plugin plugin;
   private final RegionProtection regionProtection;
+  private final WorldEditWandGuard worldEditWandGuard;
   private final BossBarManager bossBarManager;
   private final long peekDurationTicks;
   private final Material storageCarrier;
@@ -22,11 +24,13 @@ public class StorageListener implements Listener {
   public StorageListener(
       Plugin plugin,
       RegionProtection regionProtection,
+      WorldEditWandGuard worldEditWandGuard,
       BossBarManager bossBarManager,
       long peekDurationTicks,
       Material storageCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
+    this.worldEditWandGuard = worldEditWandGuard;
     this.bossBarManager = bossBarManager;
     this.peekDurationTicks = peekDurationTicks;
     this.storageCarrier = storageCarrier;
@@ -43,6 +47,7 @@ public class StorageListener implements Listener {
     if (block == null) return;
     if (!event.getAction().isRightClick()) return;
     if (!isOurStorage(block)) return;
+    if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
     if (event.getPlayer().isSneaking()) {
       // allow vanilla placement
       return;
