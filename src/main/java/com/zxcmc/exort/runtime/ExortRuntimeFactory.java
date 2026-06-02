@@ -7,12 +7,16 @@ import com.zxcmc.exort.gui.CreativeTabOrder;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
+import com.zxcmc.exort.integration.auth.KnownAuthenticationGate;
 import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.worldedit.KnownWorldEditWandGuard;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeDependencies;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeMaterials;
 import com.zxcmc.exort.integration.worldedit.WorldEditBulkConfig;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.integration.worldedit.WorldEditRuntimeBootstrap;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.placement.PlacementGuardConfig;
 import com.zxcmc.exort.recipes.CraftingRulesConfig;
@@ -68,6 +72,8 @@ public final class ExortRuntimeFactory {
     deps.unregisterReloadableRuntimeListeners().run();
     deps.setupRegionProtection().run();
     deps.resetReloadableDisplayState().run();
+    AuthenticationGate authenticationGate = new KnownAuthenticationGate(deps.plugin());
+    WorldEditWandGuard worldEditWandGuard = new KnownWorldEditWandGuard(deps.plugin());
 
     RuntimeServiceState state = new RuntimeServiceState();
     RuntimeHologramConfig hologramConfig =
@@ -136,6 +142,7 @@ public final class ExortRuntimeFactory {
                 () -> busServices.busService(),
                 deps.networkGraphCache(),
                 deps.regionProtection().get(),
+                worldEditWandGuard,
                 deps.playerFeedback(),
                 breakAnimationSender));
 
@@ -151,6 +158,8 @@ public final class ExortRuntimeFactory {
                 customItems,
                 wirelessService,
                 deps.regionProtection().get(),
+                authenticationGate,
+                worldEditWandGuard,
                 deps.playerFeedback(),
                 deps.bossBarManager(),
                 deps.searchDialogService(),

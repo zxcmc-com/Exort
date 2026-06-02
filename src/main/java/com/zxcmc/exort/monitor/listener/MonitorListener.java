@@ -3,7 +3,9 @@ package com.zxcmc.exort.monitor.listener;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -27,6 +29,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class MonitorListener implements Listener {
   private final JavaPlugin plugin;
   private final RegionProtection regionProtection;
+  private final AuthenticationGate authenticationGate;
+  private final WorldEditWandGuard worldEditWandGuard;
   private final StorageKeys keys;
   private final BossBarManager bossBarManager;
   private final ItemNameService itemNameService;
@@ -42,6 +46,8 @@ public class MonitorListener implements Listener {
   public MonitorListener(MonitorListenerDependencies dependencies) {
     this.plugin = dependencies.plugin();
     this.regionProtection = dependencies.regionProtection();
+    this.authenticationGate = dependencies.authenticationGate();
+    this.worldEditWandGuard = dependencies.worldEditWandGuard();
     this.keys = dependencies.keys();
     this.bossBarManager = dependencies.bossBarManager();
     this.itemNameService = dependencies.itemNameService();
@@ -62,6 +68,8 @@ public class MonitorListener implements Listener {
     Block block = event.getClickedBlock();
     if (block == null) return;
     if (!isMonitor(block)) return;
+    if (hasDeniedUse(event) || authenticationGate.blocks(event.getPlayer())) return;
+    if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
 
     if (!regionProtection.canUse(event.getPlayer(), block)) {
       event.setCancelled(true);
@@ -146,6 +154,10 @@ public class MonitorListener implements Listener {
     ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(inHand);
     MonitorMarker.setItem(plugin, block, data.key(), data.bytes());
     monitorDisplayRefresh.accept(block);
+  }
+
+  private static boolean hasDeniedUse(PlayerInteractEvent event) {
+    return event.useInteractedBlock() == Result.DENY || event.useItemInHand() == Result.DENY;
   }
 
   private boolean isMonitor(Block block) {

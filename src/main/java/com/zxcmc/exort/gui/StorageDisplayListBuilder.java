@@ -5,6 +5,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.storage.StorageCache;
 import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -281,7 +282,7 @@ final class StorageDisplayListBuilder {
     private WindowedList(int size, int windowStart, List<T> window) {
       this.size = Math.max(0, size);
       this.windowStart = Math.max(0, windowStart);
-      this.window = List.copyOf(window);
+      this.window = Collections.unmodifiableList(new ArrayList<>(window));
     }
 
     @Override

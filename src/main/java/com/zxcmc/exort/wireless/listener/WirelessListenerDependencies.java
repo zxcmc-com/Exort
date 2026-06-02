@@ -4,6 +4,7 @@ import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -19,6 +20,7 @@ public record WirelessListenerDependencies(
     StorageManager storageManager,
     CustomItems customItems,
     RegionProtection regionProtection,
+    AuthenticationGate authenticationGate,
     BossBarManager bossBarManager,
     PlayerFeedback playerFeedback,
     Database database,
@@ -33,6 +35,7 @@ public record WirelessListenerDependencies(
     Objects.requireNonNull(service, "service");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(regionProtection, "regionProtection");
+    Objects.requireNonNull(authenticationGate, "authenticationGate");
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(database, "database");

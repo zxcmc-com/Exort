@@ -3,6 +3,7 @@ package com.zxcmc.exort.wire.listener;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.WireMarker;
@@ -39,6 +40,7 @@ public class WireListener implements Listener {
   private final int wireHardCap;
   private final JavaPlugin plugin;
   private final RegionProtection regionProtection;
+  private final WorldEditWandGuard worldEditWandGuard;
   private final BossBarManager bossBarManager;
   private final StorageKeys keys;
   private final long peekDurationTicks;
@@ -49,6 +51,7 @@ public class WireListener implements Listener {
   public WireListener(WireListenerDependencies dependencies) {
     this.plugin = dependencies.plugin();
     this.regionProtection = dependencies.regionProtection();
+    this.worldEditWandGuard = dependencies.worldEditWandGuard();
     this.bossBarManager = dependencies.bossBarManager();
     this.keys = dependencies.keys();
     this.wireLimit = dependencies.wireLimit();
@@ -65,6 +68,7 @@ public class WireListener implements Listener {
     Block block = event.getClickedBlock();
     if (block == null || !Carriers.matchesCarrier(block, wireMaterial)) return;
     if (!WireMarker.isWire(plugin, block)) return;
+    if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
     if (!regionProtection.canInteract(event.getPlayer(), block)) {
       event.setCancelled(true);
       return;
