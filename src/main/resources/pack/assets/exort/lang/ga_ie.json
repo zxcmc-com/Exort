@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Críochfort stórála",
+  "exort.item.crafting_terminal": "Críochfort ceardaíochta",
+  "exort.item.monitor": "Monatóir stórála",
+  "exort.item.wire": "Cábla stórála",
+  "exort.item.storage_core": "Croílár stórála",
+  "exort.item.import_bus": "Bus iompórtála",
+  "exort.item.export_bus": "Bus easpórtála",
+  "exort.item.wireless_terminal": "Críochfort gan sreang",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Cadhnra: %s%%",
+  "exort.item.wireless_terminal.owner": "Úinéir: %s",
+  "exort.item.wireless_terminal.not_linked": "Gan nasc",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

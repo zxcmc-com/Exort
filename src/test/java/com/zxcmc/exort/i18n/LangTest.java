@@ -83,10 +83,30 @@ class LangTest {
     assertTrue(lang.tr("message.pack_status.status", "READY").contains("READY"));
   }
 
+  @Test
+  void pluginTextLanguageUsesClientLocaleOnlyWhenExortLanguageExists() throws Exception {
+    Lang lang = new Lang(null);
+
+    assertEquals("ru_ru", lang.pluginTextLanguage("ru_ru"));
+    assertEquals("en_us", lang.pluginTextLanguage("de_de"));
+
+    setField(lang, "activeLanguage", "ru_ru");
+    assertEquals("ru_ru", lang.pluginTextLanguage("de_de"));
+
+    setField(lang, "activeLanguage", "zz_zz");
+    assertEquals("en_us", lang.pluginTextLanguage("de_de"));
+  }
+
   @SuppressWarnings("unchecked")
   private Map<String, String> defaults(Lang lang, String fieldName) throws Exception {
     Field field = Lang.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     return (Map<String, String>) field.get(lang);
+  }
+
+  private void setField(Lang lang, String fieldName, Object value) throws Exception {
+    Field field = Lang.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.set(lang, value);
   }
 }

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Krātuves terminālis",
+  "exort.item.crafting_terminal": "Izgatavošanas terminālis",
+  "exort.item.monitor": "Krātuves monitors",
+  "exort.item.wire": "Krātuves kabelis",
+  "exort.item.storage_core": "Krātuves kodols",
+  "exort.item.import_bus": "Importa kopne",
+  "exort.item.export_bus": "Eksporta kopne",
+  "exort.item.wireless_terminal": "Bezvadu terminālis",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterija: %s%%",
+  "exort.item.wireless_terminal.owner": "Īpašnieks: %s",
+  "exort.item.wireless_terminal.not_linked": "Nav piesaistīts",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

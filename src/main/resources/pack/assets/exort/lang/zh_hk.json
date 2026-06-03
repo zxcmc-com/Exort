@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "儲存終端",
+  "exort.item.crafting_terminal": "合成終端",
+  "exort.item.monitor": "儲存監視器",
+  "exort.item.wire": "儲存纜線",
+  "exort.item.storage_core": "儲存核心",
+  "exort.item.import_bus": "輸入匯流排",
+  "exort.item.export_bus": "輸出匯流排",
+  "exort.item.wireless_terminal": "無線終端",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "電池：%s%%",
+  "exort.item.wireless_terminal.owner": "擁有者：%s",
+  "exort.item.wireless_terminal.not_linked": "未綁定",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -265,12 +265,6 @@ public final class ExortRuntimeFactory {
         refreshItemDictionaries
             ? deps.itemNameService().refresh(normalized)
             : deps.itemNameService().reload(normalized);
-    langFuture.thenAccept(
-        status -> {
-          if (!status.activeLanguage().equalsIgnoreCase(normalized)) {
-            lang.reload(status.activeLanguage());
-          }
-        });
     return langFuture;
   }
 
@@ -303,7 +297,8 @@ public final class ExortRuntimeFactory {
         itemModels.exportBusItemModel(),
         itemModels.wirelessItemModel(),
         itemModels.wirelessDisabledModel(),
-        VANILLA_NAMESPACE + ":target");
+        VANILLA_NAMESPACE + ":target",
+        deps.resourceMode());
   }
 
   private static WirelessTerminalService createWirelessService(

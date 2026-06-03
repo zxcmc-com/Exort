@@ -48,13 +48,17 @@ final class PackCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
     CommandFeedback.sendBlock(
-        sender(context.getSource()),
-        Component.text(dependencies.lang().tr("message.usage_resourcepack_header")),
+        sender,
+        Component.text(dependencies.lang().tr(sender, "message.usage_resourcepack_header")),
         List.of(
-            usageLine("/exort resourcepack status", "message.usage_resourcepack_status"),
-            usageLine("/exort resourcepack rebuild", "message.usage_resourcepack_rebuild"),
-            usageLine("/exort resourcepack send [player|all]", "message.usage_resourcepack_send")));
+            usageLine(sender, "/exort resourcepack status", "message.usage_resourcepack_status"),
+            usageLine(sender, "/exort resourcepack rebuild", "message.usage_resourcepack_rebuild"),
+            usageLine(
+                sender,
+                "/exort resourcepack send [player|all]",
+                "message.usage_resourcepack_send")));
     return 1;
   }
 
@@ -68,22 +72,23 @@ final class PackCommand {
           dependencies
               .lang()
               .tr(
+                  sender,
                   "message.pack_unavailable",
-                  dependencies.lang().tr("message.pack_service_not_started")));
+                  dependencies.lang().tr(sender, "message.pack_service_not_started")));
       return 1;
     }
-    List<String> lines = service.statusLines();
+    List<String> lines = service.statusLines(sender);
     if (!lines.isEmpty()) {
       CommandFeedback.sendBlock(sender, lines.get(0), lines.subList(1, lines.size()));
     }
     return 1;
   }
 
-  private Component usageLine(String command, String descriptionKey) {
+  private Component usageLine(CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
         command,
-        dependencies.lang().tr(descriptionKey),
-        dependencies.lang().tr("message.command_click", command));
+        dependencies.lang().tr(sender, descriptionKey),
+        dependencies.lang().tr(sender, "message.command_click", command));
   }
 
   private int rebuild(CommandContext<CommandSourceStack> context) {
@@ -92,16 +97,17 @@ final class PackCommand {
     dependencies.resourcePackReloader().run();
     var service = dependencies.resourcePackService().get();
     var lines = new ArrayList<String>();
-    lines.add(dependencies.lang().tr("message.pack_rebuilt"));
+    lines.add(dependencies.lang().tr(sender, "message.pack_rebuilt"));
     if (service == null) {
       lines.add(
           dependencies
               .lang()
               .tr(
+                  sender,
                   "message.pack_unavailable",
-                  dependencies.lang().tr("message.pack_service_not_started")));
+                  dependencies.lang().tr(sender, "message.pack_service_not_started")));
     } else {
-      lines.addAll(service.statusLines());
+      lines.addAll(service.statusLines(sender));
     }
     CommandFeedback.sendBlock(sender, lines.getFirst(), lines.subList(1, lines.size()));
     return 1;
@@ -114,14 +120,14 @@ final class PackCommand {
     if (service == null || !service.dispatchReady()) {
       String reason =
           service == null
-              ? dependencies.lang().tr("message.pack_service_not_started")
+              ? dependencies.lang().tr(sender, "message.pack_service_not_started")
               : service.unavailableReason();
-      sendMessage(sender, dependencies.lang().tr("message.pack_unavailable", reason));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.pack_unavailable", reason));
       return 1;
     }
     if ("all".equalsIgnoreCase(target)) {
       int sent = service.sendAll();
-      sendMessage(sender, dependencies.lang().tr("message.pack_sent_all", sent));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.pack_sent_all", sent));
       return 1;
     }
     Player player;
@@ -131,14 +137,15 @@ final class PackCommand {
       player = Bukkit.getPlayerExact(target);
     }
     if (player == null) {
-      sendMessage(sender, dependencies.lang().tr("message.player_not_found"));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.player_not_found"));
       return 1;
     }
     if (service.send(player)) {
-      sendMessage(sender, dependencies.lang().tr("message.pack_sent", player.getName()));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.pack_sent", player.getName()));
     } else {
       sendMessage(
-          sender, dependencies.lang().tr("message.pack_unavailable", service.unavailableReason()));
+          sender,
+          dependencies.lang().tr(sender, "message.pack_unavailable", service.unavailableReason()));
     }
     return 1;
   }
@@ -160,7 +167,7 @@ final class PackCommand {
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasAdminPermission(sender)) return true;
-    sendMessage(sender, dependencies.lang().tr("message.no_permission"));
+    sendMessage(sender, dependencies.lang().tr(sender, "message.no_permission"));
     return false;
   }
 

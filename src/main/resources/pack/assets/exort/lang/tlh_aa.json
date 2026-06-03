@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "DochpolmeH terminal",
+  "exort.item.crafting_terminal": "chenmoHmeH terminal",
+  "exort.item.monitor": "Dochpol bejwiʼ",
+  "exort.item.wire": "Dochpol tlhegh",
+  "exort.item.storage_core": "Dochpol tIq",
+  "exort.item.import_bus": "yapbeʼwIʼ lupwIʼ",
+  "exort.item.export_bus": "teqmeH lupwIʼ",
+  "exort.item.wireless_terminal": "tlhegh Hutlh terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "HoS: %s%%",
+  "exort.item.wireless_terminal.owner": "ghajwIʼ: %s",
+  "exort.item.wireless_terminal.not_linked": "rarbeʼ",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -3,11 +3,18 @@ package com.zxcmc.exort.i18n;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import java.lang.reflect.Field;
+import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ItemNameServiceTest {
+  @TempDir Path tempDir;
+
   @Test
   void dictionaryEntriesReadNestedYamlKeysAsFlatTranslationKeys() {
     YamlConfiguration cfg = new YamlConfiguration();
@@ -23,5 +30,34 @@ class ItemNameServiceTest {
     assertFalse(entries.containsKey("__version"));
     assertFalse(entries.containsKey("banner"));
     assertFalse(entries.containsKey("banner.triangles_top"));
+  }
+
+  @Test
+  void dictionaryLanguageUsesClientLocaleWhenMinecraftDictionaryIsKnown() throws Exception {
+    ItemNameService service = serviceWithLanguages(Set.of("de_de", "en_us"));
+
+    assertEquals("de_de", service.dictionaryLanguage("de_de", "en_us"));
+  }
+
+  @Test
+  void dictionaryLanguageFallsBackToConfiguredLanguageWhenClientDictionaryIsUnknown()
+      throws Exception {
+    ItemNameService service = serviceWithLanguages(Set.of("en_us", "ru_ru"));
+
+    assertEquals("ru_ru", service.dictionaryLanguage("zz_zz", "ru_ru"));
+  }
+
+  private ItemNameService serviceWithLanguages(Set<String> languages) throws Exception {
+    ItemNameService service = new ItemNameService(null, tempDir.toFile());
+    setField(service, "availableLanguages", new HashSet<>(languages));
+    setField(service, "activeLanguage", "en_us");
+    return service;
+  }
+
+  private static void setField(ItemNameService service, String fieldName, Object value)
+      throws Exception {
+    Field field = ItemNameService.class.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.set(service, value);
   }
 }

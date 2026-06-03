@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Харайыы терминала",
+  "exort.item.crafting_terminal": "Оҥоруу терминала",
+  "exort.item.monitor": "Харайыы монитора",
+  "exort.item.wire": "Харайыы кабела",
+  "exort.item.storage_core": "Харайыы киинэ",
+  "exort.item.import_bus": "Импорт шина",
+  "exort.item.export_bus": "Экспорт шина",
+  "exort.item.wireless_terminal": "Симэ суох терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарея: %s%%",
+  "exort.item.wireless_terminal.owner": "Иэһит: %s",
+  "exort.item.wireless_terminal.not_linked": "Ситимнэммэтэх",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

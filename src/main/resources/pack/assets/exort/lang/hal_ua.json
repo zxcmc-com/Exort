@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Термінал сховища",
+  "exort.item.crafting_terminal": "Термінал творення",
+  "exort.item.monitor": "Монітор сховища",
+  "exort.item.wire": "Кабель сховища",
+  "exort.item.storage_core": "Ядро сховища",
+  "exort.item.import_bus": "Шина імпорту",
+  "exort.item.export_bus": "Шина експорту",
+  "exort.item.wireless_terminal": "Бездротовий термінал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарея: %s%%",
+  "exort.item.wireless_terminal.owner": "Власник: %s",
+  "exort.item.wireless_terminal.not_linked": "Не прив’язано",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

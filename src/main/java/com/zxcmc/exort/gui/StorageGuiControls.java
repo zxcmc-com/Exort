@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 final class StorageGuiControls {
@@ -18,25 +19,37 @@ final class StorageGuiControls {
   private StorageGuiControls() {}
 
   static ItemStack sortButton(Lang lang, SortMode sortMode, boolean useFillers) {
+    return sortButton(lang, null, sortMode, useFillers);
+  }
+
+  static ItemStack sortButton(Lang lang, Player viewer, SortMode sortMode, boolean useFillers) {
     String title =
         switch (sortMode) {
-          case AMOUNT -> lang.tr("gui.sort.amount");
-          case NAME -> lang.tr("gui.sort.name");
-          case ID -> lang.tr("gui.sort.id");
-          case CATEGORY -> lang.tr("gui.sort.category");
+          case AMOUNT -> lang.tr(viewer, "gui.sort.amount");
+          case NAME -> lang.tr(viewer, "gui.sort.name");
+          case ID -> lang.tr(viewer, "gui.sort.id");
+          case CATEGORY -> lang.tr(viewer, "gui.sort.category");
         };
-    return GuiItems.sortButton(text(title), List.of(text(lang.tr("gui.sort.hint"))), useFillers);
+    return GuiItems.sortButton(
+        text(title), List.of(text(lang.tr(viewer, "gui.sort.hint"))), useFillers);
   }
 
   static ItemStack searchButton(
       Lang lang, boolean hasSearch, String searchQuery, boolean useFillers) {
+    return searchButton(lang, null, hasSearch, searchQuery, useFillers);
+  }
+
+  static ItemStack searchButton(
+      Lang lang, Player viewer, boolean hasSearch, String searchQuery, boolean useFillers) {
     String title =
         hasSearch
-            ? lang.tr("gui.search.button") + ": " + searchQuery
-            : lang.tr("gui.search.button");
+            ? lang.tr(viewer, "gui.search.button") + ": " + searchQuery
+            : lang.tr(viewer, "gui.search.button");
     return GuiItems.searchButton(
         text(title),
-        List.of(text(lang.tr("gui.search.hint")), text(lang.tr("gui.search.hint_clear"))),
+        List.of(
+            text(lang.tr(viewer, "gui.search.hint")),
+            text(lang.tr(viewer, "gui.search.hint_clear"))),
         useFillers);
   }
 
@@ -51,12 +64,43 @@ final class StorageGuiControls {
       int infoConfirmRemaining,
       boolean infoBlocked,
       boolean useFillers) {
+    return infoButton(
+        lang,
+        null,
+        cache,
+        tier,
+        showStorageId,
+        readOnly,
+        infoErrorActive,
+        infoErrorMessage,
+        infoConfirmRemaining,
+        infoBlocked,
+        useFillers);
+  }
+
+  static ItemStack infoButton(
+      Lang lang,
+      Player viewer,
+      StorageCache cache,
+      StorageTier tier,
+      boolean showStorageId,
+      boolean readOnly,
+      boolean infoErrorActive,
+      String infoErrorMessage,
+      int infoConfirmRemaining,
+      boolean infoBlocked,
+      boolean useFillers) {
     long current = cache.effectiveTotal();
     long max = Math.max(1, tier.maxItems());
     double filled = Math.min(1.0, Math.max(0.0, (double) current / (double) max));
     double free = 1.0 - filled;
     Component title =
-        text(lang.tr("gui.info.used") + " " + formatNumber(current) + "/" + formatNumber(max) + " ")
+        text(lang.tr(viewer, "gui.info.used")
+                + " "
+                + formatNumber(current)
+                + "/"
+                + formatNumber(max)
+                + " ")
             .append(
                 Component.text(
                     "(" + FORMAT_PERCENT.format(filled * 100.0) + "%)", freeColor(free)));
@@ -64,18 +108,18 @@ final class StorageGuiControls {
     List<Component> lore = new ArrayList<>();
     lore.add(text(tier.displayName()));
     if (showStorageId) {
-      lore.add(text(lang.tr("gui.info.storage_id", cache.getStorageId())));
+      lore.add(text(lang.tr(viewer, "gui.info.storage_id", cache.getStorageId())));
     }
     if (infoErrorActive && infoErrorMessage != null && !infoErrorMessage.isBlank()) {
       lore.add(redText(infoErrorMessage));
     }
     if (readOnly) {
-      lore.add(text(lang.tr("gui.info.force_hint")));
+      lore.add(text(lang.tr(viewer, "gui.info.force_hint")));
       if (infoConfirmRemaining > 0) {
-        lore.add(redText(lang.tr("gui.info.force_warning")));
-        lore.add(redText(lang.tr("gui.info.force_confirm", infoConfirmRemaining)));
+        lore.add(redText(lang.tr(viewer, "gui.info.force_warning")));
+        lore.add(redText(lang.tr(viewer, "gui.info.force_confirm", infoConfirmRemaining)));
       } else if (infoBlocked) {
-        lore.add(redText(lang.tr("gui.info.force_blocked")));
+        lore.add(redText(lang.tr(viewer, "gui.info.force_blocked")));
       }
     }
     return infoErrorActive

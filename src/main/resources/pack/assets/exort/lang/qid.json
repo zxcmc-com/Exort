@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminale quietum",
+  "exort.item.crafting_terminal": "Terminale artificii",
+  "exort.item.monitor": "Speculum quietum",
+  "exort.item.wire": "Funis quietus",
+  "exort.item.storage_core": "Cor quietum",
+  "exort.item.import_bus": "Via intrantis",
+  "exort.item.export_bus": "Via exeuntis",
+  "exort.item.wireless_terminal": "Terminale sine filo",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Vis: %s%%",
+  "exort.item.wireless_terminal.owner": "Custos: %s",
+  "exort.item.wireless_terminal.not_linked": "Non nexum",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

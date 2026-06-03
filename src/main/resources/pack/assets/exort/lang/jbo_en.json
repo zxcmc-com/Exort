@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "sorcu te samjongau",
+  "exort.item.crafting_terminal": "zbasu te samjongau",
+  "exort.item.monitor": "sorcu jarco",
+  "exort.item.wire": "sorcu skori",
+  "exort.item.storage_core": "sorcu te midju",
+  "exort.item.import_bus": "nerbei tanbo",
+  "exort.item.export_bus": "barbei tanbo",
+  "exort.item.wireless_terminal": "cladu medomoi samjongau",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "dikca: %s%%",
+  "exort.item.wireless_terminal.owner": "ponse: %s",
+  "exort.item.wireless_terminal.not_linked": "na jorne",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

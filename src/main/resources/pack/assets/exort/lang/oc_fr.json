@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal d’emmagazinatge",
+  "exort.item.crafting_terminal": "Terminal de fabricacion",
+  "exort.item.monitor": "Monitor d’emmagazinatge",
+  "exort.item.wire": "Cablariá d’emmagazinatge",
+  "exort.item.storage_core": "Nucli d’emmagazinatge",
+  "exort.item.import_bus": "Bus d’importacion",
+  "exort.item.export_bus": "Bus d’exportacion",
+  "exort.item.wireless_terminal": "Terminal sens fial",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batariá: %s%%",
+  "exort.item.wireless_terminal.owner": "Proprietari: %s",
+  "exort.item.wireless_terminal.not_linked": "Pas ligat",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

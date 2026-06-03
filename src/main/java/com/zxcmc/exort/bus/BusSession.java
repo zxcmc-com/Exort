@@ -153,11 +153,12 @@ public class BusSession implements InventoryHolder {
           case ALL -> "gui.bus.mode.all";
         };
     Component title =
-        Component.text(lang.tr("gui.bus.mode.title") + ": " + lang.tr(modeKey))
+        Component.text(lang.tr(viewer, "gui.bus.mode.title") + ": " + lang.tr(viewer, modeKey))
             .decoration(TextDecoration.ITALIC, false);
     List<Component> lore =
         List.of(
-            Component.text(lang.tr("gui.bus.mode.hint")).decoration(TextDecoration.ITALIC, false));
+            Component.text(lang.tr(viewer, "gui.bus.mode.hint"))
+                .decoration(TextDecoration.ITALIC, false));
     return GuiItems.button(Material.COMPARATOR, title, lore, useFillers);
   }
 
@@ -167,27 +168,27 @@ public class BusSession implements InventoryHolder {
     boolean loopDisabled = status.loopDisabled() && state.mode() != BusMode.DISABLED;
     if (status.loopDisabled()) {
       lore.add(
-          Component.text(lang.tr("message.bus.loop_detected"))
+          Component.text(lang.tr(viewer, "message.bus.loop_detected"))
               .color(NamedTextColor.RED)
               .decoration(TextDecoration.ITALIC, false));
     }
     if (status.storageState() == BusSessionManager.StorageState.OK) {
       lore.add(
-          Component.text(lang.tr("gui.bus.info.storage", status.storageName()))
+          Component.text(lang.tr(viewer, "gui.bus.info.storage", status.storageName()))
               .decoration(TextDecoration.ITALIC, false));
       if (showStorageId && status.storageId() != null && !status.storageId().isBlank()) {
         lore.add(
-            Component.text(lang.tr("gui.bus.info.storage_id", status.storageId()))
+            Component.text(lang.tr(viewer, "gui.bus.info.storage_id", status.storageId()))
                 .decoration(TextDecoration.ITALIC, false));
       }
     } else if (status.storageState() == BusSessionManager.StorageState.MULTIPLE) {
       lore.add(
-          Component.text(lang.tr("gui.bus.info.storage_multiple"))
+          Component.text(lang.tr(viewer, "gui.bus.info.storage_multiple"))
               .color(NamedTextColor.RED)
               .decoration(TextDecoration.ITALIC, false));
     } else {
       lore.add(
-          Component.text(lang.tr("gui.bus.info.storage_missing"))
+          Component.text(lang.tr(viewer, "gui.bus.info.storage_missing"))
               .color(NamedTextColor.RED)
               .decoration(TextDecoration.ITALIC, false));
     }
@@ -195,17 +196,18 @@ public class BusSession implements InventoryHolder {
     if (status.storageState() == BusSessionManager.StorageState.OK) {
       if (status.inventoryName() != null) {
         lore.add(
-            Component.text(lang.tr("gui.bus.info.vanilla", status.inventoryName()))
+            Component.text(lang.tr(viewer, "gui.bus.info.vanilla", status.inventoryName()))
                 .decoration(TextDecoration.ITALIC, false));
       } else {
         lore.add(
-            Component.text(lang.tr("gui.bus.info.vanilla_missing"))
+            Component.text(lang.tr(viewer, "gui.bus.info.vanilla_missing"))
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
       }
     }
     Component title =
-        Component.text(lang.tr("gui.bus.info.title")).decoration(TextDecoration.ITALIC, false);
+        Component.text(lang.tr(viewer, "gui.bus.info.title"))
+            .decoration(TextDecoration.ITALIC, false);
     if (loopDisabled) {
       return GuiItems.infoErrorButton(title, lore);
     }
@@ -236,15 +238,15 @@ public class BusSession implements InventoryHolder {
           status.storageState() == BusSessionManager.StorageState.MULTIPLE
               ? "message.bus.multiple_storages"
               : "message.bus.no_storage";
-      bossBarManager.showError(viewer, lang.tr(errorKey), 60L);
+      bossBarManager.showError(viewer, lang.tr(viewer, errorKey), 60L);
       return;
     }
     if (status.inventoryName() == null) {
-      bossBarManager.showError(viewer, lang.tr("message.bus.no_inventory"), 60L);
+      bossBarManager.showError(viewer, lang.tr(viewer, "message.bus.no_inventory"), 60L);
       return;
     }
     if (status.loopDisabled()) {
-      bossBarManager.showError(viewer, lang.tr("message.bus.loop_detected"), 60L);
+      bossBarManager.showError(viewer, lang.tr(viewer, "message.bus.loop_detected"), 60L);
       return;
     }
     bossBarManager.remove(viewer);

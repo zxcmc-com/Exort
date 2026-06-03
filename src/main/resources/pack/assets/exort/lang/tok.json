@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "ilo poki",
+  "exort.item.crafting_terminal": "ilo pali",
+  "exort.item.monitor": "ilo lukin poki",
+  "exort.item.wire": "linja poki",
+  "exort.item.storage_core": "insa poki",
+  "exort.item.import_bus": "linja tawa insa",
+  "exort.item.export_bus": "linja tawa selo",
+  "exort.item.wireless_terminal": "ilo poki pi linja ala",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "wawa: %s%%",
+  "exort.item.wireless_terminal.owner": "jan jo: %s",
+  "exort.item.wireless_terminal.not_linked": "li jo ala e linja",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

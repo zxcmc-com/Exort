@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "پایانهٔ ذخیره‌سازی",
+  "exort.item.crafting_terminal": "پایانهٔ ساخت",
+  "exort.item.monitor": "نمایشگر ذخیره‌سازی",
+  "exort.item.wire": "کابل ذخیره‌سازی",
+  "exort.item.storage_core": "هستهٔ ذخیره‌سازی",
+  "exort.item.import_bus": "گذرگاه واردات",
+  "exort.item.export_bus": "گذرگاه صادرات",
+  "exort.item.wireless_terminal": "پایانهٔ بی‌سیم",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "باتری: %s%%",
+  "exort.item.wireless_terminal.owner": "مالک: %s",
+  "exort.item.wireless_terminal.not_linked": "متصل نیست",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

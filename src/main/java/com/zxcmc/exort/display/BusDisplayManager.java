@@ -17,8 +17,8 @@ import org.joml.Vector3f;
 public class BusDisplayManager extends BaseCarrierDisplayManager {
   private final String importModelId;
   private final String exportModelId;
-  private final String importName;
-  private final String exportName;
+  private final Component importName;
+  private final Component exportName;
 
   public BusDisplayManager(
       Plugin plugin,
@@ -31,8 +31,8 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
       double offsetY,
       double offsetZ,
       DisplayMetadataService metadataService,
-      String importName,
-      String exportName) {
+      Component importName,
+      Component exportName) {
     super(
         plugin,
         carrierMaterial,
@@ -46,8 +46,8 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
         DisplayTags.BUS_TAG);
     this.importModelId = importModelId == null ? "" : importModelId;
     this.exportModelId = exportModelId == null ? "" : exportModelId;
-    this.importName = importName == null ? "" : importName;
-    this.exportName = exportName == null ? "" : exportName;
+    this.importName = importName;
+    this.exportName = exportName;
   }
 
   @Override
@@ -60,9 +60,9 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
     BusMarker.get(plugin, block)
         .ifPresent(
             data -> {
-              String name = data.type() == BusType.EXPORT ? exportName : importName;
-              if (!name.isEmpty()) {
-                meta.displayName(Component.text(name).decoration(TextDecoration.ITALIC, false));
+              Component name = data.type() == BusType.EXPORT ? exportName : importName;
+              if (name != null) {
+                meta.displayName(name.decoration(TextDecoration.ITALIC, false));
               }
             });
   }
@@ -84,9 +84,9 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
             data -> {
               t.getLeftRotation().set(DisplayRotation.rotationForFacingFull(data.facing()));
               t.getRightRotation().identity();
-              String name = data.type() == BusType.EXPORT ? exportName : importName;
-              if (!name.isEmpty()) {
-                display.customName(Component.text(name));
+              Component name = data.type() == BusType.EXPORT ? exportName : importName;
+              if (name != null) {
+                display.customName(name);
                 display.setCustomNameVisible(false);
               } else {
                 display.customName(null);

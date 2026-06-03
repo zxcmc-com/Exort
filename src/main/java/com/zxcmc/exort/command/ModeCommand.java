@@ -51,12 +51,13 @@ final class ModeCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
     CommandFeedback.sendBlock(
-        sender(context.getSource()),
-        Component.text(dependencies.lang().tr("message.usage_mode_header")),
+        sender,
+        Component.text(dependencies.lang().tr(sender, "message.usage_mode_header")),
         List.of(
-            usageLine("/exort mode info", "message.usage_mode_info"),
-            usageLine("/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set")));
+            usageLine(sender, "/exort mode info", "message.usage_mode_info"),
+            usageLine(sender, "/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set")));
     return 1;
   }
 
@@ -67,6 +68,7 @@ final class ModeCommand {
         dependencies
             .lang()
             .tr(
+                sender,
                 "message.mode_info",
                 dependencies.configuredMode().get(),
                 dependencies.effectiveMode().get());
@@ -77,18 +79,18 @@ final class ModeCommand {
           List.of(
               dependencies
                   .lang()
-                  .tr("message.mode_fallback", dependencies.modeFallbackReason().get())));
+                  .tr(sender, "message.mode_fallback", dependencies.modeFallbackReason().get())));
     } else {
       sendMessage(sender, title);
     }
     return 1;
   }
 
-  private Component usageLine(String command, String descriptionKey) {
+  private Component usageLine(CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
         command,
-        dependencies.lang().tr(descriptionKey),
-        dependencies.lang().tr("message.command_click", command));
+        dependencies.lang().tr(sender, descriptionKey),
+        dependencies.lang().tr(sender, "message.command_click", command));
   }
 
   private int set(CommandContext<CommandSourceStack> context) {
@@ -97,7 +99,7 @@ final class ModeCommand {
     String raw = StringArgumentType.getString(context, ARG_MODE);
     String normalized = raw.toUpperCase(Locale.ROOT);
     if (!normalized.equals("VANILLA") && !normalized.equals("RESOURCE")) {
-      sendMessage(sender, dependencies.lang().tr("message.mode_invalid", raw));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.mode_invalid", raw));
       return 1;
     }
     if (normalized.equals("RESOURCE")) {
@@ -113,7 +115,9 @@ final class ModeCommand {
     if (result.state() == PaperChorusPlantUpdates.State.MISSING) {
       sendMessage(
           sender,
-          dependencies.lang().tr("message.mode_fix_paper_missing", result.file().getPath()));
+          dependencies
+              .lang()
+              .tr(sender, "message.mode_fix_paper_missing", result.file().getPath()));
       return;
     }
     if (result.state() == PaperChorusPlantUpdates.State.ERROR) {
@@ -138,6 +142,7 @@ final class ModeCommand {
           dependencies
               .lang()
               .tr(
+                  sender,
                   "message.mode_fix_paper_access_denied",
                   paperConfigPath,
                   PaperChorusPlantUpdates.SETTING_PATH));
@@ -148,6 +153,7 @@ final class ModeCommand {
         dependencies
             .lang()
             .tr(
+                sender,
                 "message.mode_fix_paper_error",
                 paperConfigPath,
                 reason,
@@ -172,6 +178,7 @@ final class ModeCommand {
                         dependencies
                             .lang()
                             .tr(
+                                sender,
                                 "message.mode_set",
                                 normalized,
                                 dependencies.effectiveMode().get()));
@@ -181,6 +188,7 @@ final class ModeCommand {
                           dependencies
                               .lang()
                               .tr(
+                                  sender,
                                   "message.mode_fallback",
                                   dependencies.modeFallbackReason().get()));
                     }
@@ -194,18 +202,14 @@ final class ModeCommand {
         paperConfigChanged
             ? "message.mode_fix_paper_changed"
             : "message.mode_fix_paper_restart_required";
-    List<String> lines =
-        List.of(
-            dependencies
-                .lang()
-                .tr(paperLineKey, PaperChorusPlantUpdates.SETTING_PATH, paperConfigPath),
-            dependencies.lang().tr("message.mode_fix_exort_changed"),
-            dependencies.lang().tr("message.mode_fix_restart_scheduled"));
-    sendBlockToSenderAndPlayers(sender, lines);
+    sendBlockToSenderAndPlayers(sender, paperLineKey, paperConfigPath);
   }
 
-  private void sendBlockToSenderAndPlayers(CommandSender sender, List<String> lines) {
-    CommandFeedback.sendBlock(sender, lines.getFirst(), lines.subList(1, lines.size()));
+  private void sendBlockToSenderAndPlayers(
+      CommandSender sender, String paperLineKey, String paperConfigPath) {
+    List<String> senderLines = modeFixRestartLines(sender, paperLineKey, paperConfigPath);
+    CommandFeedback.sendBlock(
+        sender, senderLines.getFirst(), senderLines.subList(1, senderLines.size()));
     Set<UUID> skippedPlayers = new HashSet<>();
     if (sender instanceof Player player) {
       skippedPlayers.add(player.getUniqueId());
@@ -214,8 +218,19 @@ final class ModeCommand {
       if (skippedPlayers.contains(player.getUniqueId())) {
         continue;
       }
+      List<String> lines = modeFixRestartLines(player, paperLineKey, paperConfigPath);
       CommandFeedback.sendBlock(player, lines.getFirst(), lines.subList(1, lines.size()));
     }
+  }
+
+  private List<String> modeFixRestartLines(
+      CommandSender recipient, String paperLineKey, String paperConfigPath) {
+    return List.of(
+        dependencies
+            .lang()
+            .tr(recipient, paperLineKey, PaperChorusPlantUpdates.SETTING_PATH, paperConfigPath),
+        dependencies.lang().tr(recipient, "message.mode_fix_exort_changed"),
+        dependencies.lang().tr(recipient, "message.mode_fix_restart_scheduled"));
   }
 
   private void scheduleRestartAfterModeFix() {
@@ -263,7 +278,7 @@ final class ModeCommand {
 
   private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
     ExortLog.log(dependencies.plugin(), Level.SEVERE, "Failed to " + action, err);
-    runSync(() -> sendMessage(sender, dependencies.lang().tr("message.operation_failed")));
+    runSync(() -> sendMessage(sender, dependencies.lang().tr(sender, "message.operation_failed")));
   }
 
   private void runSync(Runnable action) {
@@ -273,7 +288,7 @@ final class ModeCommand {
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasAdminPermission(sender)) return true;
-    sendMessage(sender, dependencies.lang().tr("message.no_permission"));
+    sendMessage(sender, dependencies.lang().tr(sender, "message.no_permission"));
     return false;
   }
 

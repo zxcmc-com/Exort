@@ -24,6 +24,7 @@ final class StorageDisplayListBuilder {
       List<String> previousSortOrder,
       SearchQuery searchQuery,
       ItemNameService itemNames,
+      String itemLanguage,
       int requestedPage,
       int pageSize,
       int maxDisplayEntries,
@@ -35,7 +36,13 @@ final class StorageDisplayListBuilder {
             "gui.sort",
             () ->
                 SortSearchHelper.resolveOrder(
-                    items, sortMode, sortFrozen, previousSortOrder, itemNames, allowCategoryDupes));
+                    items,
+                    sortMode,
+                    sortFrozen,
+                    previousSortOrder,
+                    itemNames,
+                    itemLanguage,
+                    allowCategoryDupes));
     List<String> sortOrder = orderedResult.order();
     List<StorageCache.StorageItem> ordered = orderedResult.ordered();
     WindowAppender appender =
@@ -60,7 +67,7 @@ final class StorageDisplayListBuilder {
         "gui.search",
         () -> {
           for (StorageCache.StorageItem item : ordered) {
-            if (activeSearch.matchesCached(item, candidatesCache, itemNames)) {
+            if (activeSearch.matchesCached(item, candidatesCache, itemNames, itemLanguage)) {
               matches.add(item);
             } else {
               others.add(item);

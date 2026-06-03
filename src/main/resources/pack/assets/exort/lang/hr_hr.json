@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal pohrane",
+  "exort.item.crafting_terminal": "Terminal izrade",
+  "exort.item.monitor": "Monitor pohrane",
+  "exort.item.wire": "Kabel pohrane",
+  "exort.item.storage_core": "Jezgra pohrane",
+  "exort.item.import_bus": "Sabirnica uvoza",
+  "exort.item.export_bus": "Sabirnica izvoza",
+  "exort.item.wireless_terminal": "Bežični terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterija: %s%%",
+  "exort.item.wireless_terminal.owner": "Vlasnik: %s",
+  "exort.item.wireless_terminal.not_linked": "Nije povezano",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Һаҡлау терминалы",
+  "exort.item.crafting_terminal": "Яһау терминалы",
+  "exort.item.monitor": "Һаҡлау мониторы",
+  "exort.item.wire": "Һаҡлау кабеле",
+  "exort.item.storage_core": "Һаҡлау үҙәге",
+  "exort.item.import_bus": "Импорт шинаһы",
+  "exort.item.export_bus": "Экспорт шинаһы",
+  "exort.item.wireless_terminal": "Сымһыҙ терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарея: %s%%",
+  "exort.item.wireless_terminal.owner": "Эйәһе: %s",
+  "exort.item.wireless_terminal.not_linked": "Бәйләнмәгән",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

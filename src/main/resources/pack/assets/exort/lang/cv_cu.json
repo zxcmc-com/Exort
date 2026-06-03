@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Усрав терминалĕ",
+  "exort.item.crafting_terminal": "Туса терминалĕ",
+  "exort.item.monitor": "Усрав мониторĕ",
+  "exort.item.wire": "Усрав кабелĕ",
+  "exort.item.storage_core": "Усрав варри",
+  "exort.item.import_bus": "Импорт шини",
+  "exort.item.export_bus": "Экспорт шини",
+  "exort.item.wireless_terminal": "Проводсăр терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарея: %s%%",
+  "exort.item.wireless_terminal.owner": "Хуçа: %s",
+  "exort.item.wireless_terminal.not_linked": "Çыхăнман",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

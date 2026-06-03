@@ -352,44 +352,62 @@ public class SessionManager {
     }
     SearchableSession existing = searchCoordinator.pendingFor(player);
     if (existing != null) {
-      closeSearch(player, false);
+      searchCoordinator.discard(player);
     }
     searchCoordinator.begin(player, parent);
     Bukkit.getScheduler()
         .runTask(
             plugin,
             () -> {
+              if (!player.isOnline()) {
+                searchCoordinator.discard(player);
+                return;
+              }
+              if (!searchCoordinator.isPending(player, parent)) {
+                return;
+              }
+              if (registry.sessionFor(player.getUniqueId()) != parent) {
+                searchCoordinator.discard(player);
+                return;
+              }
+              if (!sessionValidator.isSessionValid(parent)) {
+                forceCloseSession(player);
+                return;
+              }
               try {
-                if (!player.isOnline()) {
-                  searchCoordinator.discard(player);
-                  return;
-                }
-                if (!searchCoordinator.isPending(player, parent)) {
-                  return;
-                }
-                if (registry.sessionFor(player.getUniqueId()) != parent) {
-                  searchCoordinator.discard(player);
-                  return;
-                }
-                if (!sessionValidator.isSessionValid(parent)) {
-                  forceCloseSession(player);
-                  return;
-                }
-                player.showDialog(searchDialogService.buildDialog());
-              } finally {
-                Bukkit.getScheduler()
-                    .runTask(plugin, () -> searchCoordinator.clearSwitching(player));
+                player.showDialog(searchDialogService.buildDialog(player));
+              } catch (RuntimeException | LinkageError e) {
+                searchCoordinator.discard(player);
+                throw e;
               }
             });
     return true;
   }
 
-  public boolean isSwitchingToSearch(Player player) {
-    return searchCoordinator.isSwitching(player);
+  public boolean isSearchCloseProtected(Player player, GuiSession parent) {
+    return searchCoordinator.protectsClose(player, parent);
+  }
+
+  public void verifySearchProtectedClose(Player player, GuiSession parent) {
+    Bukkit.getScheduler()
+        .runTaskLater(
+            plugin,
+            () -> {
+              if (player == null) return;
+              if (registry.sessionFor(player.getUniqueId()) != parent) return;
+              if (!searchCoordinator.protectsClose(player, parent)) return;
+              if (player.isOnline()
+                  && player.getOpenInventory().getTopInventory().getHolder() == parent) {
+                return;
+              }
+              closeSession(player, parent);
+            },
+            2L);
   }
 
   public void closeSearch(Player player, boolean reopenParent) {
-    SearchableSession parent = searchCoordinator.discard(player);
+    SearchableSession parent =
+        reopenParent ? searchCoordinator.complete(player) : searchCoordinator.discard(player);
     if (parent == null) return;
     closeDialogQuietly(player);
     if (!reopenParent) return;
@@ -401,7 +419,7 @@ public class SessionManager {
   }
 
   public void handleSearchInput(Player player, String query) {
-    SearchableSession parent = searchCoordinator.discard(player);
+    SearchableSession parent = searchCoordinator.complete(player);
     if (parent == null) return;
     if (query == null || query.isBlank()) {
       parent.clearSearch();
@@ -412,7 +430,7 @@ public class SessionManager {
   }
 
   public void cancelSearch(Player player) {
-    SearchableSession parent = searchCoordinator.discard(player);
+    SearchableSession parent = searchCoordinator.complete(player);
     if (parent == null) return;
     reopenParentSearchFallback(player, parent);
   }
@@ -436,6 +454,11 @@ public class SessionManager {
               }
               player.openInventory(parent.getInventory());
               parent.render();
+              Bukkit.getScheduler()
+                  .runTaskLater(
+                      plugin,
+                      () -> searchCoordinator.clearCloseProtectionIfParent(player, parent),
+                      2L);
             });
   }
 
@@ -529,7 +552,7 @@ public class SessionManager {
           readOnly,
           state,
           craftingRules.get(),
-          titleFor(SessionType.CRAFTING),
+          titleFor(player, SessionType.CRAFTING),
           !resourceMode.getAsBoolean(),
           timeoutMs,
           cache.getSortMode(),
@@ -545,25 +568,25 @@ public class SessionManager {
         storageLocation,
         this,
         readOnly,
-        titleFor(SessionType.STORAGE, wireless),
+        titleFor(player, SessionType.STORAGE, wireless),
         !resourceMode.getAsBoolean(),
         timeoutMs,
         cache.getSortMode(),
         wireless);
   }
 
-  private Component titleFor(SessionType type) {
-    return titleFor(type, false);
+  private Component titleFor(Player viewer, SessionType type) {
+    return titleFor(viewer, type, false);
   }
 
-  private Component titleFor(SessionType type, boolean wireless) {
+  private Component titleFor(Player viewer, SessionType type, boolean wireless) {
     boolean resourceMode = this.resourceMode.getAsBoolean();
     String overlayKey = GuiOverlayConfig.storageTerminalKey(type);
     String nameKey =
         type == SessionType.CRAFTING
             ? "item.crafting_terminal"
             : (wireless ? "item.wireless_terminal" : "item.terminal");
-    Component name = ExortText.plain(lang.tr(nameKey));
+    Component name = ExortText.plain(lang.tr(viewer, nameKey));
     if (!resourceMode) {
       return name;
     }

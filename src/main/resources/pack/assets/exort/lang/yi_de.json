@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "סטאָרידזש־טערמינאַל",
+  "exort.item.crafting_terminal": "מלאכה־טערמינאַל",
+  "exort.item.monitor": "סטאָרידזש־מאָניטאָר",
+  "exort.item.wire": "סטאָרידזש־קאַבל",
+  "exort.item.storage_core": "סטאָרידזש־קערנל",
+  "exort.item.import_bus": "אימפּאָרט־בוס",
+  "exort.item.export_bus": "עקספּאָרט־בוס",
+  "exort.item.wireless_terminal": "וויירלאָסער טערמינאַל",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "באַטעריע: %s%%",
+  "exort.item.wireless_terminal.owner": "באַזיצער: %s",
+  "exort.item.wireless_terminal.not_linked": "נישט פֿאַרבונדן",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

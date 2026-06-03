@@ -25,6 +25,18 @@ public final class SortSearchHelper {
       List<String> currentOrder,
       ItemNameService itemNames,
       boolean allowCategoryDuplicates) {
+    return resolveOrder(
+        items, sortMode, sortFrozen, currentOrder, itemNames, null, allowCategoryDuplicates);
+  }
+
+  public static SortResult resolveOrder(
+      List<StorageCache.StorageItem> items,
+      SortMode sortMode,
+      boolean sortFrozen,
+      List<String> currentOrder,
+      ItemNameService itemNames,
+      String language,
+      boolean allowCategoryDuplicates) {
     Map<String, StorageCache.StorageItem> byKey = new HashMap<>();
     for (StorageCache.StorageItem item : items) {
       byKey.put(item.key(), item);
@@ -32,7 +44,7 @@ public final class SortSearchHelper {
     if (sortFrozen) {
       if (currentOrder.isEmpty()) {
         List<StorageCache.StorageItem> sorted =
-            sortItems(items, sortMode, itemNames, allowCategoryDuplicates);
+            sortItems(items, sortMode, itemNames, language, allowCategoryDuplicates);
         List<String> order =
             new ArrayList<>(sorted.stream().map(StorageCache.StorageItem::key).toList());
         return new SortResult(sorted, order);
@@ -52,12 +64,12 @@ public final class SortSearchHelper {
             extra.add(item);
           }
         }
-        ordered.addAll(sortItems(extra, sortMode, itemNames, allowCategoryDuplicates));
+        ordered.addAll(sortItems(extra, sortMode, itemNames, language, allowCategoryDuplicates));
       }
       return new SortResult(ordered, new ArrayList<>(currentOrder));
     }
     List<StorageCache.StorageItem> sorted =
-        sortItems(items, sortMode, itemNames, allowCategoryDuplicates);
+        sortItems(items, sortMode, itemNames, language, allowCategoryDuplicates);
     List<String> order =
         new ArrayList<>(sorted.stream().map(StorageCache.StorageItem::key).toList());
     return new SortResult(sorted, order);
@@ -68,6 +80,15 @@ public final class SortSearchHelper {
       SortMode sortMode,
       ItemNameService itemNames,
       boolean allowCategoryDuplicates) {
+    return sortItems(items, sortMode, itemNames, null, allowCategoryDuplicates);
+  }
+
+  public static List<StorageCache.StorageItem> sortItems(
+      List<StorageCache.StorageItem> items,
+      SortMode sortMode,
+      ItemNameService itemNames,
+      String language,
+      boolean allowCategoryDuplicates) {
     List<StorageCache.StorageItem> list = new ArrayList<>(items);
     Map<String, String> nameKeys = new HashMap<>(items.size());
     Map<String, String> idKeys = new HashMap<>(items.size());
@@ -76,7 +97,7 @@ public final class SortSearchHelper {
     Map<String, List<CreativeTabOrder.Position>> positionsCache = new HashMap<>();
     for (StorageCache.StorageItem item : items) {
       String key = item.key();
-      nameKeys.put(key, sortNameKey(item.sample(), itemNames));
+      nameKeys.put(key, sortNameKey(item.sample(), itemNames, language));
       idKeys.put(key, item.sample().getType().getKey().getKey());
       categoryKeys.put(key, categoryIndex(item.sample()));
     }
@@ -177,8 +198,13 @@ public final class SortSearchHelper {
 
   public static boolean matchesQuery(
       ItemStack stack, List<String> searchTokens, ItemNameService itemNames) {
+    return matchesQuery(stack, searchTokens, itemNames, null);
+  }
+
+  public static boolean matchesQuery(
+      ItemStack stack, List<String> searchTokens, ItemNameService itemNames, String language) {
     if (searchTokens == null || searchTokens.isEmpty()) return true;
-    List<String> candidates = buildSearchCandidates(stack, itemNames);
+    List<String> candidates = buildSearchCandidates(stack, itemNames, language);
     if (candidates.isEmpty()) return true;
     for (String token : searchTokens) {
       for (String candidate : candidates) {
@@ -191,6 +217,10 @@ public final class SortSearchHelper {
   }
 
   public static String sortNameKey(ItemStack stack, ItemNameService itemNames) {
+    return sortNameKey(stack, itemNames, null);
+  }
+
+  public static String sortNameKey(ItemStack stack, ItemNameService itemNames, String language) {
     if (stack == null) return "";
     ItemMeta meta = stack.getItemMeta();
     if (meta != null) {
@@ -201,7 +231,7 @@ public final class SortSearchHelper {
         return PlainTextComponentSerializer.plainText().serialize(meta.itemName());
       }
     }
-    String resolved = itemNames != null ? itemNames.resolveName(stack) : null;
+    String resolved = itemNames != null ? itemNames.resolveName(stack, language) : null;
     if (resolved != null && !resolved.isBlank()) {
       return resolved;
     }
@@ -209,6 +239,11 @@ public final class SortSearchHelper {
   }
 
   public static List<String> buildSearchCandidates(ItemStack stack, ItemNameService itemNames) {
+    return buildSearchCandidates(stack, itemNames, null);
+  }
+
+  public static List<String> buildSearchCandidates(
+      ItemStack stack, ItemNameService itemNames, String language) {
     List<String> candidates = new ArrayList<>();
     if (stack == null) return candidates;
     ItemMeta meta = stack.getItemMeta();
@@ -226,7 +261,8 @@ public final class SortSearchHelper {
         }
       }
     }
-    String dictionaryName = itemNames != null ? itemNames.resolveDictionaryName(stack) : null;
+    String dictionaryName =
+        itemNames != null ? itemNames.resolveDictionaryName(stack, language) : null;
     if (dictionaryName != null && !dictionaryName.isBlank()) {
       candidates.add(dictionaryName.toLowerCase(Locale.ROOT));
     }

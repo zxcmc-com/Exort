@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Depolama terminali",
+  "exort.item.crafting_terminal": "Üretim terminali",
+  "exort.item.monitor": "Depolama monitörü",
+  "exort.item.wire": "Depolama kablosu",
+  "exort.item.storage_core": "Depolama çekirdeği",
+  "exort.item.import_bus": "İçe aktarma veri yolu",
+  "exort.item.export_bus": "Dışa aktarma veri yolu",
+  "exort.item.wireless_terminal": "Kablosuz terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Pil: %s%%",
+  "exort.item.wireless_terminal.owner": "Sahip: %s",
+  "exort.item.wireless_terminal.not_linked": "Bağlı değil",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

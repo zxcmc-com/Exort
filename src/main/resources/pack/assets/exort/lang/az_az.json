@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Saxlama terminalı",
+  "exort.item.crafting_terminal": "Hazırlama terminalı",
+  "exort.item.monitor": "Saxlama monitoru",
+  "exort.item.wire": "Saxlama kabeli",
+  "exort.item.storage_core": "Saxlama nüvəsi",
+  "exort.item.import_bus": "İdxal şini",
+  "exort.item.export_bus": "İxrac şini",
+  "exort.item.wireless_terminal": "Simsiz terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batareya: %s%%",
+  "exort.item.wireless_terminal.owner": "Sahib: %s",
+  "exort.item.wireless_terminal.not_linked": "Bağlı deyil",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Spiekerterminal",
+  "exort.item.crafting_terminal": "Warkterminal",
+  "exort.item.monitor": "Spiekermonitor",
+  "exort.item.wire": "Spiekerkabel",
+  "exort.item.storage_core": "Spiekerkern",
+  "exort.item.import_bus": "Infuhrbus",
+  "exort.item.export_bus": "Utfuhrbus",
+  "exort.item.wireless_terminal": "Funkterminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batterie: %s%%",
+  "exort.item.wireless_terminal.owner": "Eigner: %s",
+  "exort.item.wireless_terminal.not_linked": "Nich verbunnen",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

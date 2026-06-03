@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Saugyklos terminalas",
+  "exort.item.crafting_terminal": "Gamybos terminalas",
+  "exort.item.monitor": "Saugyklos monitorius",
+  "exort.item.wire": "Saugyklos kabelis",
+  "exort.item.storage_core": "Saugyklos branduolys",
+  "exort.item.import_bus": "Importo magistralė",
+  "exort.item.export_bus": "Eksporto magistralė",
+  "exort.item.wireless_terminal": "Belaidis terminalas",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterija: %s%%",
+  "exort.item.wireless_terminal.owner": "Savininkas: %s",
+  "exort.item.wireless_terminal.not_linked": "Nesusieta",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

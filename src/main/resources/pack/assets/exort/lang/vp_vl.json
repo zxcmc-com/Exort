@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal de stokado",
+  "exort.item.crafting_terminal": "Terminal de kreado",
+  "exort.item.monitor": "Monitor de stokado",
+  "exort.item.wire": "Kablo de stokado",
+  "exort.item.storage_core": "Kerno de stokado",
+  "exort.item.import_bus": "Bus de enporto",
+  "exort.item.export_bus": "Bus de elporto",
+  "exort.item.wireless_terminal": "Terminal sen drato",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterio: %s%%",
+  "exort.item.wireless_terminal.owner": "Tenanto: %s",
+  "exort.item.wireless_terminal.not_linked": "Ne ligita",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

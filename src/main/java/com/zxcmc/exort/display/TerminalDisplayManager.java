@@ -18,8 +18,8 @@ import org.joml.Vector3f;
 
 /** RESOURCE/VANILLA display manager for terminal blocks (carrier + ItemDisplay model). */
 public class TerminalDisplayManager extends BaseCarrierDisplayManager {
-  private final String terminalName;
-  private final String craftingTerminalName;
+  private final Component terminalName;
+  private final Component craftingTerminalName;
   private final StorageKeys keys;
   private final int wireLimit;
   private final int wireHardCap;
@@ -44,8 +44,8 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
       double offsetY,
       double offsetZ,
       DisplayMetadataService metadataService,
-      String terminalName,
-      String craftingTerminalName,
+      Component terminalName,
+      Component craftingTerminalName,
       StorageKeys keys,
       int wireLimit,
       int wireHardCap,
@@ -63,8 +63,8 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
         offsetZ,
         metadataService,
         "terminal");
-    this.terminalName = terminalName == null ? "" : terminalName;
-    this.craftingTerminalName = craftingTerminalName == null ? "" : craftingTerminalName;
+    this.terminalName = terminalName;
+    this.craftingTerminalName = craftingTerminalName;
     this.keys = keys;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
@@ -87,9 +87,9 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
 
   @Override
   protected void decorateMeta(ItemMeta meta, Block block) {
-    String name = nameFor(block);
-    if (!name.isEmpty()) {
-      meta.displayName(Component.text(name).decoration(TextDecoration.ITALIC, false));
+    Component name = nameFor(block);
+    if (name != null) {
+      meta.displayName(name.decoration(TextDecoration.ITALIC, false));
     }
   }
 
@@ -112,9 +112,9 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
         .set(new Vector3f((float) displayScale, (float) displayScale, (float) displayScale));
     t.getLeftRotation().set(DisplayRotation.rotationForFacing(faceFor(block)));
     t.getRightRotation().identity();
-    String name = nameFor(block);
-    if (!name.isEmpty()) {
-      display.customName(Component.text(name));
+    Component name = nameFor(block);
+    if (name != null) {
+      display.customName(name);
       display.setCustomNameVisible(false);
     } else {
       display.customName(null);
@@ -127,7 +127,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
     return faceOpt.orElse(BlockFace.SOUTH);
   }
 
-  private String nameFor(Block block) {
+  private Component nameFor(Block block) {
     TerminalKind kind = TerminalMarker.kind(plugin, block);
     return kind == TerminalKind.CRAFTING ? craftingTerminalName : terminalName;
   }

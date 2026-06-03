@@ -122,7 +122,7 @@ public class BusSessionManager {
     if (existing != null) {
       closeSession(player);
     }
-    Component title = titleFor(state.type());
+    Component title = titleFor(player, state.type());
     BusSession session =
         new BusSession(
             player,
@@ -142,10 +142,10 @@ public class BusSessionManager {
     return true;
   }
 
-  private Component titleFor(BusType type) {
+  private Component titleFor(Player viewer, BusType type) {
     boolean resourceMode = this.resourceMode.getAsBoolean();
     String nameKey = type == BusType.EXPORT ? "gui.bus.export_title" : "gui.bus.import_title";
-    Component name = ExortText.plain(lang.tr(nameKey));
+    Component name = ExortText.plain(lang.tr(viewer, nameKey));
     if (!resourceMode) {
       return name;
     }

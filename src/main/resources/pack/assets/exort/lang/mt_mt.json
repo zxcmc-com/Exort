@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal tal-ħażna",
+  "exort.item.crafting_terminal": "Terminal tal-ħidma",
+  "exort.item.monitor": "Moniter tal-ħażna",
+  "exort.item.wire": "Kejbil tal-ħażna",
+  "exort.item.storage_core": "Qalba tal-ħażna",
+  "exort.item.import_bus": "Bus tal-importazzjoni",
+  "exort.item.export_bus": "Bus tal-esportazzjoni",
+  "exort.item.wireless_terminal": "Terminal bla fili",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batterija: %s%%",
+  "exort.item.wireless_terminal.owner": "Sid: %s",
+  "exort.item.wireless_terminal.not_linked": "Mhux marbut",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

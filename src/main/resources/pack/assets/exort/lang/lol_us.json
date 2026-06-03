@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Stash Termnul",
+  "exort.item.crafting_terminal": "Crafftin Termnul",
+  "exort.item.monitor": "Stash Watcher",
+  "exort.item.wire": "Stash String",
+  "exort.item.storage_core": "Stash Corez",
+  "exort.item.import_bus": "Bring-In Bus",
+  "exort.item.export_bus": "Send-Out Bus",
+  "exort.item.wireless_terminal": "No-Wire Termnul",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Powah: %s%%",
+  "exort.item.wireless_terminal.owner": "Hooman: %s",
+  "exort.item.wireless_terminal.not_linked": "No linky",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

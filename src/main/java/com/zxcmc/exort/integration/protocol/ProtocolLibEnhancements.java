@@ -61,7 +61,8 @@ public final class ProtocolLibEnhancements {
       FeatureProbe entityPick,
       FeatureProbe placementGuard,
       FeatureProbe placementGuardScale,
-      FeatureProbe placementGuardTeleport) {}
+      FeatureProbe placementGuardTeleport,
+      FeatureProbe localization) {}
 
   private enum Feature {
     BASE,
@@ -69,7 +70,8 @@ public final class ProtocolLibEnhancements {
     ENTITY_PICK,
     PLACEMENT_GUARD,
     PLACEMENT_GUARD_SCALE,
-    PLACEMENT_GUARD_TELEPORT
+    PLACEMENT_GUARD_TELEPORT,
+    LOCALIZATION
   }
 
   private final JavaPlugin plugin;
@@ -203,6 +205,7 @@ public final class ProtocolLibEnhancements {
               emptyWhitelist);
       enhancements.setProbe(
           Feature.BASE, FeatureStatus.ENABLED, "ProtocolLib " + protocolLibVersion);
+      enhancements.probeLocalizationFeature();
       ExortLog.success("[ProtocolLib] Integration enabled.");
       return enhancements;
     } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
@@ -224,7 +227,19 @@ public final class ProtocolLibEnhancements {
         probe(Feature.ENTITY_PICK),
         probe(Feature.PLACEMENT_GUARD),
         probe(Feature.PLACEMENT_GUARD_SCALE),
-        probe(Feature.PLACEMENT_GUARD_TELEPORT));
+        probe(Feature.PLACEMENT_GUARD_TELEPORT),
+        probe(Feature.LOCALIZATION));
+  }
+
+  private void probeLocalizationFeature() {
+    if (!plugin.getConfig().getBoolean("protocolLib.localization.enabled", true)) {
+      setProbe(Feature.LOCALIZATION, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
+      return;
+    }
+    setProbe(
+        Feature.LOCALIZATION,
+        FeatureStatus.UNAVAILABLE,
+        "Packet text rewriting is not enabled for this build; using Paper/resource-pack fallback.");
   }
 
   public void markPlacementGuardDisabledByConfig() {

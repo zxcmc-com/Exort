@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Терминал за съхранение",
+  "exort.item.crafting_terminal": "Терминал за изработка",
+  "exort.item.monitor": "Монитор за съхранение",
+  "exort.item.wire": "Кабел за съхранение",
+  "exort.item.storage_core": "Ядро за съхранение",
+  "exort.item.import_bus": "Шина за импорт",
+  "exort.item.export_bus": "Шина за експорт",
+  "exort.item.wireless_terminal": "Безжичен терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батерия: %s%%",
+  "exort.item.wireless_terminal.owner": "Собственик: %s",
+  "exort.item.wireless_terminal.not_linked": "Не е свързан",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

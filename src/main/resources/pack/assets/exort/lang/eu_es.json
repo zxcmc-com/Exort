@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Biltegiratze terminala",
+  "exort.item.crafting_terminal": "Sortze terminala",
+  "exort.item.monitor": "Biltegiratze monitorea",
+  "exort.item.wire": "Biltegiratze kablea",
+  "exort.item.storage_core": "Biltegiratze nukleoa",
+  "exort.item.import_bus": "Inportazio busa",
+  "exort.item.export_bus": "Esportazio busa",
+  "exort.item.wireless_terminal": "Haririk gabeko terminala",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bateria: %s%%",
+  "exort.item.wireless_terminal.owner": "Jabea: %s",
+  "exort.item.wireless_terminal.not_linked": "Ez dago lotuta",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

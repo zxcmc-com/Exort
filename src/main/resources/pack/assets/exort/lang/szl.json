@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal składowanio",
+  "exort.item.crafting_terminal": "Terminal craftowanio",
+  "exort.item.monitor": "Monitor składowanio",
+  "exort.item.wire": "Kabel składowanio",
+  "exort.item.storage_core": "Rdzyń składowanio",
+  "exort.item.import_bus": "Szyna importu",
+  "exort.item.export_bus": "Szyna eksportu",
+  "exort.item.wireless_terminal": "Terminal bezprzewodowy",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bateryjo: %s%%",
+  "exort.item.wireless_terminal.owner": "Właściciel: %s",
+  "exort.item.wireless_terminal.not_linked": "Niy połączono",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

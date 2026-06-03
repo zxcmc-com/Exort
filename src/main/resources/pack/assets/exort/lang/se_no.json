@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Vurkkodanterminála",
+  "exort.item.crafting_terminal": "Ráhkadanterminála",
+  "exort.item.monitor": "Vurkkodanmonitor",
+  "exort.item.wire": "Vurkkodankaabel",
+  "exort.item.storage_core": "Vurkkodanváibmu",
+  "exort.item.import_bus": "Sisašaldi busa",
+  "exort.item.export_bus": "Olggosšaldi busa",
+  "exort.item.wireless_terminal": "Jođaskeahtes terminála",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Báhtter: %s%%",
+  "exort.item.wireless_terminal.owner": "Eaiggát: %s",
+  "exort.item.wireless_terminal.not_linked": "Ii leat čadnon",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

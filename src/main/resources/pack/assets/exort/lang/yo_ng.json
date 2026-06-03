@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Tẹ́míńà ìpamọ́",
+  "exort.item.crafting_terminal": "Tẹ́míńà iṣẹ́ ọwọ́",
+  "exort.item.monitor": "Atẹ́lẹwọ́ ìpamọ́",
+  "exort.item.wire": "Kébù ìpamọ́",
+  "exort.item.storage_core": "Mojuto ìpamọ́",
+  "exort.item.import_bus": "Bọ́ọ̀sì ìgbewọlé",
+  "exort.item.export_bus": "Bọ́ọ̀sì ìgbéjáde",
+  "exort.item.wireless_terminal": "Tẹ́míńà aláìlòókùn",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batiri: %s%%",
+  "exort.item.wireless_terminal.owner": "Olúwa: %s",
+  "exort.item.wireless_terminal.not_linked": "Kò so pọ̀",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

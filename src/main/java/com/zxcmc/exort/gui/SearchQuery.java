@@ -57,18 +57,20 @@ record SearchQuery(String displayText, List<String> tokens) {
     return tokens.isEmpty();
   }
 
-  boolean matches(ItemStack stack, ItemNameService itemNames) {
-    return SortSearchHelper.matchesQuery(stack, tokens, itemNames);
+  boolean matches(ItemStack stack, ItemNameService itemNames, String language) {
+    return SortSearchHelper.matchesQuery(stack, tokens, itemNames, language);
   }
 
   boolean matchesCached(
       StorageCache.StorageItem item,
       Map<String, List<String>> candidatesCache,
-      ItemNameService itemNames) {
+      ItemNameService itemNames,
+      String language) {
     if (tokens.isEmpty()) return true;
     List<String> candidates =
         candidatesCache.computeIfAbsent(
-            item.key(), key -> SortSearchHelper.buildSearchCandidates(item.sample(), itemNames));
+            item.key(),
+            key -> SortSearchHelper.buildSearchCandidates(item.sample(), itemNames, language));
     if (candidates.isEmpty()) return true;
     for (String token : tokens) {
       for (String candidate : candidates) {

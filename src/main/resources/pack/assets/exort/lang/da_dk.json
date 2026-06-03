@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Lagerterminal",
+  "exort.item.crafting_terminal": "Byggeterminal",
+  "exort.item.monitor": "Lagermonitor",
+  "exort.item.wire": "Lagerkabel",
+  "exort.item.storage_core": "Lagerkerne",
+  "exort.item.import_bus": "Importbus",
+  "exort.item.export_bus": "Eksportbus",
+  "exort.item.wireless_terminal": "Trådløs terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batteri: %s%%",
+  "exort.item.wireless_terminal.owner": "Ejer: %s",
+  "exort.item.wireless_terminal.not_linked": "Ikke tilknyttet",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -125,14 +125,16 @@ public final class InventoryEvents implements Listener {
       return;
     }
     if (event.getInventory().getHolder() instanceof StorageSession session) {
-      if (sessionManager.isSwitchingToSearch(player)) {
+      if (sessionManager.isSearchCloseProtected(player, session)) {
+        sessionManager.verifySearchProtectedClose(player, session);
         return;
       }
       sessionManager.closeSession(player, session);
       return;
     }
     if (event.getInventory().getHolder() instanceof CraftingSession session) {
-      if (sessionManager.isSwitchingToSearch(player)) {
+      if (sessionManager.isSearchCloseProtected(player, session)) {
+        sessionManager.verifySearchProtectedClose(player, session);
         return;
       }
       sessionManager.closeSession(player, session);

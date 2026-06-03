@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Sarnie harmava",
+  "exort.item.crafting_terminal": "Sarnie carma",
+  "exort.item.monitor": "Palantir harmava",
+  "exort.item.wire": "Tengwe harmava",
+  "exort.item.storage_core": "Óre harmava",
+  "exort.item.import_bus": "Raxë mitta",
+  "exort.item.export_bus": "Raxë etten",
+  "exort.item.wireless_terminal": "Sarnie rámenna",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Sáma: %s%%",
+  "exort.item.wireless_terminal.owner": "Heru: %s",
+  "exort.item.wireless_terminal.not_linked": "Úva nútina",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

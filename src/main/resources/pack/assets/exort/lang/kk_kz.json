@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Сақтау терминалы",
+  "exort.item.crafting_terminal": "Жасау терминалы",
+  "exort.item.monitor": "Сақтау мониторы",
+  "exort.item.wire": "Сақтау кабелі",
+  "exort.item.storage_core": "Сақтау өзегі",
+  "exort.item.import_bus": "Импорт шинасы",
+  "exort.item.export_bus": "Экспорт шинасы",
+  "exort.item.wireless_terminal": "Сымсыз терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарея: %s%%",
+  "exort.item.wireless_terminal.owner": "Иесі: %s",
+  "exort.item.wireless_terminal.not_linked": "Байланбаған",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

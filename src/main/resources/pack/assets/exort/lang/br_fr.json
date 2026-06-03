@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Termenell mirout",
+  "exort.item.crafting_terminal": "Termenell sevel",
+  "exort.item.monitor": "Skramm mirout",
+  "exort.item.wire": "Kabl mirout",
+  "exort.item.storage_core": "Kalz mirout",
+  "exort.item.import_bus": "Bus enporzhiañ",
+  "exort.item.export_bus": "Bus ezporzhiañ",
+  "exort.item.wireless_terminal": "Termenell hep neud",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bateriezh: %s%%",
+  "exort.item.wireless_terminal.owner": "Percʼhenn: %s",
+  "exort.item.wireless_terminal.not_linked": "Ket ereet",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

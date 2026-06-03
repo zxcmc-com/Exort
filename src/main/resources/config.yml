@@ -56,6 +56,10 @@ protocolLib:
     enabled: true
     # Also handle middle-clicks that target Exort ItemDisplay/TextDisplay visuals.
     entityPick: true
+  localization:
+    # Reserved optional packet-level per-player text rewriting for VANILLA/no-pack edge cases.
+    # Exort remains usable without this feature; RESOURCE mode uses client translation keys.
+    enabled: true
 
 # Performance controls for expensive Exort runtime paths.
 performance:

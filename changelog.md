@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.1 — 2026-06-02
+- Fixed terminal and crafting-terminal search dialog lifecycle so the parent GUI remains registered while Paper closes and returns from the dialog, allowing the Search button to reopen the dialog repeatedly after applying, cancelling, or Esc-returning.
+- Fixed per-player localization regressions so Exort display/item fallback text stays on the configured server language instead of being replaced by the active vanilla item dictionary.
+- RESOURCE packs now bundle translated Exort item names plus client-visible lore and display-name translation keys for every locale in the pinned Minecraft language index, so players no longer fall through to `en_us` item names when their client locale has no Exort UI translation.
+- Exort now resolves command, GUI, bossbar, and debug/status text per player: client locales use matching Exort translations when available, otherwise falling back to the configured server language and then `en_us`.
+- Terminal item search and name sorting now use the player's Minecraft item dictionary when that locale is known, even when Exort itself has no UI translation for that language; unknown dictionaries fall back to the configured server language.
+- Added a `protocolLib.localization.enabled` capability gate and diagnostics entry so ProtocolLib packet localization can be enabled only after a compatible packet rewrite implementation is available.
+
 ## 0.13.0 — 2026-06-01
 - Exort now respects AuthMe and LoginSecurity unauthenticated-player restrictions for wireless terminals, monitors, and Exort GUI clicks, preventing storage access or monitor edits before login while keeping normal authenticated gameplay unchanged.
 - WorldEdit/FAWE selection wand clicks are now ignored by Exort block interactions and custom breaking, so selecting a monitor/storage/terminal/bus/wire block does not open Exort UI, show Exort peek data, or set a monitor item.

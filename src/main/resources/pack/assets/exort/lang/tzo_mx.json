@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Stalel ta chʼibal",
+  "exort.item.crafting_terminal": "Stalel ta pasel",
+  "exort.item.monitor": "Ilol chʼibal",
+  "exort.item.wire": "Kable chʼibal",
+  "exort.item.storage_core": "Yoʼtan chʼibal",
+  "exort.item.import_bus": "Bus ta ochibal",
+  "exort.item.export_bus": "Bus ta lokʼibal",
+  "exort.item.wireless_terminal": "Stalel mukʼul kable",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bateria: %s%%",
+  "exort.item.wireless_terminal.owner": "Ajvalil: %s",
+  "exort.item.wireless_terminal.not_linked": "Ma xchʼunubtasbil",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

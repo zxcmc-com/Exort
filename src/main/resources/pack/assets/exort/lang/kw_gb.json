@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Termynal gwitha",
+  "exort.item.crafting_terminal": "Termynal gwul",
+  "exort.item.monitor": "Gwelor gwitha",
+  "exort.item.wire": "Kabel gwitha",
+  "exort.item.storage_core": "Kolon gwitha",
+  "exort.item.import_bus": "Bus ynporzh",
+  "exort.item.export_bus": "Bus ezporzh",
+  "exort.item.wireless_terminal": "Termynal heb gwelen",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batri: %s%%",
+  "exort.item.wireless_terminal.owner": "Perghen: %s",
+  "exort.item.wireless_terminal.not_linked": "Heb kovlenn",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "เทอร์มินัลเก็บของ",
+  "exort.item.crafting_terminal": "เทอร์มินัลคราฟต์",
+  "exort.item.monitor": "จอเก็บของ",
+  "exort.item.wire": "สายเก็บของ",
+  "exort.item.storage_core": "แกนเก็บของ",
+  "exort.item.import_bus": "บัสนำเข้า",
+  "exort.item.export_bus": "บัสส่งออก",
+  "exort.item.wireless_terminal": "เทอร์มินัลไร้สาย",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "แบตเตอรี่: %s%%",
+  "exort.item.wireless_terminal.owner": "เจ้าของ: %s",
+  "exort.item.wireless_terminal.not_linked": "ยังไม่เชื่อมโยง",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

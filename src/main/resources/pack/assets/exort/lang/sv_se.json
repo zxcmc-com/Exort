@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Lagringsterminal",
+  "exort.item.crafting_terminal": "Hantverksterminal",
+  "exort.item.monitor": "Lagringsmonitor",
+  "exort.item.wire": "Lagringskabel",
+  "exort.item.storage_core": "Lagringskärna",
+  "exort.item.import_bus": "Importbuss",
+  "exort.item.export_bus": "Exportbuss",
+  "exort.item.wireless_terminal": "Trådlös terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batteri: %s%%",
+  "exort.item.wireless_terminal.owner": "Ägare: %s",
+  "exort.item.wireless_terminal.not_linked": "Inte länkad",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

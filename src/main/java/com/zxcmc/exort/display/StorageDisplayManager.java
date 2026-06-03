@@ -16,7 +16,7 @@ import org.joml.Vector3f;
 
 /** RESOURCE/VANILLA display manager for storage blocks (carrier + ItemDisplay model). */
 public class StorageDisplayManager extends BaseCarrierDisplayManager {
-  private final String coreName;
+  private final Component coreName;
 
   public StorageDisplayManager(
       Plugin plugin,
@@ -28,7 +28,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
       double offsetY,
       double offsetZ,
       DisplayMetadataService metadataService,
-      String coreName) {
+      Component coreName) {
     super(
         plugin,
         carrierMaterial,
@@ -40,7 +40,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
         offsetZ,
         metadataService,
         "storage");
-    this.coreName = coreName == null || coreName.isBlank() ? "Storage Core" : coreName;
+    this.coreName = coreName == null ? Component.text("Storage Core") : coreName;
   }
 
   @Override
@@ -65,8 +65,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
                         .decoration(TextDecoration.ITALIC, false)),
             () -> {
               if (StorageCoreMarker.isCore(plugin, block)) {
-                meta.displayName(
-                    Component.text(coreName()).decoration(TextDecoration.ITALIC, false));
+                meta.displayName(coreName().decoration(TextDecoration.ITALIC, false));
               }
             });
   }
@@ -86,7 +85,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
     } else if (StorageCoreMarker.isCore(plugin, block)) {
       t.getLeftRotation().set(new Quaternionf());
       t.getRightRotation().identity();
-      display.customName(Component.text(coreName()));
+      display.customName(coreName());
       display.setCustomNameVisible(false);
     } else {
       t.getLeftRotation().set(new Quaternionf());
@@ -96,7 +95,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
     display.setTransformation(t);
   }
 
-  private String coreName() {
+  private Component coreName() {
     return coreName;
   }
 }

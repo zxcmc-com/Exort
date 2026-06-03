@@ -28,11 +28,13 @@ import com.zxcmc.exort.gui.SortEvent;
 import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.PlayerLocaleService;
 import com.zxcmc.exort.infra.config.ConfigUpdater;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.metrics.ExortMetrics;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
+import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.infra.update.UpdateChecker;
 import com.zxcmc.exort.integration.protection.DebugRegionProtection;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -91,6 +93,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private Lang lang;
   private PlayerFeedback playerFeedback;
   private ItemNameService itemNameService;
+  private PlayerLocaleService playerLocaleService;
   private CustomItems customItems;
   private WirelessTerminalService wirelessService;
   private BossBarManager bossBarManager;
@@ -141,7 +144,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (!initCoreServices()) {
       return;
     }
-    registerRuntime(true);
+    registerRuntime(true)
+        .whenComplete(
+            (status, err) -> PluginTasks.runSyncIfEnabled(this, this::reloadResourcePackService));
     registerBrigadierCommands();
   }
 
@@ -155,12 +160,15 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   private boolean initCoreServices() {
     lang = new Lang(this);
+    itemNameService = new ItemNameService(this);
     resourcePackService =
         new ResourcePackService(this, () -> resourceMode, lang::tr, ExortText::configRichText);
     Bukkit.getPluginManager().registerEvents(resourcePackService, this);
-    resourcePackService.reload();
     playerFeedback = new PlayerFeedback(lang);
-    itemNameService = new ItemNameService(this);
+    playerLocaleService =
+        new PlayerLocaleService(
+            this, lang, itemNameService, () -> sessionManager, () -> busSessionManager);
+    Bukkit.getPluginManager().registerEvents(playerLocaleService, this);
     searchDialogService = new SearchDialogService(lang);
     keys = new StorageKeys(this);
     networkGraphCache = new NetworkGraphCache(this);
@@ -347,8 +355,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     ensureStorageTiersFile();
     ensureRecipesFile();
     evaluateModePolicy();
-    reloadResourcePackService();
-    return registerRuntime(false);
+    CompletableFuture<ItemNameService.Status> future = registerRuntime(false);
+    future.whenComplete(
+        (status, err) -> PluginTasks.runSyncIfEnabled(this, this::reloadResourcePackService));
+    return future;
   }
 
   private void closeRuntimeSessions() {
@@ -410,6 +420,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     HandlerList.unregisterAll(this);
     if (resourcePackService != null) {
       Bukkit.getPluginManager().registerEvents(resourcePackService, this);
+    }
+    if (playerLocaleService != null) {
+      Bukkit.getPluginManager().registerEvents(playerLocaleService, this);
     }
   }
 
@@ -508,6 +521,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     placementGuard = services.placementGuard();
     worldEditIntegration = services.worldEditIntegration();
     dialogSupported = services.dialogSupported();
+    if (playerLocaleService != null) {
+      Bukkit.getOnlinePlayers().forEach(playerLocaleService::preloadItemDictionary);
+    }
     if (loadTestService != null) {
       loadTestService.setRuntimeDependencies(
           new LoadTestRuntimeDependencies(

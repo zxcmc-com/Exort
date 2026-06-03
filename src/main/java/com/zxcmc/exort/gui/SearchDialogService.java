@@ -11,6 +11,7 @@ import io.papermc.paper.registry.data.dialog.type.DialogType;
 import java.util.List;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import org.bukkit.entity.Player;
 
 public class SearchDialogService {
   private static final String NAMESPACE = "exort";
@@ -30,14 +31,26 @@ public class SearchDialogService {
   }
 
   public Dialog buildDialog() {
+    return buildDialog(null);
+  }
+
+  public Dialog buildDialog(Player viewer) {
+    if (viewer != null) {
+      return createDialog(viewer);
+    }
     if (cached != null) {
       return cached;
     }
-    Component title = Component.text(lang.tr("gui.search.dialog.title"));
-    Component bodyText = Component.text(lang.tr("gui.search.dialog.body"));
+    cached = createDialog(null);
+    return cached;
+  }
+
+  private Dialog createDialog(Player viewer) {
+    Component title = Component.text(lang.tr(viewer, "gui.search.dialog.title"));
+    Component bodyText = Component.text(lang.tr(viewer, "gui.search.dialog.body"));
     Component inputLabel = Component.empty();
-    Component applyLabel = Component.text(lang.tr("gui.search.dialog.apply"));
-    Component cancelLabel = Component.text(lang.tr("gui.search.dialog.cancel"));
+    Component applyLabel = Component.text(lang.tr(viewer, "gui.search.dialog.apply"));
+    Component cancelLabel = Component.text(lang.tr(viewer, "gui.search.dialog.cancel"));
     ActionButton apply =
         ActionButton.create(
             applyLabel,
@@ -58,8 +71,7 @@ public class SearchDialogService {
             .inputs(List.of(DialogInput.text(INPUT_QUERY, 200, inputLabel, false, "", 128, null)))
             .build();
     DialogType type = DialogType.multiAction(List.of(apply), cancel, 2);
-    cached = Dialog.create(builder -> builder.empty().base(base).type(type));
-    return cached;
+    return Dialog.create(builder -> builder.empty().base(base).type(type));
   }
 
   public boolean isApply(Key key) {
