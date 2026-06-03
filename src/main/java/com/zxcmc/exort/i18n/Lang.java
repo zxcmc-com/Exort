@@ -2,12 +2,17 @@ package com.zxcmc.exort.i18n;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.MessageFormat;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
@@ -17,11 +22,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class Lang {
   private static final String LANG_EXT = ".yml";
+  private static final String BUNDLED_LANG_DIR = "lang/";
+  private static final String BUNDLED_LANG_INDEX = BUNDLED_LANG_DIR + "index.yml";
+  private static final String CONFIG_AUTO_OVERWRITE = "languageFiles.autoOverwriteBundled";
+  private static final String CONFIG_PRESERVE_LANGUAGES = "languageFiles.preserveLanguages";
   private static final String DEFAULT_LANGUAGE = "en_us";
   private static final String RUSSIAN_LANGUAGE = "ru_ru";
   private final JavaPlugin plugin;
   private final Map<String, String> defaultsEn = new HashMap<>();
   private final Map<String, String> defaultsRu = new HashMap<>();
+  private final Map<String, Map<String, String>> bundledDefaults = new ConcurrentHashMap<>();
+  private volatile Set<String> bundledLanguages = Set.of(DEFAULT_LANGUAGE, RUSSIAN_LANGUAGE);
   private volatile Map<String, Map<String, String>> languages = Map.of();
   private volatile Map<String, String> active = new HashMap<>();
   private volatile String activeLanguage = DEFAULT_LANGUAGE;
@@ -359,13 +370,13 @@ public class Lang {
     put(defaultsEn, "gui.category.colored_blocks", "Colored Blocks");
     put(defaultsEn, "gui.category.natural_blocks", "Natural Blocks");
     put(defaultsEn, "gui.category.functional_blocks", "Functional Blocks");
-    put(defaultsEn, "gui.category.redstone_blocks", "Redstone");
+    put(defaultsEn, "gui.category.redstone_blocks", "Redstone Blocks");
     put(defaultsEn, "gui.category.tools_and_utilities", "Tools & Utilities");
     put(defaultsEn, "gui.category.combat", "Combat");
     put(defaultsEn, "gui.category.food_and_drinks", "Food & Drinks");
     put(defaultsEn, "gui.category.ingredients", "Ingredients");
     put(defaultsEn, "gui.category.spawn_eggs", "Spawn Eggs");
-    put(defaultsEn, "gui.category.operator", "Operator");
+    put(defaultsEn, "gui.category.operator", "Operator Utilities");
     put(defaultsEn, "gui.category.custom", "Custom Items");
     put(defaultsEn, "gui.category.other", "Other");
     put(defaultsEn, "gui.search.button", "Search");
@@ -424,10 +435,10 @@ public class Lang {
         defaultsEn,
         "message.wireless.self_store",
         "Cannot store a wireless terminal inside itself.");
-    put(defaultsEn, "item.wireless_terminal.battery", "Battery: {0}%");
-    put(defaultsEn, "item.wireless_terminal.owner", "Owner: {0}");
-    put(defaultsEn, "item.wireless_terminal.not_linked", "Not linked");
-    put(defaultsEn, "item.wireless_terminal.storage_tail", "{0}");
+    put(defaultsEn, "lore.wireless_terminal.battery", "Battery: {0}%");
+    put(defaultsEn, "lore.wireless_terminal.owner", "Owner: {0}");
+    put(defaultsEn, "lore.wireless_terminal.not_linked", "Not linked");
+    put(defaultsEn, "lore.wireless_terminal.storage_tail", "{0}");
 
     // Russian
     put(defaultsRu, "message.no_permission", "Нет прав.");
@@ -860,10 +871,10 @@ public class Lang {
         defaultsRu,
         "message.wireless.self_store",
         "Нельзя положить беспроводной терминал сам в себя.");
-    put(defaultsRu, "item.wireless_terminal.battery", "Батарея: {0}%");
-    put(defaultsRu, "item.wireless_terminal.owner", "Владелец: {0}");
-    put(defaultsRu, "item.wireless_terminal.not_linked", "Не привязан");
-    put(defaultsRu, "item.wireless_terminal.storage_tail", "{0}");
+    put(defaultsRu, "lore.wireless_terminal.battery", "Батарея: {0}%");
+    put(defaultsRu, "lore.wireless_terminal.owner", "Владелец: {0}");
+    put(defaultsRu, "lore.wireless_terminal.not_linked", "Не привязан");
+    put(defaultsRu, "lore.wireless_terminal.storage_tail", "{0}");
   }
 
   private void put(Map<String, String> map, String key, String value) {
@@ -883,17 +894,16 @@ public class Lang {
     if (!langDir.exists()) {
       langDir.mkdirs();
     }
-    writeDefaults(langDir, DEFAULT_LANGUAGE, defaultsEn, true);
-    writeDefaults(langDir, RUSSIAN_LANGUAGE, defaultsRu, true);
+    Set<String> bundled = bundledLanguageCodes();
+    Set<String> protectedBundled = writeBundledDefaults(langDir, bundled);
 
     String requested = normalizeLanguage(language);
     Set<String> requestedLanguages = new HashSet<>(localLanguageFiles(langDir));
-    requestedLanguages.add(DEFAULT_LANGUAGE);
-    requestedLanguages.add(RUSSIAN_LANGUAGE);
+    requestedLanguages.addAll(bundled);
 
     Map<String, Map<String, String>> loaded = new HashMap<>();
     for (String code : requestedLanguages) {
-      loaded.put(code, loadLanguage(langDir, code));
+      loaded.put(code, loadLanguage(langDir, code, !protectedBundled.contains(code)));
     }
     Map<String, String> selected = loaded.get(requested);
     if (selected == null || selected.isEmpty()) {
@@ -918,28 +928,75 @@ public class Lang {
     return result;
   }
 
-  private Map<String, String> loadLanguage(File langDir, String code) {
-    Map<String, String> base = RUSSIAN_LANGUAGE.equals(code) ? defaultsRu : defaultsEn;
+  private Set<String> bundledLanguageCodes() {
+    if (plugin == null) {
+      return bundledLanguages;
+    }
+    Set<String> result = new TreeSet<>();
+    try (InputStream in = plugin.getResource(BUNDLED_LANG_INDEX)) {
+      if (in != null) {
+        YamlConfiguration cfg =
+            YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+        for (String code : cfg.getStringList("languages")) {
+          result.add(normalizeLanguage(code));
+        }
+      }
+    } catch (IOException e) {
+      plugin.getLogger().warning("Failed to read bundled language index: " + e.getMessage());
+    }
+    result.add(DEFAULT_LANGUAGE);
+    result.add(RUSSIAN_LANGUAGE);
+    bundledLanguages = Set.copyOf(result);
+    return bundledLanguages;
+  }
+
+  private Set<String> writeBundledDefaults(File langDir, Set<String> bundled) {
+    boolean overwrite =
+        plugin == null || plugin.getConfig().getBoolean(CONFIG_AUTO_OVERWRITE, true);
+    Set<String> preserve = preservedLanguages();
+    Set<String> protectedLanguages = new HashSet<>();
+    for (String code : bundled) {
+      File target = new File(langDir, code + LANG_EXT);
+      boolean protectedExistingFile = target.exists() && (!overwrite || preserve.contains(code));
+      if (protectedExistingFile) {
+        protectedLanguages.add(code);
+        continue;
+      }
+      writeDefaults(langDir, code, defaultData(code));
+    }
+    return protectedLanguages;
+  }
+
+  private Set<String> preservedLanguages() {
+    if (plugin == null) {
+      return Collections.emptySet();
+    }
+    Set<String> preserve = new HashSet<>();
+    for (String code : plugin.getConfig().getStringList(CONFIG_PRESERVE_LANGUAGES)) {
+      preserve.add(normalizeLanguage(code));
+    }
+    return preserve;
+  }
+
+  private Map<String, String> loadLanguage(File langDir, String code, boolean updateFile) {
+    Map<String, String> base = defaultData(code);
     Map<String, String> loaded = new HashMap<>(defaultsEn);
+    loaded.putAll(base);
     File target = new File(langDir, code + LANG_EXT);
     YamlConfiguration cfg = YamlConfiguration.loadConfiguration(target);
     configureYaml(cfg);
     boolean changed = false;
-    for (Map.Entry<String, String> entry : base.entrySet()) {
-      if (!cfg.contains(entry.getKey())) {
-        cfg.set(entry.getKey(), entry.getValue());
+    Set<String> keys = new TreeSet<>(defaultsEn.keySet());
+    keys.addAll(base.keySet());
+    for (String key : keys) {
+      String fallback = base.getOrDefault(key, defaultsEn.getOrDefault(key, key));
+      if (!cfg.contains(key)) {
+        cfg.set(key, fallback);
         changed = true;
       }
-      loaded.put(entry.getKey(), getStringOrDefault(cfg, entry.getKey(), entry.getValue()));
+      loaded.put(key, getStringOrDefault(cfg, key, fallback));
     }
-    for (Map.Entry<String, String> entry : defaultsEn.entrySet()) {
-      if (!cfg.contains(entry.getKey())) {
-        cfg.set(entry.getKey(), entry.getValue());
-        changed = true;
-      }
-      loaded.putIfAbsent(entry.getKey(), getStringOrDefault(cfg, entry.getKey(), entry.getValue()));
-    }
-    if (changed) {
+    if (changed && updateFile) {
       try {
         cfg.save(target);
       } catch (IOException e) {
@@ -951,15 +1008,61 @@ public class Lang {
     return loaded;
   }
 
-  private void writeDefaults(File dir, String name, Map<String, String> data, boolean overwrite) {
-    File file = new File(dir, name + LANG_EXT);
-    if (!overwrite && file.exists()) {
-      return;
+  private Map<String, String> defaultData(String code) {
+    String normalized = normalizeLanguage(code);
+    if (DEFAULT_LANGUAGE.equals(normalized)) {
+      return defaultsEn;
     }
+    if (RUSSIAN_LANGUAGE.equals(normalized)) {
+      Map<String, String> bundled = bundledDefaultData(normalized);
+      return bundled.isEmpty() ? defaultsRu : bundled;
+    }
+    Map<String, String> bundled = bundledDefaultData(normalized);
+    return bundled.isEmpty() ? defaultsEn : bundled;
+  }
+
+  private Map<String, String> bundledDefaultData(String code) {
+    if (plugin == null) {
+      return Collections.emptyMap();
+    }
+    String normalized = normalizeLanguage(code);
+    return bundledDefaults.computeIfAbsent(normalized, this::loadBundledDefaultData);
+  }
+
+  private Map<String, String> loadBundledDefaultData(String code) {
+    try (InputStream in = plugin.getResource(BUNDLED_LANG_DIR + code + LANG_EXT)) {
+      if (in == null) {
+        return Collections.emptyMap();
+      }
+      YamlConfiguration cfg =
+          YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+      configureYaml(cfg);
+      Map<String, String> result = new HashMap<>();
+      for (String key : cfg.getKeys(true)) {
+        if (cfg.isConfigurationSection(key)) {
+          continue;
+        }
+        String value = cfg.getString(key);
+        if (value != null) {
+          result.put(key, value);
+        }
+      }
+      return Map.copyOf(result);
+    } catch (IOException e) {
+      plugin
+          .getLogger()
+          .warning(
+              "Failed to read bundled language file " + code + LANG_EXT + ": " + e.getMessage());
+      return Collections.emptyMap();
+    }
+  }
+
+  private void writeDefaults(File dir, String name, Map<String, String> data) {
+    File file = new File(dir, name + LANG_EXT);
     YamlConfiguration cfg = new YamlConfiguration();
     configureYaml(cfg);
-    for (Map.Entry<String, String> entry : data.entrySet()) {
-      cfg.set(entry.getKey(), entry.getValue());
+    for (String key : new TreeSet<>(data.keySet())) {
+      cfg.set(key, data.get(key));
     }
     try {
       cfg.save(file);
@@ -991,7 +1094,15 @@ public class Lang {
     String base =
         selected.getOrDefault(key, active.getOrDefault(key, defaultsEn.getOrDefault(key, key)));
     if (params.length == 0) return base;
-    return MessageFormat.format(base, params);
+    return formatParams(base, params);
+  }
+
+  private String formatParams(String base, Object... params) {
+    String result = base;
+    for (int i = 0; i < params.length; i++) {
+      result = result.replace("{" + i + "}", String.valueOf(params[i]));
+    }
+    return result;
   }
 
   public Component itemComponent(boolean clientTranslations, String key, Object... params) {

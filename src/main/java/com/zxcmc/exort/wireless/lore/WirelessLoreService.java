@@ -36,7 +36,7 @@ public final class WirelessLoreService {
     lore.add(
         lang.itemComponent(
                 clientTranslations,
-                "item.wireless_terminal.battery",
+                "lore.wireless_terminal.battery",
                 Math.max(0, Math.min(100, charge)))
             .color(NamedTextColor.GREEN)
             .decoration(TextDecoration.ITALIC, false));
@@ -46,13 +46,13 @@ public final class WirelessLoreService {
             metaInfo == null ? null : metaInfo.ownerName());
     if (ownerDisplay != null && !ownerDisplay.isBlank()) {
       lore.add(
-          lang.itemComponent(clientTranslations, "item.wireless_terminal.owner", ownerDisplay)
+          lang.itemComponent(clientTranslations, "lore.wireless_terminal.owner", ownerDisplay)
               .color(NamedTextColor.AQUA)
               .decoration(TextDecoration.ITALIC, false));
     }
     if (!linked) {
       lore.add(
-          lang.itemComponent(clientTranslations, "item.wireless_terminal.not_linked")
+          lang.itemComponent(clientTranslations, "lore.wireless_terminal.not_linked")
               .color(NamedTextColor.RED)
               .decoration(TextDecoration.ITALIC, false));
     } else if (metaInfo != null) {
@@ -63,7 +63,7 @@ public final class WirelessLoreService {
       if (metaInfo.storageId() != null && metaInfo.storageId().length() >= 12) {
         String tail = metaInfo.storageId().substring(metaInfo.storageId().length() - 12);
         lore.add(
-            lang.itemComponent(clientTranslations, "item.wireless_terminal.storage_tail", tail)
+            lang.itemComponent(clientTranslations, "lore.wireless_terminal.storage_tail", tail)
                 .color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
       }

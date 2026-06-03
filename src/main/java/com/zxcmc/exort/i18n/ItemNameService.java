@@ -528,19 +528,7 @@ public class ItemNameService {
   }
 
   private List<String> ensureDictionaries(boolean force) {
-    Set<String> requested = new HashSet<>();
-    requested.add("en_us");
-    requested.add("ru_ru");
-    File[] files = langDir.listFiles((dir, name) -> name.endsWith(".yml"));
-    if (files != null) {
-      for (File file : files) {
-        String code = file.getName().substring(0, file.getName().length() - 4);
-        String normalized = normalizeLanguage(code);
-        if (availableLanguages.isEmpty() || availableLanguages.contains(normalized)) {
-          requested.add(normalized);
-        }
-      }
-    }
+    Set<String> requested = dictionaryRefreshLanguages();
     List<String> updated = new ArrayList<>();
     dictVersions = new HashMap<>();
     dictSizes = new HashMap<>();
@@ -550,6 +538,24 @@ public class ItemNameService {
       }
     }
     return updated;
+  }
+
+  Set<String> dictionaryRefreshLanguages() {
+    Set<String> requested = new HashSet<>();
+    requested.add("en_us");
+    requested.add("ru_ru");
+    requested.add(activeLanguage);
+    File[] files = itemsDir.listFiles((dir, name) -> name.endsWith(".yml"));
+    if (files != null) {
+      for (File file : files) {
+        String code = file.getName().substring(0, file.getName().length() - 4);
+        String normalized = normalizeLanguage(code);
+        if (availableLanguages.isEmpty() || availableLanguages.contains(normalized)) {
+          requested.add(normalized);
+        }
+      }
+    }
+    return requested;
   }
 
   private boolean ensureDictionary(String code, boolean force) {

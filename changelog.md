@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.2 — 2026-06-03
+- Exort now bundles full command, GUI, debug, item, lore, display, and resource-pack translations for every locale in the pinned Minecraft language index, including joke and constructed-language locales.
+- Bundled creative-category labels now match vanilla Minecraft language files for every pinned locale, with additional cleanup for pre-reform Russian and rare/joke locale wording.
+- Added `languageFiles.autoOverwriteBundled` and `languageFiles.preserveLanguages` config controls so bundled language files are refreshed by default while selected locales can be protected for manual translation testing.
+- Fixed wireless-terminal lore translation keys so generated YAML language files no longer conflict with the `item.wireless_terminal` item-name key.
+- Item-name dictionary refreshes no longer download every bundled Exort UI locale on startup; Exort refreshes the active/base dictionaries and existing item dictionaries, then preloads additional player locales on demand.
+
 ## 0.13.1 — 2026-06-02
 - Fixed terminal and crafting-terminal search dialog lifecycle so the parent GUI remains registered while Paper closes and returns from the dialog, allowing the Search button to reopen the dialog repeatedly after applying, cancelling, or Esc-returning.
 - Fixed per-player localization regressions so Exort display/item fallback text stays on the configured server language instead of being replaced by the active vanilla item dictionary.

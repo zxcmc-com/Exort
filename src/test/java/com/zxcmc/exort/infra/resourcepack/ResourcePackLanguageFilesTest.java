@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -21,7 +22,7 @@ class ResourcePackLanguageFilesTest {
   private static final Path LANG_DIR = Path.of("src/main/resources/pack/assets/exort/lang");
   private static final Path LOCALES_FIXTURE =
       Path.of("src/test/resources/minecraft-lang-locales.txt");
-  private static final Pattern MINECRAFT_PLACEHOLDER = Pattern.compile("%(?:s|%)");
+  private static final Pattern MINECRAFT_PLACEHOLDER = Pattern.compile("%(?:(\\d+)\\$)?(?:s|%)");
 
   @Test
   void everyPinnedMinecraftLocaleHasBundledExortLanguageFile() throws IOException {
@@ -85,6 +86,7 @@ class ResourcePackLanguageFilesTest {
     while (matcher.find()) {
       result.add(matcher.group());
     }
+    Collections.sort(result);
     return result;
   }
 }

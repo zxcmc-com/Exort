@@ -1,6 +1,13 @@
 # Language code from assets/minecraft/lang/<code>.json (e.g. en_us, ru_ru, ksh, nds_de).
-# Plugin always regenerates en_us.yml and ru_ru.yml on startup. Custom files can be placed in lang/<code>.yml
+# Exort bundles generated plugin translations for every locale in the pinned Minecraft language index.
 language: en_us
+languageFiles:
+  # If true, bundled Exort language files in plugins/Exort/lang are refreshed from the plugin JAR
+  # on every startup and /exort reload. Disable only while testing manual translations.
+  autoOverwriteBundled: true
+  # Locales listed here are not overwritten by bundled defaults even when autoOverwriteBundled is true.
+  # Example: [de_de, qya_aa]
+  preserveLanguages: []
 
 # Global block mode:
 # - VANILLA: uses barrier carriers with vanilla item models (no external resource pack required).

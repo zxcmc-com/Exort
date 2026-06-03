@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Map;
@@ -45,6 +46,22 @@ class ItemNameServiceTest {
     ItemNameService service = serviceWithLanguages(Set.of("en_us", "ru_ru"));
 
     assertEquals("ru_ru", service.dictionaryLanguage("zz_zz", "ru_ru"));
+  }
+
+  @Test
+  void dictionaryRefreshIgnoresBundledPluginLanguageFilesUntilItemDictionaryExists()
+      throws Exception {
+    Files.createDirectories(tempDir.resolve("lang/items"));
+    Files.writeString(tempDir.resolve("lang/de_de.yml"), "message:\n  no_permission: Nein\n");
+    Files.writeString(tempDir.resolve("lang/ja_jp.yml"), "message:\n  no_permission: なし\n");
+    Files.writeString(tempDir.resolve("lang/items/fr_fr.yml"), "__version: 1.21.11\n");
+    ItemNameService service =
+        serviceWithLanguages(Set.of("de_de", "en_us", "fr_fr", "ja_jp", "ru_ru"));
+    setField(service, "activeLanguage", "de_de");
+
+    Set<String> requested = service.dictionaryRefreshLanguages();
+
+    assertEquals(Set.of("de_de", "en_us", "fr_fr", "ru_ru"), requested);
   }
 
   private ItemNameService serviceWithLanguages(Set<String> languages) throws Exception {

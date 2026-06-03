@@ -97,6 +97,15 @@ class LangTest {
     assertEquals("en_us", lang.pluginTextLanguage("de_de"));
   }
 
+  @Test
+  void parameterFormattingPreservesLiteralApostrophes() throws Exception {
+    Lang lang = new Lang(null);
+    Map<String, String> active = defaults(lang, "defaultsEn");
+    active.put("test.apostrophe", "{0}'s storage");
+
+    assertEquals("Alex's storage", lang.tr("test.apostrophe", "Alex"));
+  }
+
   @SuppressWarnings("unchecked")
   private Map<String, String> defaults(Lang lang, String fieldName) throws Exception {
     Field field = Lang.class.getDeclaredField(fieldName);
