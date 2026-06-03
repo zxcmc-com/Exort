@@ -204,12 +204,14 @@ public final class LoadTestService {
     prepareDbPositions(simulatedPlayers);
     prepareDisplaySamples();
     prepareGuardSimulation();
-    String summary = summaryLine(sender);
+    String ownerLanguage = languageFor(sender);
+    String summary = summaryLine(ownerLanguage);
     CommandFeedback.send(sender, summary);
-    sendToConsoleIfNeeded(summary);
-    String started = tr(sender, "message.debug_load_started", simulatedPlayers);
+    sendToConsoleIfNeeded(summaryLine(configuredLanguage()));
+    String started = trLanguage(ownerLanguage, "message.debug_load_started", simulatedPlayers);
     CommandFeedback.send(sender, started);
-    sendToConsoleIfNeeded(started);
+    sendToConsoleIfNeeded(
+        trLanguage(configuredLanguage(), "message.debug_load_started", simulatedPlayers));
     taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::tick, 1L, 1L);
   }
 
@@ -220,11 +222,11 @@ public final class LoadTestService {
       taskId = -1;
     }
     if (notify && owner != null) {
-      String stopped = tr(owner, "message.debug_load_stopped");
+      String stopped = trLanguage(ownerLanguage(), "message.debug_load_stopped");
       CommandFeedback.send(owner, stopped);
     }
     if (notify) {
-      sendToConsoleIfNeeded(tr(null, "message.debug_load_stopped"));
+      sendToConsoleIfNeeded(trLanguage(configuredLanguage(), "message.debug_load_stopped"));
     }
     cleanupDbPositions();
     cleanupWorldWorkload();
@@ -306,11 +308,12 @@ public final class LoadTestService {
     Arrays.fill(msptSamples, 0.0);
     PerfStats.resetAndEnable();
     lastTickNs = System.nanoTime();
-    String started = trOwner("message.debug_load_measurement_started");
+    String started = trLanguage(ownerLanguage(), "message.debug_load_measurement_started");
     if (owner != null) {
       CommandFeedback.send(owner, started);
     }
-    sendToConsoleIfNeeded(started);
+    sendToConsoleIfNeeded(
+        trLanguage(configuredLanguage(), "message.debug_load_measurement_started"));
   }
 
   private void finish() {
@@ -319,33 +322,33 @@ public final class LoadTestService {
 
   private void finishForced(String forcedGradeKey) {
     LoadTestVerdictCalculator.Result result = verdictResult(forcedGradeKey);
-    sendBenchmarkResultLine(formatVerdictComponent(result));
+    sendBenchmarkResultLine(language -> formatVerdictComponent(result, language));
     String sustainableGradeKey = sustainableMsptGrade(result.msptAvg(), result.msptP95());
-    sendBenchmarkResultLine(sustainableMsptComponent(result, sustainableGradeKey));
-    Component stallWarning = rareStallWarningComponent(result);
-    if (stallWarning != null) {
-      sendBenchmarkResultLine(stallWarning);
+    sendBenchmarkResultLine(
+        language -> sustainableMsptComponent(result, sustainableGradeKey, language));
+    if (rareStallWarning(result) != null) {
+      sendBenchmarkResultLine(language -> rareStallWarningComponent(result, language));
     }
-    Component hints = profileHintsComponent();
-    if (hints != null) {
-      sendBenchmarkResultLine(hints);
+    if (profileHintsData() != null) {
+      sendBenchmarkResultLine(this::profileHintsComponent);
     }
-    Component measured = measuredProfileComponent();
-    if (measured != null) {
-      sendBenchmarkResultLine(measured);
+    if (PerfStats.snapshot().hasSamples()) {
+      sendBenchmarkResultLine(this::measuredProfileComponent);
     }
-    sendBenchmarkResultLine(metadataComponent());
-    Component runs = rememberAndFormatRunsComponent(result);
-    if (runs != null) {
-      sendBenchmarkResultLine(runs);
+    sendBenchmarkResultLine(this::metadataComponent);
+    boolean hasRecentRuns = rememberRun(result);
+    if (hasRecentRuns) {
+      sendBenchmarkResultLine(this::formatRecentRunsComponent);
     }
     stop(false);
   }
 
-  private String sustainableMsptLine(LoadTestVerdictCalculator.Result result, String gradeKey) {
-    return trOwner(
+  private String sustainableMsptLine(
+      LoadTestVerdictCalculator.Result result, String gradeKey, String language) {
+    return trLanguage(
+        language,
         "message.debug_load_mspt_verdict",
-        trOwner(gradeKey),
+        trLanguage(language, gradeKey),
         ONE_DECIMAL.format(result.msptAvg()),
         ONE_DECIMAL.format(result.msptP95()),
         ONE_DECIMAL.format(result.msptP99()));
@@ -370,19 +373,23 @@ public final class LoadTestService {
     };
   }
 
-  private void sendBenchmarkResultLine(Component component) {
-    if (component == null) {
+  private void sendBenchmarkResultLine(BenchmarkComponentRenderer renderer) {
+    if (renderer == null) {
       return;
     }
     if (owner != null) {
-      CommandFeedback.send(owner, component);
+      Component component = renderer.render(ownerLanguage());
+      if (component != null) {
+        CommandFeedback.send(owner, component);
+      }
     }
-    sendToConsoleIfNeeded(component);
+    sendToConsoleIfNeeded(renderer.render(configuredLanguage()));
   }
 
-  private Component formatVerdictComponent(LoadTestVerdictCalculator.Result result) {
-    HighlightedLine line = new HighlightedLine(formatVerdict(result));
-    line.highlight(trOwner(result.gradeKey()), gradeColor(result.gradeKey()));
+  private Component formatVerdictComponent(
+      LoadTestVerdictCalculator.Result result, String language) {
+    HighlightedLine line = new HighlightedLine(formatVerdict(result, language));
+    line.highlight(trLanguage(language, result.gradeKey()), gradeColor(result.gradeKey()));
     line.highlight(TWO_DECIMALS.format(result.tpsMin()), tpsColor(result.tpsMin()));
     line.highlight(TWO_DECIMALS.format(result.tpsMax()), tpsColor(result.tpsMax()));
     line.highlight(TWO_DECIMALS.format(result.tpsAvg()), tpsColor(result.tpsAvg()));
@@ -396,17 +403,18 @@ public final class LoadTestService {
   }
 
   private Component sustainableMsptComponent(
-      LoadTestVerdictCalculator.Result result, String gradeKey) {
-    HighlightedLine line = new HighlightedLine(sustainableMsptLine(result, gradeKey));
-    line.highlight(trOwner(gradeKey), gradeColor(gradeKey));
+      LoadTestVerdictCalculator.Result result, String gradeKey, String language) {
+    HighlightedLine line = new HighlightedLine(sustainableMsptLine(result, gradeKey, language));
+    line.highlight(trLanguage(language, gradeKey), gradeColor(gradeKey));
     line.highlight(ONE_DECIMAL.format(result.msptAvg()), msptColor(result.msptAvg()));
     line.highlight(ONE_DECIMAL.format(result.msptP95()), msptColor(result.msptP95()));
     line.highlight(ONE_DECIMAL.format(result.msptP99()), msptColor(result.msptP99()));
     return line.finish();
   }
 
-  private Component rareStallWarningComponent(LoadTestVerdictCalculator.Result result) {
-    String message = rareStallWarning(result);
+  private Component rareStallWarningComponent(
+      LoadTestVerdictCalculator.Result result, String language) {
+    String message = rareStallWarning(result, language);
     if (message == null || message.isBlank()) {
       return null;
     }
@@ -416,13 +424,14 @@ public final class LoadTestService {
     return line.finish();
   }
 
-  private Component profileHintsComponent() {
+  private Component profileHintsComponent(String language) {
     ProfileHints hints = profileHintsData();
     if (hints == null) {
       return null;
     }
     String message =
-        trOwner(
+        trLanguage(
+            language,
             "message.debug_load_hints",
             hints.dominant(),
             hints.cpuPct(),
@@ -446,7 +455,7 @@ public final class LoadTestService {
     return line.finish();
   }
 
-  private Component measuredProfileComponent() {
+  private Component measuredProfileComponent(String language) {
     PerfStats.Snapshot snapshot = PerfStats.snapshot();
     if (!snapshot.hasSamples()) {
       return null;
@@ -487,7 +496,7 @@ public final class LoadTestService {
     }
     HighlightedLine line =
         new HighlightedLine(
-            trOwner("message.debug_load_measured_profile", String.join(", ", parts)));
+            trLanguage(language, "message.debug_load_measured_profile", String.join(", ", parts)));
     tokens.apply(line);
     return line.finish();
   }
@@ -525,7 +534,7 @@ public final class LoadTestService {
     parts.add(String.join(" ", rendered));
   }
 
-  private Component metadataComponent() {
+  private Component metadataComponent(String language) {
     String server = Bukkit.getName() + " " + Bukkit.getMinecraftVersion();
     String java = System.getProperty("java.version", "unknown");
     String plugins =
@@ -536,7 +545,8 @@ public final class LoadTestService {
             .orElse("-");
     HighlightedLine line =
         new HighlightedLine(
-            trOwner(
+            trLanguage(
+                language,
                 "message.debug_load_metadata",
                 server,
                 plugin.getPluginMeta().getVersion(),
@@ -552,13 +562,19 @@ public final class LoadTestService {
     return line.finish();
   }
 
-  private Component rememberAndFormatRunsComponent(LoadTestVerdictCalculator.Result result) {
+  private boolean rememberRun(LoadTestVerdictCalculator.Result result) {
     synchronized (RECENT_RUNS) {
       RECENT_RUNS.addLast(
           new RunSummary(result.gradeKey(), result.tpsAvg(), result.msptAvg(), result.msptP95()));
       while (RECENT_RUNS.size() > RECENT_RUN_LIMIT) {
         RECENT_RUNS.removeFirst();
       }
+      return RECENT_RUNS.size() >= 2;
+    }
+  }
+
+  private Component formatRecentRunsComponent(String language) {
+    synchronized (RECENT_RUNS) {
       if (RECENT_RUNS.size() < 2) {
         return null;
       }
@@ -576,7 +592,8 @@ public final class LoadTestService {
       double avgMsptP95 = msptP95 / count;
       HighlightedLine line =
           new HighlightedLine(
-              trOwner(
+              trLanguage(
+                  language,
                   "message.debug_load_recent_runs",
                   count,
                   TWO_DECIMALS.format(avgTps),
@@ -658,7 +675,8 @@ public final class LoadTestService {
     double tps = currentTps();
     double mspt = currentMspt();
     String message =
-        trOwner(
+        trLanguage(
+            ownerLanguage(),
             "message.debug_load_progress",
             percent,
             remainingSeconds,
@@ -673,7 +691,14 @@ public final class LoadTestService {
         }
       }
     }
-    sendToConsoleIfNeeded(message);
+    sendToConsoleIfNeeded(
+        trLanguage(
+            configuredLanguage(),
+            "message.debug_load_progress",
+            percent,
+            remainingSeconds,
+            ONE_DECIMAL.format(tps),
+            ONE_DECIMAL.format(mspt)));
   }
 
   private double currentTps() {
@@ -795,9 +820,10 @@ public final class LoadTestService {
     return LoadTestVerdictCalculator.calculate(tickMs, msptSamples, n, forcedGradeKey);
   }
 
-  private String formatVerdict(LoadTestVerdictCalculator.Result result) {
-    String grade = trOwner(result.gradeKey());
-    return trOwner(
+  private String formatVerdict(LoadTestVerdictCalculator.Result result, String language) {
+    String grade = trLanguage(language, result.gradeKey());
+    return trLanguage(
+        language,
         "message.debug_load_verdict",
         grade,
         TWO_DECIMALS.format(result.tpsMin()),
@@ -812,9 +838,14 @@ public final class LoadTestService {
   }
 
   private String rareStallWarning(LoadTestVerdictCalculator.Result result) {
+    return rareStallWarning(result, ownerLanguage());
+  }
+
+  private String rareStallWarning(LoadTestVerdictCalculator.Result result, String language) {
     if (result.severeStalls() <= 0) return null;
     if ("message.debug_load_grade_awful".equals(result.gradeKey())) return null;
-    return trOwner(
+    return trLanguage(
+        language,
         "message.debug_load_rare_stalls",
         result.severeStalls(),
         TWO_DECIMALS.format(result.tpsMin()));
@@ -934,7 +965,7 @@ public final class LoadTestService {
         worldWorkload == null ? 0L : worldWorkload.totalPlacements());
   }
 
-  private String summaryLine(CommandSender sender) {
+  private String summaryLine(String language) {
     int chunks = activeChunkCount();
     int ops = estimateOperationsPerTick();
     int dbOps = estimateDbOpsPerTick(ops);
@@ -944,8 +975,8 @@ public final class LoadTestService {
     int waterWireLength = worldWorkload == null ? 0 : worldWorkload.waterWireLength();
     int waterSources = worldWorkload == null ? 0 : worldWorkload.waterSourceCount();
     int waterExtraChunks = worldWorkload == null ? 0 : worldWorkload.extraChunkTicketCount();
-    return tr(
-        sender,
+    return trLanguage(
+        language,
         "message.debug_load_summary",
         simulatedPlayers,
         chunks,
@@ -977,12 +1008,32 @@ public final class LoadTestService {
         waterExtraChunks);
   }
 
-  private String trOwner(String key, Object... params) {
-    return tr(owner, key, params);
+  private String ownerLanguage() {
+    return languageFor(owner);
+  }
+
+  private String languageFor(CommandSender sender) {
+    if (sender instanceof Player player) {
+      return lang.pluginTextLanguage(player);
+    }
+    return configuredLanguage();
+  }
+
+  private String configuredLanguage() {
+    return lang.configuredLanguage();
+  }
+
+  private String trLanguage(String language, String key, Object... params) {
+    return lang.trLanguage(language, key, params);
   }
 
   private String tr(CommandSender sender, String key, Object... params) {
     return lang.tr(sender, key, params);
+  }
+
+  @FunctionalInterface
+  private interface BenchmarkComponentRenderer {
+    Component render(String language);
   }
 
   private long requestedGuardEntities() {

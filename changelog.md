@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.3 — 2026-06-03
+- In VANILLA mode, ProtocolLib localization now shows Exort item names and lore in each player's language when a matching translation is available, while the real server-side item stacks stay unchanged.
+- Added `protocolLib.localization.level`: `SIMPLE` localizes Exort inventory items and lore, while `FULL` also localizes Exort block/display names for clients and Jade-like inspection mods without requiring the resource pack.
+- RESOURCE pack exports now generate Exort item and lore translations from the same bundled language files used by the plugin, keeping server text and client resource-pack text in sync.
+- The `plugins/Exort/lang` folder is no longer filled with every bundled translation by default; keep files there only for local overrides, preserved locales, or manual translation testing.
+- Debug benchmark output now respects language context: players see their own localized benchmark messages, while duplicated console lines use the configured server language.
+
 ## 0.13.2 — 2026-06-03
 - Exort now bundles full command, GUI, debug, item, lore, display, and resource-pack translations for every locale in the pinned Minecraft language index, including joke and constructed-language locales.
 - Bundled creative-category labels now match vanilla Minecraft language files for every pinned locale, with additional cleanup for pre-reform Russian and rare/joke locale wording.

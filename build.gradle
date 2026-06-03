@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.13.2'
+version = '0.13.3'
 description = 'Exort Storage Network'
 
 base {
@@ -129,10 +129,14 @@ tasks.register('exportResourcePack', JavaExec) {
     dependsOn tasks.named('classes')
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
     mainClass = 'com.zxcmc.exort.infra.resourcepack.ResourcePackCli'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
     args file('src/main/resources').absolutePath
     args layout.buildDirectory.dir('exort-resource-pack').get().asFile.absolutePath
     args 'true'
     inputs.dir file('src/main/resources/pack')
+    inputs.dir file('src/main/resources/lang')
     outputs.file layout.buildDirectory.file('exort-resource-pack/exort.zip')
 }
 

@@ -1,27 +1,30 @@
 package com.zxcmc.exort.i18n;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Field;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class LangTest {
+  @TempDir Path tempDir;
+
   @Test
-  void defaultEnglishAndRussianKeysMatch() throws Exception {
+  void constructorLoadsBundledEnglishAndRussianDefaults() {
     Lang lang = new Lang(null);
 
-    assertEquals(defaults(lang, "defaultsEn").keySet(), defaults(lang, "defaultsRu").keySet());
+    assertEquals("Storage Core", lang.trLanguage("en_us", "item.storage_core"));
+    assertEquals("Основа хранилища", lang.trLanguage("ru_ru", "item.storage_core"));
   }
 
   @Test
-  void cleanupPassKeysResolve() throws Exception {
+  void cleanupPassKeysResolve() {
     Lang lang = new Lang(null);
-    Map<String, String> en = defaults(lang, "defaultsEn");
-    Map<String, String> ru = defaults(lang, "defaultsRu");
     Set<String> requiredKeys =
         Set.of(
             "message.wireless.bound",
@@ -76,46 +79,91 @@ class LangTest {
             "message.wire.hard_cap");
 
     for (String key : requiredKeys) {
-      assertTrue(en.containsKey(key), "missing English key: " + key);
-      assertTrue(ru.containsKey(key), "missing Russian key: " + key);
-      assertNotEquals(key, lang.tr(key, "value"), "unresolved key: " + key);
+      assertNotEquals(
+          key, lang.trLanguage("en_us", key, "value"), "unresolved English key: " + key);
+      assertNotEquals(
+          key, lang.trLanguage("ru_ru", key, "value"), "unresolved Russian key: " + key);
     }
     assertTrue(lang.tr("message.pack_status.status", "READY").contains("READY"));
   }
 
   @Test
-  void pluginTextLanguageUsesClientLocaleOnlyWhenExortLanguageExists() throws Exception {
+  void pluginTextLanguageUsesBundledLocaleWhenLoaded() {
     Lang lang = new Lang(null);
+    lang.load("en_us");
 
     assertEquals("ru_ru", lang.pluginTextLanguage("ru_ru"));
-    assertEquals("en_us", lang.pluginTextLanguage("de_de"));
+    assertEquals("de_de", lang.pluginTextLanguage("de_de"));
+    assertEquals("en_us", lang.pluginTextLanguage("zz_zz"));
 
-    setField(lang, "activeLanguage", "ru_ru");
-    assertEquals("ru_ru", lang.pluginTextLanguage("de_de"));
-
-    setField(lang, "activeLanguage", "zz_zz");
-    assertEquals("en_us", lang.pluginTextLanguage("de_de"));
+    lang.load("ru_ru");
+    assertEquals("ru_ru", lang.pluginTextLanguage("zz_zz"));
   }
 
   @Test
-  void parameterFormattingPreservesLiteralApostrophes() throws Exception {
+  void parameterFormattingPreservesLiteralApostrophes() {
     Lang lang = new Lang(null);
-    Map<String, String> active = defaults(lang, "defaultsEn");
-    active.put("test.apostrophe", "{0}'s storage");
 
-    assertEquals("Alex's storage", lang.tr("test.apostrophe", "Alex"));
+    assertEquals(
+        "Alex's inventory was full; dropped 1 item(s) nearby.",
+        lang.tr("message.give_dropped", 1, "Alex"));
   }
 
-  @SuppressWarnings("unchecked")
-  private Map<String, String> defaults(Lang lang, String fieldName) throws Exception {
-    Field field = Lang.class.getDeclaredField(fieldName);
-    field.setAccessible(true);
-    return (Map<String, String>) field.get(lang);
+  @Test
+  void configuredTranslationUsesConfiguredLanguage() {
+    Lang lang = new Lang(null);
+    lang.load("en_us");
+
+    assertEquals("Storage Core", lang.trConfigured("item.storage_core"));
+    assertEquals("Основа хранилища", lang.trLanguage("ru_ru", "item.storage_core"));
   }
 
-  private void setField(Lang lang, String fieldName, Object value) throws Exception {
-    Field field = Lang.class.getDeclaredField(fieldName);
-    field.setAccessible(true);
-    field.set(lang, value);
+  @Test
+  void defaultLoadDoesNotMaterializeBundledLanguages() throws Exception {
+    Lang lang = testLang(true, Set.of());
+
+    lang.load("en_us");
+
+    Path langDir = tempDir.resolve("lang");
+    long languageFiles;
+    try (var files = Files.walk(langDir)) {
+      languageFiles = files.filter(path -> path.toString().endsWith(".yml")).count();
+    }
+    assertEquals(0, languageFiles);
+  }
+
+  @Test
+  void bundledLanguageIgnoresLocalCopyUnlessPreserved() throws Exception {
+    Path langDir = tempDir.resolve("lang");
+    Files.createDirectories(langDir);
+    Files.writeString(langDir.resolve("en_us.yml"), "message:\n  no_permission: Local override\n");
+
+    Lang defaultPolicy = testLang(true, Set.of());
+    defaultPolicy.load("en_us");
+    assertEquals("No permission.", defaultPolicy.tr("message.no_permission"));
+
+    Lang preservedPolicy = testLang(true, Set.of("en_us"));
+    preservedPolicy.load("en_us");
+    assertEquals("Local override", preservedPolicy.tr("message.no_permission"));
+
+    Lang manualPolicy = testLang(false, Set.of());
+    manualPolicy.load("en_us");
+    assertEquals("Local override", manualPolicy.tr("message.no_permission"));
+  }
+
+  @Test
+  void clientComponentFallsBackToPlainTextForServerOnlyKeys() {
+    Lang lang = new Lang(null);
+
+    assertFalse(lang.clientComponent(true, "message.no_permission").toString().contains("exort."));
+  }
+
+  private Lang testLang(boolean autoOverwriteBundled, Set<String> preservedLanguages) {
+    return new Lang(
+        null,
+        tempDir.toFile(),
+        Path.of("src/main/resources"),
+        autoOverwriteBundled,
+        preservedLanguages);
   }
 }

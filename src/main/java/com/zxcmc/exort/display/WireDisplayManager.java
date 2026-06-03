@@ -280,7 +280,7 @@ public class WireDisplayManager {
     item.setBillboard(Display.Billboard.FIXED);
     item.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
     item.addScoreboardTag(DisplayTags.DISPLAY_TAG);
-    metadataService.normalize(item);
+    metadataService.normalize(item, "item.wire");
     if (entityName != null) {
       item.customName(entityName);
     } else {

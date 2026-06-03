@@ -75,6 +75,13 @@ public class BusDisplayManager extends BaseCarrierDisplayManager {
   }
 
   @Override
+  protected String localizationKey(Block block) {
+    return BusMarker.get(plugin, block)
+        .map(data -> data.type() == BusType.EXPORT ? "item.export_bus" : "item.import_bus")
+        .orElse(null);
+  }
+
+  @Override
   protected void applyTransform(ItemDisplay display, Block block) {
     Transformation t = display.getTransformation();
     t.getScale()

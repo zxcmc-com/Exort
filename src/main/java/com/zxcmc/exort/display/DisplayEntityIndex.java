@@ -15,15 +15,25 @@ import org.bukkit.entity.Entity;
 
 public final class DisplayEntityIndex {
   private final Map<UUID, Entry> byEntityId = new HashMap<>();
+  private final Map<Integer, UUID> byNetworkId = new HashMap<>();
   private final Map<SectionKey, Set<UUID>> bySection = new HashMap<>();
 
   public void clear() {
     byEntityId.clear();
+    byNetworkId.clear();
     bySection.clear();
     updateGauge();
   }
 
   public void register(Display display) {
+    register(display, null, true);
+  }
+
+  public void register(Display display, String localizationKey) {
+    register(display, localizationKey, false);
+  }
+
+  private void register(Display display, String localizationKey, boolean preserveLocalizationKey) {
     if (display == null || !display.isValid()) {
       return;
     }
@@ -36,6 +46,9 @@ public final class DisplayEntityIndex {
     if (location.getWorld() == null) {
       return;
     }
+    Entry previous = byEntityId.get(display.getUniqueId());
+    String effectiveLocalizationKey =
+        preserveLocalizationKey && previous != null ? previous.localizationKey() : localizationKey;
     Entry entry =
         new Entry(
             display.getUniqueId(),
@@ -45,11 +58,16 @@ public final class DisplayEntityIndex {
             location.getBlockY(),
             location.getBlockZ(),
             role,
+            effectiveLocalizationKey,
             SectionKey.of(location));
-    Entry previous = byEntityId.put(entry.entityUuid(), entry);
+    previous = byEntityId.put(entry.entityUuid(), entry);
     if (previous != null && !previous.section().equals(entry.section())) {
       removeFromSection(previous);
     }
+    if (previous != null && previous.entityId() != entry.entityId()) {
+      byNetworkId.remove(previous.entityId());
+    }
+    byNetworkId.put(entry.entityId(), entry.entityUuid());
     bySection.computeIfAbsent(entry.section(), ignored -> new HashSet<>()).add(entry.entityUuid());
     updateGauge();
   }
@@ -60,9 +78,15 @@ public final class DisplayEntityIndex {
     }
     Entry previous = byEntityId.remove(entityUuid);
     if (previous != null) {
+      byNetworkId.remove(previous.entityId());
       removeFromSection(previous);
       updateGauge();
     }
+  }
+
+  public Entry findByNetworkId(int entityId) {
+    UUID entityUuid = byNetworkId.get(entityId);
+    return entityUuid == null ? null : byEntityId.get(entityUuid);
   }
 
   public List<Entry> query(Location origin, double range) {
@@ -146,6 +170,7 @@ public final class DisplayEntityIndex {
       int y,
       int z,
       DisplayRole role,
+      String localizationKey,
       SectionKey section) {
     private double distanceSquared(Location origin) {
       double dx = (x + 0.5) - origin.getX();

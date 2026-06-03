@@ -143,7 +143,7 @@ public abstract class BaseCarrierDisplayManager {
       stack.setItemMeta(meta);
     }
     display.setItemStack(stack);
-    metadataService.normalize(display);
+    metadataService.normalize(display, localizationKey(block));
     applyTransform(display, block);
   }
 
@@ -184,6 +184,10 @@ public abstract class BaseCarrierDisplayManager {
   protected abstract boolean isValidBlock(Block block);
 
   protected abstract void decorateMeta(ItemMeta meta, Block block);
+
+  protected String localizationKey(Block block) {
+    return null;
+  }
 
   protected double cleanupRadius() {
     return 0.5;
