@@ -143,7 +143,7 @@ public final class RuntimeDisplayServicesFactory {
         wireDisplay.offsetX(),
         wireDisplay.offsetY(),
         wireDisplay.offsetZ(),
-        deps.lang().tr("item.wire"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.wire"),
         metadataService);
   }
 
@@ -164,7 +164,7 @@ public final class RuntimeDisplayServicesFactory {
         storageDisplay.offsetY(),
         storageDisplay.offsetZ(),
         metadataService,
-        deps.lang().tr("item.storage_core"));
+        deps.lang().clientComponent(deps.resourceMode(), "item.storage_core"));
   }
 
   private static TerminalDisplayManager createTerminalDisplayManager(
@@ -188,8 +188,8 @@ public final class RuntimeDisplayServicesFactory {
         terminalDisplay.offsetY(),
         terminalDisplay.offsetZ(),
         metadataService,
-        deps.lang().tr("item.terminal"),
-        deps.lang().tr("item.crafting_terminal"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.terminal"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.crafting_terminal"),
         deps.keys(),
         deps.wireLimit(),
         deps.wireHardCap(),
@@ -221,7 +221,7 @@ public final class RuntimeDisplayServicesFactory {
         monitorDisplay.offsetY(),
         monitorDisplay.offsetZ(),
         metadataService,
-        deps.lang().tr("item.monitor"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.monitor"),
         deps.wireLimit(),
         deps.wireHardCap(),
         materials.wire(),
@@ -254,8 +254,8 @@ public final class RuntimeDisplayServicesFactory {
         busDisplay.offsetY(),
         busDisplay.offsetZ(),
         metadataService,
-        deps.lang().tr("item.import_bus"),
-        deps.lang().tr("item.export_bus"));
+        deps.lang().clientComponent(deps.resourceMode(), "item.import_bus"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.export_bus"));
   }
 
   private static void registerSanityServices(

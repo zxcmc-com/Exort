@@ -31,7 +31,7 @@ final class InventoryCommand {
     if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     if (!(sender instanceof Player player)) {
-      sendMessage(sender, dependencies.lang().tr("message.only_player"));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.only_player"));
       return 1;
     }
     try {
@@ -39,7 +39,7 @@ final class InventoryCommand {
           .open(player);
     } catch (IllegalStateException e) {
       ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to open Exort inventory menu", e);
-      sendMessage(sender, dependencies.lang().tr("message.operation_failed"));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.operation_failed"));
     }
     return 1;
   }
@@ -47,7 +47,7 @@ final class InventoryCommand {
   private boolean ensureGivePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasGivePermission(sender)) return true;
-    sendMessage(sender, dependencies.lang().tr("message.no_permission"));
+    sendMessage(sender, dependencies.lang().tr(sender, "message.no_permission"));
     return false;
   }
 

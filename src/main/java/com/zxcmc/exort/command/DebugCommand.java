@@ -236,7 +236,7 @@ final class DebugCommand {
     Player online = Bukkit.getPlayerExact(raw);
     OfflinePlayer offline = online != null ? online : Bukkit.getOfflinePlayer(raw);
     if (offline == null || (offline.getName() == null && !offline.hasPlayedBefore())) {
-      sendMessage(sender, lang().tr("message.debug_storage_invalid"));
+      sendMessage(sender, tr(sender, "message.debug_storage_invalid"));
       return 1;
     }
     String playerName = offline.getName() != null ? offline.getName() : raw;
@@ -252,7 +252,7 @@ final class DebugCommand {
               runSync(
                   () -> {
                     if (result.isEmpty()) {
-                      sendMessage(sender, lang().tr("message.debug_player_none", playerName));
+                      sendMessage(sender, tr(sender, "message.debug_player_none", playerName));
                       return;
                     }
                     cacheStatusRenderer.send(sender, result.get().storageId());
@@ -263,29 +263,38 @@ final class DebugCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
     CommandFeedback.sendBlock(
-        sender(context.getSource()),
-        Component.text(lang().tr("message.usage_debug_header")),
+        sender,
+        Component.text(tr(sender, "message.usage_debug_header")),
         List.of(
-            usageLine("/exort debug player <player>", "message.usage_debug_player"),
+            usageLine(sender, "/exort debug player <player>", "message.usage_debug_player"),
             usageLine(
-                "/exort debug storage <storageId|player> [write]", "message.usage_debug_storage"),
-            usageLine("/exort debug cache status <storageId|player>", "message.usage_debug_cache"),
+                sender,
+                "/exort debug storage <storageId|player> [write]",
+                "message.usage_debug_storage"),
             usageLine(
+                sender,
+                "/exort debug cache status <storageId|player>",
+                "message.usage_debug_cache"),
+            usageLine(
+                sender,
                 "/exort debug verbose <cache|worldedit|pick|culling> start|stop [mode]",
                 "message.usage_debug_verbose"),
             usageLine(
+                sender,
                 "/exort debug culling client <player> status|enable|disable",
                 "message.usage_debug_culling_client"),
             usageLine(
+                sender,
                 "/exort debug benchmark start|stop [players] [seconds]",
                 "message.usage_debug_benchmark")));
     return 1;
   }
 
-  private Component usageLine(String command, String descriptionKey) {
+  private Component usageLine(CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
-        command, lang().tr(descriptionKey), lang().tr("message.command_click", command));
+        command, tr(sender, descriptionKey), tr(sender, "message.command_click", command));
   }
 
   private int cacheVerboseStart(
@@ -294,7 +303,7 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     var mode = CacheDebugService.Mode.fromString(rawMode);
     if (rawMode != null && mode == null) {
-      sendMessage(sender, lang().tr("message.debug_cache_mode_invalid", rawMode));
+      sendMessage(sender, tr(sender, "message.debug_cache_mode_invalid", rawMode));
       return 0;
     }
     UUID filter = null;
@@ -302,7 +311,7 @@ final class DebugCommand {
       try {
         filter = UUID.fromString(rawStorage.trim());
       } catch (IllegalArgumentException e) {
-        sendMessage(sender, lang().tr("message.debug_cache_storage_invalid", rawStorage));
+        sendMessage(sender, tr(sender, "message.debug_cache_storage_invalid", rawStorage));
         return 0;
       }
     }
@@ -312,8 +321,8 @@ final class DebugCommand {
             .name()
             .toLowerCase(Locale.ROOT);
     String filterText =
-        filter == null ? lang().tr("message.debug_cache_filter_none") : filter.toString();
-    sendMessage(sender, lang().tr("message.debug_cache_started", modeName, filterText));
+        filter == null ? tr(sender, "message.debug_cache_filter_none") : filter.toString();
+    sendMessage(sender, tr(sender, "message.debug_cache_started", modeName, filterText));
     return 1;
   }
 
@@ -321,7 +330,7 @@ final class DebugCommand {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     dependencies.cacheDebugService().stop(sender);
-    sendMessage(sender, lang().tr("message.debug_cache_stopped"));
+    sendMessage(sender, tr(sender, "message.debug_cache_stopped"));
     return 1;
   }
 
@@ -330,7 +339,7 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     var mode = WorldEditDebugService.Mode.fromString(rawMode);
     if (rawMode != null && mode == null) {
-      sendMessage(sender, lang().tr("message.debug_worldedit_mode_invalid", rawMode));
+      sendMessage(sender, tr(sender, "message.debug_worldedit_mode_invalid", rawMode));
       return 0;
     }
     dependencies.worldEditDebugService().start(sender, mode);
@@ -338,7 +347,7 @@ final class DebugCommand {
         (mode == null ? dependencies.worldEditDebugService().getMode() : mode)
             .name()
             .toLowerCase(Locale.ROOT);
-    sendMessage(sender, lang().tr("message.debug_worldedit_started", modeName));
+    sendMessage(sender, tr(sender, "message.debug_worldedit_started", modeName));
     return 1;
   }
 
@@ -346,7 +355,7 @@ final class DebugCommand {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     dependencies.worldEditDebugService().stop(sender);
-    sendMessage(sender, lang().tr("message.debug_worldedit_stopped"));
+    sendMessage(sender, tr(sender, "message.debug_worldedit_stopped"));
     return 1;
   }
 
@@ -355,7 +364,7 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     var mode = PickDebugService.Mode.fromString(rawMode);
     if (rawMode != null && mode == null) {
-      sendMessage(sender, lang().tr("message.debug_pick_mode_invalid", rawMode));
+      sendMessage(sender, tr(sender, "message.debug_pick_mode_invalid", rawMode));
       return 0;
     }
     dependencies.pickDebugService().start(sender, mode);
@@ -363,7 +372,7 @@ final class DebugCommand {
         (mode == null ? dependencies.pickDebugService().getMode() : mode)
             .name()
             .toLowerCase(Locale.ROOT);
-    sendMessage(sender, lang().tr("message.debug_pick_started", modeName));
+    sendMessage(sender, tr(sender, "message.debug_pick_started", modeName));
     return 1;
   }
 
@@ -371,7 +380,7 @@ final class DebugCommand {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     dependencies.pickDebugService().stop(sender);
-    sendMessage(sender, lang().tr("message.debug_pick_stopped"));
+    sendMessage(sender, tr(sender, "message.debug_pick_stopped"));
     return 1;
   }
 
@@ -380,18 +389,18 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     DisplayCullingService service = dependencies.displayCullingService().get();
     if (service == null) {
-      sendMessage(sender, lang().tr("message.debug_culling_unavailable"));
+      sendMessage(sender, tr(sender, "message.debug_culling_unavailable"));
       return 1;
     }
     var mode = DisplayCullingService.DebugMode.fromString(rawMode);
     if (rawMode != null && mode == null) {
-      sendMessage(sender, lang().tr("message.debug_culling_mode_invalid", rawMode));
+      sendMessage(sender, tr(sender, "message.debug_culling_mode_invalid", rawMode));
       return 0;
     }
     service.startDebug(sender, mode);
     String modeName =
         (mode == null ? service.getDebugMode() : mode).name().toLowerCase(Locale.ROOT);
-    sendMessage(sender, lang().tr("message.debug_culling_started", modeName));
+    sendMessage(sender, tr(sender, "message.debug_culling_started", modeName));
     return 1;
   }
 
@@ -400,11 +409,11 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     DisplayCullingService service = dependencies.displayCullingService().get();
     if (service == null) {
-      sendMessage(sender, lang().tr("message.debug_culling_unavailable"));
+      sendMessage(sender, tr(sender, "message.debug_culling_unavailable"));
       return 1;
     }
     service.stopDebug(sender);
-    sendMessage(sender, lang().tr("message.debug_culling_stopped"));
+    sendMessage(sender, tr(sender, "message.debug_culling_stopped"));
     return 1;
   }
 
@@ -413,13 +422,13 @@ final class DebugCommand {
     CommandSender sender = sender(context.getSource());
     DisplayCullingService service = dependencies.displayCullingService().get();
     if (service == null) {
-      sendMessage(sender, lang().tr("message.debug_culling_unavailable"));
+      sendMessage(sender, tr(sender, "message.debug_culling_unavailable"));
       return 1;
     }
     String rawPlayer = StringArgumentType.getString(context, ARG_PLAYER);
     OfflinePlayer target = resolveOfflinePlayer(rawPlayer);
     if (target == null) {
-      sendMessage(sender, lang().tr("message.debug_culling_client_invalid", rawPlayer));
+      sendMessage(sender, tr(sender, "message.debug_culling_client_invalid", rawPlayer));
       return 0;
     }
     String targetName =
@@ -432,16 +441,16 @@ final class DebugCommand {
         };
     sendMessage(
         sender,
-        lang()
-            .tr(
-                "message.debug_culling_client_status",
-                targetName,
-                status.playerListed() ? "enabled" : "disabled",
-                status.autoDetected() ? "detected" : "not-detected",
-                status.source(),
-                status.active() ? "active" : "inactive",
-                status.configEnabled() ? "enabled" : "disabled",
-                status.probeStatus().summary()));
+        tr(
+            sender,
+            "message.debug_culling_client_status",
+            targetName,
+            status.playerListed() ? "enabled" : "disabled",
+            status.autoDetected() ? "detected" : "not-detected",
+            status.source(),
+            status.active() ? "active" : "inactive",
+            status.configEnabled() ? "enabled" : "disabled",
+            status.probeStatus().summary()));
     return 1;
   }
 
@@ -471,16 +480,17 @@ final class DebugCommand {
         sendMessage(
             sender,
             clickableDebugPlayer(
-                lang()
-                    .tr(
-                        "message.debug_player_active",
-                        online.getName(),
-                        storageId,
-                        session.getTier().key(),
-                        loc.getWorld().getName(),
-                        loc.getBlockX(),
-                        loc.getBlockY(),
-                        loc.getBlockZ()),
+                sender,
+                tr(
+                    sender,
+                    "message.debug_player_active",
+                    online.getName(),
+                    storageId,
+                    session.getTier().key(),
+                    loc.getWorld().getName(),
+                    loc.getBlockX(),
+                    loc.getBlockY(),
+                    loc.getBlockZ()),
                 storageId));
         return 1;
       }
@@ -488,7 +498,7 @@ final class DebugCommand {
 
     var offline = Bukkit.getOfflinePlayer(name);
     if (offline == null || offline.getUniqueId() == null) {
-      sendMessage(sender, lang().tr("message.player_not_found"));
+      sendMessage(sender, tr(sender, "message.player_not_found"));
       return 1;
     }
     String playerName = offline.getName() != null ? offline.getName() : name;
@@ -504,23 +514,24 @@ final class DebugCommand {
               runSync(
                   () -> {
                     if (result.isEmpty()) {
-                      sendMessage(sender, lang().tr("message.debug_player_none", playerName));
+                      sendMessage(sender, tr(sender, "message.debug_player_none", playerName));
                       return;
                     }
                     var data = result.get();
                     sendMessage(
                         sender,
                         clickableDebugPlayer(
-                            lang()
-                                .tr(
-                                    "message.debug_player_last",
-                                    playerName,
-                                    data.storageId(),
-                                    data.tier(),
-                                    data.world(),
-                                    data.x(),
-                                    data.y(),
-                                    data.z()),
+                            sender,
+                            tr(
+                                sender,
+                                "message.debug_player_last",
+                                playerName,
+                                data.storageId(),
+                                data.tier(),
+                                data.world(),
+                                data.x(),
+                                data.y(),
+                                data.z()),
                             data.storageId()));
                   });
             });
@@ -531,7 +542,7 @@ final class DebugCommand {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     if (!(sender instanceof Player player)) {
-      sendMessage(sender, lang().tr("message.only_player"));
+      sendMessage(sender, tr(sender, "message.only_player"));
       return 1;
     }
     String raw = StringArgumentType.getString(context, ARG_STORAGE_ID);
@@ -542,7 +553,7 @@ final class DebugCommand {
       Player online = Bukkit.getPlayerExact(raw);
       OfflinePlayer offline = online != null ? online : Bukkit.getOfflinePlayer(raw);
       if (offline == null || (offline.getName() == null && !offline.hasPlayedBefore())) {
-        sendMessage(sender, lang().tr("message.debug_storage_invalid"));
+        sendMessage(sender, tr(sender, "message.debug_storage_invalid"));
         return 1;
       }
       String playerName = offline.getName() != null ? offline.getName() : raw;
@@ -558,7 +569,7 @@ final class DebugCommand {
                 runSync(
                     () -> {
                       if (result.isEmpty()) {
-                        sendMessage(sender, lang().tr("message.debug_player_none", playerName));
+                        sendMessage(sender, tr(sender, "message.debug_player_none", playerName));
                         return;
                       }
                       openStorageById(result.get().storageId(), write, player, sender);
@@ -592,12 +603,14 @@ final class DebugCommand {
               runSync(
                   () -> {
                     if (open.optTier().isEmpty() || open.cache() == null) {
-                      sendMessage(feedback, lang().tr("message.debug_storage_missing", storageId));
+                      sendMessage(
+                          feedback, tr(feedback, "message.debug_storage_missing", storageId));
                       return;
                     }
                     StorageTier tier = StorageTier.fromString(open.optTier().get()).orElse(null);
                     if (tier == null) {
-                      sendMessage(feedback, lang().tr("message.debug_storage_missing", storageId));
+                      sendMessage(
+                          feedback, tr(feedback, "message.debug_storage_missing", storageId));
                       return;
                     }
                     if (!viewer.isOnline()) return;
@@ -606,13 +619,13 @@ final class DebugCommand {
                         .openDebugSession(viewer, open.cache(), tier, write);
                     sendMessage(
                         feedback,
-                        lang()
-                            .tr(
-                                "message.debug_storage_opened",
-                                storageId,
-                                write
-                                    ? lang().tr("debug.mode.write")
-                                    : lang().tr("debug.mode.read")));
+                        tr(
+                            feedback,
+                            "message.debug_storage_opened",
+                            storageId,
+                            write
+                                ? tr(feedback, "debug.mode.write")
+                                : tr(feedback, "debug.mode.read")));
                   });
             });
   }
@@ -623,11 +636,15 @@ final class DebugCommand {
 
   private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
     ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to " + action, err);
-    runSync(() -> sendMessage(sender, lang().tr("message.operation_failed")));
+    runSync(() -> sendMessage(sender, tr(sender, "message.operation_failed")));
   }
 
   private Lang lang() {
     return dependencies.lang();
+  }
+
+  private String tr(CommandSender sender, String key, Object... params) {
+    return lang().tr(sender, key, params);
   }
 
   private void sendMessage(CommandSender sender, String message) {
@@ -640,7 +657,7 @@ final class DebugCommand {
 
   private record DebugStorageOpen(Optional<String> optTier, StorageCache cache) {}
 
-  private Component clickableDebugPlayer(String message, String storageId) {
+  private Component clickableDebugPlayer(CommandSender sender, String message, String storageId) {
     int idx = message.indexOf(storageId);
     if (idx < 0) {
       return Component.text(message);
@@ -651,7 +668,7 @@ final class DebugCommand {
             .clickEvent(ClickEvent.suggestCommand("/exort debug storage " + storageId))
             .hoverEvent(
                 net.kyori.adventure.text.event.HoverEvent.showText(
-                    Component.text(lang().tr("message.debug_player_click", storageId))));
+                    Component.text(tr(sender, "message.debug_player_click", storageId))));
     Component after = Component.text(message.substring(idx + storageId.length()));
     return before.append(idComponent).append(after);
   }
@@ -701,7 +718,7 @@ final class DebugCommand {
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasAdminPermission(sender)) return true;
-    sendMessage(sender, lang().tr("message.no_permission"));
+    sendMessage(sender, tr(sender, "message.no_permission"));
     return false;
   }
 

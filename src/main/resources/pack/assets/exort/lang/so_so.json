@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal kaydin",
+  "exort.item.crafting_terminal": "Terminal farsamo",
+  "exort.item.monitor": "Kormeere kaydin",
+  "exort.item.wire": "Fiilo kaydin",
+  "exort.item.storage_core": "Xudun kaydin",
+  "exort.item.import_bus": "Baska soo-dejinta",
+  "exort.item.export_bus": "Baska dhoofinta",
+  "exort.item.wireless_terminal": "Terminal bilaa fiilo",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baytari: %s%%",
+  "exort.item.wireless_terminal.owner": "Milkiile: %s",
+  "exort.item.wireless_terminal.not_linked": "Lama xirin",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

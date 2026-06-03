@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Geymslustöð",
+  "exort.item.crafting_terminal": "Smíðastöð",
+  "exort.item.monitor": "Geymsluskjár",
+  "exort.item.wire": "Geymslukapall",
+  "exort.item.storage_core": "Geymslukjarni",
+  "exort.item.import_bus": "Innflutningsrás",
+  "exort.item.export_bus": "Útflutningsrás",
+  "exort.item.wireless_terminal": "Þráðlaus stöð",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Rafhlaða: %s%%",
+  "exort.item.wireless_terminal.owner": "Eigandi: %s",
+  "exort.item.wireless_terminal.not_linked": "Ekki tengt",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

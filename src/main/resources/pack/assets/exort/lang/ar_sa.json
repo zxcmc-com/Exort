@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "طرفية التخزين",
+  "exort.item.crafting_terminal": "طرفية التصنيع",
+  "exort.item.monitor": "مراقب التخزين",
+  "exort.item.wire": "كابل التخزين",
+  "exort.item.storage_core": "نواة التخزين",
+  "exort.item.import_bus": "ناقل الاستيراد",
+  "exort.item.export_bus": "ناقل التصدير",
+  "exort.item.wireless_terminal": "طرفية لاسلكية",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "البطارية: %s%%",
+  "exort.item.wireless_terminal.owner": "المالك: %s",
+  "exort.item.wireless_terminal.not_linked": "غير مربوط",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

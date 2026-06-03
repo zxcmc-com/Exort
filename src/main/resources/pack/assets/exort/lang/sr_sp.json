@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Терминал складишта",
+  "exort.item.crafting_terminal": "Терминал израде",
+  "exort.item.monitor": "Монитор складишта",
+  "exort.item.wire": "Кабл складишта",
+  "exort.item.storage_core": "Језгро складишта",
+  "exort.item.import_bus": "Магистрала увоза",
+  "exort.item.export_bus": "Магистрала извоза",
+  "exort.item.wireless_terminal": "Бежични терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батерија: %s%%",
+  "exort.item.wireless_terminal.owner": "Власник: %s",
+  "exort.item.wireless_terminal.not_linked": "Није повезано",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Терминал хранилища",
+  "exort.item.crafting_terminal": "Терминал создания",
+  "exort.item.monitor": "Монитор хранилища",
+  "exort.item.wire": "Кабель хранилища",
+  "exort.item.storage_core": "Основа хранилища",
+  "exort.item.import_bus": "Шина импорта",
+  "exort.item.export_bus": "Шина экспорта",
+  "exort.item.wireless_terminal": "Беспроводной терминал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарея: %s%%",
+  "exort.item.wireless_terminal.owner": "Владелец: %s",
+  "exort.item.wireless_terminal.not_linked": "Не привязан",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

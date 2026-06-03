@@ -103,7 +103,7 @@ public class StorageSession extends AbstractStorageSession {
     }
 
     // Buttons and fillers
-    String pageInfo = lang.tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
+    String pageInfo = tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
     List<Component> pageLore = new ArrayList<>();
     pageLore.add(Component.text(pageInfo).decoration(TextDecoration.ITALIC, false));
     String searchLabel = currentPageSearchLabel();
@@ -118,14 +118,13 @@ public class StorageSession extends AbstractStorageSession {
     if (isDisplayListTruncated()) {
       pageLore.add(
           Component.text(
-                  lang.tr(
-                      "gui.list_truncated", StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES))
+                  tr("gui.list_truncated", StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES))
               .decoration(TextDecoration.ITALIC, false));
     }
     contents[GuiLayout.Storage.SLOT_PREV] =
-        GuiItems.pagePrev(lang.tr("gui.prev_page"), pageLore, useFillers);
+        GuiItems.pagePrev(tr("gui.prev_page"), pageLore, useFillers);
     contents[GuiLayout.Storage.SLOT_NEXT] =
-        GuiItems.pageNext(lang.tr("gui.next_page"), pageLore, useFillers);
+        GuiItems.pageNext(tr("gui.next_page"), pageLore, useFillers);
     if (useFillers) {
       ItemStack filler = GuiItems.filler(true);
       for (int i = 46; i <= 52; i++) {
@@ -151,16 +150,17 @@ public class StorageSession extends AbstractStorageSession {
   }
 
   private ItemStack sortButton() {
-    return StorageGuiControls.sortButton(lang, sortMode, useFillers);
+    return StorageGuiControls.sortButton(lang, viewer, sortMode, useFillers);
   }
 
   private ItemStack searchButton() {
-    return StorageGuiControls.searchButton(lang, hasSearch(), getSearchQuery(), useFillers);
+    return StorageGuiControls.searchButton(lang, viewer, hasSearch(), getSearchQuery(), useFillers);
   }
 
   private ItemStack infoButton() {
     return StorageGuiControls.infoButton(
         lang,
+        viewer,
         cache,
         tier,
         infoButtonState.showStorageId(),

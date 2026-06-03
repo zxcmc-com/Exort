@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "ಸಂಗ್ರಹ ಟರ್ಮಿನಲ್",
+  "exort.item.crafting_terminal": "ತಯಾರಿಕೆ ಟರ್ಮಿನಲ್",
+  "exort.item.monitor": "ಸಂಗ್ರಹ ಮಾನಿಟರ್",
+  "exort.item.wire": "ಸಂಗ್ರಹ ಕೇಬಲ್",
+  "exort.item.storage_core": "ಸಂಗ್ರಹ ಕೋರ್",
+  "exort.item.import_bus": "ಆಮದು ಬಸ್",
+  "exort.item.export_bus": "ರಫ್ತು ಬಸ್",
+  "exort.item.wireless_terminal": "ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "ಬ್ಯಾಟರಿ: %s%%",
+  "exort.item.wireless_terminal.owner": "ಮಾಲೀಕ: %s",
+  "exort.item.wireless_terminal.not_linked": "ಸಂಪರ್ಕಿಸಲಿಲ್ಲ",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

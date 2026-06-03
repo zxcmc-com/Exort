@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Späicherterminal",
+  "exort.item.crafting_terminal": "Bauterminal",
+  "exort.item.monitor": "Späichermonitor",
+  "exort.item.wire": "Späicherkabel",
+  "exort.item.storage_core": "Späicherkär",
+  "exort.item.import_bus": "Importbus",
+  "exort.item.export_bus": "Exportbus",
+  "exort.item.wireless_terminal": "Drahtlose Terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batterie: %s%%",
+  "exort.item.wireless_terminal.owner": "Besëtzer: %s",
+  "exort.item.wireless_terminal.not_linked": "Net verbonnen",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

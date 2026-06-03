@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terfynell storio",
+  "exort.item.crafting_terminal": "Terfynell grefftio",
+  "exort.item.monitor": "Monitor storio",
+  "exort.item.wire": "Cebl storio",
+  "exort.item.storage_core": "Craidd storio",
+  "exort.item.import_bus": "Bws mewnforio",
+  "exort.item.export_bus": "Bws allforio",
+  "exort.item.wireless_terminal": "Terfynell ddiwifr",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batri: %s%%",
+  "exort.item.wireless_terminal.owner": "Perchennog: %s",
+  "exort.item.wireless_terminal.not_linked": "Heb ei gysylltu",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

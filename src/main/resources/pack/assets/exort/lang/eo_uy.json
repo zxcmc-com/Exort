@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Stokada terminalo",
+  "exort.item.crafting_terminal": "Krea terminalo",
+  "exort.item.monitor": "Stokada monitoro",
+  "exort.item.wire": "Stokada kablo",
+  "exort.item.storage_core": "Stokada kerno",
+  "exort.item.import_bus": "Importa buso",
+  "exort.item.export_bus": "Eksporta buso",
+  "exort.item.wireless_terminal": "Sendrata terminalo",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterio: %s%%",
+  "exort.item.wireless_terminal.owner": "Posedanto: %s",
+  "exort.item.wireless_terminal.not_linked": "Ne ligita",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

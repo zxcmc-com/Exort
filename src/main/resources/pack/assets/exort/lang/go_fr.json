@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminau de garde",
+  "exort.item.crafting_terminal": "Terminau de fabricaçon",
+  "exort.item.monitor": "Moniteur de garde",
+  "exort.item.wire": "Cable de garde",
+  "exort.item.storage_core": "Cœur de garde",
+  "exort.item.import_bus": "Bus d'entrada",
+  "exort.item.export_bus": "Bus de sortie",
+  "exort.item.wireless_terminal": "Terminau sans fil",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batterie : %s%%",
+  "exort.item.wireless_terminal.owner": "Maître : %s",
+  "exort.item.wireless_terminal.not_linked": "Pas relié",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

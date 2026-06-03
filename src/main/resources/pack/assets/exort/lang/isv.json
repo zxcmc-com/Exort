@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal skladišča",
+  "exort.item.crafting_terminal": "Terminal tvorjenja",
+  "exort.item.monitor": "Monitor skladišča",
+  "exort.item.wire": "Kabel skladišča",
+  "exort.item.storage_core": "Jadro skladišča",
+  "exort.item.import_bus": "Šina importa",
+  "exort.item.export_bus": "Šina eksporta",
+  "exort.item.wireless_terminal": "Bezžični terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterija: %s%%",
+  "exort.item.wireless_terminal.owner": "Vlastnik: %s",
+  "exort.item.wireless_terminal.not_linked": "Ne povezano",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

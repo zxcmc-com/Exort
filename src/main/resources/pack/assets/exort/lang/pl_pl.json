@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal magazynowania",
+  "exort.item.crafting_terminal": "Terminal tworzenia",
+  "exort.item.monitor": "Monitor magazynowania",
+  "exort.item.wire": "Kabel magazynowania",
+  "exort.item.storage_core": "Rdzeń magazynowania",
+  "exort.item.import_bus": "Szyna importu",
+  "exort.item.export_bus": "Szyna eksportu",
+  "exort.item.wireless_terminal": "Terminal bezprzewodowy",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bateria: %s%%",
+  "exort.item.wireless_terminal.owner": "Właściciel: %s",
+  "exort.item.wireless_terminal.not_linked": "Nie połączono",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

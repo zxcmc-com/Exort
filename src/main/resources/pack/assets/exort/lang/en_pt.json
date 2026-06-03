@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Cargo Hold Terminal",
+  "exort.item.crafting_terminal": "Craftin' Terminal",
+  "exort.item.monitor": "Cargo Hold Lookout",
+  "exort.item.wire": "Cargo Hold Line",
+  "exort.item.storage_core": "Cargo Hold Heart",
+  "exort.item.import_bus": "Import Skiff",
+  "exort.item.export_bus": "Export Skiff",
+  "exort.item.wireless_terminal": "Wireless Speaking Tube",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Charge: %s%%",
+  "exort.item.wireless_terminal.owner": "Captain: %s",
+  "exort.item.wireless_terminal.not_linked": "No berth set",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

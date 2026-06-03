@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "भंडारण टर्मिनल",
+  "exort.item.crafting_terminal": "निर्माण टर्मिनल",
+  "exort.item.monitor": "भंडारण मॉनिटर",
+  "exort.item.wire": "भंडारण केबल",
+  "exort.item.storage_core": "भंडारण कोर",
+  "exort.item.import_bus": "आयात बस",
+  "exort.item.export_bus": "निर्यात बस",
+  "exort.item.wireless_terminal": "वायरलेस टर्मिनल",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "बैटरी: %s%%",
+  "exort.item.wireless_terminal.owner": "स्वामी: %s",
+  "exort.item.wireless_terminal.not_linked": "लिंक नहीं है",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

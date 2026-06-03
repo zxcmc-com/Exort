@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Pūnaewele waihona",
+  "exort.item.crafting_terminal": "Pūnaewele hana",
+  "exort.item.monitor": "Nānā waihona",
+  "exort.item.wire": "Uea waihona",
+  "exort.item.storage_core": "Iwi waihona",
+  "exort.item.import_bus": "Kaʻa hoʻokomo",
+  "exort.item.export_bus": "Kaʻa hoʻokuʻu",
+  "exort.item.wireless_terminal": "Pūnaewele uwea ʻole",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Pākaukau: %s%%",
+  "exort.item.wireless_terminal.owner": "Mea nona: %s",
+  "exort.item.wireless_terminal.not_linked": "ʻAʻole i hoʻopili ʻia",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

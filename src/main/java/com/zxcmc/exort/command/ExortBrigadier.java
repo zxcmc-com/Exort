@@ -76,35 +76,42 @@ public final class ExortBrigadier {
   private int help(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (!hasAnyPermission(sender)) {
-      sendMessage(sender, lang().tr("message.no_permission"));
+      sendMessage(sender, lang().tr(sender, "message.no_permission"));
       return 0;
     }
     Lang lang = lang();
     CommandFeedback.sendBlock(
         sender,
-        Component.text(lang.tr("message.help_header")),
-        rootHelpLines(lang, hasAdminPermission(sender)));
+        Component.text(lang.tr(sender, "message.help_header")),
+        rootHelpLines(lang, sender, hasAdminPermission(sender)));
     return 1;
   }
 
   static List<Component> rootHelpLines(Lang lang, boolean admin) {
+    return rootHelpLines(lang, null, admin);
+  }
+
+  static List<Component> rootHelpLines(Lang lang, CommandSender sender, boolean admin) {
     List<Component> lines = new ArrayList<>();
-    lines.add(helpLine(lang, "/exort inventory", "message.help_inventory"));
-    lines.add(helpLine(lang, "/exort give", "message.help_give"));
+    lines.add(helpLine(lang, sender, "/exort inventory", "message.help_inventory"));
+    lines.add(helpLine(lang, sender, "/exort give", "message.help_give"));
     if (admin) {
-      lines.add(helpLine(lang, "/exort resourcepack", "message.help_resourcepack"));
-      lines.add(helpLine(lang, "/exort language", "message.help_language"));
-      lines.add(helpLine(lang, "/exort mode", "message.help_mode"));
-      lines.add(helpLine(lang, "/exort debug", "message.help_debug"));
-      lines.add(helpLine(lang, "/exort version", "message.help_version"));
-      lines.add(helpLine(lang, "/exort reload", "message.help_reload"));
+      lines.add(helpLine(lang, sender, "/exort resourcepack", "message.help_resourcepack"));
+      lines.add(helpLine(lang, sender, "/exort language", "message.help_language"));
+      lines.add(helpLine(lang, sender, "/exort mode", "message.help_mode"));
+      lines.add(helpLine(lang, sender, "/exort debug", "message.help_debug"));
+      lines.add(helpLine(lang, sender, "/exort version", "message.help_version"));
+      lines.add(helpLine(lang, sender, "/exort reload", "message.help_reload"));
     }
     return List.copyOf(lines);
   }
 
-  private static Component helpLine(Lang lang, String command, String descriptionKey) {
+  private static Component helpLine(
+      Lang lang, CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
-        command, lang.tr(descriptionKey), lang.tr("message.command_click", command));
+        command,
+        lang.tr(sender, descriptionKey),
+        lang.tr(sender, "message.command_click", command));
   }
 
   private int reload(CommandContext<CommandSourceStack> context) {
@@ -119,7 +126,7 @@ public final class ExortBrigadier {
                 sendAsyncFailure(sender, "reload runtime", err);
                 return;
               }
-              runSync(() -> sendMessage(sender, lang().tr("message.reload")));
+              runSync(() -> sendMessage(sender, lang().tr(sender, "message.reload")));
             });
     return 1;
   }
@@ -128,7 +135,11 @@ public final class ExortBrigadier {
     if (!ensurePermission(context)) return 0;
     sendMessage(
         sender(context.getSource()),
-        lang().tr("message.version", dependencies.pluginVersion().get()));
+        lang()
+            .tr(
+                sender(context.getSource()),
+                "message.version",
+                dependencies.pluginVersion().get()));
     return 1;
   }
 
@@ -138,7 +149,7 @@ public final class ExortBrigadier {
 
   private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
     ExortLog.log(plugin, Level.WARNING, "Failed to " + action, err);
-    runSync(() -> sendMessage(sender, lang().tr("message.operation_failed")));
+    runSync(() -> sendMessage(sender, lang().tr(sender, "message.operation_failed")));
   }
 
   private Lang lang() {
@@ -152,7 +163,7 @@ public final class ExortBrigadier {
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasAdminPermission(sender)) return true;
-    sendMessage(sender, lang().tr("message.no_permission"));
+    sendMessage(sender, lang().tr(sender, "message.no_permission"));
     return false;
   }
 

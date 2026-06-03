@@ -153,31 +153,36 @@ final class GiveCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensureGivePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
     CommandFeedback.sendBlock(
-        sender(context.getSource()),
-        Component.text(dependencies.lang().tr("message.usage_give_header")),
+        sender,
+        Component.text(dependencies.lang().tr(sender, "message.usage_give_header")),
         List.of(
-            usageLine("/exort give <player> storage <tier> [amount]", "message.usage_give_storage"),
-            usageLine("/exort give <player> <item> [amount]", "message.usage_give_item"),
-            Component.text(dependencies.lang().tr("message.usage_give_items"))));
+            usageLine(
+                sender,
+                "/exort give <player> storage <tier> [amount]",
+                "message.usage_give_storage"),
+            usageLine(sender, "/exort give <player> <item> [amount]", "message.usage_give_item"),
+            Component.text(dependencies.lang().tr(sender, "message.usage_give_items"))));
     return 1;
   }
 
   private int storageUsage(CommandContext<CommandSourceStack> context) {
     if (!ensureGivePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     CommandFeedback.sendBlock(
-        sender(context.getSource()),
-        Component.text(dependencies.lang().tr("message.usage_give_header")),
-        List.of(usageLine(storageUsageCommand(playerName), "message.usage_give_storage")));
+        sender,
+        Component.text(dependencies.lang().tr(sender, "message.usage_give_header")),
+        List.of(usageLine(sender, storageUsageCommand(playerName), "message.usage_give_storage")));
     return 1;
   }
 
-  private Component usageLine(String command, String descriptionKey) {
+  private Component usageLine(CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
         command,
-        dependencies.lang().tr(descriptionKey),
-        dependencies.lang().tr("message.command_click", command));
+        dependencies.lang().tr(sender, descriptionKey),
+        dependencies.lang().tr(sender, "message.command_click", command));
   }
 
   static String storageUsageCommand(String playerName) {
@@ -196,7 +201,7 @@ final class GiveCommand {
     String tierArg = StringArgumentType.getString(context, ARG_TIER).toLowerCase(Locale.ROOT);
     var tierOpt = StorageTier.fromString(tierArg);
     if (tierOpt.isEmpty()) {
-      sendMessage(sender, dependencies.lang().tr("message.give_unknown"));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.give_unknown"));
       return 1;
     }
     StorageTier tier = tierOpt.get();
@@ -223,7 +228,7 @@ final class GiveCommand {
       return 1;
     }
     int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
-    String label = dependencies.lang().tr(itemTranslationKey);
+    String label = dependencies.lang().tr(sender, itemTranslationKey);
     sendGiveResult(
         sender,
         target,
@@ -237,7 +242,7 @@ final class GiveCommand {
     String playerName = StringArgumentType.getString(context, ARG_PLAYER);
     Player target = Bukkit.getPlayerExact(playerName);
     if (target == null) {
-      sendMessage(sender, dependencies.lang().tr("message.player_not_found"));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.player_not_found"));
     }
     return target;
   }
@@ -282,15 +287,20 @@ final class GiveCommand {
     }
     List<String> lines = new ArrayList<>();
     lines.add(
-        dependencies.lang().tr("message.give_success", result.total(), itemName, target.getName()));
+        dependencies
+            .lang()
+            .tr(sender, "message.give_success", result.total(), itemName, target.getName()));
     if (result.dropped() > 0) {
-      lines.add(dependencies.lang().tr("message.give_dropped", result.dropped(), target.getName()));
+      lines.add(
+          dependencies
+              .lang()
+              .tr(sender, "message.give_dropped", result.dropped(), target.getName()));
     }
     if (result.total() < requested) {
       lines.add(
           dependencies
               .lang()
-              .tr("message.give_partial", result.total(), requested, target.getName()));
+              .tr(sender, "message.give_partial", result.total(), requested, target.getName()));
     }
     sendResult(sender, lines);
   }
@@ -332,7 +342,7 @@ final class GiveCommand {
   private boolean ensureGivePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasGivePermission(sender)) return true;
-    sendMessage(sender, dependencies.lang().tr("message.no_permission"));
+    sendMessage(sender, dependencies.lang().tr(sender, "message.no_permission"));
     return false;
   }
 

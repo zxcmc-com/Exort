@@ -17,19 +17,19 @@ public final class PlayerFeedback {
   }
 
   public void info(Player player, String key, Object... params) {
-    send(player, Style.INFO, lang.tr(key, params));
+    send(player, Style.INFO, lang.tr(player, key, params));
   }
 
   public void success(Player player, String key, Object... params) {
-    send(player, Style.SUCCESS, lang.tr(key, params));
+    send(player, Style.SUCCESS, lang.tr(player, key, params));
   }
 
   public void warn(Player player, String key, Object... params) {
-    send(player, Style.WARN, lang.tr(key, params));
+    send(player, Style.WARN, lang.tr(player, key, params));
   }
 
   public void error(Player player, String key, Object... params) {
-    send(player, Style.ERROR, lang.tr(key, params));
+    send(player, Style.ERROR, lang.tr(player, key, params));
   }
 
   public void actionBar(Player player, String key, Object... params) {

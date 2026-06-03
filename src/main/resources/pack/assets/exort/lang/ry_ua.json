@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Тэрмінал сховішча",
+  "exort.item.crafting_terminal": "Тэрмінал стварэння",
+  "exort.item.monitor": "Манітор сховішча",
+  "exort.item.wire": "Кабель сховішча",
+  "exort.item.storage_core": "Ядро сховішча",
+  "exort.item.import_bus": "Шына імпарту",
+  "exort.item.export_bus": "Шына экспарту",
+  "exort.item.wireless_terminal": "Бесправадны тэрмінал",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Батарэя: %s%%",
+  "exort.item.wireless_terminal.owner": "Уладальнік: %s",
+  "exort.item.wireless_terminal.not_linked": "Не прывязана",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

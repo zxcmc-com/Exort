@@ -34,6 +34,7 @@ public class CustomItems {
   private final String wirelessItemModel;
   private final String wirelessDisabledItemModel;
   private final String wirelessVanillaModel;
+  private final boolean clientTranslations;
 
   public CustomItems(
       StorageKeys keys,
@@ -47,7 +48,8 @@ public class CustomItems {
       String exportBusItemModel,
       String wirelessItemModel,
       String wirelessDisabledItemModel,
-      String wirelessVanillaModel) {
+      String wirelessVanillaModel,
+      boolean clientTranslations) {
     this.keys = keys;
     this.lang = lang;
     this.wireItemModel = wireItemModel == null ? "" : wireItemModel;
@@ -62,6 +64,7 @@ public class CustomItems {
     this.wirelessDisabledItemModel =
         wirelessDisabledItemModel == null ? "" : wirelessDisabledItemModel;
     this.wirelessVanillaModel = wirelessVanillaModel == null ? "" : wirelessVanillaModel;
+    this.clientTranslations = clientTranslations;
   }
 
   public ItemStack storageItem(StorageTier tier, String storageId) {
@@ -92,8 +95,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.storage_core")).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.storage_core"));
       meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "storage_core");
@@ -107,8 +109,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.terminal")).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.terminal"));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "terminal");
       ItemModelUtil.applyItemModel(meta, terminalItemModel);
@@ -121,9 +122,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.crafting_terminal"))
-              .decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.crafting_terminal"));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "crafting_terminal");
       ItemModelUtil.applyItemModel(meta, craftingTerminalItemModel);
@@ -136,7 +135,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(Component.text(lang.tr("item.wire")).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.wire"));
       ItemModelUtil.applyItemModel(meta, wireItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "wire");
@@ -149,8 +148,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.monitor")).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.monitor"));
       ItemModelUtil.applyItemModel(meta, monitorItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "monitor");
@@ -163,8 +161,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.import_bus")).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.import_bus"));
       ItemModelUtil.applyItemModel(meta, importBusItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "import_bus");
@@ -177,8 +174,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.export_bus")).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.export_bus"));
       ItemModelUtil.applyItemModel(meta, exportBusItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "export_bus");
@@ -191,9 +187,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(Material.SHIELD);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(
-          Component.text(lang.tr("item.wireless_terminal"))
-              .decoration(TextDecoration.ITALIC, false));
+      meta.itemName(lang.itemComponent(clientTranslations, "item.wireless_terminal"));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "wireless_terminal");
       if (owner != null) {
@@ -235,52 +229,44 @@ public class CustomItems {
         return true;
       }
       case "storage_core" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.storage_core")).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.storage_core"));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         ItemModelUtil.applyItemModel(meta, storageItemModel);
         stack.setItemMeta(meta);
         return true;
       }
       case "terminal" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.terminal")).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.terminal"));
         ItemModelUtil.applyItemModel(meta, terminalItemModel);
         stack.setItemMeta(meta);
         return true;
       }
       case "crafting_terminal" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.crafting_terminal"))
-                .decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.crafting_terminal"));
         ItemModelUtil.applyItemModel(meta, craftingTerminalItemModel);
         stack.setItemMeta(meta);
         return true;
       }
       case "wire" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.wire")).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.wire"));
         ItemModelUtil.applyItemModel(meta, wireItemModel);
         stack.setItemMeta(meta);
         return true;
       }
       case "monitor" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.monitor")).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.monitor"));
         ItemModelUtil.applyItemModel(meta, monitorItemModel);
         stack.setItemMeta(meta);
         return true;
       }
       case "import_bus" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.import_bus")).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.import_bus"));
         ItemModelUtil.applyItemModel(meta, importBusItemModel);
         stack.setItemMeta(meta);
         return true;
       }
       case "export_bus" -> {
-        meta.itemName(
-            Component.text(lang.tr("item.export_bus")).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(lang.itemComponent(clientTranslations, "item.export_bus"));
         ItemModelUtil.applyItemModel(meta, exportBusItemModel);
         stack.setItemMeta(meta);
         return true;
@@ -319,6 +305,10 @@ public class CustomItems {
       ItemModelUtil.applyItemModel(
           meta, wirelessItemModel.isEmpty() ? wirelessVanillaModel : wirelessItemModel);
     }
+  }
+
+  public boolean clientTranslations() {
+    return clientTranslations;
   }
 
   public Optional<StorageTier> tierFromItem(ItemStack stack) {
@@ -394,18 +384,18 @@ public class CustomItems {
     long max = tier.maxItems();
     double percent =
         Math.min(100.0, Math.max(0.0, (double) currentAmount / Math.max(1, max) * 100.0));
-    String line =
-        lang.tr(
+    List<Component> lore = new ArrayList<>();
+    lore.add(
+        lang.itemComponent(
+            clientTranslations,
             "lore.storage.capacity",
             formatNumber(currentAmount),
             formatNumber(max),
-            FORMAT_PERCENT.format(percent) + "%");
-    List<Component> lore = new ArrayList<>();
-    lore.add(Component.text(line).decoration(TextDecoration.ITALIC, false));
+            FORMAT_PERCENT.format(percent) + "%"));
     if (storageId != null && !storageId.isBlank() && storageId.length() >= STORAGE_ID_TAIL_LENGTH) {
       String tail = storageId.substring(storageId.length() - STORAGE_ID_TAIL_LENGTH);
       lore.add(
-          Component.text(lang.tr("lore.storage.id_tail", tail))
+          lang.itemComponent(clientTranslations, "lore.storage.id_tail", tail)
               .color(NamedTextColor.GRAY)
               .decoration(TextDecoration.ITALIC, false));
     }

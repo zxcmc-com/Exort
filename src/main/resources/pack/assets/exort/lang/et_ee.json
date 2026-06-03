@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Salvestusterminal",
+  "exort.item.crafting_terminal": "Meisterdamisterminal",
+  "exort.item.monitor": "Salvestusmonitor",
+  "exort.item.wire": "Salvestuskaabel",
+  "exort.item.storage_core": "Salvestustuum",
+  "exort.item.import_bus": "Impordisiin",
+  "exort.item.export_bus": "Ekspordisiin",
+  "exort.item.wireless_terminal": "Juhtmeta terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Aku: %s%%",
+  "exort.item.wireless_terminal.owner": "Omanik: %s",
+  "exort.item.wireless_terminal.not_linked": "Pole seotud",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

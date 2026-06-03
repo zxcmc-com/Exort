@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Τερματικό αποθήκευσης",
+  "exort.item.crafting_terminal": "Τερματικό κατασκευής",
+  "exort.item.monitor": "Οθόνη αποθήκευσης",
+  "exort.item.wire": "Καλώδιο αποθήκευσης",
+  "exort.item.storage_core": "Πυρήνας αποθήκευσης",
+  "exort.item.import_bus": "Δίαυλος εισαγωγής",
+  "exort.item.export_bus": "Δίαυλος εξαγωγής",
+  "exort.item.wireless_terminal": "Ασύρματο τερματικό",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Μπαταρία: %s%%",
+  "exort.item.wireless_terminal.owner": "Ιδιοκτήτης: %s",
+  "exort.item.wireless_terminal.not_linked": "Δεν είναι συνδεδεμένο",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -57,6 +57,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   private SearchQuery lastBuildSearchQuery;
   private int lastBuildPage = -1;
   private long lastBuildNameServiceVersion = -1L;
+  private String lastBuildItemLanguage = "";
   protected final boolean wireless;
   private static final long WIRELESS_REFRESH_TICKS = 40L;
   private int wirelessRefreshTaskId = -1;
@@ -191,15 +192,17 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected boolean matchesQuery(ItemStack stack) {
-    return searchQuery.matches(stack, itemNames);
+    return searchQuery.matches(stack, itemNames, itemDictionaryLanguage());
   }
 
   protected List<DisplayEntry> buildDisplayList() {
     long version = cache.version();
-    long nameServiceVersion = itemNames == null ? 0L : itemNames.version();
+    String itemLanguage = itemDictionaryLanguage();
+    long nameServiceVersion = itemNames == null ? 0L : itemNames.version(itemLanguage);
     if (!wirelessForceRebuild
         && version == lastBuildVersion
         && nameServiceVersion == lastBuildNameServiceVersion
+        && Objects.equals(itemLanguage, lastBuildItemLanguage)
         && sortMode == lastBuildSortMode
         && sortFrozen == lastBuildSortFrozen
         && page == lastBuildPage
@@ -219,6 +222,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
                     sortOrder,
                     searchQuery,
                     itemNames,
+                    itemLanguage,
                     page,
                     pageSize(),
                     StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES,
@@ -227,13 +231,14 @@ public abstract class AbstractStorageSession implements SearchableSession {
     searchResultsCount = result.searchResultsCount();
     displayCategories = result.displayCategories();
     displayListTruncated = result.truncated();
-    rememberBuildCache(version, nameServiceVersion);
+    rememberBuildCache(version, nameServiceVersion, itemLanguage);
     return result.displayList();
   }
 
-  private void rememberBuildCache(long version, long nameServiceVersion) {
+  private void rememberBuildCache(long version, long nameServiceVersion, String itemLanguage) {
     lastBuildVersion = version;
     lastBuildNameServiceVersion = nameServiceVersion;
+    lastBuildItemLanguage = itemLanguage;
     lastBuildSortMode = sortMode;
     lastBuildSortFrozen = sortFrozen;
     lastBuildSearchQuery = searchQuery;
@@ -306,7 +311,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     for (int i = start; i < end; i++) {
       Integer category = displayCategories.get(i);
       if (category != null) {
-        return CategoryLabels.labelForIndex(category, lang);
+        return CategoryLabels.labelForIndex(category, lang, viewer);
       }
     }
     return null;
@@ -318,7 +323,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     }
     int searchPages = searchPages();
     if (page < searchPages) {
-      return lang.tr("gui.search.results");
+      return tr("gui.search.results");
     }
     return null;
   }
@@ -339,8 +344,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     double free = 1.0 - progress;
     String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
     bossBar.setTitle(
-        lang.tr(
-            "gui.bossbar", tier.displayName(), formatNumber(current), formatNumber(max), percent));
+        tr("gui.bossbar", tier.displayName(), formatNumber(current), formatNumber(max), percent));
     bossBar.setColor(readOnly ? BarColor.RED : freeColorBar(free));
     bossBar.setProgress(progress);
   }
@@ -380,11 +384,22 @@ public abstract class AbstractStorageSession implements SearchableSession {
 
   protected abstract void triggerInfoError();
 
+  protected String tr(String key, Object... params) {
+    return lang.tr(viewer, key, params);
+  }
+
+  protected String itemDictionaryLanguage() {
+    if (itemNames == null) {
+      return lang.configuredLanguage();
+    }
+    return itemNames.dictionaryLanguage(viewer.locale().toString(), lang.configuredLanguage());
+  }
+
   protected long depositFromStack(ItemStack stack) {
     var ws = manager.wirelessService();
     if (ws != null) {
       if (isWireless() && ws.isWireless(stack)) {
-        String message = manager.lang().tr("message.wireless.self_store");
+        String message = tr("message.wireless.self_store");
         setInfoErrorMessage(message);
         triggerInfoError();
         manager.playerFeedback().errorMessage(viewer, message);
@@ -408,7 +423,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     var ws = manager.wirelessService();
     if (ws != null) {
       if (isWireless() && ws.isWireless(cursor)) {
-        String message = manager.lang().tr("message.wireless.self_store");
+        String message = tr("message.wireless.self_store");
         setInfoErrorMessage(message);
         triggerInfoError();
         manager.playerFeedback().errorMessage(viewer, message);

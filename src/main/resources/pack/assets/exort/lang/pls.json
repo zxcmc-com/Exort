@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal de guardado",
+  "exort.item.crafting_terminal": "Terminal de hacer",
+  "exort.item.monitor": "Monitor de guardado",
+  "exort.item.wire": "Cable de guardado",
+  "exort.item.storage_core": "Corazón de guardado",
+  "exort.item.import_bus": "Bus pa meter",
+  "exort.item.export_bus": "Bus pa sacar",
+  "exort.item.wireless_terminal": "Terminal sin cable",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batería: %s%%",
+  "exort.item.wireless_terminal.owner": "Dueño: %s",
+  "exort.item.wireless_terminal.not_linked": "No está amarrado",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

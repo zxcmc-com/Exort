@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Storehouse Terminal",
+  "exort.item.crafting_terminal": "Crafting Terminal",
+  "exort.item.monitor": "Storehouse Watch",
+  "exort.item.wire": "Storehouse Cord",
+  "exort.item.storage_core": "Storehouse Heart",
+  "exort.item.import_bus": "Import Coach",
+  "exort.item.export_bus": "Export Coach",
+  "exort.item.wireless_terminal": "Unseen Terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Battery: %s%%",
+  "exort.item.wireless_terminal.owner": "Master: %s",
+  "exort.item.wireless_terminal.not_linked": "Not bound",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

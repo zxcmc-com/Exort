@@ -74,7 +74,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private final int wireHardCap;
   private final Material wireMaterial;
   private final Material storageCarrier;
-  private final String monitorName;
+  private final Component monitorName;
   private final String enabledModel;
   private final String disabledModel;
   private final ScreenConfig itemConfig;
@@ -109,7 +109,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       double offsetY,
       double offsetZ,
       DisplayMetadataService metadataService,
-      String monitorName,
+      Component monitorName,
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
@@ -139,7 +139,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     this.wireHardCap = wireHardCap;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
-    this.monitorName = monitorName == null ? "" : monitorName;
+    this.monitorName = monitorName;
     this.enabledModel = enabledModel == null ? "" : enabledModel;
     this.disabledModel = disabledModel == null ? this.enabledModel : disabledModel;
     this.itemConfig = itemConfig;
@@ -308,10 +308,9 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
 
   @Override
   protected void decorateMeta(ItemMeta meta, Block block) {
-    if (!monitorName.isEmpty()) {
+    if (monitorName != null) {
       meta.displayName(
-          net.kyori.adventure.text.Component.text(monitorName)
-              .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
+          monitorName.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
     }
   }
 
@@ -332,8 +331,8 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         .set(new Vector3f((float) displayScale, (float) displayScale, (float) displayScale));
     t.getLeftRotation().set(DisplayRotation.rotationForFacing(facingFor(block)));
     t.getRightRotation().identity();
-    if (!monitorName.isEmpty()) {
-      display.customName(net.kyori.adventure.text.Component.text(monitorName));
+    if (monitorName != null) {
+      display.customName(monitorName);
       display.setCustomNameVisible(false);
     } else {
       display.customName(null);

@@ -47,13 +47,14 @@ final class LangCommand {
 
   private int usage(CommandContext<CommandSourceStack> context) {
     if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
     CommandFeedback.sendBlock(
-        sender(context.getSource()),
-        Component.text(dependencies.lang().tr("message.usage_language_header")),
+        sender,
+        Component.text(dependencies.lang().tr(sender, "message.usage_language_header")),
         List.of(
-            usageLine("/exort language status", "message.usage_language_status"),
-            usageLine("/exort language set <lang>", "message.usage_language_set"),
-            usageLine("/exort language refresh", "message.usage_language_refresh")));
+            usageLine(sender, "/exort language status", "message.usage_language_status"),
+            usageLine(sender, "/exort language set <lang>", "message.usage_language_set"),
+            usageLine(sender, "/exort language refresh", "message.usage_language_refresh")));
     return 1;
   }
 
@@ -73,8 +74,8 @@ final class LangCommand {
               }
               runSync(
                   () -> {
-                    dependencies.lang().reload(status.activeLanguage());
-                    sendMessage(sender, dependencies.lang().tr("message.lang_refreshed"));
+                    dependencies.lang().reload(normalized);
+                    sendMessage(sender, dependencies.lang().tr(sender, "message.lang_refreshed"));
                   });
             });
     return 1;
@@ -86,32 +87,33 @@ final class LangCommand {
     CommandSender sender = sender(context.getSource());
     Lang lang = dependencies.lang();
     var lines = new ArrayList<String>();
-    lines.add(lang.tr("message.lang_status_active", status.activeLanguage()));
-    lines.add(lang.tr("message.lang_status_server", status.serverVersion()));
-    lines.add(lang.tr("message.lang_status_paths", "Exort/lang", "Exort/lang/items"));
+    lines.add(lang.tr(sender, "message.lang_status_active", status.activeLanguage()));
+    lines.add(lang.tr(sender, "message.lang_status_server", status.serverVersion()));
+    lines.add(lang.tr(sender, "message.lang_status_paths", "Exort/lang", "Exort/lang/items"));
     String indexLine =
         status.indexCached()
-            ? lang.tr("message.lang_status_index_cached", status.availableLanguages())
-            : lang.tr("message.lang_status_index_missing");
+            ? lang.tr(sender, "message.lang_status_index_cached", status.availableLanguages())
+            : lang.tr(sender, "message.lang_status_index_missing");
     lines.add(indexLine);
     if (status.indexFetched()) {
-      lines.add(lang.tr("message.lang_status_index_fetched"));
+      lines.add(lang.tr(sender, "message.lang_status_index_fetched"));
     }
     if (!status.dictVersions().isEmpty()) {
       for (var entry : status.dictVersions().entrySet()) {
         int size = status.dictSizes().getOrDefault(entry.getKey(), 0);
-        lines.add(lang.tr("message.lang_status_dict", entry.getKey(), entry.getValue(), size));
+        lines.add(
+            lang.tr(sender, "message.lang_status_dict", entry.getKey(), entry.getValue(), size));
       }
     }
-    CommandFeedback.sendBlock(sender, lang.tr("message.lang_status_header"), lines);
+    CommandFeedback.sendBlock(sender, lang.tr(sender, "message.lang_status_header"), lines);
     return 1;
   }
 
-  private Component usageLine(String command, String descriptionKey) {
+  private Component usageLine(CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
         command,
-        dependencies.lang().tr(descriptionKey),
-        dependencies.lang().tr("message.command_click", command));
+        dependencies.lang().tr(sender, descriptionKey),
+        dependencies.lang().tr(sender, "message.command_click", command));
   }
 
   private int set(CommandContext<CommandSourceStack> context) {
@@ -120,7 +122,7 @@ final class LangCommand {
     String lang = StringArgumentType.getString(context, ARG_LANG);
     String normalized = dependencies.itemNameService().normalizeLanguage(stripLangExtension(lang));
     if (!dependencies.itemNameService().isKnownLanguage(normalized)) {
-      sendMessage(sender, dependencies.lang().tr("message.lang_invalid", normalized));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.lang_invalid", normalized));
       return 1;
     }
     dependencies.configuredLanguageSaver().accept(normalized);
@@ -137,7 +139,12 @@ final class LangCommand {
                   () ->
                       sendMessage(
                           sender,
-                          dependencies.lang().tr("message.lang_set", status.activeLanguage())));
+                          dependencies
+                              .lang()
+                              .tr(
+                                  sender,
+                                  "message.lang_set",
+                                  dependencies.lang().configuredLanguage())));
             });
     return 1;
   }
@@ -162,7 +169,7 @@ final class LangCommand {
 
   private void sendAsyncFailure(CommandSender sender, String action, Throwable err) {
     ExortLog.log(dependencies.plugin(), Level.SEVERE, "Failed to " + action, err);
-    runSync(() -> sendMessage(sender, dependencies.lang().tr("message.operation_failed")));
+    runSync(() -> sendMessage(sender, dependencies.lang().tr(sender, "message.operation_failed")));
   }
 
   private void runSync(Runnable action) {
@@ -172,7 +179,7 @@ final class LangCommand {
   private boolean ensurePermission(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
     if (hasAdminPermission(sender)) return true;
-    sendMessage(sender, dependencies.lang().tr("message.no_permission"));
+    sendMessage(sender, dependencies.lang().tr(sender, "message.no_permission"));
     return false;
   }
 

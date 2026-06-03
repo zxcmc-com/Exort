@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "சேமிப்பு முனையம்",
+  "exort.item.crafting_terminal": "உருவாக்க முனையம்",
+  "exort.item.monitor": "சேமிப்பு கண்காணி",
+  "exort.item.wire": "சேமிப்பு கேபிள்",
+  "exort.item.storage_core": "சேமிப்பு மையம்",
+  "exort.item.import_bus": "இறக்குமதி பஸ்",
+  "exort.item.export_bus": "ஏற்றுமதி பஸ்",
+  "exort.item.wireless_terminal": "கம்பியில்லா முனையம்",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "மின்கலம்: %s%%",
+  "exort.item.wireless_terminal.owner": "உரிமையாளர்: %s",
+  "exort.item.wireless_terminal.not_linked": "இணைக்கப்படவில்லை",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminál úložiště",
+  "exort.item.crafting_terminal": "Výrobní terminál",
+  "exort.item.monitor": "Monitor úložiště",
+  "exort.item.wire": "Kabel úložiště",
+  "exort.item.storage_core": "Jádro úložiště",
+  "exort.item.import_bus": "Importní sběrnice",
+  "exort.item.export_bus": "Exportní sběrnice",
+  "exort.item.wireless_terminal": "Bezdrátový terminál",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterie: %s%%",
+  "exort.item.wireless_terminal.owner": "Vlastník: %s",
+  "exort.item.wireless_terminal.not_linked": "Nepřipojeno",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

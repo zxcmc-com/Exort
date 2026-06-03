@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Hoiduterminaal",
+  "exort.item.crafting_terminal": "Tegemisteterminaal",
+  "exort.item.monitor": "Hoidumonitor",
+  "exort.item.wire": "Hoidukaabel",
+  "exort.item.storage_core": "Hoidutuum",
+  "exort.item.import_bus": "Sisseveo siin",
+  "exort.item.export_bus": "Väljaveo siin",
+  "exort.item.wireless_terminal": "Juhtmeta terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Aku: %s%%",
+  "exort.item.wireless_terminal.owner": "Omanik: %s",
+  "exort.item.wireless_terminal.not_linked": "Olõ-i seot",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

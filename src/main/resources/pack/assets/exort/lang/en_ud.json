@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "lɐuᴉɯɹǝ⊥ ǝƃɐɹoʇS",
+  "exort.item.crafting_terminal": "lɐuᴉɯɹǝ⊥ ƃuᴉʇɟɐɹƆ",
+  "exort.item.monitor": "ɹoʇᴉuoW ǝƃɐɹoʇS",
+  "exort.item.wire": "ǝɹᴉM ǝƃɐɹoʇS",
+  "exort.item.storage_core": "ǝɹoƆ ǝƃɐɹoʇS",
+  "exort.item.import_bus": "sn𐐒 ʇɹodɯI",
+  "exort.item.export_bus": "sn𐐒 ʇɹodxƎ",
+  "exort.item.wireless_terminal": "lɐuᴉɯɹǝ⊥ ssǝlǝɹᴉM",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "ʎɹǝʇʇɐ𐐒: %s%%",
+  "exort.item.wireless_terminal.owner": "ɹǝuʍO: %s",
+  "exort.item.wireless_terminal.not_linked": "pǝʞuᴉl ʇoN",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

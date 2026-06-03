@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal de stocare",
+  "exort.item.crafting_terminal": "Terminal de meșteșugire",
+  "exort.item.monitor": "Monitor de stocare",
+  "exort.item.wire": "Cablu de stocare",
+  "exort.item.storage_core": "Nucleu de stocare",
+  "exort.item.import_bus": "Magistrală de import",
+  "exort.item.export_bus": "Magistrală de export",
+  "exort.item.wireless_terminal": "Terminal fără fir",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterie: %s%%",
+  "exort.item.wireless_terminal.owner": "Proprietar: %s",
+  "exort.item.wireless_terminal.not_linked": "Nelegat",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Tárolóterminál",
+  "exort.item.crafting_terminal": "Barkácsterminál",
+  "exort.item.monitor": "Tárolómonitor",
+  "exort.item.wire": "Tárolókábel",
+  "exort.item.storage_core": "Tárolómag",
+  "exort.item.import_bus": "Importbusz",
+  "exort.item.export_bus": "Exportbusz",
+  "exort.item.wireless_terminal": "Vezeték nélküli terminál",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Akkumulátor: %s%%",
+  "exort.item.wireless_terminal.owner": "Tulajdonos: %s",
+  "exort.item.wireless_terminal.not_linked": "Nincs összekapcsolva",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

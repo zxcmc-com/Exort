@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Storage Terminal",
+  "exort.item.crafting_terminal": "Crafting Terminal",
+  "exort.item.monitor": "Storage Monitor",
+  "exort.item.wire": "Storage Wire",
+  "exort.item.storage_core": "Storage Core",
+  "exort.item.import_bus": "Import Bus",
+  "exort.item.export_bus": "Export Bus",
+  "exort.item.wireless_terminal": "Wireless Terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Battery: %s%%",
+  "exort.item.wireless_terminal.owner": "Owner: %s",
+  "exort.item.wireless_terminal.not_linked": "Not linked",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

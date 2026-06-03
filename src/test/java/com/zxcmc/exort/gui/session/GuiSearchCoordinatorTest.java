@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 
 class GuiSearchCoordinatorTest {
   @Test
-  void beginTracksPendingParentAndSwitchingState() {
+  void beginTracksPendingParentAndProtectsParentClose() {
     GuiSearchCoordinator coordinator = new GuiSearchCoordinator();
     Player player = player(UUID.randomUUID());
     SearchableSession parent = searchableSession();
@@ -24,7 +24,7 @@ class GuiSearchCoordinatorTest {
     assertSame(parent, coordinator.pendingFor(player));
     assertTrue(coordinator.hasPending(player));
     assertTrue(coordinator.isPending(player, parent));
-    assertTrue(coordinator.isSwitching(player));
+    assertTrue(coordinator.protectsClose(player, parent));
   }
 
   @Test
@@ -38,20 +38,24 @@ class GuiSearchCoordinatorTest {
 
     assertNull(coordinator.pendingFor(player));
     assertFalse(coordinator.hasPending(player));
-    assertFalse(coordinator.isSwitching(player));
+    assertFalse(coordinator.protectsClose(player, parent));
   }
 
   @Test
-  void clearSwitchingKeepsPendingSearch() {
+  void completeClearsPendingButKeepsCloseProtectionUntilParentReturns() {
     GuiSearchCoordinator coordinator = new GuiSearchCoordinator();
     Player player = player(UUID.randomUUID());
     SearchableSession parent = searchableSession();
     coordinator.begin(player, parent);
 
-    coordinator.clearSwitching(player);
+    assertSame(parent, coordinator.complete(player));
 
-    assertSame(parent, coordinator.pendingFor(player));
-    assertFalse(coordinator.isSwitching(player));
+    assertFalse(coordinator.hasPending(player));
+    assertTrue(coordinator.protectsClose(player, parent));
+
+    coordinator.clearCloseProtectionIfParent(player, parent);
+
+    assertFalse(coordinator.protectsClose(player, parent));
   }
 
   @Test
@@ -67,6 +71,7 @@ class GuiSearchCoordinatorTest {
 
     assertTrue(coordinator.discardIfParent(player, parent));
     assertFalse(coordinator.hasPending(player));
+    assertFalse(coordinator.protectsClose(player, parent));
   }
 
   @Test

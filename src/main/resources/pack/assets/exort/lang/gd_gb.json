@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Ceann-uidhe stòraidh",
+  "exort.item.crafting_terminal": "Ceann-uidhe ciùird",
+  "exort.item.monitor": "Sgrùdair stòraidh",
+  "exort.item.wire": "Càball stòraidh",
+  "exort.item.storage_core": "Cridhe stòraidh",
+  "exort.item.import_bus": "Bus ion-phortadh",
+  "exort.item.export_bus": "Bus às-phortadh",
+  "exort.item.wireless_terminal": "Ceann-uidhe gun uèir",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bataraidh: %s%%",
+  "exort.item.wireless_terminal.owner": "Sealbhadair: %s",
+  "exort.item.wireless_terminal.not_linked": "Gun cheangal",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

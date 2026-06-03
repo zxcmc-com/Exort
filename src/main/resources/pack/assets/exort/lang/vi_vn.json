@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Thiết bị đầu cuối lưu trữ",
+  "exort.item.crafting_terminal": "Thiết bị đầu cuối chế tạo",
+  "exort.item.monitor": "Màn hình lưu trữ",
+  "exort.item.wire": "Cáp lưu trữ",
+  "exort.item.storage_core": "Lõi lưu trữ",
+  "exort.item.import_bus": "Bus nhập",
+  "exort.item.export_bus": "Bus xuất",
+  "exort.item.wireless_terminal": "Thiết bị đầu cuối không dây",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Pin: %s%%",
+  "exort.item.wireless_terminal.owner": "Chủ sở hữu: %s",
+  "exort.item.wireless_terminal.not_linked": "Chưa liên kết",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

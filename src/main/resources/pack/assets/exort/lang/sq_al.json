@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal ruajtjeje",
+  "exort.item.crafting_terminal": "Terminal përpunimi",
+  "exort.item.monitor": "Monitor ruajtjeje",
+  "exort.item.wire": "Kabllo ruajtjeje",
+  "exort.item.storage_core": "Bërthamë ruajtjeje",
+  "exort.item.import_bus": "Autobus importi",
+  "exort.item.export_bus": "Autobus eksporti",
+  "exort.item.wireless_terminal": "Terminal pa tel",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Bateri: %s%%",
+  "exort.item.wireless_terminal.owner": "Pronari: %s",
+  "exort.item.wireless_terminal.not_linked": "Jo i lidhur",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

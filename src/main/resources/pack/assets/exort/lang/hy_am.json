@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Պահեստավորման տերմինալ",
+  "exort.item.crafting_terminal": "Ստեղծման տերմինալ",
+  "exort.item.monitor": "Պահեստավորման մոնիտոր",
+  "exort.item.wire": "Պահեստավորման մալուխ",
+  "exort.item.storage_core": "Պահեստավորման միջուկ",
+  "exort.item.import_bus": "Ներմուծման շինա",
+  "exort.item.export_bus": "Արտահանման շինա",
+  "exort.item.wireless_terminal": "Անլար տերմինալ",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Մարտկոց: %s%%",
+  "exort.item.wireless_terminal.owner": "Սեփականատեր: %s",
+  "exort.item.wireless_terminal.not_linked": "Կապված չէ",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

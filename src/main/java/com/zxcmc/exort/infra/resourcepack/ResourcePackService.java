@@ -27,6 +27,7 @@ import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.resource.ResourcePackStatus;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -37,7 +38,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class ResourcePackService implements Listener {
   @FunctionalInterface
   public interface Translator {
-    String tr(String key, Object... params);
+    String tr(CommandSender sender, String key, Object... params);
+
+    default String tr(String key, Object... params) {
+      return tr(null, key, params);
+    }
   }
 
   private static final String PROVIDER_NOTE_PREFIX = "provider:";
@@ -525,34 +530,46 @@ public final class ResourcePackService implements Listener {
   }
 
   public List<String> statusLines() {
+    return statusLines(null);
+  }
+
+  public List<String> statusLines(CommandSender sender) {
     State current = state.get();
     List<String> lines = new ArrayList<>();
-    lines.add(translator.tr("message.pack_status.status", current.status()));
-    lines.add(translator.tr("message.pack_status.configured_hosting", current.configured()));
-    lines.add(translator.tr("message.pack_status.effective_hosting", current.effective()));
+    lines.add(translator.tr(sender, "message.pack_status.status", current.status()));
     lines.add(
-        translator.tr("message.pack_status.configured_delivery", current.configuredDelivery()));
-    lines.add(translator.tr("message.pack_status.effective_delivery", current.effectiveDelivery()));
+        translator.tr(sender, "message.pack_status.configured_hosting", current.configured()));
+    lines.add(translator.tr(sender, "message.pack_status.effective_hosting", current.effective()));
+    lines.add(
+        translator.tr(
+            sender, "message.pack_status.configured_delivery", current.configuredDelivery()));
+    lines.add(
+        translator.tr(
+            sender, "message.pack_status.effective_delivery", current.effectiveDelivery()));
     if (current.pack() != null && current.pack().available()) {
-      lines.add(translator.tr("message.pack_status.raw_pack", current.pack().rawFile().getPath()));
-      lines.add(translator.tr("message.pack_status.pack", current.pack().outputFile().getPath()));
-      lines.add(translator.tr("message.pack_status.obfuscated", current.pack().obfuscated()));
+      lines.add(
+          translator.tr(
+              sender, "message.pack_status.raw_pack", current.pack().rawFile().getPath()));
+      lines.add(
+          translator.tr(sender, "message.pack_status.pack", current.pack().outputFile().getPath()));
+      lines.add(
+          translator.tr(sender, "message.pack_status.obfuscated", current.pack().obfuscated()));
     }
     if (current.handoffTarget() != null && !current.handoffTarget().isBlank()) {
-      lines.add(translator.tr("message.pack_status.handoff", current.handoffTarget()));
+      lines.add(translator.tr(sender, "message.pack_status.handoff", current.handoffTarget()));
     }
     if (current.sha1() != null && !current.sha1().isBlank()) {
-      lines.add(translator.tr("message.pack_status.sha1", current.sha1()));
+      lines.add(translator.tr(sender, "message.pack_status.sha1", current.sha1()));
     }
     if (current.url() != null) {
-      lines.add(translator.tr("message.pack_status.url", current.url()));
+      lines.add(translator.tr(sender, "message.pack_status.url", current.url()));
     }
-    String note = displayNote(current);
+    String note = displayNote(sender, current);
     if (note != null && !note.isBlank()) {
-      lines.add(translator.tr("message.pack_status.note", note));
+      lines.add(translator.tr(sender, "message.pack_status.note", note));
     }
     if (current.error() != null && !current.error().isBlank()) {
-      lines.add(translator.tr("message.pack_status.error", current.error()));
+      lines.add(translator.tr(sender, "message.pack_status.error", current.error()));
     }
     return lines;
   }
@@ -680,12 +697,16 @@ public final class ResourcePackService implements Listener {
   }
 
   private String displayNote(State current) {
+    return displayNote(null, current);
+  }
+
+  private String displayNote(CommandSender sender, State current) {
     String note = current.note();
     if (note == null || !note.startsWith(PROVIDER_NOTE_PREFIX)) {
       return note;
     }
     String provider = note.substring(PROVIDER_NOTE_PREFIX.length());
-    return translator.tr("message.pack_status.provider_note", provider);
+    return translator.tr(sender, "message.pack_status.provider_note", provider);
   }
 
   private boolean isDirectHosting(ResourcePackHosting hosting) {

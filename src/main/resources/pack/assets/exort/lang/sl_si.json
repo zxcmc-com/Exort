@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal shrambe",
+  "exort.item.crafting_terminal": "Ustvarjalni terminal",
+  "exort.item.monitor": "Monitor shrambe",
+  "exort.item.wire": "Kabel shrambe",
+  "exort.item.storage_core": "Jedro shrambe",
+  "exort.item.import_bus": "Uvozno vodilo",
+  "exort.item.export_bus": "Izvozno vodilo",
+  "exort.item.wireless_terminal": "Brezžični terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterija: %s%%",
+  "exort.item.wireless_terminal.owner": "Lastnik: %s",
+  "exort.item.wireless_terminal.not_linked": "Ni povezano",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

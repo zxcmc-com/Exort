@@ -42,6 +42,7 @@ public class ItemNameService {
 
   private volatile Map<String, String> active = new HashMap<>();
   private volatile Map<String, String> fallback = new HashMap<>();
+  private volatile Map<String, Map<String, String>> dictionaries = new HashMap<>();
   private volatile Set<String> availableLanguages = new HashSet<>();
   private volatile Map<String, String> langHashes = new HashMap<>();
   private volatile Map<String, String> dictVersions = new HashMap<>();
@@ -53,8 +54,12 @@ public class ItemNameService {
   private volatile long version;
 
   public ItemNameService(JavaPlugin plugin) {
+    this(plugin, plugin.getDataFolder());
+  }
+
+  ItemNameService(JavaPlugin plugin, File dataFolder) {
     this.plugin = plugin;
-    this.langDir = new File(plugin.getDataFolder(), "lang");
+    this.langDir = new File(Objects.requireNonNull(dataFolder, "dataFolder"), "lang");
     this.itemsDir = new File(langDir, ITEMS_DIR);
     this.indexFile = new File(langDir, INDEX_FILE);
   }
@@ -73,6 +78,11 @@ public class ItemNameService {
 
   public long version() {
     return version;
+  }
+
+  public long version(String language) {
+    String normalized = normalizeLanguage(language);
+    return 31L * version + normalized.hashCode();
   }
 
   public Status status() {
@@ -106,6 +116,75 @@ public class ItemNameService {
     return fallback;
   }
 
+  public boolean canUseDictionaryLanguage(String code) {
+    if (code == null || code.isBlank()) {
+      return false;
+    }
+    String normalized = normalizeLanguage(code);
+    if (availableLanguages.contains(normalized)) {
+      return true;
+    }
+    return new File(itemsDir, normalized + ".yml").isFile();
+  }
+
+  public String dictionaryLanguage(String requestedLanguage, String fallbackLanguage) {
+    String requested = normalizeLanguage(requestedLanguage);
+    if (canUseDictionaryLanguage(requested)) {
+      return requested;
+    }
+    String fallback = normalizeLanguage(fallbackLanguage);
+    if (canUseDictionaryLanguage(fallback)) {
+      return fallback;
+    }
+    if (canUseDictionaryLanguage(activeLanguage)) {
+      return activeLanguage;
+    }
+    return "en_us";
+  }
+
+  public CompletableFuture<Boolean> preloadDictionary(String requestedLanguage) {
+    String code = normalizeLanguage(requestedLanguage);
+    if (!canUseDictionaryLanguage(code) || dictionaries.containsKey(code)) {
+      return CompletableFuture.completedFuture(dictionaries.containsKey(code));
+    }
+    CompletableFuture<Boolean> future = new CompletableFuture<>();
+    if (!plugin.isEnabled()) {
+      future.complete(false);
+      return future;
+    }
+    try {
+      Bukkit.getScheduler()
+          .runTaskAsynchronously(
+              plugin,
+              () -> {
+                boolean loaded = false;
+                try {
+                  ensureDirectories();
+                  if (availableLanguages.isEmpty()) {
+                    ensureLanguageIndex();
+                  }
+                  ensureDictionary(code, false);
+                  Map<String, String> dictionary = loadDictionary(code);
+                  if (!dictionary.isEmpty()) {
+                    Map<String, Map<String, String>> next = new HashMap<>(dictionaries);
+                    next.put(code, dictionary);
+                    dictionaries = Map.copyOf(next);
+                    version++;
+                    loaded = true;
+                  }
+                } catch (RuntimeException e) {
+                  plugin
+                      .getLogger()
+                      .log(Level.WARNING, "Failed to preload item dictionary " + code, e);
+                }
+                future.complete(loaded);
+              });
+    } catch (RuntimeException ignored) {
+      future.complete(false);
+    }
+    return future;
+  }
+
   public Set<String> localLanguages() {
     Set<String> result = new TreeSet<>();
     File[] files = langDir.listFiles((dir, name) -> name.endsWith(".yml"));
@@ -125,6 +204,10 @@ public class ItemNameService {
   }
 
   public String resolveName(ItemStack stack) {
+    return resolveName(stack, activeLanguage);
+  }
+
+  public String resolveName(ItemStack stack, String language) {
     if (stack == null) return "";
     ItemMeta meta = stack.getItemMeta();
     if (meta != null) {
@@ -136,7 +219,8 @@ public class ItemNameService {
       }
     }
     String key = stack.getType().getKey().getKey();
-    String name = active.get(key);
+    Map<String, String> dictionary = dictionaryFor(language);
+    String name = dictionary.get(key);
     if (name != null) return name;
     name = fallback.get(key);
     if (name != null) return name;
@@ -144,6 +228,10 @@ public class ItemNameService {
   }
 
   public String resolveDisplayName(ItemStack stack) {
+    return resolveDisplayName(stack, activeLanguage);
+  }
+
+  public String resolveDisplayName(ItemStack stack, String language) {
     if (stack == null) return "";
     ItemMeta meta = stack.getItemMeta();
     if (meta != null) {
@@ -155,7 +243,8 @@ public class ItemNameService {
       }
     }
     String key = stack.getType().getKey().getKey();
-    String name = active.get(key);
+    Map<String, String> dictionary = dictionaryFor(language);
+    String name = dictionary.get(key);
     if (name != null) return name;
     name = fallback.get(key);
     if (name != null) return name;
@@ -168,12 +257,39 @@ public class ItemNameService {
   }
 
   public String resolveDictionaryName(String key) {
+    return resolveDictionaryName(key, activeLanguage);
+  }
+
+  public String resolveDictionaryName(ItemStack stack, String language) {
+    if (stack == null) return "";
+    return resolveDictionaryName(stack.getType().getKey().getKey(), language);
+  }
+
+  public String resolveDictionaryName(String key, String language) {
     if (key == null) return "";
-    String name = active.get(key);
+    Map<String, String> dictionary = dictionaryFor(language);
+    String name = dictionary.get(key);
     if (name != null) return name;
     name = fallback.get(key);
     if (name != null) return name;
     return key;
+  }
+
+  private Map<String, String> dictionaryFor(String language) {
+    String normalized =
+        language == null || language.isBlank() ? activeLanguage : normalizeLanguage(language);
+    Map<String, String> dictionary = dictionaries.get(normalized);
+    if (dictionary != null) {
+      return dictionary;
+    }
+    dictionary = loadDictionary(normalized);
+    if (!dictionary.isEmpty()) {
+      Map<String, Map<String, String>> next = new HashMap<>(dictionaries);
+      next.put(normalized, dictionary);
+      dictionaries = Map.copyOf(next);
+      return dictionary;
+    }
+    return active;
   }
 
   public String normalizeLanguage(String input) {
@@ -266,10 +382,30 @@ public class ItemNameService {
     if (newFallback.isEmpty()) {
       newFallback = buildFallbackMap();
     }
+    Map<String, Map<String, String>> loadedDictionaries = loadLocalDictionaries();
+    loadedDictionaries.put(activeLanguage, newActive);
+    loadedDictionaries.put("en_us", newFallback);
     active = newActive;
     fallback = newFallback;
+    dictionaries = Map.copyOf(loadedDictionaries);
     version++;
     logReload(updated);
+  }
+
+  private Map<String, Map<String, String>> loadLocalDictionaries() {
+    Map<String, Map<String, String>> result = new HashMap<>();
+    File[] files = itemsDir.listFiles((dir, name) -> name.endsWith(".yml"));
+    if (files == null) {
+      return result;
+    }
+    for (File file : files) {
+      String code = normalizeLanguage(file.getName().substring(0, file.getName().length() - 4));
+      Map<String, String> dictionary = loadDictionary(code);
+      if (!dictionary.isEmpty()) {
+        result.put(code, dictionary);
+      }
+    }
+    return result;
   }
 
   private void ensureDirectories() {

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Stoorterminaal",
+  "exort.item.crafting_terminal": "Vervaardigingsterminaal",
+  "exort.item.monitor": "Stoormonitor",
+  "exort.item.wire": "Stoorkabel",
+  "exort.item.storage_core": "Stoorkern",
+  "exort.item.import_bus": "Invoerbus",
+  "exort.item.export_bus": "Uitvoerbus",
+  "exort.item.wireless_terminal": "Draadlose terminaal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Battery: %s%%",
+  "exort.item.wireless_terminal.owner": "Eienaar: %s",
+  "exort.item.wireless_terminal.not_linked": "Nie gekoppel nie",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

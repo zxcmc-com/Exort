@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Speicherterminal",
+  "exort.item.crafting_terminal": "Bastelterminal",
+  "exort.item.monitor": "Speichermonitor",
+  "exort.item.wire": "Speicherkabel",
+  "exort.item.storage_core": "Speicherkärn",
+  "exort.item.import_bus": "Enföhr-Bus",
+  "exort.item.export_bus": "Ußföhr-Bus",
+  "exort.item.wireless_terminal": "Funkterminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batterie: %s%%",
+  "exort.item.wireless_terminal.owner": "Besetzer: %s",
+  "exort.item.wireless_terminal.not_linked": "Nit verbunge",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal ng imbakan",
+  "exort.item.crafting_terminal": "Terminal ng paggawa",
+  "exort.item.monitor": "Monitor ng imbakan",
+  "exort.item.wire": "Kable ng imbakan",
+  "exort.item.storage_core": "Ubod ng imbakan",
+  "exort.item.import_bus": "Bus ng pagpasok",
+  "exort.item.export_bus": "Bus ng paglabas",
+  "exort.item.wireless_terminal": "Terminal na walang kawad",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterya: %s%%",
+  "exort.item.wireless_terminal.owner": "May-ari: %s",
+  "exort.item.wireless_terminal.not_linked": "Hindi naka-link",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

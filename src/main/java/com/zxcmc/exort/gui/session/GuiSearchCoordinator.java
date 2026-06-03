@@ -3,15 +3,13 @@ package com.zxcmc.exort.gui.session;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.gui.SearchableSession;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.bukkit.entity.Player;
 
 public final class GuiSearchCoordinator {
   private final Map<UUID, SearchableSession> pendingSearch = new HashMap<>();
-  private final Set<UUID> switchingToSearch = new HashSet<>();
+  private final Map<UUID, SearchableSession> closeProtectedSearch = new HashMap<>();
 
   public SearchableSession pendingFor(Player player) {
     if (player == null) {
@@ -33,18 +31,11 @@ public final class GuiSearchCoordinator {
     }
     UUID viewerId = player.getUniqueId();
     pendingSearch.put(viewerId, parent);
-    switchingToSearch.add(viewerId);
+    closeProtectedSearch.put(viewerId, parent);
   }
 
   public boolean isPending(Player player, SearchableSession parent) {
     return pendingFor(player) == parent;
-  }
-
-  public boolean isSwitching(Player player) {
-    if (player == null) {
-      return false;
-    }
-    return switchingToSearch.contains(player.getUniqueId());
   }
 
   public SearchableSession discard(Player player) {
@@ -52,15 +43,17 @@ public final class GuiSearchCoordinator {
       return null;
     }
     UUID viewerId = player.getUniqueId();
-    switchingToSearch.remove(viewerId);
-    return pendingSearch.remove(viewerId);
+    SearchableSession pending = pendingSearch.remove(viewerId);
+    closeProtectedSearch.remove(viewerId);
+    return pending;
   }
 
-  public void clearSwitching(Player player) {
+  public SearchableSession complete(Player player) {
     if (player == null) {
-      return;
+      return null;
     }
-    switchingToSearch.remove(player.getUniqueId());
+    UUID viewerId = player.getUniqueId();
+    return pendingSearch.remove(viewerId);
   }
 
   public boolean discardIfParent(Player player, GuiSession parent) {
@@ -72,5 +65,22 @@ public final class GuiSearchCoordinator {
     }
     discard(player);
     return true;
+  }
+
+  public boolean protectsClose(Player player, GuiSession parent) {
+    if (!(parent instanceof SearchableSession searchable) || player == null) {
+      return false;
+    }
+    return closeProtectedSearch.get(player.getUniqueId()) == searchable;
+  }
+
+  public void clearCloseProtectionIfParent(Player player, SearchableSession parent) {
+    if (player == null || parent == null) {
+      return;
+    }
+    UUID viewerId = player.getUniqueId();
+    if (closeProtectedSearch.get(viewerId) == parent) {
+      closeProtectedSearch.remove(viewerId);
+    }
   }
 }

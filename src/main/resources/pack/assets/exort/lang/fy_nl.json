@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Opslachterminal",
+  "exort.item.crafting_terminal": "Meitsje-terminal",
+  "exort.item.monitor": "Opslachmonitor",
+  "exort.item.wire": "Opslachkabel",
+  "exort.item.storage_core": "Opslachkearn",
+  "exort.item.import_bus": "Ymportbus",
+  "exort.item.export_bus": "Eksportbus",
+  "exort.item.wireless_terminal": "Triedleaze terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batterij: %s%%",
+  "exort.item.wireless_terminal.owner": "Eigner: %s",
+  "exort.item.wireless_terminal.not_linked": "Net keppele",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

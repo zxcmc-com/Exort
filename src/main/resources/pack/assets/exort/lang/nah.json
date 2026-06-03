@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Tlamahcuilolcalli tlatzacualli",
+  "exort.item.crafting_terminal": "Tlatecpanaliz terminal",
+  "exort.item.monitor": "Tlatzacualli ittaloni",
+  "exort.item.wire": "Tlatzacualli mecatl",
+  "exort.item.storage_core": "Tlatzacualli yollotl",
+  "exort.item.import_bus": "Calacachiyotl",
+  "exort.item.export_bus": "Quixtiachiyotl",
+  "exort.item.wireless_terminal": "Amequichtli terminal",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Tlahuili: %s%%",
+  "exort.item.wireless_terminal.owner": "Axcauh: %s",
+  "exort.item.wireless_terminal.not_linked": "Ahmo ilpitoc",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

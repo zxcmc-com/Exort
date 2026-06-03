@@ -164,7 +164,7 @@ public class CraftingSession extends AbstractStorageSession {
       }
     }
 
-    String pageInfo = lang.tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
+    String pageInfo = tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
     List<Component> pageLore = new ArrayList<>();
     pageLore.add(Component.text(pageInfo).decoration(TextDecoration.ITALIC, false));
     String searchLabel = currentPageSearchLabel();
@@ -179,14 +179,13 @@ public class CraftingSession extends AbstractStorageSession {
     if (isDisplayListTruncated()) {
       pageLore.add(
           Component.text(
-                  lang.tr(
-                      "gui.list_truncated", StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES))
+                  tr("gui.list_truncated", StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES))
               .decoration(TextDecoration.ITALIC, false));
     }
     contents[GuiLayout.Crafting.SLOT_PREV] =
-        GuiItems.pagePrev(lang.tr("gui.prev_page"), pageLore, useFillers);
+        GuiItems.pagePrev(tr("gui.prev_page"), pageLore, useFillers);
     contents[GuiLayout.Crafting.SLOT_NEXT] =
-        GuiItems.pageNext(lang.tr("gui.next_page"), pageLore, useFillers);
+        GuiItems.pageNext(tr("gui.next_page"), pageLore, useFillers);
     contents[GuiLayout.Crafting.SLOT_STORAGE_CRAFT] = storageCraftButton();
     contents[GuiLayout.Crafting.SLOT_PLAYER_CRAFT] = playerCraftButton();
     contents[GuiLayout.Crafting.SLOT_SORT] = sortButton();
@@ -976,40 +975,37 @@ public class CraftingSession extends AbstractStorageSession {
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
       meta.itemName(
-          Component.text(lang.tr("gui.crafting.clear")).decoration(TextDecoration.ITALIC, false));
+          Component.text(tr("gui.crafting.clear")).decoration(TextDecoration.ITALIC, false));
       item.setItemMeta(meta);
     }
     return item;
   }
 
   private ItemStack storageCraftButton() {
-    return craftButton(lang.tr("gui.crafting.button.storage"), CraftingState.ConfirmTarget.STORAGE);
+    return craftButton(tr("gui.crafting.button.storage"), CraftingState.ConfirmTarget.STORAGE);
   }
 
   private ItemStack playerCraftButton() {
-    return craftButton(lang.tr("gui.crafting.button.player"), CraftingState.ConfirmTarget.PLAYER);
+    return craftButton(tr("gui.crafting.button.player"), CraftingState.ConfirmTarget.PLAYER);
   }
 
   private ItemStack craftButton(String title, CraftingState.ConfirmTarget target) {
     Component name = Component.text(title).decoration(TextDecoration.ITALIC, false);
     List<Component> lore = new ArrayList<>();
     lore.add(
-        Component.text(lang.tr("gui.crafting.button.single"))
-            .decoration(TextDecoration.ITALIC, false));
+        Component.text(tr("gui.crafting.button.single")).decoration(TextDecoration.ITALIC, false));
     lore.add(
-        Component.text(lang.tr("gui.crafting.button.stack"))
-            .decoration(TextDecoration.ITALIC, false));
+        Component.text(tr("gui.crafting.button.stack")).decoration(TextDecoration.ITALIC, false));
     lore.add(
-        Component.text(lang.tr("gui.crafting.button.all"))
-            .decoration(TextDecoration.ITALIC, false));
+        Component.text(tr("gui.crafting.button.all")).decoration(TextDecoration.ITALIC, false));
     int remaining = state.confirmRemaining(target, confirmTimeoutMs);
     if (remaining > 0) {
       lore.add(
-          Component.text(lang.tr("gui.crafting.button.all_warning"))
+          Component.text(tr("gui.crafting.button.all_warning"))
               .color(NamedTextColor.RED)
               .decoration(TextDecoration.ITALIC, false));
       lore.add(
-          Component.text(lang.tr("gui.crafting.button.all_confirm", remaining))
+          Component.text(tr("gui.crafting.button.all_confirm", remaining))
               .color(NamedTextColor.RED)
               .decoration(TextDecoration.ITALIC, false));
     }
@@ -1019,16 +1015,17 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private ItemStack sortButton() {
-    return StorageGuiControls.sortButton(lang, sortMode, useFillers);
+    return StorageGuiControls.sortButton(lang, viewer, sortMode, useFillers);
   }
 
   private ItemStack searchButton() {
-    return StorageGuiControls.searchButton(lang, hasSearch(), getSearchQuery(), useFillers);
+    return StorageGuiControls.searchButton(lang, viewer, hasSearch(), getSearchQuery(), useFillers);
   }
 
   private ItemStack infoButton() {
     return StorageGuiControls.infoButton(
         lang,
+        viewer,
         cache,
         tier,
         infoButtonState.showStorageId(),

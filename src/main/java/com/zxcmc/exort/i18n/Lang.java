@@ -4,21 +4,33 @@ import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class Lang {
   private static final String LANG_EXT = ".yml";
+  private static final String DEFAULT_LANGUAGE = "en_us";
+  private static final String RUSSIAN_LANGUAGE = "ru_ru";
   private final JavaPlugin plugin;
   private final Map<String, String> defaultsEn = new HashMap<>();
   private final Map<String, String> defaultsRu = new HashMap<>();
-  private Map<String, String> active = new HashMap<>();
+  private volatile Map<String, Map<String, String>> languages = Map.of();
+  private volatile Map<String, String> active = new HashMap<>();
+  private volatile String activeLanguage = DEFAULT_LANGUAGE;
 
   public Lang(JavaPlugin plugin) {
     this.plugin = plugin;
     loadDefaults();
+    active = new HashMap<>(defaultsEn);
+    languages = Map.of(DEFAULT_LANGUAGE, active, RUSSIAN_LANGUAGE, new HashMap<>(defaultsRu));
   }
 
   private void loadDefaults() {
@@ -867,16 +879,48 @@ public class Lang {
   }
 
   public void load(String language) {
-    active = new HashMap<>(defaultsEn);
     File langDir = new File(plugin.getDataFolder(), "lang");
     if (!langDir.exists()) {
       langDir.mkdirs();
     }
-    writeDefaults(langDir, "en_us", defaultsEn, true);
-    writeDefaults(langDir, "ru_ru", defaultsRu, true);
+    writeDefaults(langDir, DEFAULT_LANGUAGE, defaultsEn, true);
+    writeDefaults(langDir, RUSSIAN_LANGUAGE, defaultsRu, true);
 
-    String code = language.toLowerCase(Locale.ROOT);
-    Map<String, String> base = code.equals("ru_ru") ? defaultsRu : defaultsEn;
+    String requested = normalizeLanguage(language);
+    Set<String> requestedLanguages = new HashSet<>(localLanguageFiles(langDir));
+    requestedLanguages.add(DEFAULT_LANGUAGE);
+    requestedLanguages.add(RUSSIAN_LANGUAGE);
+
+    Map<String, Map<String, String>> loaded = new HashMap<>();
+    for (String code : requestedLanguages) {
+      loaded.put(code, loadLanguage(langDir, code));
+    }
+    Map<String, String> selected = loaded.get(requested);
+    if (selected == null || selected.isEmpty()) {
+      requested = DEFAULT_LANGUAGE;
+      selected = loaded.getOrDefault(DEFAULT_LANGUAGE, defaultsEn);
+    }
+    languages = Map.copyOf(loaded);
+    activeLanguage = requested;
+    active = selected;
+  }
+
+  private Set<String> localLanguageFiles(File langDir) {
+    Set<String> result = new HashSet<>();
+    File[] files = langDir.listFiles((dir, name) -> name.endsWith(LANG_EXT));
+    if (files == null) {
+      return result;
+    }
+    for (File file : files) {
+      String name = file.getName();
+      result.add(normalizeLanguage(name.substring(0, name.length() - LANG_EXT.length())));
+    }
+    return result;
+  }
+
+  private Map<String, String> loadLanguage(File langDir, String code) {
+    Map<String, String> base = RUSSIAN_LANGUAGE.equals(code) ? defaultsRu : defaultsEn;
+    Map<String, String> loaded = new HashMap<>(defaultsEn);
     File target = new File(langDir, code + LANG_EXT);
     YamlConfiguration cfg = YamlConfiguration.loadConfiguration(target);
     configureYaml(cfg);
@@ -886,15 +930,14 @@ public class Lang {
         cfg.set(entry.getKey(), entry.getValue());
         changed = true;
       }
-      active.put(entry.getKey(), getStringOrDefault(cfg, entry.getKey(), entry.getValue()));
+      loaded.put(entry.getKey(), getStringOrDefault(cfg, entry.getKey(), entry.getValue()));
     }
-    // ensure english fallback keys also exist
     for (Map.Entry<String, String> entry : defaultsEn.entrySet()) {
       if (!cfg.contains(entry.getKey())) {
         cfg.set(entry.getKey(), entry.getValue());
         changed = true;
       }
-      active.putIfAbsent(entry.getKey(), getStringOrDefault(cfg, entry.getKey(), entry.getValue()));
+      loaded.putIfAbsent(entry.getKey(), getStringOrDefault(cfg, entry.getKey(), entry.getValue()));
     }
     if (changed) {
       try {
@@ -905,6 +948,7 @@ public class Lang {
             .severe("Failed to save language file " + target.getName() + ": " + e.getMessage());
       }
     }
+    return loaded;
   }
 
   private void writeDefaults(File dir, String name, Map<String, String> data, boolean overwrite) {
@@ -927,9 +971,87 @@ public class Lang {
   }
 
   public String tr(String key, Object... params) {
-    String base = active.getOrDefault(key, defaultsEn.getOrDefault(key, key));
+    return trLanguage(activeLanguage, key, params);
+  }
+
+  public String tr(CommandSender sender, String key, Object... params) {
+    if (sender instanceof Player player) {
+      return tr(player, key, params);
+    }
+    return tr(key, params);
+  }
+
+  public String tr(Player player, String key, Object... params) {
+    return trLanguage(pluginTextLanguage(player), key, params);
+  }
+
+  public String trLanguage(String language, String key, Object... params) {
+    String resolvedLanguage = pluginTextLanguage(language);
+    Map<String, String> selected = languages.getOrDefault(resolvedLanguage, active);
+    String base =
+        selected.getOrDefault(key, active.getOrDefault(key, defaultsEn.getOrDefault(key, key)));
     if (params.length == 0) return base;
     return MessageFormat.format(base, params);
+  }
+
+  public Component itemComponent(boolean clientTranslations, String key, Object... params) {
+    Component component = clientComponent(clientTranslations, key, params);
+    return component.decoration(TextDecoration.ITALIC, false);
+  }
+
+  public Component clientComponent(boolean clientTranslations, String key, Object... params) {
+    String fallback = tr(key, params);
+    if (!clientTranslations) {
+      return Component.text(fallback);
+    }
+    return Component.translatable(clientKey(key), fallback, componentArgs(params));
+  }
+
+  private Component[] componentArgs(Object... params) {
+    Component[] args = new Component[params.length];
+    for (int i = 0; i < params.length; i++) {
+      args[i] = Component.text(String.valueOf(params[i]));
+    }
+    return args;
+  }
+
+  public String clientKey(String key) {
+    return "exort." + key;
+  }
+
+  public String configuredLanguage() {
+    return activeLanguage;
+  }
+
+  public boolean hasLanguage(String language) {
+    return languages.containsKey(normalizeLanguage(language));
+  }
+
+  public Set<String> availableLanguages() {
+    return Set.copyOf(languages.keySet());
+  }
+
+  public String pluginTextLanguage(Player player) {
+    if (player == null) {
+      return activeLanguage;
+    }
+    return pluginTextLanguage(player.locale().toString());
+  }
+
+  public String pluginTextLanguage(String requestedLanguage) {
+    String normalized = normalizeLanguage(requestedLanguage);
+    if (languages.containsKey(normalized)) {
+      return normalized;
+    }
+    if (languages.containsKey(activeLanguage)) {
+      return activeLanguage;
+    }
+    return DEFAULT_LANGUAGE;
+  }
+
+  public String normalizeLanguage(String input) {
+    if (input == null || input.isBlank()) return DEFAULT_LANGUAGE;
+    return input.toLowerCase(Locale.ROOT).replace('-', '_');
   }
 
   private void configureYaml(YamlConfiguration cfg) {

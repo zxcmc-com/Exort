@@ -61,7 +61,7 @@ public class WireDisplayManager {
   private final double offsetX;
   private final double offsetY;
   private final double offsetZ;
-  private final String entityName;
+  private final Component entityName;
   private final DisplayMetadataService metadataService;
   private final Set<String> warnedItemModels = Collections.synchronizedSet(new HashSet<>());
   private final Set<String> warnedModelIds = Collections.synchronizedSet(new HashSet<>());
@@ -82,7 +82,7 @@ public class WireDisplayManager {
       double offsetX,
       double offsetY,
       double offsetZ,
-      String entityName,
+      Component entityName,
       DisplayMetadataService metadataService) {
     this.plugin = plugin;
     this.enabled = enabled;
@@ -99,7 +99,7 @@ public class WireDisplayManager {
     this.offsetX = offsetX;
     this.offsetY = offsetY;
     this.offsetZ = offsetZ;
-    this.entityName = entityName == null ? "" : entityName;
+    this.entityName = entityName;
     this.metadataService = metadataService;
   }
 
@@ -281,8 +281,8 @@ public class WireDisplayManager {
     item.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
     item.addScoreboardTag(DisplayTags.DISPLAY_TAG);
     metadataService.normalize(item);
-    if (!entityName.isBlank()) {
-      item.customName(Component.text(entityName));
+    if (entityName != null) {
+      item.customName(entityName);
     } else {
       item.customName(null);
     }
@@ -298,8 +298,8 @@ public class WireDisplayManager {
     ItemStack stack = new ItemStack(displayBaseMaterial);
     var meta = stack.getItemMeta();
     ItemModelUtil.ApplyResult res = ItemModelUtil.applyItemModelDetailed(meta, modelId);
-    if (meta != null && !entityName.isBlank()) {
-      meta.displayName(Component.text(entityName).decoration(TextDecoration.ITALIC, false));
+    if (meta != null && entityName != null) {
+      meta.displayName(entityName.decoration(TextDecoration.ITALIC, false));
     }
     if (meta != null) {
       stack.setItemMeta(meta);

@@ -23,6 +23,12 @@ class ResourcePackHostingTest {
   }
 
   @Test
+  void autoHostingCanUseOfficialPackWithoutProvider() {
+    assertEquals(
+        ResourcePackHosting.EXORT, ResourcePackService.resolveAutoHosting(false, false, true));
+  }
+
+  @Test
   void autoHostingFallsBackToSelfHostWithoutProviderOrOfficialPack() {
     assertEquals(
         ResourcePackHosting.SELFHOST, ResourcePackService.resolveAutoHosting(false, false, false));

@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "საცავის ტერმინალი",
+  "exort.item.crafting_terminal": "დამზადების ტერმინალი",
+  "exort.item.monitor": "საცავის მონიტორი",
+  "exort.item.wire": "საცავის კაბელი",
+  "exort.item.storage_core": "საცავის ბირთვი",
+  "exort.item.import_bus": "იმპორტის მაგისტრალი",
+  "exort.item.export_bus": "ექსპორტის მაგისტრალი",
+  "exort.item.wireless_terminal": "უსადენო ტერმინალი",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "ბატარეა: %s%%",
+  "exort.item.wireless_terminal.owner": "მფლობელი: %s",
+  "exort.item.wireless_terminal.not_linked": "არ არის მიბმული",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

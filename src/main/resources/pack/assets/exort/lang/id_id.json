@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminal penyimpanan",
+  "exort.item.crafting_terminal": "Terminal pembuatan",
+  "exort.item.monitor": "Monitor penyimpanan",
+  "exort.item.wire": "Kabel penyimpanan",
+  "exort.item.storage_core": "Inti penyimpanan",
+  "exort.item.import_bus": "Bus impor",
+  "exort.item.export_bus": "Bus ekspor",
+  "exort.item.wireless_terminal": "Terminal nirkabel",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Baterai: %s%%",
+  "exort.item.wireless_terminal.owner": "Pemilik: %s",
+  "exort.item.wireless_terminal.not_linked": "Tidak tertaut",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

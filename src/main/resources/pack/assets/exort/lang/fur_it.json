@@ -1,0 +1,16 @@
+{
+  "exort.item.terminal": "Terminale di stoccaggio",
+  "exort.item.crafting_terminal": "Terminale di creazione",
+  "exort.item.monitor": "Monitor di stoccaggio",
+  "exort.item.wire": "Cavo di stoccaggio",
+  "exort.item.storage_core": "Nucleo di stoccaggio",
+  "exort.item.import_bus": "Bus di importazione",
+  "exort.item.export_bus": "Bus di esportazione",
+  "exort.item.wireless_terminal": "Terminale wireless",
+  "exort.lore.storage.capacity": "%s / %s (%s)",
+  "exort.lore.storage.id_tail": "%s",
+  "exort.item.wireless_terminal.battery": "Batteria: %s%%",
+  "exort.item.wireless_terminal.owner": "Proprietario: %s",
+  "exort.item.wireless_terminal.not_linked": "Non collegato",
+  "exort.item.wireless_terminal.storage_tail": "%s"
+}

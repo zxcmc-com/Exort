@@ -52,6 +52,7 @@ public class BossBarManager {
                     String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
                     String title =
                         lang.tr(
+                            player,
                             "gui.bossbar",
                             tier.displayName(),
                             formatNumber(current),
@@ -74,9 +75,11 @@ public class BossBarManager {
     cancelRemoval(player.getUniqueId());
     double progress = Math.min(1.0, Math.max(0.0, (double) used / Math.max(1, max)));
     String title =
-        tooLong ? lang.tr("wire.too_long", used, max) : lang.tr("wire.status", used, max);
+        tooLong
+            ? lang.tr(player, "wire.too_long", used, max)
+            : lang.tr(player, "wire.status", used, max);
     if (storageConnected) {
-      title = title + " • " + lang.tr("wire.storage_connected");
+      title = title + " • " + lang.tr(player, "wire.storage_connected");
     }
     BarColor color = tooLong ? BarColor.RED : BarColor.BLUE;
     showCustom(player, title, progress, color, durationTicks, gen);
@@ -100,7 +103,8 @@ public class BossBarManager {
                     if (!player.isOnline()) return;
                     if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
                     long amount = cache.getAmount(itemKey);
-                    String title = lang.tr("gui.monitor.item", itemName, formatNumber(amount));
+                    String title =
+                        lang.tr(player, "gui.monitor.item", itemName, formatNumber(amount));
                     showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
                   });
             });
@@ -152,7 +156,7 @@ public class BossBarManager {
           if (!generations.getOrDefault(player.getUniqueId(), 0).equals(gen)) return;
           showCustom(
               player,
-              lang.tr("message.storage_load_failed"),
+              lang.tr(player, "message.storage_load_failed"),
               1.0,
               BarColor.RED,
               durationTicks,

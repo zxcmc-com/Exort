@@ -183,7 +183,7 @@ public final class LoadTestService {
 
   public void start(CommandSender sender, int players, int durationSecondsOverride) {
     if (isRunning()) {
-      CommandFeedback.send(sender, lang.tr("message.debug_load_running"));
+      CommandFeedback.send(sender, tr(sender, "message.debug_load_running"));
       return;
     }
     this.owner = sender;
@@ -204,10 +204,10 @@ public final class LoadTestService {
     prepareDbPositions(simulatedPlayers);
     prepareDisplaySamples();
     prepareGuardSimulation();
-    String summary = summaryLine();
+    String summary = summaryLine(sender);
     CommandFeedback.send(sender, summary);
     sendToConsoleIfNeeded(summary);
-    String started = lang.tr("message.debug_load_started", simulatedPlayers);
+    String started = tr(sender, "message.debug_load_started", simulatedPlayers);
     CommandFeedback.send(sender, started);
     sendToConsoleIfNeeded(started);
     taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::tick, 1L, 1L);
@@ -220,11 +220,11 @@ public final class LoadTestService {
       taskId = -1;
     }
     if (notify && owner != null) {
-      String stopped = lang.tr("message.debug_load_stopped");
+      String stopped = tr(owner, "message.debug_load_stopped");
       CommandFeedback.send(owner, stopped);
     }
     if (notify) {
-      sendToConsoleIfNeeded(lang.tr("message.debug_load_stopped"));
+      sendToConsoleIfNeeded(tr(null, "message.debug_load_stopped"));
     }
     cleanupDbPositions();
     cleanupWorldWorkload();
@@ -306,7 +306,7 @@ public final class LoadTestService {
     Arrays.fill(msptSamples, 0.0);
     PerfStats.resetAndEnable();
     lastTickNs = System.nanoTime();
-    String started = lang.tr("message.debug_load_measurement_started");
+    String started = trOwner("message.debug_load_measurement_started");
     if (owner != null) {
       CommandFeedback.send(owner, started);
     }
@@ -343,9 +343,9 @@ public final class LoadTestService {
   }
 
   private String sustainableMsptLine(LoadTestVerdictCalculator.Result result, String gradeKey) {
-    return lang.tr(
+    return trOwner(
         "message.debug_load_mspt_verdict",
-        lang.tr(gradeKey),
+        trOwner(gradeKey),
         ONE_DECIMAL.format(result.msptAvg()),
         ONE_DECIMAL.format(result.msptP95()),
         ONE_DECIMAL.format(result.msptP99()));
@@ -382,7 +382,7 @@ public final class LoadTestService {
 
   private Component formatVerdictComponent(LoadTestVerdictCalculator.Result result) {
     HighlightedLine line = new HighlightedLine(formatVerdict(result));
-    line.highlight(lang.tr(result.gradeKey()), gradeColor(result.gradeKey()));
+    line.highlight(trOwner(result.gradeKey()), gradeColor(result.gradeKey()));
     line.highlight(TWO_DECIMALS.format(result.tpsMin()), tpsColor(result.tpsMin()));
     line.highlight(TWO_DECIMALS.format(result.tpsMax()), tpsColor(result.tpsMax()));
     line.highlight(TWO_DECIMALS.format(result.tpsAvg()), tpsColor(result.tpsAvg()));
@@ -398,7 +398,7 @@ public final class LoadTestService {
   private Component sustainableMsptComponent(
       LoadTestVerdictCalculator.Result result, String gradeKey) {
     HighlightedLine line = new HighlightedLine(sustainableMsptLine(result, gradeKey));
-    line.highlight(lang.tr(gradeKey), gradeColor(gradeKey));
+    line.highlight(trOwner(gradeKey), gradeColor(gradeKey));
     line.highlight(ONE_DECIMAL.format(result.msptAvg()), msptColor(result.msptAvg()));
     line.highlight(ONE_DECIMAL.format(result.msptP95()), msptColor(result.msptP95()));
     line.highlight(ONE_DECIMAL.format(result.msptP99()), msptColor(result.msptP99()));
@@ -422,7 +422,7 @@ public final class LoadTestService {
       return null;
     }
     String message =
-        lang.tr(
+        trOwner(
             "message.debug_load_hints",
             hints.dominant(),
             hints.cpuPct(),
@@ -487,7 +487,7 @@ public final class LoadTestService {
     }
     HighlightedLine line =
         new HighlightedLine(
-            lang.tr("message.debug_load_measured_profile", String.join(", ", parts)));
+            trOwner("message.debug_load_measured_profile", String.join(", ", parts)));
     tokens.apply(line);
     return line.finish();
   }
@@ -536,7 +536,7 @@ public final class LoadTestService {
             .orElse("-");
     HighlightedLine line =
         new HighlightedLine(
-            lang.tr(
+            trOwner(
                 "message.debug_load_metadata",
                 server,
                 plugin.getPluginMeta().getVersion(),
@@ -576,7 +576,7 @@ public final class LoadTestService {
       double avgMsptP95 = msptP95 / count;
       HighlightedLine line =
           new HighlightedLine(
-              lang.tr(
+              trOwner(
                   "message.debug_load_recent_runs",
                   count,
                   TWO_DECIMALS.format(avgTps),
@@ -658,7 +658,7 @@ public final class LoadTestService {
     double tps = currentTps();
     double mspt = currentMspt();
     String message =
-        lang.tr(
+        trOwner(
             "message.debug_load_progress",
             percent,
             remainingSeconds,
@@ -796,8 +796,8 @@ public final class LoadTestService {
   }
 
   private String formatVerdict(LoadTestVerdictCalculator.Result result) {
-    String grade = lang.tr(result.gradeKey());
-    return lang.tr(
+    String grade = trOwner(result.gradeKey());
+    return trOwner(
         "message.debug_load_verdict",
         grade,
         TWO_DECIMALS.format(result.tpsMin()),
@@ -814,7 +814,7 @@ public final class LoadTestService {
   private String rareStallWarning(LoadTestVerdictCalculator.Result result) {
     if (result.severeStalls() <= 0) return null;
     if ("message.debug_load_grade_awful".equals(result.gradeKey())) return null;
-    return lang.tr(
+    return trOwner(
         "message.debug_load_rare_stalls",
         result.severeStalls(),
         TWO_DECIMALS.format(result.tpsMin()));
@@ -934,7 +934,7 @@ public final class LoadTestService {
         worldWorkload == null ? 0L : worldWorkload.totalPlacements());
   }
 
-  private String summaryLine() {
+  private String summaryLine(CommandSender sender) {
     int chunks = activeChunkCount();
     int ops = estimateOperationsPerTick();
     int dbOps = estimateDbOpsPerTick(ops);
@@ -944,7 +944,8 @@ public final class LoadTestService {
     int waterWireLength = worldWorkload == null ? 0 : worldWorkload.waterWireLength();
     int waterSources = worldWorkload == null ? 0 : worldWorkload.waterSourceCount();
     int waterExtraChunks = worldWorkload == null ? 0 : worldWorkload.extraChunkTicketCount();
-    return lang.tr(
+    return tr(
+        sender,
         "message.debug_load_summary",
         simulatedPlayers,
         chunks,
@@ -974,6 +975,14 @@ public final class LoadTestService {
         waterWireLength,
         waterSources,
         waterExtraChunks);
+  }
+
+  private String trOwner(String key, Object... params) {
+    return tr(owner, key, params);
+  }
+
+  private String tr(CommandSender sender, String key, Object... params) {
+    return lang.tr(sender, key, params);
   }
 
   private long requestedGuardEntities() {
