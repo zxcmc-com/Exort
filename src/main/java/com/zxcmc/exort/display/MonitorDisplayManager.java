@@ -325,6 +325,11 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   }
 
   @Override
+  protected String localizationKey(Block block) {
+    return "item.monitor";
+  }
+
+  @Override
   protected void applyTransform(ItemDisplay display, Block block) {
     Transformation t = display.getTransformation();
     t.getScale()

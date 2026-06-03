@@ -3,8 +3,6 @@ package com.zxcmc.exort.i18n;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,8 +23,6 @@ class BundledLanguageFilesTest {
   private static final Path PACK_LANG_DIR = Path.of("src/main/resources/pack/assets/exort/lang");
   private static final Path LOCALES_FIXTURE =
       Path.of("src/test/resources/minecraft-lang-locales.txt");
-  private static final Path CREATIVE_CATEGORY_REFS =
-      Path.of("src/test/resources/minecraft-creative-category-refs.json");
   private static final Pattern JAVA_PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
   @Test
@@ -47,6 +43,23 @@ class BundledLanguageFilesTest {
   }
 
   @Test
+  void bundledLanguageIndexMatchesRuntimeLanguageFiles() throws IOException {
+    Set<String> files = new LinkedHashSet<>();
+    try (var paths = Files.list(RUNTIME_LANG_DIR)) {
+      paths
+          .filter(path -> path.getFileName().toString().endsWith(".yml"))
+          .map(path -> path.getFileName().toString())
+          .filter(name -> !name.equals("index.yml"))
+          .map(name -> name.substring(0, name.length() - ".yml".length()))
+          .sorted()
+          .forEach(files::add);
+    }
+
+    Set<String> indexed = new LinkedHashSet<>(checkedLocales());
+    assertEquals(indexed.stream().sorted().toList(), files.stream().sorted().toList());
+  }
+
+  @Test
   void allBundledRuntimeLanguageFilesMatchEnglishKeysAndPlaceholders() throws IOException {
     Map<String, String> english = readRuntimeLang("en_us");
     Set<String> expectedKeys = english.keySet();
@@ -64,40 +77,15 @@ class BundledLanguageFilesTest {
   }
 
   @Test
-  void resourcePackLanguageKeysMatchRuntimeLanguageKeys() throws IOException {
-    Set<String> runtimeKeys = readRuntimeLang("en_us").keySet();
-
-    for (String locale : checkedLocales()) {
-      JsonObject pack = readPackLang(locale);
-      Set<String> packKeys = new LinkedHashSet<>();
-      for (String key : pack.keySet()) {
-        if (key.startsWith("exort.")) {
-          packKeys.add(key.substring("exort.".length()));
-        }
-      }
-      assertEquals(runtimeKeys, packKeys, locale + " pack/runtime key mismatch");
+  void resourcePackLanguageFilesAreGeneratedAtExportTime() throws IOException {
+    if (!Files.exists(PACK_LANG_DIR)) {
+      return;
     }
-  }
-
-  @Test
-  void creativeCategoryNamesMatchMinecraftLanguageFiles() throws IOException {
-    JsonObject refs =
-        JsonParser.parseString(Files.readString(CREATIVE_CATEGORY_REFS, StandardCharsets.UTF_8))
-            .getAsJsonObject()
-            .getAsJsonObject("locales");
-
-    for (String locale : checkedLocales()) {
-      JsonObject localeRefs = refs.getAsJsonObject(locale);
-      Map<String, String> runtime = readRuntimeLang(locale);
-      JsonObject pack = readPackLang(locale);
-      for (String key : localeRefs.keySet()) {
-        String expected = localeRefs.get(key).getAsString();
-        assertEquals(expected, runtime.get(key), locale + " runtime mismatch for " + key);
-        assertEquals(
-            expected,
-            pack.get("exort." + key).getAsString(),
-            locale + " resource-pack mismatch for " + key);
-      }
+    try (var files = Files.walk(PACK_LANG_DIR)) {
+      assertEquals(
+          0,
+          files.filter(path -> path.getFileName().toString().endsWith(".json")).count(),
+          "resource-pack language JSON must not be committed");
     }
   }
 
@@ -125,11 +113,6 @@ class BundledLanguageFilesTest {
       }
     }
     return entries;
-  }
-
-  private static JsonObject readPackLang(String locale) throws IOException {
-    String json = Files.readString(PACK_LANG_DIR.resolve(locale + ".json"), StandardCharsets.UTF_8);
-    return JsonParser.parseString(json).getAsJsonObject();
   }
 
   private static List<String> placeholders(String value) {

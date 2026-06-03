@@ -2,10 +2,12 @@
 # Exort bundles generated plugin translations for every locale in the pinned Minecraft language index.
 language: en_us
 languageFiles:
-  # If true, bundled Exort language files in plugins/Exort/lang are refreshed from the plugin JAR
-  # on every startup and /exort reload. Disable only while testing manual translations.
+  # If true, bundled Exort translations are read from the plugin JAR and existing
+  # plugins/Exort/lang/<locale>.yml copies are ignored unless preserved below.
+  # Disable only while testing manual translation overrides.
   autoOverwriteBundled: true
-  # Locales listed here are not overwritten by bundled defaults even when autoOverwriteBundled is true.
+  # Locales listed here use plugins/Exort/lang/<locale>.yml as a local override even when
+  # autoOverwriteBundled is true. Exort does not delete old local language files automatically.
   # Example: [de_de, qya_aa]
   preserveLanguages: []
 
@@ -64,9 +66,14 @@ protocolLib:
     # Also handle middle-clicks that target Exort ItemDisplay/TextDisplay visuals.
     entityPick: true
   localization:
-    # Reserved optional packet-level per-player text rewriting for VANILLA/no-pack edge cases.
-    # Exort remains usable without this feature; RESOURCE mode uses client translation keys.
+    # In VANILLA mode, rewrite outgoing Exort localization packets per player locale.
+    # SIMPLE rewrites Exort item name/lore in inventory and container packets.
+    # FULL also rewrites Exort display entity names/item metadata. This increases packet work, but
+    # lets Jade-like client mods show localized Exort names without a resource pack.
+    # RESOURCE mode uses client translation keys from the resource pack instead.
     enabled: true
+    # SIMPLE | FULL
+    level: SIMPLE
 
 # Performance controls for expensive Exort runtime paths.
 performance:

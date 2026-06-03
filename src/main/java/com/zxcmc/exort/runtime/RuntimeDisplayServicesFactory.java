@@ -4,14 +4,18 @@ import com.zxcmc.exort.display.BusDisplayManager;
 import com.zxcmc.exort.display.DisplayCullingConfig;
 import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.display.DisplayEntityIndex;
+import com.zxcmc.exort.display.DisplayLocalizationRefreshService;
 import com.zxcmc.exort.display.DisplayMetadataService;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ExortBlockProxyService;
+import com.zxcmc.exort.display.ExortDisplayLocalizationService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.display.StorageDisplayManager;
 import com.zxcmc.exort.display.TerminalDisplayManager;
 import com.zxcmc.exort.display.WireDisplayManager;
+import com.zxcmc.exort.i18n.ExortItemLocalizationService;
+import com.zxcmc.exort.integration.protocol.ProtocolLocalizationLevel;
 import com.zxcmc.exort.sanity.ChunkSanityService;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;
@@ -32,6 +36,17 @@ public final class RuntimeDisplayServicesFactory {
     DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
     DisplayMetadataService metadataService =
         new DisplayMetadataService(displayEntityIndex, displayCullingConfig);
+    boolean fullProtocolLocalization = registerProtocolLocalization(deps, displayEntityIndex);
+    if (fullProtocolLocalization) {
+      Bukkit.getPluginManager()
+          .registerEvents(
+              new DisplayLocalizationRefreshService(
+                  deps.plugin(),
+                  displayEntityIndex,
+                  metadataService,
+                  displayCullingConfig.maxDistance()),
+              deps.plugin());
+    }
 
     ItemHologramManager hologramManager =
         new ItemHologramManager(
@@ -145,6 +160,22 @@ public final class RuntimeDisplayServicesFactory {
         wireDisplay.offsetZ(),
         deps.lang().clientComponent(deps.resourceMode(), "item.wire"),
         metadataService);
+  }
+
+  private static boolean registerProtocolLocalization(
+      RuntimeDisplayServicesDependencies deps, DisplayEntityIndex displayEntityIndex) {
+    if (deps.protocolLibEnhancements() == null) {
+      return false;
+    }
+    ProtocolLocalizationLevel level = ProtocolLocalizationLevel.fromConfig(deps.config());
+    ExortDisplayLocalizationService displayLocalization =
+        new ExortDisplayLocalizationService(displayEntityIndex, deps.lang());
+    return deps.protocolLibEnhancements()
+        .registerLocalization(
+            new ExortItemLocalizationService(deps.keys(), deps.lang())::localize,
+            displayLocalization::localize,
+            deps.resourceMode(),
+            level);
   }
 
   private static StorageDisplayManager createStorageDisplayManager(

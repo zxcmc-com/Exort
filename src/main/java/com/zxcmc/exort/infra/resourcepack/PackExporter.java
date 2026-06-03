@@ -1,6 +1,8 @@
 package com.zxcmc.exort.infra.resourcepack;
 
+import com.zxcmc.exort.i18n.LocalizationFiles;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -116,6 +118,7 @@ public final class PackExporter {
           }
         }
       }
+      count += addGeneratedLanguageEntries(logger, source, entries);
       entries.putIfAbsent(PACK_META_NAME, DEFAULT_PACK_META.getBytes(StandardCharsets.UTF_8));
       entries.putIfAbsent(BLOCKS_ATLAS_NAME, generatedBlocksAtlas(entries));
       for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
@@ -136,6 +139,57 @@ public final class PackExporter {
       return 0;
     }
     return count;
+  }
+
+  private static int addGeneratedLanguageEntries(
+      java.util.logging.Logger logger, Path source, Map<String, byte[]> entries) {
+    byte[] index = readSourceResource(source, LocalizationFiles.LANG_INDEX);
+    if (index == null) {
+      logger.warning("Bundled language index is missing; resource-pack translations skipped.");
+      return 0;
+    }
+    int added = 0;
+    try {
+      for (String locale : LocalizationFiles.readLanguageIndex(new ByteArrayInputStream(index))) {
+        byte[] language =
+            readSourceResource(
+                source, LocalizationFiles.LANG_DIR + locale + LocalizationFiles.LANG_EXT);
+        if (language == null) {
+          logger.warning("Bundled language file is missing: " + locale);
+          continue;
+        }
+        Map<String, String> flat =
+            LocalizationFiles.readFlatLanguage(new ByteArrayInputStream(language));
+        String target = "assets/exort/lang/" + locale + ".json";
+        if (!entries.containsKey(target)) {
+          added++;
+        }
+        entries.put(target, LocalizationFiles.clientResourcePackJson(flat));
+      }
+    } catch (RuntimeException e) {
+      logger.log(Level.WARNING, "Failed to generate resource-pack translations.", e);
+    }
+    return added;
+  }
+
+  private static byte[] readSourceResource(Path source, String name) {
+    try {
+      if (Files.isDirectory(source)) {
+        Path path = source.resolve(name);
+        return Files.isRegularFile(path) ? Files.readAllBytes(path) : null;
+      }
+      try (JarFile jar = new JarFile(source.toFile())) {
+        JarEntry entry = jar.getJarEntry(name);
+        if (entry == null || entry.isDirectory()) {
+          return null;
+        }
+        try (InputStream in = jar.getInputStream(entry)) {
+          return in.readAllBytes();
+        }
+      }
+    } catch (IOException e) {
+      return null;
+    }
   }
 
   private static byte[] generatedBlocksAtlas(Map<String, byte[]> entries) {

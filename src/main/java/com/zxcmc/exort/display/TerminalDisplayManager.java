@@ -106,6 +106,12 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
   }
 
   @Override
+  protected String localizationKey(Block block) {
+    TerminalKind kind = TerminalMarker.kind(plugin, block);
+    return kind == TerminalKind.CRAFTING ? "item.crafting_terminal" : "item.terminal";
+  }
+
+  @Override
   protected void applyTransform(ItemDisplay display, Block block) {
     Transformation t = display.getTransformation();
     t.getScale()

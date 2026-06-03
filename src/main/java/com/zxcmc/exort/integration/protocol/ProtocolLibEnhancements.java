@@ -28,6 +28,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
@@ -36,6 +37,8 @@ public final class ProtocolLibEnhancements {
   private static final String PROTOCOL_LIB = "ProtocolLib";
   private static final String PICK_ITEM_FROM_BLOCK = "PICK_ITEM_FROM_BLOCK";
   private static final String PICK_ITEM = "PICK_ITEM";
+  private static final String SET_SLOT = "SET_SLOT";
+  private static final String WINDOW_ITEMS = "WINDOW_ITEMS";
   private static final String SPAWN_ENTITY = "SPAWN_ENTITY";
   private static final String ENTITY_METADATA = "ENTITY_METADATA";
   private static final String UPDATE_ATTRIBUTES = "UPDATE_ATTRIBUTES";
@@ -63,6 +66,16 @@ public final class ProtocolLibEnhancements {
       FeatureProbe placementGuardScale,
       FeatureProbe placementGuardTeleport,
       FeatureProbe localization) {}
+
+  @FunctionalInterface
+  public interface ItemLocalizer {
+    ItemStack localize(Player player, ItemStack item);
+  }
+
+  @FunctionalInterface
+  public interface DisplayLocalizer {
+    String localize(Player player, int entityId);
+  }
 
   private enum Feature {
     BASE,
@@ -239,7 +252,117 @@ public final class ProtocolLibEnhancements {
     setProbe(
         Feature.LOCALIZATION,
         FeatureStatus.UNAVAILABLE,
-        "Packet text rewriting is not enabled for this build; using Paper/resource-pack fallback.");
+        "Item packet localization backend is not registered.");
+  }
+
+  public boolean registerLocalization(
+      ItemLocalizer itemLocalizer,
+      DisplayLocalizer displayLocalizer,
+      boolean resourceMode,
+      ProtocolLocalizationLevel requestedLevel) {
+    if (!plugin.getConfig().getBoolean("protocolLib.localization.enabled", true)) {
+      setProbe(Feature.LOCALIZATION, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
+      return false;
+    }
+    if (resourceMode) {
+      setProbe(
+          Feature.LOCALIZATION,
+          FeatureStatus.DISABLED_BY_CONFIG,
+          "RESOURCE mode uses resource-pack translation keys.");
+      return false;
+    }
+    if (itemLocalizer == null) {
+      setProbe(Feature.LOCALIZATION, FeatureStatus.UNAVAILABLE, "Item localizer is missing.");
+      return false;
+    }
+
+    try {
+      ProtocolLocalizationLevel level =
+          requestedLevel == null ? ProtocolLocalizationLevel.SIMPLE : requestedLevel;
+      Class<?> serverPacketTypesClass =
+          loader.loadClass("com.comphenix.protocol.PacketType$Play$Server");
+      Class<?> packetContainerClass =
+          loader.loadClass("com.comphenix.protocol.events.PacketContainer");
+      Object setSlotPacket = serverPacketTypesClass.getField(SET_SLOT).get(null);
+      Object windowItemsPacket = serverPacketTypesClass.getField(WINDOW_ITEMS).get(null);
+      Method getItemModifier = packetContainerClass.getMethod("getItemModifier");
+      Method getItemListModifier = packetContainerClass.getMethod("getItemListModifier");
+      Object entityMetadataPacket = null;
+      Method getDataValueCollectionModifier = null;
+      ProtocolMetadataValueAdapter metadataAdapter = null;
+      String fullFailure = null;
+
+      if (level == ProtocolLocalizationLevel.FULL && displayLocalizer != null) {
+        try {
+          entityMetadataPacket = serverPacketTypesClass.getField(ENTITY_METADATA).get(null);
+          getDataValueCollectionModifier =
+              packetContainerClass.getMethod("getDataValueCollectionModifier");
+          metadataAdapter = createMetadataValueAdapter();
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+          fullFailure = describeError(e);
+        }
+      } else if (level == ProtocolLocalizationLevel.FULL) {
+        fullFailure = "Display localizer is missing.";
+      }
+
+      boolean fullEnabled =
+          level == ProtocolLocalizationLevel.FULL
+              && entityMetadataPacket != null
+              && getDataValueCollectionModifier != null
+              && metadataAdapter != null;
+      List<Object> packetTypes = new ArrayList<>(List.of(setSlotPacket, windowItemsPacket));
+      if (fullEnabled) {
+        packetTypes.add(entityMetadataPacket);
+      }
+      Object finalEntityMetadataPacket = entityMetadataPacket;
+      Method finalGetDataValueCollectionModifier = getDataValueCollectionModifier;
+      ProtocolMetadataValueAdapter finalMetadataAdapter = metadataAdapter;
+
+      Object listener =
+          createPacketListener(
+              "Exort ProtocolLib item localization",
+              emptyWhitelist,
+              createWhitelist(packetTypes),
+              null,
+              event ->
+                  localizeOutgoingItemPacket(
+                      event,
+                      itemLocalizer,
+                      displayLocalizer,
+                      setSlotPacket,
+                      windowItemsPacket,
+                      finalEntityMetadataPacket,
+                      getItemModifier,
+                      getItemListModifier,
+                      finalGetDataValueCollectionModifier,
+                      finalMetadataAdapter));
+      addPacketListener.invoke(protocolManager, listener);
+      packetListeners.add(listener);
+      setProbe(
+          Feature.LOCALIZATION,
+          fullEnabled
+              ? FeatureStatus.ENABLED
+              : level == ProtocolLocalizationLevel.FULL
+                  ? FeatureStatus.PARTIAL
+                  : FeatureStatus.ENABLED,
+          fullEnabled
+              ? "Outgoing SET_SLOT, WINDOW_ITEMS, and ENTITY_METADATA localization registered."
+              : level == ProtocolLocalizationLevel.FULL
+                  ? "Item packet localization registered; display metadata localization"
+                      + " unavailable: "
+                      + fullFailure
+                  : "Outgoing SET_SLOT and WINDOW_ITEMS item rewrite registered.");
+      ExortLog.info(
+          "[ProtocolLib] VANILLA item localization enabled"
+              + (fullEnabled ? " at FULL level." : " at SIMPLE level."));
+      return fullEnabled;
+    } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+      String detail = describeError(e);
+      setProbe(Feature.LOCALIZATION, FeatureStatus.UNAVAILABLE, detail);
+      ExortLog.warn(
+          "[ProtocolLib] Item localization unavailable: " + detail + " " + fallbackAdvice());
+      return false;
+    }
   }
 
   public void markPlacementGuardDisabledByConfig() {
@@ -468,21 +591,35 @@ public final class ProtocolLibEnhancements {
 
   private Object createPacketListener(
       String name, Object receivingWhitelist, PacketReceiver receiver) {
+    return createPacketListener(name, receivingWhitelist, emptyWhitelist, receiver, null);
+  }
+
+  private Object createPacketListener(
+      String name,
+      Object receivingWhitelist,
+      Object sendingWhitelist,
+      PacketReceiver receiver,
+      PacketSender sender) {
     InvocationHandler handler =
         (proxy, method, args) -> {
           String methodName = method.getName();
           if ("onPacketReceiving".equals(methodName)) {
-            receiver.onPacketReceiving(args[0]);
+            if (receiver != null) {
+              receiver.onPacketReceiving(args[0]);
+            }
             return null;
           }
           if ("onPacketSending".equals(methodName)) {
+            if (sender != null) {
+              sender.onPacketSending(args[0]);
+            }
             return null;
           }
           if ("getReceivingWhitelist".equals(methodName)) {
             return receivingWhitelist;
           }
           if ("getSendingWhitelist".equals(methodName)) {
-            return emptyWhitelist;
+            return sendingWhitelist;
           }
           if ("getPlugin".equals(methodName)) {
             return plugin;
@@ -504,6 +641,10 @@ public final class ProtocolLibEnhancements {
 
   private Object createReceivingWhitelist(List<Object> packetTypes)
       throws ReflectiveOperationException {
+    return createWhitelist(packetTypes);
+  }
+
+  private Object createWhitelist(List<Object> packetTypes) throws ReflectiveOperationException {
     Object builder = listeningWhitelistClass.getMethod("newBuilder").invoke(null);
     builder.getClass().getMethod("highest").invoke(builder);
     Object packetTypeArray = Array.newInstance(packetTypeClass, packetTypes.size());
@@ -515,6 +656,140 @@ public final class ProtocolLibEnhancements {
         .getMethod("types", packetTypeArray.getClass())
         .invoke(builder, packetTypeArray);
     return builder.getClass().getMethod("build").invoke(builder);
+  }
+
+  private void localizeOutgoingItemPacket(
+      Object event,
+      ItemLocalizer itemLocalizer,
+      DisplayLocalizer displayLocalizer,
+      Object setSlotPacket,
+      Object windowItemsPacket,
+      Object entityMetadataPacket,
+      Method getItemModifier,
+      Method getItemListModifier,
+      Method getDataValueCollectionModifier,
+      ProtocolMetadataValueAdapter metadataAdapter) {
+    try {
+      Object cancelled = eventIsCancelled.invoke(event);
+      if (cancelled instanceof Boolean bool && bool) {
+        return;
+      }
+      Player player = (Player) eventGetPlayer.invoke(event);
+      Object packet = eventGetPacket.invoke(event);
+      Object type = eventGetPacketType.invoke(event);
+      if (setSlotPacket.equals(type)) {
+        localizeSlotPacket(player, packet, itemLocalizer, getItemModifier);
+      } else if (windowItemsPacket.equals(type)) {
+        localizeWindowItemsPacket(player, packet, itemLocalizer, getItemListModifier);
+      } else if (entityMetadataPacket != null && entityMetadataPacket.equals(type)) {
+        localizeEntityMetadataPacket(
+            player, packet, displayLocalizer, getDataValueCollectionModifier, metadataAdapter);
+      }
+    } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+      setProbe(Feature.LOCALIZATION, FeatureStatus.UNAVAILABLE, describeError(e));
+    }
+  }
+
+  private void localizeSlotPacket(
+      Player player, Object packet, ItemLocalizer localizer, Method getItemModifier)
+      throws ReflectiveOperationException {
+    Object modifier = getItemModifier.invoke(packet);
+    Object value = readModifier(modifier, 0);
+    if (!(value instanceof ItemStack item)) {
+      return;
+    }
+    ItemStack localized =
+        ProtocolItemPacketLocalizer.localizeSlot(player, item, localizer::localize);
+    if (localized != item) {
+      writeModifier(modifier, 0, localized);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private void localizeWindowItemsPacket(
+      Player player, Object packet, ItemLocalizer localizer, Method getItemListModifier)
+      throws ReflectiveOperationException {
+    Object modifier = getItemListModifier.invoke(packet);
+    Object value = readModifier(modifier, 0);
+    if (!(value instanceof List<?> rawItems)) {
+      return;
+    }
+    List<ItemStack> items = (List<ItemStack>) rawItems;
+    List<ItemStack> localized =
+        ProtocolItemPacketLocalizer.localizeItems(player, items, localizer::localize);
+    if (localized != items) {
+      writeModifier(modifier, 0, localized);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private void localizeEntityMetadataPacket(
+      Player player,
+      Object packet,
+      DisplayLocalizer localizer,
+      Method getDataValueCollectionModifier,
+      ProtocolMetadataValueAdapter metadataAdapter)
+      throws ReflectiveOperationException {
+    if (localizer == null || getDataValueCollectionModifier == null || metadataAdapter == null) {
+      return;
+    }
+    Object integers = packetGetIntegers.invoke(packet);
+    Object rawEntityId = readModifier(integers, 0);
+    if (!(rawEntityId instanceof Number entityId)) {
+      return;
+    }
+    Object modifier = getDataValueCollectionModifier.invoke(packet);
+    Object value = readModifier(modifier, 0);
+    if (!(value instanceof List<?> rawValues)) {
+      return;
+    }
+    List<Object> values = (List<Object>) rawValues;
+    List<Object> localized =
+        ProtocolDisplayPacketLocalizer.localizeValues(
+            player, entityId.intValue(), values, metadataAdapter, localizer::localize);
+    if (localized != values) {
+      writeModifier(modifier, 0, localized);
+    }
+  }
+
+  private ProtocolMetadataValueAdapter createMetadataValueAdapter()
+      throws ReflectiveOperationException {
+    Class<?> wrappedDataValueClass =
+        loader.loadClass("com.comphenix.protocol.wrappers.WrappedDataValue");
+    Class<?> serializerClass =
+        loader.loadClass("com.comphenix.protocol.wrappers.WrappedDataWatcher$Serializer");
+    Constructor<?> dataValueConstructor =
+        wrappedDataValueClass.getConstructor(int.class, serializerClass, Object.class);
+    Method getIndex = wrappedDataValueClass.getMethod("getIndex");
+    Method getSerializer = wrappedDataValueClass.getMethod("getSerializer");
+    Method getValue = wrappedDataValueClass.getMethod("getValue");
+    Method wrappedChatFromText = null;
+    Method wrappedChatGetHandle = null;
+    Method craftItemStackAsNmsCopy = null;
+    try {
+      Class<?> wrappedChatComponentClass =
+          loader.loadClass("com.comphenix.protocol.wrappers.WrappedChatComponent");
+      wrappedChatFromText = wrappedChatComponentClass.getMethod("fromText", String.class);
+      wrappedChatGetHandle = wrappedChatComponentClass.getMethod("getHandle");
+    } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
+      wrappedChatFromText = null;
+      wrappedChatGetHandle = null;
+    }
+    try {
+      Class<?> craftItemStackClass =
+          Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+      craftItemStackAsNmsCopy = craftItemStackClass.getMethod("asNMSCopy", ItemStack.class);
+    } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
+      craftItemStackAsNmsCopy = null;
+    }
+    return new ProtocolMetadataValueAdapter(
+        dataValueConstructor,
+        getIndex,
+        getSerializer,
+        getValue,
+        wrappedChatFromText,
+        wrappedChatGetHandle,
+        craftItemStackAsNmsCopy);
   }
 
   private PacketTarget readBlockTarget(Object event)
@@ -547,6 +822,11 @@ public final class ProtocolLibEnhancements {
     return modifier.getClass().getMethod("read", int.class).invoke(modifier, index);
   }
 
+  private static void writeModifier(Object modifier, int index, Object value)
+      throws ReflectiveOperationException {
+    modifier.getClass().getMethod("write", int.class, Object.class).invoke(modifier, index, value);
+  }
+
   private static String describeError(Throwable error) {
     Throwable root = error;
     while (root instanceof InvocationTargetException invocation && invocation.getCause() != null) {
@@ -561,6 +841,94 @@ public final class ProtocolLibEnhancements {
 
   private interface PacketReceiver {
     void onPacketReceiving(Object event);
+  }
+
+  private interface PacketSender {
+    void onPacketSending(Object event);
+  }
+
+  private static final class ProtocolMetadataValueAdapter
+      implements ProtocolDisplayPacketLocalizer.MetadataValueAdapter<Object> {
+    private final Constructor<?> dataValueConstructor;
+    private final Method getIndex;
+    private final Method getSerializer;
+    private final Method getValue;
+    private final Method wrappedChatFromText;
+    private final Method wrappedChatGetHandle;
+    private final Method craftItemStackAsNmsCopy;
+
+    private ProtocolMetadataValueAdapter(
+        Constructor<?> dataValueConstructor,
+        Method getIndex,
+        Method getSerializer,
+        Method getValue,
+        Method wrappedChatFromText,
+        Method wrappedChatGetHandle,
+        Method craftItemStackAsNmsCopy) {
+      this.dataValueConstructor = dataValueConstructor;
+      this.getIndex = getIndex;
+      this.getSerializer = getSerializer;
+      this.getValue = getValue;
+      this.wrappedChatFromText = wrappedChatFromText;
+      this.wrappedChatGetHandle = wrappedChatGetHandle;
+      this.craftItemStackAsNmsCopy = craftItemStackAsNmsCopy;
+    }
+
+    @Override
+    public int index(Object value) {
+      try {
+        Object index = getIndex.invoke(value);
+        return index instanceof Number number ? number.intValue() : -1;
+      } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+        throw new IllegalStateException("metadata index unavailable", e);
+      }
+    }
+
+    @Override
+    public Object value(Object value) {
+      try {
+        return getValue.invoke(value);
+      } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+        throw new IllegalStateException("metadata value unavailable", e);
+      }
+    }
+
+    @Override
+    public Object withValue(Object value, Object replacement) {
+      try {
+        return dataValueConstructor.newInstance(
+            index(value), getSerializer.invoke(value), replacement);
+      } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+        throw new IllegalStateException("metadata replacement unavailable", e);
+      }
+    }
+
+    @Override
+    public Object itemStackValue(Object previousValue, ItemStack localizedStack) {
+      if (craftItemStackAsNmsCopy == null) {
+        return null;
+      }
+      try {
+        return craftItemStackAsNmsCopy.invoke(null, localizedStack);
+      } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+        return null;
+      }
+    }
+
+    @Override
+    public Object customNameValue(Object previousValue, String localizedName) {
+      if (!(previousValue instanceof Optional<?>) || wrappedChatFromText == null) {
+        return null;
+      }
+      try {
+        Object wrapped = wrappedChatFromText.invoke(null, localizedName);
+        Object handle =
+            wrappedChatGetHandle == null ? wrapped : wrappedChatGetHandle.invoke(wrapped);
+        return Optional.ofNullable(handle);
+      } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+        return null;
+      }
+    }
   }
 
   private static MetadataIndexes resolvePlacementGuardMetadataIndexes() {

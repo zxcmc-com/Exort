@@ -14,6 +14,14 @@ public final class DisplayMetadataService {
   }
 
   public void normalize(Display display) {
+    normalize(display, null, true);
+  }
+
+  public void normalize(Display display, String localizationKey) {
+    normalize(display, localizationKey, false);
+  }
+
+  private void normalize(Display display, String localizationKey, boolean preserveLocalizationKey) {
     if (display == null || !display.isValid()) {
       return;
     }
@@ -22,7 +30,11 @@ public final class DisplayMetadataService {
     DisplayMetadataNormalizer.normalize(
         display, DisplayMetadataNormalizer.dimensionsFor(display), viewRange);
     if (index != null) {
-      index.register(display);
+      if (preserveLocalizationKey) {
+        index.register(display);
+      } else {
+        index.register(display, localizationKey);
+      }
     }
   }
 

@@ -71,6 +71,11 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
   }
 
   @Override
+  protected String localizationKey(Block block) {
+    return StorageCoreMarker.isCore(plugin, block) ? "item.storage_core" : null;
+  }
+
+  @Override
   protected void applyTransform(ItemDisplay display, Block block) {
     Transformation t = display.getTransformation();
     t.getScale()

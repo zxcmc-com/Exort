@@ -6,6 +6,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.feedback.CommandFeedback;
+import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
@@ -24,6 +25,7 @@ import org.bukkit.util.StringUtil;
 final class LangCommand {
   private static final String PERMISSION_ADMIN = "exort.storagenetwork.admin";
   private static final String ARG_LANG = "lang";
+  private static final int COMPACT_DICTIONARY_LIST_THRESHOLD = 6;
 
   private final ExortBrigadierDependencies dependencies;
 
@@ -98,15 +100,53 @@ final class LangCommand {
     if (status.indexFetched()) {
       lines.add(lang.tr(sender, "message.lang_status_index_fetched"));
     }
-    if (!status.dictVersions().isEmpty()) {
-      for (var entry : status.dictVersions().entrySet()) {
-        int size = status.dictSizes().getOrDefault(entry.getKey(), 0);
-        lines.add(
-            lang.tr(sender, "message.lang_status_dict", entry.getKey(), entry.getValue(), size));
-      }
-    }
+    lines.addAll(dictionaryStatusLines(lang, sender, status));
     CommandFeedback.sendBlock(sender, lang.tr(sender, "message.lang_status_header"), lines);
     return 1;
+  }
+
+  static List<String> dictionaryStatusLines(
+      Lang lang, CommandSender sender, ItemNameService.Status status) {
+    if (status == null || status.dictVersions().isEmpty()) {
+      return List.of();
+    }
+    List<String> languages = new ArrayList<>(status.dictVersions().keySet());
+    languages.sort(String::compareTo);
+    if (languages.size() >= COMPACT_DICTIONARY_LIST_THRESHOLD) {
+      return List.of(compactDictionaryStatusLine(lang, sender, languages));
+    }
+    List<String> lines = new ArrayList<>(languages.size());
+    for (String language : languages) {
+      int size = status.dictSizes().getOrDefault(language, 0);
+      lines.add(
+          lang.tr(
+              sender,
+              "message.lang_status_dict",
+              language,
+              status.dictVersions().get(language),
+              size));
+    }
+    return lines;
+  }
+
+  private static String compactDictionaryStatusLine(
+      Lang lang, CommandSender sender, List<String> languages) {
+    String label = dictionaryStatusLabel(lang, sender);
+    return label + " (" + languages.size() + "): " + String.join(", ", languages);
+  }
+
+  private static String dictionaryStatusLabel(Lang lang, CommandSender sender) {
+    String marker = "__exort_lang__";
+    String sample = lang.tr(sender, "message.lang_status_dict", marker, "-", 0);
+    int markerIndex = sample.indexOf(marker);
+    if (markerIndex <= 0) {
+      return "Dictionaries";
+    }
+    String label = sample.substring(0, markerIndex).trim();
+    if (label.endsWith(":")) {
+      label = label.substring(0, label.length() - 1).trim();
+    }
+    return label.isBlank() ? "Dictionaries" : label;
   }
 
   private Component usageLine(CommandSender sender, String command, String descriptionKey) {
@@ -120,8 +160,8 @@ final class LangCommand {
     if (!ensurePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     String lang = StringArgumentType.getString(context, ARG_LANG);
-    String normalized = dependencies.itemNameService().normalizeLanguage(stripLangExtension(lang));
-    if (!dependencies.itemNameService().isKnownLanguage(normalized)) {
+    String normalized = dependencies.lang().normalizeLanguage(stripLangExtension(lang));
+    if (!dependencies.lang().hasLanguage(normalized)) {
       sendMessage(sender, dependencies.lang().tr(sender, "message.lang_invalid", normalized));
       return 1;
     }
@@ -151,7 +191,7 @@ final class LangCommand {
 
   private CompletableFuture<Suggestions> suggestLangs(
       CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-    var options = new ArrayList<>(dependencies.itemNameService().localLanguages());
+    var options = new ArrayList<>(dependencies.lang().availableLanguages());
     var matches =
         StringUtil.copyPartialMatches(
             builder.getRemaining().toLowerCase(Locale.ROOT), options, new ArrayList<>());
