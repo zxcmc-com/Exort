@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.0 — 2026-06-05
+- Added unified territory-protection checks for Exort placement, breaking, interaction, and storage access across WorldGuard, ProtectionStones regions, GriefPrevention claims, Towny permissions, Lands, and Residence.
+- Replaced the WorldGuard-only protection config with `protection.*` controls, including per-adapter toggles and a shared fail-closed option for protection-check errors.
+
 ## 0.13.4 — 2026-06-04
 - Simplified `config.yml`: debug/tuning defaults for display culling, WorldEdit bulk processing, placement guard geometry, visual models, break sounds, crafting rules, bossbar durations, and resource-pack required state are now fixed in code.
 - Flattened several runtime settings for clearer administration, including `updateCheck`, `placementGuard`, `performance.worldEditBulk`, `protocolLib.localizationLevel`, and moved storage/session/bus performance limits under `performance`.

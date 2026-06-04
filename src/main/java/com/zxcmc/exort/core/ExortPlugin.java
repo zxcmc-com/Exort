@@ -36,9 +36,9 @@ import com.zxcmc.exort.infra.metrics.ExortMetrics;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.infra.update.UpdateChecker;
+import com.zxcmc.exort.integration.protection.CompositeRegionProtection;
+import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.protection.WorldGuardProtection;
-import com.zxcmc.exort.integration.protection.WorldGuardProtectionConfig;
 import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.items.CustomItems;
@@ -66,10 +66,14 @@ import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.io.File;
+import java.lang.reflect.Constructor;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import org.bstats.bukkit.Metrics;
@@ -573,41 +577,155 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   private void setupRegionProtection() {
     regionProtection = RegionProtection.allowAll();
-    WorldGuardProtectionConfig protectionConfig =
-        WorldGuardProtectionConfig.fromConfig(getConfig());
+    ProtectionRuntimeConfig protectionConfig = ProtectionRuntimeConfig.fromConfig(getConfig());
     if (!protectionConfig.enabled()) {
-      ExortLog.info("[WorldGuard] Integration disabled by config.");
+      ExortLog.info("[Protection] Integration disabled by config.");
       return;
     }
     boolean failClosed = protectionConfig.failClosedOnError();
-    var wg = getServer().getPluginManager().getPlugin("WorldGuard");
-    if (wg == null || !wg.isEnabled()) {
-      ExortLog.info("[WorldGuard] Integration disabled: plugin not found.");
-      registerWorldGuardEnableHook();
+    ProtectionRuntimeConfig.Adapters enabledAdapters = protectionConfig.adapters();
+    List<CompositeRegionProtection.Adapter> adapters = new ArrayList<>();
+    Set<String> missingPlugins = new LinkedHashSet<>();
+
+    if (enabledAdapters.worldGuard()
+        && !addProtectionAdapter(
+            adapters,
+            missingPlugins,
+            "WorldGuard",
+            () ->
+                createProtectionAdapter(
+                    "com.zxcmc.exort.integration.protection.WorldGuardProtection"),
+            failClosed)) {
       return;
     }
+    if (enabledAdapters.griefPrevention()
+        && !addProtectionAdapter(
+            adapters,
+            missingPlugins,
+            "GriefPrevention",
+            () ->
+                createProtectionAdapter(
+                    "com.zxcmc.exort.integration.protection.GriefPreventionProtection"),
+            failClosed)) {
+      return;
+    }
+    if (enabledAdapters.towny()
+        && !addProtectionAdapter(
+            adapters,
+            missingPlugins,
+            "Towny",
+            () -> createProtectionAdapter("com.zxcmc.exort.integration.protection.TownyProtection"),
+            failClosed)) {
+      return;
+    }
+    if (enabledAdapters.lands()
+        && !addProtectionAdapter(
+            adapters,
+            missingPlugins,
+            "Lands",
+            () ->
+                createProtectionAdapter(
+                    "com.zxcmc.exort.integration.protection.LandsProtection", this),
+            failClosed)) {
+      return;
+    }
+    if (enabledAdapters.residence()
+        && !addProtectionAdapter(
+            adapters,
+            missingPlugins,
+            "Residence",
+            () ->
+                createProtectionAdapter(
+                    "com.zxcmc.exort.integration.protection.ResidenceProtection"),
+            failClosed)) {
+      return;
+    }
+
+    if (adapters.isEmpty()) {
+      ExortLog.info("[Protection] Integration disabled: no supported protection plugin found.");
+      registerProtectionEnableHook(missingPlugins);
+      return;
+    }
+
+    CompositeRegionProtection composite =
+        new CompositeRegionProtection(adapters, getLogger(), failClosed);
+    regionProtection = composite;
+    ExortLog.success(
+        "[Protection] Integration enabled: " + String.join(", ", composite.adapterNames()));
+    registerProtectionEnableHook(missingPlugins);
+  }
+
+  private boolean addProtectionAdapter(
+      List<CompositeRegionProtection.Adapter> adapters,
+      Set<String> missingPlugins,
+      String pluginName,
+      ProtectionFactory factory,
+      boolean failClosed) {
+    var plugin = getServer().getPluginManager().getPlugin(pluginName);
+    if (plugin == null || !plugin.isEnabled()) {
+      ExortLog.info("[Protection] " + pluginName + " adapter disabled: plugin not found.");
+      missingPlugins.add(pluginName);
+      return true;
+    }
     try {
-      regionProtection = new WorldGuardProtection(getLogger(), failClosed);
-    } catch (IllegalStateException error) {
+      adapters.add(new CompositeRegionProtection.Adapter(pluginName, factory.create()));
+      return true;
+    } catch (RuntimeException | LinkageError error) {
       getLogger()
           .log(
               Level.WARNING,
-              "WorldGuard is enabled, but Exort could not initialize its protection adapter; "
+              pluginName
+                  + " is enabled, but Exort could not initialize its protection adapter; "
                   + (failClosed ? "denying Exort actions." : "allowing Exort actions."),
               error);
-      regionProtection = failClosed ? RegionProtection.denyAll() : RegionProtection.allowAll();
-      return;
+      if (failClosed) {
+        regionProtection = RegionProtection.denyAll();
+        return false;
+      }
+      return true;
     }
-    ExortLog.success("[WorldGuard] Integration enabled.");
   }
 
-  private void registerWorldGuardEnableHook() {
+  private RegionProtection createProtectionAdapter(String className, Object... args) {
+    try {
+      Class<?> type = Class.forName(className, true, getClassLoader());
+      if (args.length == 0) {
+        return (RegionProtection) type.getDeclaredConstructor().newInstance();
+      }
+      for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+        Class<?>[] parameterTypes = constructor.getParameterTypes();
+        if (parameterTypes.length != args.length) {
+          continue;
+        }
+        boolean matches = true;
+        for (int i = 0; i < args.length; i++) {
+          if (!parameterTypes[i].isAssignableFrom(args[i].getClass())) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          constructor.setAccessible(true);
+          return (RegionProtection) constructor.newInstance(args);
+        }
+      }
+      throw new IllegalStateException("No matching constructor for " + className);
+    } catch (ReflectiveOperationException error) {
+      throw new IllegalStateException("Could not create protection adapter " + className, error);
+    }
+  }
+
+  private void registerProtectionEnableHook(Set<String> pluginNames) {
+    if (pluginNames.isEmpty()) {
+      return;
+    }
+    Set<String> watchedPluginNames = Set.copyOf(pluginNames);
     Bukkit.getPluginManager()
         .registerEvents(
             new Listener() {
               @EventHandler
               public void onPluginEnable(PluginEnableEvent event) {
-                if (!"WorldGuard".equals(event.getPlugin().getName())) {
+                if (!watchedPluginNames.contains(event.getPlugin().getName())) {
                   return;
                 }
                 setupRegionProtection();
@@ -615,6 +733,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
               }
             },
             this);
+  }
+
+  private interface ProtectionFactory {
+    RegionProtection create();
   }
 
   private void registerBrigadierCommands() {

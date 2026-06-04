@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.13.4'
+version = '0.14.0'
 description = 'Exort Storage Network'
 
 base {
@@ -40,6 +40,16 @@ repositories {
     maven {
         url = 'https://maven.enginehub.org/repo/'
     }
+    maven {
+        url = 'https://jitpack.io'
+    }
+    maven {
+        name = 'glaremasters repo'
+        url = 'https://repo.glaremasters.me/repository/towny/'
+    }
+    maven {
+        url = 'https://repo.incredibleplugins.com/releases/'
+    }
 }
 
 configurations {
@@ -56,6 +66,11 @@ dependencies {
     compileOnly 'io.papermc.paper:paper-api:26.1.2.build.59-stable'
     compileOnly 'org.xerial:sqlite-jdbc:3.45.3.0'
     compileOnly 'com.sk89q.worldedit:worldedit-core:7.3.0'
+    compileOnly('com.sk89q.worldguard:worldguard-bukkit:7.0.17') { transitive = false }
+    compileOnly('com.github.GriefPrevention:GriefPrevention:18.0.0') { transitive = false }
+    compileOnly('com.palmergames.bukkit.towny:towny:0.103.0.2') { transitive = false }
+    compileOnly('com.incredibleplugins:lands-api:7.25.14') { transitive = false }
+    compileOnly('com.github.Zrips:Residence:6.0.0.1') { transitive = false }
     implementation 'org.bstats:bstats-bukkit:3.1.0'
     implementation 'org.bstats:bstats-base:3.1.0'
     testImplementation platform('org.junit:junit-bom:5.11.4')

@@ -1,33 +1,31 @@
 package com.zxcmc.exort.integration.protection;
 
-import com.sk89q.worldguard.bukkit.cause.Cause;
-import com.sk89q.worldguard.bukkit.event.block.BreakBlockEvent;
-import com.sk89q.worldguard.bukkit.event.block.PlaceBlockEvent;
-import com.sk89q.worldguard.bukkit.event.block.UseBlockEvent;
-import com.sk89q.worldguard.bukkit.util.Events;
+import com.palmergames.bukkit.towny.object.TownyPermission.ActionType;
+import com.palmergames.bukkit.towny.utils.PlayerCacheUtil;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
-public final class WorldGuardProtection implements RegionProtection {
+public final class TownyProtection implements RegionProtection {
   @Override
   public boolean canBuild(Player player, Location location, Material material) {
     if (player == null || location == null || material == null) return true;
-    return !Events.fireAndTestCancel(
-        new PlaceBlockEvent(null, Cause.create(player), location, material));
+    return PlayerCacheUtil.getCachePermission(player, location, material, ActionType.BUILD);
   }
 
   @Override
   public boolean canBreak(Player player, Block block) {
     if (player == null || block == null) return true;
-    return !Events.fireAndTestCancel(new BreakBlockEvent(null, Cause.create(player), block));
+    return PlayerCacheUtil.getCachePermission(
+        player, block.getLocation(), block.getType(), ActionType.DESTROY);
   }
 
   @Override
   public boolean canInteract(Player player, Block block) {
     if (player == null || block == null) return true;
-    return !Events.fireAndTestCancel(new UseBlockEvent(null, Cause.create(player), block));
+    return PlayerCacheUtil.getCachePermission(
+        player, block.getLocation(), block.getType(), ActionType.SWITCH);
   }
 
   @Override

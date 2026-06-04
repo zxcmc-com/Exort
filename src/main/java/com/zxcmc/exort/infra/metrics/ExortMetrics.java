@@ -1,7 +1,7 @@
 package com.zxcmc.exort.infra.metrics;
 
 import com.zxcmc.exort.bus.BusRuntimeConfig;
-import com.zxcmc.exort.integration.protection.WorldGuardProtectionConfig;
+import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
 import com.zxcmc.exort.recipes.RecipeRuntimeConfig;
 import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
@@ -52,14 +52,11 @@ public final class ExortMetrics {
                     : "disabled"));
     metrics.addCustomChart(
         new SimplePie(
-            "worldguard_state",
-            () -> {
-              WorldGuardProtectionConfig config =
-                  WorldGuardProtectionConfig.fromConfig(plugin.getConfig());
-              if (!config.enabled()) return "disabled";
-              boolean present = plugin.getServer().getPluginManager().isPluginEnabled("WorldGuard");
-              return present ? "active" : "missing";
-            }));
+            "protection_state",
+            () ->
+                protectionStateChartValue(
+                    ProtectionRuntimeConfig.fromConfig(plugin.getConfig()),
+                    plugin.getServer().getPluginManager()::isPluginEnabled)));
     metrics.addCustomChart(
         new SimplePie(
             "bus_storage_targets",
@@ -98,5 +95,39 @@ public final class ExortMetrics {
             ? "en_us"
             : rawLanguage.trim().toLowerCase(Locale.ROOT).replace('-', '_');
     return LANGUAGE_CODE_PATTERN.matcher(normalized).matches() ? normalized : "custom_or_invalid";
+  }
+
+  static String protectionStateChartValue(
+      ProtectionRuntimeConfig config, PluginPresence pluginPresence) {
+    if (!config.enabled()) return "disabled";
+    ProtectionRuntimeConfig.Adapters adapters = config.adapters();
+    int active = 0;
+    String activeName = "";
+    if (adapters.worldGuard() && pluginPresence.isEnabled("WorldGuard")) {
+      active++;
+      activeName = "worldguard";
+    }
+    if (adapters.griefPrevention() && pluginPresence.isEnabled("GriefPrevention")) {
+      active++;
+      activeName = "griefprevention";
+    }
+    if (adapters.towny() && pluginPresence.isEnabled("Towny")) {
+      active++;
+      activeName = "towny";
+    }
+    if (adapters.lands() && pluginPresence.isEnabled("Lands")) {
+      active++;
+      activeName = "lands";
+    }
+    if (adapters.residence() && pluginPresence.isEnabled("Residence")) {
+      active++;
+      activeName = "residence";
+    }
+    if (active == 0) return "missing";
+    return active == 1 ? activeName : "multiple";
+  }
+
+  interface PluginPresence {
+    boolean isEnabled(String pluginName);
   }
 }
