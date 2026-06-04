@@ -73,12 +73,18 @@ performance:
 # Prevent client-side ghost placement and sounds when right-clicking Exort blocks with placeable items.
 placementGuard: true
 
-# WorldGuard region protection integration.
-worldguard:
+# Region/claim protection integrations.
+protection:
   enabled: true
-  # If WorldGuard is installed but Exort cannot complete a protection check, true denies Exort actions.
+  # If an installed protection adapter cannot complete a check, true denies Exort actions.
   # false keeps fail-open behavior.
   failClosedOnError: false
+  adapters:
+    worldguard: true
+    griefPrevention: true
+    towny: true
+    lands: true
+    residence: true
 
 # Register Exort crafting recipes from recipes.yml.
 recipes:
