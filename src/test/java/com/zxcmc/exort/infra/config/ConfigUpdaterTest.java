@@ -12,15 +12,10 @@ class ConfigUpdaterTest {
   void rendersListsAsYamlBlockValues() {
     StringBuilder out = new StringBuilder();
 
-    ConfigUpdater.renderValue(out, 4, "entityThresholds", List.of(160, 320, 640));
+    ConfigUpdater.renderValue(out, 4, "tools", List.of("pickaxe", "axe"));
 
     assertEquals(
-        String.join(
-                System.lineSeparator(),
-                "    entityThresholds:",
-                "      - 160",
-                "      - 320",
-                "      - 640")
+        String.join(System.lineSeparator(), "    tools:", "      - pickaxe", "      - axe")
             + System.lineSeparator(),
         out.toString());
   }
@@ -37,88 +32,66 @@ class ConfigUpdaterTest {
   @Test
   void mergePreservesUserListValuesFromBlockDefaults() {
     YamlConfiguration defaults = new YamlConfiguration();
-    defaults.set(
-        "performance.displayCulling.adaptiveViewRange.roleRanges.wire",
-        List.of(0.5, 0.35, 0.25, 0.12));
-    defaults.set("performance.displayCulling.adaptiveViewRange.enabled", true);
+    defaults.set("break.wire.tools", List.of("pickaxe", "axe", "sword"));
+    defaults.set("break.wire.hardness", 4.0);
     YamlConfiguration user = new YamlConfiguration();
-    user.set("performance.displayCulling.adaptiveViewRange.roleRanges.wire", List.of(0.5, 0.25));
-    user.set("performance.displayCulling.adaptiveViewRange.enabled", false);
+    user.set("break.wire.tools", List.of("shears"));
+    user.set("break.wire.hardness", 6.0);
     List<String> defaultLines =
         List.of(
-            "performance:",
-            "  displayCulling:",
-            "    adaptiveViewRange:",
-            "      roleRanges:",
-            "        wire:",
-            "          - 0.5",
-            "          - 0.35",
-            "          - 0.25",
-            "          - 0.12",
-            "      enabled: true");
-
-    String merged =
-        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
-
-    assertTrue(merged.contains("        wire:"), merged);
-    assertTrue(merged.contains("          - 0.5"), merged);
-    assertTrue(merged.contains("          - 0.25"), merged);
-    assertTrue(merged.contains("      enabled: false"), merged);
-    assertEquals(-1, merged.indexOf("          - 0.35"), merged);
-    assertEquals(-1, merged.indexOf("          - 0.12"), merged);
-  }
-
-  @Test
-  void mergeDropsRetiredClientCullingPlayersKey() {
-    YamlConfiguration defaults = new YamlConfiguration();
-    defaults.set("performance.displayCulling.clientCullingBypass.enabled", true);
-    YamlConfiguration user = new YamlConfiguration();
-    user.set("performance.displayCulling.clientCullingBypass.enabled", true);
-    user.set(
-        "performance.displayCulling.clientCullingBypass.players",
-        List.of("00000000-0000-0000-0000-000000000123"));
-    List<String> defaultLines =
-        List.of(
-            "performance:", "  displayCulling:", "    clientCullingBypass:", "      enabled: true");
-
-    String merged =
-        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
-
-    assertEquals(-1, merged.indexOf("clientCullingBypass.players"), merged);
-    assertEquals(-1, merged.indexOf("00000000-0000-0000-0000-000000000123"), merged);
-  }
-
-  @Test
-  void mergeDropsRetiredWireRenderKeys() {
-    YamlConfiguration defaults = new YamlConfiguration();
-    defaults.set("resourceMode.wire.itemModel", "wire/center");
-    defaults.set("resourceMode.wire.displayBaseMaterial", "PAPER");
-    YamlConfiguration user = new YamlConfiguration();
-    user.set("resourceMode.wire.itemModel", "wire/custom_center");
-    user.set("resourceMode.wire.displayBaseMaterial", "PAPER");
-    user.set("resourceMode.wire.renderMode", "AUTO");
-    user.set("resourceMode.wire.autoRender.chunkRadius", 1);
-    user.set("resourceMode.wire.autoRender.enterCompactWires", 48);
-    user.set("resourceMode.wire.autoRender.exitCompactWires", 32);
-    user.set("resourceMode.wire.autoRender.idlePlayerRadiusBlocks", 96);
-    user.set("resourceMode.wire.autoRender.maintenanceBlocksPerTick", 16);
-    user.set("resourceMode.wire.displayModelCenter", "wire/center");
-    user.set("resourceMode.wire.displayModelConnection", "wire/connection");
-    List<String> defaultLines =
-        List.of(
-            "resourceMode:",
+            "break:",
             "  wire:",
-            "    itemModel: wire/center",
-            "    displayBaseMaterial: PAPER");
+            "    hardness: 4.0",
+            "    tools:",
+            "      - pickaxe",
+            "      - axe",
+            "      - sword");
 
     String merged =
         ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
 
-    assertTrue(merged.contains("    itemModel: wire/custom_center"), merged);
+    assertTrue(merged.contains("    hardness: 6.0"), merged);
+    assertTrue(merged.contains("    tools:"), merged);
+    assertTrue(merged.contains("      - shears"), merged);
+    assertEquals(-1, merged.indexOf("      - pickaxe"), merged);
+    assertEquals(-1, merged.indexOf("      - axe"), merged);
+    assertEquals(-1, merged.indexOf("      - sword"), merged);
+  }
+
+  @Test
+  void mergeDropsUnknownKeysInsteadOfPreservingRetiredComments() {
+    YamlConfiguration defaults = new YamlConfiguration();
+    defaults.set("updateCheck", true);
+    YamlConfiguration user = new YamlConfiguration();
+    user.set("updateCheck", false);
+    user.set("resourceMode.wire.renderMode", "AUTO");
+    List<String> defaultLines = List.of("updateCheck: true");
+
+    String merged =
+        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
+
+    assertTrue(merged.contains("updateCheck: false"), merged);
     assertEquals(-1, merged.indexOf("renderMode"), merged);
-    assertEquals(-1, merged.indexOf("autoRender"), merged);
-    assertEquals(-1, merged.indexOf("displayModelCenter"), merged);
-    assertEquals(-1, merged.indexOf("displayModelConnection"), merged);
-    assertEquals(-1, merged.indexOf("wire/connection"), merged);
+    assertEquals(-1, merged.indexOf("Removed/unknown options"), merged);
+  }
+
+  @Test
+  void mergeUsesDefaultScalarWhenUserHasOldNestedSection() {
+    YamlConfiguration defaults = new YamlConfiguration();
+    defaults.set("updateCheck", true);
+    defaults.set("performance.worldEditBulk", true);
+    YamlConfiguration user = new YamlConfiguration();
+    user.set("updateCheck.enabled", false);
+    user.set("performance.worldEditBulk.enabled", false);
+    List<String> defaultLines =
+        List.of("updateCheck: true", "performance:", "  worldEditBulk: true");
+
+    String merged =
+        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
+
+    assertTrue(merged.contains("updateCheck: true"), merged);
+    assertTrue(merged.contains("  worldEditBulk: true"), merged);
+    assertEquals(-1, merged.indexOf("enabled: false"), merged);
+    assertEquals(-1, merged.indexOf("Removed/unknown options"), merged);
   }
 }

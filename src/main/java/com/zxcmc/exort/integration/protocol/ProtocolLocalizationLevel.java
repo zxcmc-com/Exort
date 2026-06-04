@@ -7,7 +7,7 @@ public enum ProtocolLocalizationLevel {
   SIMPLE,
   FULL;
 
-  private static final String PATH = "protocolLib.localization.level";
+  private static final String PATH = "protocolLib.localizationLevel";
 
   public static ProtocolLocalizationLevel fromConfig(ConfigurationSection config) {
     return fromString(config == null ? null : config.getString(PATH, SIMPLE.name()));

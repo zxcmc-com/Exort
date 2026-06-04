@@ -20,35 +20,8 @@ class RuntimeNetworkConfigTest {
   }
 
   @Test
-  void configuredBossbarDurationsAreConvertedToTicksAndClamped() {
+  void readsPublicWireKeys() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("bossbar.storagePeekSeconds", 8);
-    yaml.set("bossbar.wirePeekSeconds", 0);
-
-    RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
-
-    assertEquals(160L, config.storagePeekTicks());
-    assertEquals(1L, config.wirePeekTicks());
-  }
-
-  @Test
-  void legacyWireKeysRemainFallbacks() {
-    YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("wireLimit", 12);
-    yaml.set("wireHardCap", 30);
-
-    RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
-
-    assertEquals(12, config.wireLimit());
-    assertEquals(30, config.wireHardCap());
-    assertFalse(config.wireHardCapAdjusted());
-  }
-
-  @Test
-  void nestedWireKeysOverrideLegacyFallbacks() {
-    YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("wireLimit", 12);
-    yaml.set("wireHardCap", 30);
     yaml.set("wire.limit", 20);
     yaml.set("wire.hardCap", 50);
 

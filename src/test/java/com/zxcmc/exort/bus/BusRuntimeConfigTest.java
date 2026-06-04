@@ -28,8 +28,8 @@ class BusRuntimeConfigTest {
     yaml.set("bus.activeIntervalTicks", 7);
     yaml.set("bus.idleIntervalTicks", 50);
     yaml.set("bus.itemsPerOperation", 3);
-    yaml.set("bus.maxOperationsPerTick", 500);
-    yaml.set("bus.maxOperationsPerChunk", 40);
+    yaml.set("performance.bus.maxOperationsPerTick", 500);
+    yaml.set("performance.bus.maxOperationsPerChunk", 40);
     yaml.set("bus.allowStorageTargets", false);
     yaml.set("bus.defaultMode.import", "BLACKLIST");
     yaml.set("bus.defaultMode.export", "ALL");
@@ -56,8 +56,8 @@ class BusRuntimeConfigTest {
     yaml.set("bus.activeIntervalTicks", 0);
     yaml.set("bus.idleIntervalTicks", -5);
     yaml.set("bus.itemsPerOperation", 0);
-    yaml.set("bus.maxOperationsPerTick", -1);
-    yaml.set("bus.maxOperationsPerChunk", -2);
+    yaml.set("performance.bus.maxOperationsPerTick", -1);
+    yaml.set("performance.bus.maxOperationsPerChunk", -2);
     yaml.set("bus.defaultMode.import", "bad");
     yaml.set("bus.defaultMode.export", "");
 

@@ -20,9 +20,9 @@ class StorageRuntimeConfigTest {
   void readsConfiguredValues() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("defaultSortMode", "NAME");
-    yaml.set("flushIntervalSeconds", 25);
-    yaml.set("cache.idleUnloadSeconds", 120L);
-    yaml.set("cache.idleCheckSeconds", 15L);
+    yaml.set("performance.storage.flushIntervalSeconds", 25);
+    yaml.set("performance.storage.idleUnloadSeconds", 120L);
+    yaml.set("performance.storage.idleCheckSeconds", 15L);
 
     StorageRuntimeConfig config = StorageRuntimeConfig.fromConfig(yaml);
 

@@ -17,18 +17,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ConfigUpdater {
-  private static final Set<String> RETIRED_KEYS =
-      Set.of(
-          "performance.displayCulling.clientCullingBypass.players",
-          "resourceMode.wire.renderMode",
-          "resourceMode.wire.autoRender.chunkRadius",
-          "resourceMode.wire.autoRender.enterCompactWires",
-          "resourceMode.wire.autoRender.exitCompactWires",
-          "resourceMode.wire.autoRender.idlePlayerRadiusBlocks",
-          "resourceMode.wire.autoRender.maintenanceBlocksPerTick",
-          "resourceMode.wire.displayModelCenter",
-          "resourceMode.wire.displayModelConnection");
-
   private ConfigUpdater() {}
 
   public static void update(JavaPlugin plugin, String resourceName) {
@@ -187,27 +175,16 @@ public final class ConfigUpdater {
         if (fullPath.startsWith("tiers.") && existed && !user.contains(fullPath)) {
           continue; // skip default tier entries if user removed them
         }
-        Object val = user.contains(fullPath) ? user.get(fullPath) : defaults.get(fullPath);
+        Object defaultValue = defaults.get(fullPath);
+        Object userValue = user.get(fullPath);
+        Object val =
+            user.contains(fullPath) && !(userValue instanceof ConfigurationSection)
+                ? userValue
+                : defaultValue;
         renderValue(out, indent, keyPart, val);
       }
     }
 
-    // Preserve removed/unknown options for reference (except tiers.* which are user-controlled).
-    if (existed) {
-      Set<String> unknownLeaves = collectUnknownLeaves(defaults, user);
-      if (!unknownLeaves.isEmpty()) {
-        out.append(System.lineSeparator());
-        out.append("# Removed/unknown options preserved for reference:")
-            .append(System.lineSeparator());
-        for (String key : unknownLeaves) {
-          out.append("# ")
-              .append(key)
-              .append(": ")
-              .append(scalarToString(user.get(key)))
-              .append(System.lineSeparator());
-        }
-      }
-    }
     return out.toString();
   }
 
@@ -393,20 +370,6 @@ public final class ConfigUpdater {
       int indent = countLeadingSpaces(line);
       int newIndent = Math.max(0, indent + shift);
       out.add(spaces(newIndent) + line.substring(Math.min(indent, line.length())));
-    }
-    return out;
-  }
-
-  private static Set<String> collectUnknownLeaves(
-      YamlConfiguration defaults, YamlConfiguration user) {
-    Set<String> defaultKeys = defaults.getKeys(true);
-    Set<String> out = new TreeSet<>();
-    for (String key : user.getKeys(true)) {
-      if ("tiers".equalsIgnoreCase(key) || key.startsWith("tiers.")) continue;
-      if (RETIRED_KEYS.contains(key)) continue;
-      if (defaultKeys.contains(key)) continue;
-      if (user.isConfigurationSection(key)) continue;
-      out.add(key);
     }
     return out;
   }

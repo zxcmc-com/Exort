@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -19,14 +18,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class Lang {
-  private static final String CONFIG_AUTO_OVERWRITE = "languageFiles.autoOverwriteBundled";
-  private static final String CONFIG_PRESERVE_LANGUAGES = "languageFiles.preserveLanguages";
-
   private final JavaPlugin plugin;
   private final File dataFolder;
   private final Path resourceRoot;
-  private final Boolean autoOverwriteBundledOverride;
-  private final Set<String> preservedLanguagesOverride;
   private final Map<String, Map<String, String>> bundledDefaults = new ConcurrentHashMap<>();
 
   private volatile Set<String> bundledLanguages =
@@ -37,26 +31,13 @@ public class Lang {
   private volatile String activeLanguage = LocalizationFiles.DEFAULT_LANGUAGE;
 
   public Lang(JavaPlugin plugin) {
-    this(
-        plugin,
-        plugin == null ? null : plugin.getDataFolder(),
-        Path.of("src/main/resources"),
-        null,
-        null);
+    this(plugin, plugin == null ? null : plugin.getDataFolder(), Path.of("src/main/resources"));
   }
 
-  Lang(
-      JavaPlugin plugin,
-      File dataFolder,
-      Path resourceRoot,
-      Boolean autoOverwriteBundledOverride,
-      Set<String> preservedLanguagesOverride) {
+  Lang(JavaPlugin plugin, File dataFolder, Path resourceRoot) {
     this.plugin = plugin;
     this.dataFolder = dataFolder;
     this.resourceRoot = resourceRoot;
-    this.autoOverwriteBundledOverride = autoOverwriteBundledOverride;
-    this.preservedLanguagesOverride =
-        preservedLanguagesOverride == null ? null : Set.copyOf(preservedLanguagesOverride);
     loadBundledDefaults();
   }
 
@@ -88,22 +69,16 @@ public class Lang {
 
     Set<String> bundled = bundledLanguageCodes();
     Set<String> local = localLanguageFiles(langDir);
-    Set<String> preserve = preservedLanguages();
-    boolean autoOverwrite = autoOverwriteBundled();
 
     Set<String> requestedLanguages = new TreeSet<>(bundled);
     for (String code : local) {
-      if (allowLocalOverride(code, bundled, autoOverwrite, preserve)) {
-        requestedLanguages.add(code);
-      }
+      requestedLanguages.add(code);
     }
 
     String requested = normalizeLanguage(language);
     Map<String, Map<String, String>> loaded = new LinkedHashMap<>();
     for (String code : requestedLanguages) {
-      loaded.put(
-          code,
-          loadLanguage(langDir, code, allowLocalOverride(code, bundled, autoOverwrite, preserve)));
+      loaded.put(code, loadLanguage(langDir, code, local.contains(code)));
     }
 
     Map<String, String> selected = loaded.get(requested);
@@ -114,11 +89,6 @@ public class Lang {
     languages = immutableNested(loaded);
     activeLanguage = requested;
     active = selected;
-  }
-
-  private boolean allowLocalOverride(
-      String code, Set<String> bundled, boolean autoOverwrite, Set<String> preserve) {
-    return !bundled.contains(code) || !autoOverwrite || preserve.contains(code);
   }
 
   private Map<String, String> loadLanguage(File langDir, String code, boolean allowLocalOverride) {
@@ -227,31 +197,6 @@ public class Lang {
 
   private File langDir() {
     return dataFolder == null ? null : new File(dataFolder, "lang");
-  }
-
-  private boolean autoOverwriteBundled() {
-    if (autoOverwriteBundledOverride != null) {
-      return autoOverwriteBundledOverride;
-    }
-    return plugin == null || plugin.getConfig().getBoolean(CONFIG_AUTO_OVERWRITE, true);
-  }
-
-  private Set<String> preservedLanguages() {
-    if (preservedLanguagesOverride != null) {
-      Set<String> normalized = new HashSet<>();
-      for (String code : preservedLanguagesOverride) {
-        normalized.add(normalizeLanguage(code));
-      }
-      return normalized;
-    }
-    if (plugin == null) {
-      return Collections.emptySet();
-    }
-    Set<String> preserve = new HashSet<>();
-    for (String code : plugin.getConfig().getStringList(CONFIG_PRESERVE_LANGUAGES)) {
-      preserve.add(normalizeLanguage(code));
-    }
-    return preserve;
   }
 
   public String tr(String key, Object... params) {

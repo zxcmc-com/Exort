@@ -120,7 +120,7 @@ class LangTest {
 
   @Test
   void defaultLoadDoesNotMaterializeBundledLanguages() throws Exception {
-    Lang lang = testLang(true, Set.of());
+    Lang lang = testLang();
 
     lang.load("en_us");
 
@@ -133,22 +133,16 @@ class LangTest {
   }
 
   @Test
-  void bundledLanguageIgnoresLocalCopyUnlessPreserved() throws Exception {
+  void localLanguageFileOverridesBundledKeysWithBundledFallback() throws Exception {
     Path langDir = tempDir.resolve("lang");
     Files.createDirectories(langDir);
     Files.writeString(langDir.resolve("en_us.yml"), "message:\n  no_permission: Local override\n");
 
-    Lang defaultPolicy = testLang(true, Set.of());
-    defaultPolicy.load("en_us");
-    assertEquals("No permission.", defaultPolicy.tr("message.no_permission"));
+    Lang lang = testLang();
+    lang.load("en_us");
 
-    Lang preservedPolicy = testLang(true, Set.of("en_us"));
-    preservedPolicy.load("en_us");
-    assertEquals("Local override", preservedPolicy.tr("message.no_permission"));
-
-    Lang manualPolicy = testLang(false, Set.of());
-    manualPolicy.load("en_us");
-    assertEquals("Local override", manualPolicy.tr("message.no_permission"));
+    assertEquals("Local override", lang.tr("message.no_permission"));
+    assertEquals("Storage Core", lang.tr("item.storage_core"));
   }
 
   @Test
@@ -158,12 +152,7 @@ class LangTest {
     assertFalse(lang.clientComponent(true, "message.no_permission").toString().contains("exort."));
   }
 
-  private Lang testLang(boolean autoOverwriteBundled, Set<String> preservedLanguages) {
-    return new Lang(
-        null,
-        tempDir.toFile(),
-        Path.of("src/main/resources"),
-        autoOverwriteBundled,
-        preservedLanguages);
+  private Lang testLang() {
+    return new Lang(null, tempDir.toFile(), Path.of("src/main/resources"));
   }
 }

@@ -37,12 +37,12 @@ public record DisplayCullingConfig(
     return new DisplayCullingConfig(
         config.getBoolean(PATH + "enabled", true),
         Backend.fromString(config.getString(PATH + "backend", "AUTO")),
-        config.getInt(PATH + "intervalTicks", 10),
-        config.getDouble(PATH + "maxDistance", 64.0),
-        config.getDouble(PATH + "forceVisibleDistance", 6.0),
-        config.getInt(PATH + "maxVisibilityChangesPerTick", 600),
-        BlockProxyConfig.fromConfig(config),
-        AdaptiveViewRangeConfig.fromConfig(config),
+        10,
+        64.0,
+        8.0,
+        600,
+        BlockProxyConfig.defaults(),
+        AdaptiveViewRangeConfig.defaults(),
         ClientCullingBypassConfig.fromConfig(config));
   }
 
@@ -72,18 +72,6 @@ public record DisplayCullingConfig(
       int maxBlockChangesPerTick) {
     static BlockProxyConfig defaults() {
       return new BlockProxyConfig(true, 64.0, 2.0, 6.0, 8.0, 1200);
-    }
-
-    static BlockProxyConfig fromConfig(ConfigurationSection config) {
-      String path = PATH + "blockProxy.";
-      BlockProxyConfig defaults = defaults();
-      return new BlockProxyConfig(
-          config.getBoolean(path + "enabled", defaults.enabled()),
-          config.getDouble(path + "baseRenderDistanceBlocks", defaults.baseRenderDistanceBlocks()),
-          config.getDouble(path + "enterBufferBlocks", defaults.enterBufferBlocks()),
-          config.getDouble(path + "restoreBufferBlocks", defaults.restoreBufferBlocks()),
-          config.getDouble(path + "forceRealDistance", defaults.forceRealDistance()),
-          config.getInt(path + "maxBlockChangesPerTick", defaults.maxBlockChangesPerTick()));
     }
 
     BlockProxyConfig normalized() {
@@ -129,23 +117,6 @@ public record DisplayCullingConfig(
           DEFAULT_WIRE,
           DEFAULT_MONITOR_CONTENT,
           DEFAULT_HOLOGRAM);
-    }
-
-    static AdaptiveViewRangeConfig fromConfig(ConfigurationSection config) {
-      String path = PATH + "adaptiveViewRange.";
-      AdaptiveViewRangeConfig defaults = defaults();
-      return new AdaptiveViewRangeConfig(
-          config.getBoolean(path + "enabled", true),
-          intList(config, path + "entityThresholds", defaults.entityThresholds()),
-          intList(config, path + "recoverThresholds", defaults.recoverThresholds()),
-          config.getInt(path + "denseIntervalsToStepDown", 3),
-          config.getInt(path + "stableIntervalsToStepUp", 60),
-          config.getInt(path + "stepDownCooldownTicks", 40),
-          config.getInt(path + "stepUpCooldownTicks", 200),
-          doubleList(config, path + "roleRanges.block", defaults.block()),
-          doubleList(config, path + "roleRanges.wire", defaults.wire()),
-          doubleList(config, path + "roleRanges.monitorContent", defaults.monitorContent()),
-          doubleList(config, path + "roleRanges.hologram", defaults.hologram()));
     }
 
     public int maxLevel() {
@@ -252,18 +223,6 @@ public record DisplayCullingConfig(
       }
       return List.copyOf(out);
     }
-
-    private static List<Integer> intList(
-        ConfigurationSection config, String path, List<Integer> fallback) {
-      List<Integer> values = config.getIntegerList(path);
-      return values.isEmpty() ? fallback : values;
-    }
-
-    private static List<Double> doubleList(
-        ConfigurationSection config, String path, List<Double> fallback) {
-      List<Double> values = config.getDoubleList(path);
-      return values.isEmpty() ? fallback : values;
-    }
   }
 
   public record ClientCullingBypassConfig(
@@ -283,7 +242,7 @@ public record DisplayCullingConfig(
       String path = PATH + "clientCullingBypass.";
       return new ClientCullingBypassConfig(
           config.getBoolean(path + "enabled", true),
-          TranslationProbeConfig.fromConfig(config, path + "autoDetect.translationProbe."));
+          TranslationProbeConfig.withEnabled(config.getBoolean(path + "translationProbe", true)));
     }
   }
 
@@ -312,18 +271,18 @@ public record DisplayCullingConfig(
           true, true, DEFAULT_BRAND_TOKENS, DEFAULT_TRANSLATION_KEYS, 20, 20, 10, 2, 20);
     }
 
-    static TranslationProbeConfig fromConfig(ConfigurationSection config, String path) {
+    static TranslationProbeConfig withEnabled(boolean enabled) {
       TranslationProbeConfig defaults = defaults();
       return new TranslationProbeConfig(
-          config.getBoolean(path + "enabled", defaults.enabled()),
-          config.getBoolean(path + "requireModdedBrand", defaults.requireModdedBrand()),
-          stringSet(config.getStringList(path + "brands"), defaults.brandTokens()),
-          stringList(config.getStringList(path + "translationKeys"), defaults.translationKeys()),
-          config.getInt(path + "joinDelayTicks", defaults.joinDelayTicks()),
-          config.getInt(path + "retryDelayTicks", defaults.retryDelayTicks()),
-          config.getInt(path + "maxAttempts", defaults.maxAttempts()),
-          config.getInt(path + "openDelayTicks", defaults.openDelayTicks()),
-          config.getInt(path + "timeoutTicks", defaults.timeoutTicks()));
+          enabled,
+          defaults.requireModdedBrand(),
+          defaults.brandTokens(),
+          defaults.translationKeys(),
+          defaults.joinDelayTicks(),
+          defaults.retryDelayTicks(),
+          defaults.maxAttempts(),
+          defaults.openDelayTicks(),
+          defaults.timeoutTicks());
     }
 
     TranslationProbeConfig normalized() {

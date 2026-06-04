@@ -11,38 +11,28 @@ class GuiRuntimeConfigTest {
     GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(new YamlConfiguration());
 
     assertEquals(5L, config.sessionDeviceCheckIntervalTicks());
-    assertEquals(8.0D, config.sessionMaxDeviceDistanceBlocks());
-    assertEquals(64.0D, config.sessionMaxDeviceDistanceSquared());
     assertEquals(10_000L, config.craftingConfirmTimeoutMs());
   }
 
   @Test
-  void readsConfiguredValues() {
+  void readsMovedSessionCheckInterval() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("session.deviceCheckIntervalTicks", 12L);
-    yaml.set("session.maxDeviceDistanceBlocks", 14.5D);
-    yaml.set("crafting.confirmTimeoutSeconds", 3L);
+    yaml.set("performance.sessionDeviceCheckIntervalTicks", 12L);
 
     GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
 
     assertEquals(12L, config.sessionDeviceCheckIntervalTicks());
-    assertEquals(14.5D, config.sessionMaxDeviceDistanceBlocks());
-    assertEquals(210.25D, config.sessionMaxDeviceDistanceSquared());
-    assertEquals(3_000L, config.craftingConfirmTimeoutMs());
+    assertEquals(10_000L, config.craftingConfirmTimeoutMs());
   }
 
   @Test
-  void clampsInvalidValuesToCurrentRuntimeMinimums() {
+  void clampsInvalidSessionCheckInterval() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("session.deviceCheckIntervalTicks", 0L);
-    yaml.set("session.maxDeviceDistanceBlocks", 0.0D);
-    yaml.set("crafting.confirmTimeoutSeconds", -2L);
+    yaml.set("performance.sessionDeviceCheckIntervalTicks", 0L);
 
     GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
 
     assertEquals(1L, config.sessionDeviceCheckIntervalTicks());
-    assertEquals(1.0D, config.sessionMaxDeviceDistanceBlocks());
-    assertEquals(1.0D, config.sessionMaxDeviceDistanceSquared());
-    assertEquals(0L, config.craftingConfirmTimeoutMs());
+    assertEquals(10_000L, config.craftingConfirmTimeoutMs());
   }
 }

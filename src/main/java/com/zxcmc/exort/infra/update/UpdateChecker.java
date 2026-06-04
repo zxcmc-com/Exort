@@ -30,7 +30,7 @@ public final class UpdateChecker {
   }
 
   public void checkAsync() {
-    if (!plugin.getConfig().getBoolean("updateCheck.enabled", true)) {
+    if (!plugin.getConfig().getBoolean("updateCheck", true)) {
       return;
     }
     String currentVersion = currentVersion();

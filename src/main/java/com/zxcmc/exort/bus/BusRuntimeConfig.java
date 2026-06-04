@@ -23,8 +23,8 @@ public record BusRuntimeConfig(
         Math.max(1, config.getInt("bus.activeIntervalTicks", 5)),
         Math.max(1, config.getInt("bus.idleIntervalTicks", 40)),
         Math.max(1, config.getInt("bus.itemsPerOperation", 1)),
-        Math.max(1, config.getInt("bus.maxOperationsPerTick", 6000)),
-        Math.max(0, config.getInt("bus.maxOperationsPerChunk", 600)),
+        Math.max(1, config.getInt("performance.bus.maxOperationsPerTick", 6000)),
+        Math.max(0, config.getInt("performance.bus.maxOperationsPerChunk", 600)),
         config.getBoolean("bus.allowStorageTargets", true),
         readMode(config, "bus.defaultMode.import"),
         readMode(config, "bus.defaultMode.export"));

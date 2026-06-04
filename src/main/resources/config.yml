@@ -1,45 +1,24 @@
-# Language code from assets/minecraft/lang/<code>.json (e.g. en_us, ru_ru, ksh, nds_de).
-# Exort bundles generated plugin translations for every locale in the pinned Minecraft language index.
+# Server text language. Use a code from assets/minecraft/lang/<code>.json, such as en_us or ru_ru.
+# A local plugins/Exort/lang/<code>.yml file overrides bundled Exort text for that locale; missing keys fall back to bundled data and then en_us.
 language: en_us
-languageFiles:
-  # If true, bundled Exort translations are read from the plugin JAR and existing
-  # plugins/Exort/lang/<locale>.yml copies are ignored unless preserved below.
-  # Disable only while testing manual translation overrides.
-  autoOverwriteBundled: true
-  # Locales listed here use plugins/Exort/lang/<locale>.yml as a local override even when
-  # autoOverwriteBundled is true. Exort does not delete old local language files automatically.
-  # Example: [de_de, qya_aa]
-  preserveLanguages: []
 
-# Global block mode:
-# - VANILLA: uses barrier carriers with vanilla item models (no external resource pack required).
-# - RESOURCE: uses carriers with your custom models from a resource pack namespace.
+# Global visual mode.
+# VANILLA works without a resource pack. RESOURCE uses Exort's resource-pack models.
 mode: RESOURCE
 
-# Check GitHub master build.gradle for a newer Exort version on startup.
-# Network and parsing failures are ignored silently.
-updateCheck:
-  enabled: true
+# Check GitHub for a newer Exort version on startup. Network failures are ignored.
+updateCheck: true
 
 # Resource pack delivery is used only when the effective mode is RESOURCE.
-# AUTO uses Nexo when installed, then ItemsAdder when installed, then an official Exort pack
-# if configured, otherwise Exort self-hosts the pack.
 resourcePack:
   # AUTO | EXORT | NEXO | ITEMSADDER | SELFHOST | LOBFILE | DISABLED
   hosting: AUTO
-  # AUTO uses the login configuration phase when Exort can safely deliver the pack directly,
-  # or JOIN when server.properties already defines another resource pack.
-  # JOIN keeps the old post-join delayed request. MANUAL disables automatic requests.
   # AUTO | CONFIGURATION | JOIN | MANUAL
   delivery: AUTO
-  # How long CONFIGURATION delivery waits for a terminal client pack status before allowing join.
+  # Seconds to wait for a CONFIGURATION-stage pack response before allowing the player to join.
   configurationTimeoutSeconds: 30
-  # If true, Exort sends the pack to already-online players when a direct-delivery pack becomes ready.
+  # If true, Exort sends a newly ready direct-delivery pack to players who are already online.
   sendOnlineOnReady: false
-  # SIMPLE obfuscation for internal model/texture paths. Public item/font/blockstate entrypoints stay stable.
-  obfuscation: true
-  # If true, vanilla clients disconnect when they decline the pack.
-  required: true
   # MiniMessage prompt shown by the client.
   prompt: "<gray>Accept the Exort resource pack."
   selfHost:
@@ -53,562 +32,115 @@ resourcePack:
     # API key for LOBFILE hosting. Keep empty unless hosting is set to LOBFILE.
     apiKey: ""
 
-# Optional ProtocolLib enhancements. Exort remains fully usable without ProtocolLib installed.
+# Optional ProtocolLib integration. Exort remains usable without ProtocolLib installed.
 protocolLib:
   enabled: true
-  placementGuard:
-    # Prefer per-player fake guard entities when ProtocolLib is installed. Exort falls back to
-    # Paper entities automatically if ProtocolLib is missing or incompatible.
-    enabled: true
-  pickBridge:
-    # Fix creative middle-click for Exort carrier blocks when another plugin consumes Paper events.
-    enabled: true
-    # Also handle middle-clicks that target Exort ItemDisplay/TextDisplay visuals.
-    entityPick: true
-  localization:
-    # In VANILLA mode, rewrite outgoing Exort localization packets per player locale.
-    # SIMPLE rewrites Exort item name/lore in inventory and container packets.
-    # FULL also rewrites Exort display entity names/item metadata. This increases packet work, but
-    # lets Jade-like client mods show localized Exort names without a resource pack.
-    # RESOURCE mode uses client translation keys from the resource pack instead.
-    enabled: true
-    # SIMPLE | FULL
-    level: SIMPLE
+  # SIMPLE rewrites Exort item name/lore packets in VANILLA mode.
+  # FULL also rewrites Exort display entity names/item metadata when the ProtocolLib backend supports it.
+  # RESOURCE mode uses resource-pack translation keys instead.
+  # SIMPLE | FULL
+  localizationLevel: SIMPLE
 
-# Performance controls for expensive Exort runtime paths.
+# Runtime performance controls that may need server-specific tuning.
 performance:
   displayCulling:
     # Dynamically lowers Exort display render ranges per player in dense scenes.
     enabled: true
     # AUTO | PROTOCOL_LIB | PAPER. AUTO prefers ProtocolLib metadata packets when available.
     backend: AUTO
-    # How often nearby Exort display density is rechecked.
-    intervalTicks: 10
-    # Displays farther than this are ignored by Exort density management and left to vanilla entity tracking.
-    maxDistance: 64
-    # Displays within this range are always shown to avoid near-player pop-in.
-    forceVisibleDistance: 6
-    # Visibility/range packet changes are capped per tick to avoid moving render cost to MSPT.
-    maxVisibilityChangesPerTick: 600
-    blockProxy:
-      # Client-side chorus_plant model proxies for distant RESOURCE carrier blocks whose displays are not visible.
-      enabled: true
-      # Wires are excluded; real carrier blocks are not changed.
-      # Base distance where block ItemDisplays are expected to stop rendering.
-      baseRenderDistanceBlocks: 64
-      # Safety lead before the display render edge when entering proxy state.
-      enterBufferBlocks: 2
-      # Compatibility restore lead; with the single transition, the smaller enter/restore lead is
-      # used so proxy blocks do not start far inside the visible display range.
-      restoreBufferBlocks: 6
-      # Always restore the real carrier this close to the player.
-      forceRealDistance: 8
-      # Client-side block changes per tick; restores are sent before new proxies.
-      maxBlockChangesPerTick: 1200
-    adaptiveViewRange:
-      # Reduce display view ranges when many Exort displays are near a player.
-      enabled: true
-      entityThresholds: [320, 640, 1200]
-      recoverThresholds: [240, 520, 960]
-      denseIntervalsToStepDown: 3
-      stableIntervalsToStepUp: 60
-      stepDownCooldownTicks: 40
-      stepUpCooldownTicks: 200
-      roleRanges:
-        block: [1.0, 0.9, 0.8, 0.7]
-        wire: [0.5, 0.35, 0.25, 0.12]
-        monitorContent: [0.45, 0.3, 0.2, 0.1]
-        hologram: [0.35, 0.25, 0.15, 0.1]
     clientCullingBypass:
-      # Enables per-player bypass for clients with a client-side culling mod such as EntityCulling.
-      # Manual and detected player state is stored in the plugin database.
+      # Stores and applies per-player bypass for clients with a client-side culling mod such as EntityCulling.
       enabled: true
-      autoDetect:
-        translationProbe:
-          # Attempts to detect EntityCulling by checking whether the client translates
-          # EntityCulling language keys. This may briefly show a virtual sign
-          # 5 blocks behind and 5 blocks below the player.
-          # The probe waits while non-player containers such as chests or anvils are open.
-          enabled: true
-          # Wait for a client brand before probing and skip only explicit vanilla clients.
-          # Non-vanilla brands outside this hint list are still probed.
-          requireModdedBrand: true
-          brands: [fabric, quilt, forge, neoforge]
-          translationKeys:
-            - text.entityculling.title
-            - key.entityculling.toggle
-          joinDelayTicks: 20
-          retryDelayTicks: 20
-          maxAttempts: 10
-          openDelayTicks: 2
-          timeoutTicks: 20
-  worldEditBulk:
-    # Budget Exort marker/display/bus/network post-processing after WorldEdit/FAWE operations.
-    enabled: true
-    # Operations at or above this queued marker count use the lower bulk marker budget.
-    bulkThresholdBlocks: 512
-    markerUpdatesPerTick: 1500
-    refreshChunksPerTick: 2
-    busScanChunksPerTick: 2
-    networkStartsPerTick: 32
+      # Attempts automatic EntityCulling detection with a translation probe for modded clients.
+      translationProbe: true
+  # Budget Exort marker/display/bus/network post-processing after WorldEdit/FAWE operations.
+  worldEditBulk: true
+  storage:
+    # Seconds between periodic dirty-cache flushes to the database. Set 0 to disable the periodic flush.
+    flushIntervalSeconds: 10
+    # Seconds before an idle storage cache can be unloaded from memory. Set 0 to disable idle unloads.
+    idleUnloadSeconds: 300
+    # Seconds between idle-cache checks.
+    idleCheckSeconds: 60
+  # Ticks between physical terminal/bus GUI distance checks.
+  sessionDeviceCheckIntervalTicks: 5
+  bus:
+    # Global bus operation budget per tick.
+    maxOperationsPerTick: 6000
+    # Per-chunk bus operation budget per tick. Set 0 for no per-chunk limit.
+    maxOperationsPerChunk: 600
 
-# Prevent client-side ghost block placement/sound when right-clicking Exort blocks while holding
-# placeable vanilla items. Uses small invisible armor stands per affected player, placed inside the
-# current and briefly predicted block cells where vanilla would try to place the held item.
-placementGuard:
-  enabled: true
-  # How often online players are checked. 1 tick gives the cleanest client-side behavior.
-  pollIntervalTicks: 1
-  # Max distance for the crosshair check.
-  targetRangeBlocks: 5
-  # Minecraft's minimum living-entity scale is 0.0625. Keep this at the minimum to avoid stealing
-  # the vanilla block outline while still blocking client-side placement.
-  guardScale: 0.0625
-  # Extra inset from the chosen far corner of the placement cell.
-  cornerInset: 0.01
+# Prevent client-side ghost placement and sounds when right-clicking Exort blocks with placeable items.
+placementGuard: true
 
-# Enable WorldGuard integration (region protection checks).
+# WorldGuard region protection integration.
 worldguard:
   enabled: true
-  # If WorldGuard is installed but Exort cannot complete a protection check,
-  # false preserves legacy fail-open behavior; true denies Exort actions instead.
+  # If WorldGuard is installed but Exort cannot complete a protection check, true denies Exort actions.
+  # false keeps fail-open behavior.
   failClosedOnError: false
-  # Log denied actions (build/break/use/interact) to console.
-  debug: false
-
-# Crafting restrictions for custom items.
-crafting:
-  # Block vanilla recipes when any custom item is used as an ingredient.
-  blockVanilla: true
-  # Allow recipes registered by other plugins (non-minecraft namespace) only if they require our exact custom item.
-  allowExternal: true
-  # Timeout (seconds) for all-in confirmation clicks in crafting terminal.
-  confirmTimeoutSeconds: 10
 
 # Register Exort crafting recipes from recipes.yml.
 recipes:
   enabled: true
 
-# Interval (seconds) to flush dirty caches to database. Set 0 to disable periodic flush.
-flushIntervalSeconds: 10
-
-# Cache eviction for in-memory storages.
-cache:
-  # Unload idle storages from memory after N seconds (0 = disable).
-  idleUnloadSeconds: 300
-  # How often to check for idle storages (seconds).
-  idleCheckSeconds: 60
-
-# Default sort mode for terminals (AMOUNT/NAME/ID/CATEGORY).
+# Default sort mode for terminals: AMOUNT | NAME | ID | CATEGORY.
 defaultSortMode: AMOUNT
 
-# Import/Export bus settings.
+# Import/export bus gameplay settings.
 bus:
-  # Default modes for newly placed buses (DISABLED/WHITELIST/BLACKLIST/ALL).
+  # Default modes for newly placed buses: DISABLED | WHITELIST | BLACKLIST | ALL.
   defaultMode:
     import: WHITELIST
     export: WHITELIST
   # Allow buses to interact with Exort storages directly.
   allowStorageTargets: true
-  # How often (ticks) a bus runs when it successfully moves items. AE2-like default = 5 ticks (4 ops/sec).
+  # Ticks between bus runs after a successful item move.
   activeIntervalTicks: 5
-  # How long (ticks) a bus sleeps when idle. AE2-like default = 40 ticks (2 sec).
+  # Ticks between bus runs while idle.
   idleIntervalTicks: 40
-  # Max items per operation.
+  # Max items moved per bus operation.
   itemsPerOperation: 1
-  # Global limit for operations per tick (all buses).
-  maxOperationsPerTick: 6000
-  # Limit operations per chunk per tick (0 = no limit).
-  maxOperationsPerChunk: 600
 
-# Vanilla mode settings (used when mode: VANILLA). Carrier is always BARRIER.
-vanillaMode:
-  breakParticles:
-    # Pack-free fallback for custom breaking progress and final block destruction in VANILLA mode.
-    enabled: true
-    # Viewer range in blocks.
-    range: 16
-    # Particle count emitted when the break stage changes.
-    count: 6
-    # Particle count emitted when the block is destroyed.
-    breakCount: 30
-    # Random particle position spread from block center.
-    spread: 0.31
-  wire:
-    # Vanilla model for the wire display (uses minecraft namespace automatically).
-    modelId: black_stained_glass
-  storage:
-    # Vanilla model to mimic the storage block (e.g. minecraft:vault)
-    modelId: vault
-  terminal:
-    # Vanilla model to mimic the terminal block (e.g. minecraft:lectern)
-    modelId: barrel
-  craftingTerminal:
-    # Vanilla model to mimic the crafting terminal block (e.g. minecraft:crafting_table)
-    modelId: crafting_table
-  monitor:
-    # Vanilla item model for the monitor item (inventory/hand).
-    itemModel: smooth_stone
-    # Vanilla model to mimic the monitor block (e.g. minecraft:observer)
-    modelId: smooth_stone
-    # Screen item display position/size (relative to block origin).
-    screenItem:
-      offset:
-        x: 0.5
-        y: 0.62
-        z: 0.99
-      scale: 0.35
-    # Screen display position/size for non-full blocks (e.g. chests, fences).
-    screenBlock:
-      offset:
-        x: 0.5
-        y: 0.62
-        z: 0.99
-      scale: 0.6
-    # Screen display position/size for horizontal blocks (e.g. trapdoors, pressure plates).
-    screenHorizontalBlock:
-      offset:
-        x: 0.5
-        y: 0.61
-        z: 1.032
-      scale: 0.4
-    # Screen display position/size for thin/non-solid blocks (e.g. hanging plants).
-    screenThinBlock:
-      offset:
-        x: 0.5
-        y: 0.62
-        z: 0.99
-      scale: 0.3
-    # Screen display position/size for full blocks (e.g. stone, full cubes).
-    screenFullBlock:
-      offset:
-        x: 0.5
-        y: 0.62
-        z: 0.875
-      scale: 0.58
-    # Screen text display position/size (relative to block origin).
-    screenText:
-      offset:
-        x: 0.51
-        y: 0.2
-        z: 1.01
-      scale: 0.55
-    # Screen text display for empty monitor (no item).
-    screenTextEmpty:
-      offset:
-        x: 0.51
-        y: 0.41
-        z: 1.01
-      scale: 0.8
-  importBus:
-    # Vanilla item model for the import bus (inventory/hand).
-    itemModel: dispenser
-    # Vanilla model to mimic the import bus block.
-    modelId: dispenser
-  exportBus:
-    # Vanilla item model for the export bus (inventory/hand).
-    itemModel: dropper
-    # Vanilla model to mimic the export bus block.
-    modelId: dropper
-  wirelessTerminal:
-    # Vanilla item model for the wireless terminal (inventory/hand).
-    itemModel: target
-    # Vanilla model for the wireless terminal (charged & linked).
-    modelId: target
-    # Vanilla model for disabled/unlinked/empty wireless terminal.
-    modelDisabledId: target
-  terminalHologram:
-    # Show the floating material above terminals.
-    enabled: true
-    # Position relative to terminal block origin (0,0,0 is block corner).
-    offset:
-      x: 0.5
-      y: 0.5
-      z: 0.83
-    # Size multiplier for displayed item.
-    scale: 0.35
-  storageHologram:
-    # Show the tier material inside storage.
-    enabled: true
-    # Position relative to storage block origin (0,0,0 is block corner).
-    offset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-    # Size multiplier for displayed item.
-    scale: 0.35
-
-# Resource mode (carrier + ItemDisplay using your pack).
-# Carriers are fixed in RESOURCE:
-# - wire: CHORUS_PLANT with all faces=true
-# - storage/terminal/monitor/bus: BARRIER
-resourceMode:
-  # Namespace for all resource models (wire/storage/terminal/monitor). Example: exort
-  namespace: exort
-  breakOverlay:
-    # RESOURCE-mode visual crack overlay for custom breaking progress.
-    enabled: true
-    displayBaseMaterial: PAPER
-    modelPrefix: breaking/stage_
-    displayScale: 1.001
-  breakParticles:
-    # Extra block particles emitted when the custom break stage changes or the block is destroyed.
-    enabled: true
-    # Block material used for RESOURCE break particles.
-    material: NETHERITE_BLOCK
-    # Viewer range in blocks.
-    range: 16
-    # Particle count emitted when the break stage changes.
-    count: 6
-    # Particle count emitted when the block is destroyed.
-    breakCount: 30
-    # Random particle position spread from block center.
-    spread: 0.31
-  wire:
-    # Optional item_model for the wire item and isolated wire display. Example: wire/center
-    itemModel: wire/center
-    # ItemDisplay settings
-    displayBaseMaterial: PAPER
-    displayScale: 1.0
-    displayOffset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-  storage:
-    # Optional item_model for the storage item (inventory/hand). Example: storage/storage
-    itemModel: storage/storage
-    # Resource model for the storage display (uses resourceMode.namespace).
-    modelId: storage/storage
-    # ItemDisplay settings
-    displayBaseMaterial: PAPER
-    displayScale: 1.0
-    displayOffset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-  terminal:
-    # Optional item_model for the terminal item (inventory/hand). Example: terminal/inventory
-    itemModel: terminal/inventory
-    # Resource model for the terminal display (uses resourceMode.namespace).
-    modelId: terminal/inventory
-    # Resource model for the disabled terminal display (uses resourceMode.namespace).
-    modelDisabledId: terminal/inventory_disabled
-    gui:
-      # GUI overlay texture for the terminal title (RESOURCE only).
-      overlayTexture: gui/inventory
-    # ItemDisplay settings
-    displayBaseMaterial: PAPER
-    displayScale: 1.0
-    displayOffset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-  craftingTerminal:
-    # Optional item_model for the crafting terminal item (inventory/hand). Example: terminal/workbench
-    itemModel: terminal/workbench
-    # Resource model for the crafting terminal display (uses resourceMode.namespace).
-    modelId: terminal/workbench
-    # Resource model for the disabled crafting terminal display (uses resourceMode.namespace).
-    modelDisabledId: terminal/workbench_disabled
-    gui:
-      # GUI overlay texture for the crafting terminal title (RESOURCE only).
-      overlayTexture: gui/crafting
-  monitor:
-    # Optional item_model for the monitor item (inventory/hand). Example: terminal/monitor
-    itemModel: terminal/monitor
-    # Resource model for the monitor display (uses resourceMode.namespace).
-    modelId: terminal/monitor
-    # Resource model for the disabled monitor display (uses resourceMode.namespace).
-    modelDisabledId: terminal/monitor_disabled
-    # ItemDisplay settings for the base monitor model.
-    displayBaseMaterial: PAPER
-    displayScale: 1.0
-    displayOffset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-    # Screen item display position/size (relative to block origin).
-    screenItem:
-      offset:
-        x: 0.5
-        y: 0.56
-        z: 0.93
-      scale: 0.35
-    # Screen display position/size for non-full blocks (e.g. chests, fences).
-    screenBlock:
-      offset:
-        x: 0.5
-        y: 0.56
-        z: 0.93
-      scale: 0.6
-    # Screen display position/size for horizontal blocks (e.g. trapdoors, pressure plates).
-    screenHorizontalBlock:
-      offset:
-        x: 0.5
-        y: 0.55
-        z: 1.026
-      scale: 0.4
-    # Screen display position/size for thin/non-solid blocks (e.g. hanging plants).
-    screenThinBlock:
-      offset:
-        x: 0.5
-        y: 0.56
-        z: 0.93
-      scale: 0.3
-    # Screen display position/size for full blocks (e.g. stone, full cubes).
-    screenFullBlock:
-      offset:
-        x: 0.5
-        y: 0.56
-        z: 0.815
-      scale: 0.58
-    # Screen text display position/size (relative to block origin).
-    screenText:
-      offset:
-        x: 0.51
-        y: 0.26
-        z: 0.95
-      scale: 0.55
-    # Screen text display for empty monitor (no item).
-    screenTextEmpty:
-      offset:
-        x: 0.51
-        y: 0.41
-        z: 0.95
-      scale: 0.7
-  wirelessTerminal:
-    # Optional item_model for the wireless terminal (inventory/hand). Example: terminal/wireless
-    itemModel: terminal/wireless
-    # Resource model for the wireless terminal (charged & linked).
-    modelId: terminal/wireless
-    # Resource model for disabled/unlinked/empty wireless terminal.
-    modelDisabledId: terminal/wireless_disabled
-  bus:
-    import:
-      # Optional item_model for the import bus item (inventory/hand). Example: bus/import
-      itemModel: bus/import
-      # Resource model for the import bus display (uses resourceMode.namespace).
-      modelId: bus/import
-    export:
-      # Optional item_model for the export bus item (inventory/hand). Example: bus/export
-      itemModel: bus/export
-      # Resource model for the export bus display (uses resourceMode.namespace).
-      modelId: bus/export
-    gui:
-      # GUI overlay texture for the bus title (RESOURCE only).
-      overlayTexture: gui/bus
-    # ItemDisplay settings
-    displayBaseMaterial: PAPER
-    displayScale: 1.0
-    displayOffset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-  storageHologram:
-    # Show the tier material inside storage.
-    enabled: true
-    # Position relative to storage block origin (0,0,0 is block corner).
-    offset:
-      x: 0.5
-      y: 0.5
-      z: 0.5
-    # Size multiplier for displayed item.
-    scale: 0.35
-
-# Wire limits.
+# Wire traversal limits.
 wire:
-  # Maximum logical length of a storage wire network used to connect terminal to storage.
+  # Maximum logical wire length used to connect a terminal to storage.
   limit: 32
-  # Hard cap for wire traversal (safety to prevent heavy scans); if exceeded, network is ignored.
+  # Hard traversal cap. If exceeded, the network is ignored.
   hardCap: 64
-
-# Bossbar display durations (seconds)
-bossbar:
-  # Duration when right-clicking storage.
-  storagePeekSeconds: 6
-  # Duration when right-clicking wire.
-  wirePeekSeconds: 6
-
-# Physical device GUI session limits.
-session:
-  # Maximum distance in blocks from a terminal/crafting terminal/bus before its GUI is closed.
-  maxDeviceDistanceBlocks: 8.0
-  # How often physical device GUI distance is checked.
-  deviceCheckIntervalTicks: 5
 
 # Wireless terminal settings.
 wireless:
   enabled: true
-  # Range in chunks from the storage block (Manhattan distance).
+  # Range in chunks from the bound storage block, using Manhattan distance.
   rangeChunks: 3
 
-# Storage tiers are now configured in storage-tiers.yml.
-# Custom breaking for carrier blocks (storage/terminal/monitor/bus and VANILLA wire).
-# Hardness controls the overall break speed; higher = slower.
-# Tools listed here do NOT restrict breaking; they only speed it up.
+# Custom breaking for Exort carrier blocks.
+# Hardness controls break speed; higher is slower.
+# Tools only speed breaking up, they do not restrict who can break the block.
 break:
   storage:
-    # Relative hardness used for storage breaking.
     hardness: 20.0
-    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
     tools:
       - pickaxe
   terminal:
-    # Relative hardness used for terminal breaking.
     hardness: 12.0
-    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
     tools:
       - pickaxe
       - axe
   monitor:
-    # Relative hardness used for monitor breaking.
     hardness: 12.0
-    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
     tools:
       - pickaxe
       - axe
   bus:
-    # Relative hardness used for bus breaking (import/export).
     hardness: 12.0
-    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
     tools:
       - pickaxe
       - axe
   wire:
-    # Relative hardness used for wire breaking (applies only in VANILLA mode).
     hardness: 4.0
-    # Effective tools for faster breaking (type keywords: pickaxe/axe/shovel/hoe/sword/mace/trident/bow/crossbow/shears or material names).
     tools:
       - pickaxe
       - axe
       - sword
-  sounds:
-    # Enable break sounds for carrier blocks (storage/terminal/monitor/bus and VANILLA wire).
-    enabled: true
-    # Base volume for break/place sounds. Hit sounds play 0.2 lower.
-    volume: 0.8
-    # Storage sound events.
-    storage:
-      hit: block.vault.hit
-      break: block.vault.break
-      place: block.vault.place
-    # Terminal sound events.
-    terminal:
-      hit: block.iron.hit
-      break: block.iron.break
-      place: block.iron.place
-    # Monitor sound events.
-    monitor:
-      hit: block.iron.hit
-      break: block.iron.break
-      place: block.iron.place
-    # Bus sound events (import/export).
-    bus:
-      hit: block.iron.hit
-      break: block.iron.break
-      place: block.iron.place
-    # Wire sound events.
-    wire:
-      hit: block.glass.hit
-      break: block.glass.break
-      place: block.glass.place

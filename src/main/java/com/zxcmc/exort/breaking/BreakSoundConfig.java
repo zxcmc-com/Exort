@@ -1,7 +1,6 @@
 package com.zxcmc.exort.breaking;
 
 import java.util.Locale;
-import org.bukkit.configuration.file.FileConfiguration;
 
 public final class BreakSoundConfig {
   private static final double RANGE = 16.0;
@@ -75,48 +74,18 @@ public final class BreakSoundConfig {
     };
   }
 
-  public static BreakSoundConfig fromConfig(FileConfiguration config) {
-    boolean enabled = config.getBoolean("break.sounds.enabled", true);
-    float volume = (float) config.getDouble("break.sounds.volume", 0.8);
-    SoundProfile storage =
-        readProfile(
-            config,
-            "break.sounds.storage",
-            "block.vault.hit",
-            "block.vault.break",
-            "block.vault.place");
-    SoundProfile terminal =
-        readProfile(
-            config,
-            "break.sounds.terminal",
-            "block.iron.hit",
-            "block.iron.break",
-            "block.iron.place");
-    SoundProfile monitor =
-        readProfile(
-            config,
-            "break.sounds.monitor",
-            "block.iron.hit",
-            "block.iron.break",
-            "block.iron.place");
-    SoundProfile bus =
-        readProfile(
-            config, "break.sounds.bus", "block.iron.hit", "block.iron.break", "block.iron.place");
-    SoundProfile wire =
-        readProfile(
-            config,
-            "break.sounds.wire",
-            "block.glass.hit",
-            "block.glass.break",
-            "block.glass.place");
+  public static BreakSoundConfig defaults() {
+    boolean enabled = true;
+    float volume = 0.8f;
+    SoundProfile storage = profile("block.vault.hit", "block.vault.break", "block.vault.place");
+    SoundProfile terminal = profile("block.iron.hit", "block.iron.break", "block.iron.place");
+    SoundProfile monitor = profile("block.iron.hit", "block.iron.break", "block.iron.place");
+    SoundProfile bus = profile("block.iron.hit", "block.iron.break", "block.iron.place");
+    SoundProfile wire = profile("block.glass.hit", "block.glass.break", "block.glass.place");
     return new BreakSoundConfig(enabled, volume, storage, terminal, monitor, bus, wire);
   }
 
-  private static SoundProfile readProfile(
-      FileConfiguration config, String basePath, String defHit, String defBreak, String defPlace) {
-    String hitKey = config.getString(basePath + ".hit", defHit);
-    String breakKey = config.getString(basePath + ".break", defBreak);
-    String placeKey = config.getString(basePath + ".place", defPlace);
+  private static SoundProfile profile(String hitKey, String breakKey, String placeKey) {
     return new SoundProfile(normalizeKey(hitKey), normalizeKey(breakKey), normalizeKey(placeKey));
   }
 

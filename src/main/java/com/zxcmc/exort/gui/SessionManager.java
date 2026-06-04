@@ -142,15 +142,13 @@ public class SessionManager {
                 () -> {
                   WirelessTerminalService tickWireless = wirelessService.get();
                   Material tickStorageCarrier = storageCarrier.get();
-                  double maxDeviceDistanceSquared = maxDeviceDistanceSquared();
                   List<GuiSession> snapshot = new ArrayList<>(registry.allSessions());
                   List<WirelessCloseRequest> toClose = new ArrayList<>();
                   List<Player> physicalToClose = new ArrayList<>();
                   for (GuiSession session : snapshot) {
                     if (!(session instanceof AbstractStorageSession storageSession)) continue;
                     if (!storageSession.isWireless()) {
-                      if (sessionValidator.shouldClosePhysicalSession(
-                          storageSession, maxDeviceDistanceSquared)) {
+                      if (sessionValidator.shouldClosePhysicalSession(storageSession)) {
                         physicalToClose.add(storageSession.getViewer());
                       }
                       continue;
@@ -593,10 +591,6 @@ public class SessionManager {
     return GuiOverlayGlyphs.overlay(overlayKey, overlayConfig.storageTerminal(type), ExortLog::warn)
         .map(overlay -> ExortText.withPrefix(overlay, name))
         .orElse(name);
-  }
-
-  private double maxDeviceDistanceSquared() {
-    return runtimeConfig.sessionMaxDeviceDistanceSquared();
   }
 
   private void closeDialogQuietly(Player player) {

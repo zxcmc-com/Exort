@@ -43,7 +43,7 @@ public final class PackExporter {
 
   private PackExporter() {}
 
-  public static Result exportPack(JavaPlugin plugin, boolean obfuscate) {
+  public static Result exportPack(JavaPlugin plugin) {
     File packDir = new File(plugin.getDataFolder(), "pack");
     Path source = getCodeSourcePath(plugin);
     if (source == null) {
@@ -52,15 +52,11 @@ public final class PackExporter {
           .warning("Cannot resolve plugin code source; resource pack export skipped.");
       return Result.empty(new File(packDir, RAW_OUTPUT_NAME), new File(packDir, OUTPUT_NAME));
     }
-    return exportPack(source, RESOURCE_ROOT, packDir, obfuscate, plugin.getLogger());
+    return exportPack(source, RESOURCE_ROOT, packDir, plugin.getLogger());
   }
 
   static Result exportPack(
-      Path source,
-      String resourceRoot,
-      File packDir,
-      boolean obfuscate,
-      java.util.logging.Logger logger) {
+      Path source, String resourceRoot, File packDir, java.util.logging.Logger logger) {
     if (!packDir.exists()) {
       packDir.mkdirs();
     }
@@ -71,18 +67,9 @@ public final class PackExporter {
       return Result.empty(rawFile, outputFile);
     }
     try {
-      if (obfuscate) {
-        PackObfuscator.obfuscate(rawFile, outputFile);
-      } else {
-        Files.copy(rawFile.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      }
+      Files.copy(rawFile.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
       return new Result(
-          rawFile,
-          outputFile,
-          sha1Hex(rawFile.toPath()),
-          sha1Hex(outputFile.toPath()),
-          entryCount,
-          obfuscate);
+          rawFile, outputFile, sha1Hex(rawFile.toPath()), sha1Hex(outputFile.toPath()), entryCount);
     } catch (IOException e) {
       logger.log(Level.WARNING, "Failed to finalize " + OUTPUT_NAME, e);
       return Result.empty(rawFile, outputFile);
@@ -267,14 +254,9 @@ public final class PackExporter {
   }
 
   public record Result(
-      File rawFile,
-      File outputFile,
-      String rawSha1,
-      String outputSha1,
-      int entryCount,
-      boolean obfuscated) {
+      File rawFile, File outputFile, String rawSha1, String outputSha1, int entryCount) {
     static Result empty(File rawFile, File outputFile) {
-      return new Result(rawFile, outputFile, "", "", 0, false);
+      return new Result(rawFile, outputFile, "", "", 0);
     }
 
     public boolean available() {

@@ -25,7 +25,6 @@ public record RuntimeDisplayServicesDependencies(
     boolean resourceMode,
     int wireLimit,
     int wireHardCap,
-    RuntimeDisplayConfig.MaterialResolver materialResolver,
     ProtocolLibEnhancements protocolLibEnhancements,
     Supplier<WorldEditDebugService> worldEditDebugService,
     Supplier<BusService> busService,
@@ -40,7 +39,6 @@ public record RuntimeDisplayServicesDependencies(
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(itemModels, "itemModels");
     Objects.requireNonNull(hologramConfig, "hologramConfig");
-    Objects.requireNonNull(materialResolver, "materialResolver");
     Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(invalidateNetwork, "invalidateNetwork");

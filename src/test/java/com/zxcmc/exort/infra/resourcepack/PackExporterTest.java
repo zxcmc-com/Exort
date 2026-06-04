@@ -36,7 +36,7 @@ class PackExporterTest {
 
     PackExporter.Result result =
         PackExporter.exportPack(
-            source, "pack/", tempDir.resolve("out").toFile(), false, Logger.getLogger("test"));
+            source, "pack/", tempDir.resolve("out").toFile(), Logger.getLogger("test"));
 
     assertTrue(result.available());
     assertEquals(
@@ -61,7 +61,6 @@ class PackExporterTest {
             Path.of("src/main/resources"),
             "pack/",
             tempDir.resolve("project-out").toFile(),
-            false,
             Logger.getLogger("test"));
 
     assertTrue(result.available());

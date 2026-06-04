@@ -39,8 +39,7 @@ public final class ExortRuntimeFactory {
         reloadLanguage(deps, refreshItemDictionaries);
     CreativeTabOrder.init(deps.plugin());
 
-    RuntimeItemModelConfig itemModels =
-        RuntimeItemModelConfig.fromConfig(deps.config(), deps.resourceMode());
+    RuntimeItemModelConfig itemModels = RuntimeItemModelConfig.forMode(deps.resourceMode());
     RuntimeMaterials materials =
         new RuntimeMaterials(
             itemModels.wireMaterial(),
@@ -68,7 +67,7 @@ public final class ExortRuntimeFactory {
         ProtocolLibEnhancements.tryCreate(deps.plugin(), deps.pickDebugFullSink());
     BreakAnimationSender breakAnimationSender =
         RuntimeBreakAnimationSenders.create(
-            deps.plugin(), deps.config(), deps.resourceMode(), itemModels.displayNamespace());
+            deps.plugin(), deps.resourceMode(), itemModels.displayNamespace());
     deps.unregisterReloadableRuntimeListeners().run();
     deps.setupRegionProtection().run();
     deps.resetReloadableDisplayState().run();
@@ -76,8 +75,7 @@ public final class ExortRuntimeFactory {
     WorldEditWandGuard worldEditWandGuard = new KnownWorldEditWandGuard(deps.plugin());
 
     RuntimeServiceState state = new RuntimeServiceState();
-    RuntimeHologramConfig hologramConfig =
-        RuntimeHologramConfig.fromConfig(deps.config(), deps.resourceMode());
+    RuntimeHologramConfig hologramConfig = RuntimeHologramConfig.forMode(deps.resourceMode());
     RuntimeDisplayServices displayServices =
         RuntimeDisplayServicesFactory.create(
             new RuntimeDisplayServicesDependencies(
@@ -93,7 +91,6 @@ public final class ExortRuntimeFactory {
                 deps.resourceMode(),
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
-                RuntimeMaterialResolver::resolve,
                 protocolLibEnhancements,
                 deps.worldEditDebugService(),
                 () -> state.busService,
@@ -183,7 +180,7 @@ public final class ExortRuntimeFactory {
                 protocolLibEnhancements,
                 deps.previousRecipeService(),
                 busRuntime,
-                CraftingRulesConfig.fromConfig(deps.config()),
+                CraftingRulesConfig.defaults(),
                 networkConfig.storagePeekTicks(),
                 networkConfig.wirePeekTicks(),
                 deps.revalidateSessions(),
