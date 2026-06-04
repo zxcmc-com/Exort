@@ -8,15 +8,14 @@ import com.zxcmc.exort.display.DisplayBreakAnimationSender;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 
 public final class RuntimeBreakAnimationSenders {
   private RuntimeBreakAnimationSenders() {}
 
   public static BreakAnimationSender create(
-      Plugin plugin, FileConfiguration config, boolean resourceMode, String resourceNamespace) {
-    BreakVisualConfig visualConfig = BreakVisualConfig.fromConfig(config);
+      Plugin plugin, boolean resourceMode, String resourceNamespace) {
+    BreakVisualConfig visualConfig = BreakVisualConfig.defaults();
     DisplayBreakAnimationSender.clearStaleOverlays();
     if (resourceMode) {
       List<BreakAnimationSender> senders = new ArrayList<>();

@@ -245,10 +245,6 @@ public final class ProtocolLibEnhancements {
   }
 
   private void probeLocalizationFeature() {
-    if (!plugin.getConfig().getBoolean("protocolLib.localization.enabled", true)) {
-      setProbe(Feature.LOCALIZATION, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
-      return;
-    }
     setProbe(
         Feature.LOCALIZATION,
         FeatureStatus.UNAVAILABLE,
@@ -260,10 +256,6 @@ public final class ProtocolLibEnhancements {
       DisplayLocalizer displayLocalizer,
       boolean resourceMode,
       ProtocolLocalizationLevel requestedLevel) {
-    if (!plugin.getConfig().getBoolean("protocolLib.localization.enabled", true)) {
-      setProbe(Feature.LOCALIZATION, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
-      return false;
-    }
     if (resourceMode) {
       setProbe(
           Feature.LOCALIZATION,
@@ -392,13 +384,7 @@ public final class ProtocolLibEnhancements {
   }
 
   public void registerPickBridge(PickListener pickListener) {
-    if (!plugin.getConfig().getBoolean("protocolLib.pickBridge.enabled", true)) {
-      setProbe(Feature.PICK_BRIDGE, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
-      setProbe(Feature.ENTITY_PICK, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
-      return;
-    }
-
-    boolean entityPick = plugin.getConfig().getBoolean("protocolLib.pickBridge.entityPick", true);
+    boolean entityPick = true;
     try {
       Class<?> clientPacketTypesClass =
           loader.loadClass("com.comphenix.protocol.PacketType$Play$Client");

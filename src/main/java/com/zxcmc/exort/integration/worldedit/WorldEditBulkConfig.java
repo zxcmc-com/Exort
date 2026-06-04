@@ -9,7 +9,7 @@ public record WorldEditBulkConfig(
     int refreshChunksPerTick,
     int busScanChunksPerTick,
     int networkStartsPerTick) {
-  private static final String PATH = "performance.worldEditBulk.";
+  private static final String PATH = "performance.worldEditBulk";
 
   public WorldEditBulkConfig {
     bulkThresholdBlocks = Math.max(1, bulkThresholdBlocks);
@@ -20,12 +20,10 @@ public record WorldEditBulkConfig(
   }
 
   public static WorldEditBulkConfig fromConfig(ConfigurationSection config) {
-    return new WorldEditBulkConfig(
-        config.getBoolean(PATH + "enabled", true),
-        config.getInt(PATH + "bulkThresholdBlocks", 512),
-        config.getInt(PATH + "markerUpdatesPerTick", 1500),
-        config.getInt(PATH + "refreshChunksPerTick", 2),
-        config.getInt(PATH + "busScanChunksPerTick", 2),
-        config.getInt(PATH + "networkStartsPerTick", 32));
+    return defaults(config.getBoolean(PATH, true));
+  }
+
+  public static WorldEditBulkConfig defaults(boolean enabled) {
+    return new WorldEditBulkConfig(enabled, 512, 1500, 2, 2, 32);
   }
 }

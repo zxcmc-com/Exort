@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.4 — 2026-06-04
+- Simplified `config.yml`: debug/tuning defaults for display culling, WorldEdit bulk processing, placement guard geometry, visual models, break sounds, crafting rules, bossbar durations, and resource-pack required state are now fixed in code.
+- Flattened several runtime settings for clearer administration, including `updateCheck`, `placementGuard`, `performance.worldEditBulk`, `protocolLib.localizationLevel`, and moved storage/session/bus performance limits under `performance`.
+- Config updates now drop removed or unknown options instead of preserving them as commented retired keys, so old tuning/debug entries are cleaned from existing server configs on reload.
+- Fixed swapped Serbian bundled translations so `sr_cs` uses Latin Serbian and `sr_sp` uses Cyrillic Serbian, matching Minecraft locale codes.
+
 ## 0.13.3 — 2026-06-03
 - In VANILLA mode, ProtocolLib localization now shows Exort item names and lore in each player's language when a matching translation is available, while the real server-side item stacks stay unchanged.
 - Added `protocolLib.localization.level`: `SIMPLE` localizes Exort inventory items and lore, while `FULL` also localizes Exort block/display names for clients and Jade-like inspection mods without requiring the resource pack.

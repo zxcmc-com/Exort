@@ -2,9 +2,7 @@ package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.carrier.Carriers;
 import java.util.Locale;
-import java.util.Objects;
 import org.bukkit.Material;
-import org.bukkit.configuration.ConfigurationSection;
 
 public record RuntimeItemModelConfig(
     String displayNamespace,
@@ -24,10 +22,8 @@ public record RuntimeItemModelConfig(
     String wirelessDisabledModel) {
   private static final String VANILLA_NAMESPACE = "minecraft";
 
-  public static RuntimeItemModelConfig fromConfig(
-      ConfigurationSection config, boolean resourceMode) {
-    Objects.requireNonNull(config, "config");
-    return resourceMode ? resourceConfig(config) : vanillaConfig(config);
+  public static RuntimeItemModelConfig forMode(boolean resourceMode) {
+    return resourceMode ? resourceConfig() : vanillaConfig();
   }
 
   public static String normalizeModelId(String raw, String namespace) {
@@ -42,8 +38,8 @@ public record RuntimeItemModelConfig(
     return ns + ":" + id;
   }
 
-  private static RuntimeItemModelConfig resourceConfig(ConfigurationSection config) {
-    String resourceNamespace = config.getString("resourceMode.namespace", "exort");
+  private static RuntimeItemModelConfig resourceConfig() {
+    String resourceNamespace = "exort";
     return new RuntimeItemModelConfig(
         resourceNamespace,
         Carriers.CHORUS_MATERIAL,
@@ -51,34 +47,18 @@ public record RuntimeItemModelConfig(
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
-        normalizeModelId(
-            config.getString("resourceMode.wire.itemModel", "wire/center"), resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.storage.itemModel", "storage/storage"),
-            resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.terminal.itemModel", "terminal/inventory"),
-            resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.craftingTerminal.itemModel", "terminal/workbench"),
-            resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.monitor.itemModel", "terminal/monitor"),
-            resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.bus.import.itemModel", "bus/import"), resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.bus.export.itemModel", "bus/export"), resourceNamespace),
-        normalizeModelId(
-            config.getString("resourceMode.wirelessTerminal.itemModel", "terminal/wireless"),
-            resourceNamespace),
-        normalizeModelId(
-            config.getString(
-                "resourceMode.wirelessTerminal.modelDisabledId", "terminal/wireless_disabled"),
-            resourceNamespace));
+        normalizeModelId("wire/center", resourceNamespace),
+        normalizeModelId("storage/storage", resourceNamespace),
+        normalizeModelId("terminal/inventory", resourceNamespace),
+        normalizeModelId("terminal/workbench", resourceNamespace),
+        normalizeModelId("terminal/monitor", resourceNamespace),
+        normalizeModelId("bus/import", resourceNamespace),
+        normalizeModelId("bus/export", resourceNamespace),
+        normalizeModelId("terminal/wireless", resourceNamespace),
+        normalizeModelId("terminal/wireless_disabled", resourceNamespace));
   }
 
-  private static RuntimeItemModelConfig vanillaConfig(ConfigurationSection config) {
+  private static RuntimeItemModelConfig vanillaConfig() {
     return new RuntimeItemModelConfig(
         VANILLA_NAMESPACE,
         Carriers.CARRIER_BARRIER,
@@ -86,25 +66,14 @@ public record RuntimeItemModelConfig(
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
-        normalizeModelId(
-            config.getString("vanillaMode.wire.modelId", "black_stained_glass"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.storage.modelId", "vault"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.terminal.modelId", "barrel"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.craftingTerminal.modelId", "crafting_table"),
-            VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.monitor.itemModel", "smooth_stone"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.importBus.itemModel", "dispenser"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.exportBus.itemModel", "dropper"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.wirelessTerminal.modelId", "target"), VANILLA_NAMESPACE),
-        normalizeModelId(
-            config.getString("vanillaMode.wirelessTerminal.modelDisabledId", "target"),
-            VANILLA_NAMESPACE));
+        normalizeModelId("black_stained_glass", VANILLA_NAMESPACE),
+        normalizeModelId("vault", VANILLA_NAMESPACE),
+        normalizeModelId("barrel", VANILLA_NAMESPACE),
+        normalizeModelId("crafting_table", VANILLA_NAMESPACE),
+        normalizeModelId("smooth_stone", VANILLA_NAMESPACE),
+        normalizeModelId("dispenser", VANILLA_NAMESPACE),
+        normalizeModelId("dropper", VANILLA_NAMESPACE),
+        normalizeModelId("target", VANILLA_NAMESPACE),
+        normalizeModelId("target", VANILLA_NAMESPACE));
   }
 }

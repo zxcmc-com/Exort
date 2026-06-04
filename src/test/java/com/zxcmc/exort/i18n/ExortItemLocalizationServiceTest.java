@@ -92,7 +92,7 @@ class ExortItemLocalizationServiceTest {
 
   private static Harness harness(String configuredLanguage) {
     StorageKeys keys = new StorageKeys(plugin());
-    Lang lang = new Lang(null, null, Path.of("src/main/resources"), true, Set.of());
+    Lang lang = new Lang(null, null, Path.of("src/main/resources"));
     lang.load(configuredLanguage);
     return new Harness(keys, new ExortItemLocalizationService(keys, lang));
   }

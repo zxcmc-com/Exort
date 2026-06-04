@@ -3,6 +3,7 @@ package com.zxcmc.exort.gui;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.platform.PlayerInteractionRange;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -60,7 +61,7 @@ final class GuiSessionValidator {
         && session.getStorageId().equals(link.data().storageId());
   }
 
-  boolean shouldClosePhysicalSession(AbstractStorageSession session, double maxDistanceSquared) {
+  boolean shouldClosePhysicalSession(AbstractStorageSession session) {
     Player player = session.getViewer();
     if (player == null || !player.isOnline()) return true;
     Block terminal = session.getTerminalBlock();
@@ -69,7 +70,7 @@ final class GuiSessionValidator {
     if (carrier == null) return false;
     if (!isBlockChunkLoaded(terminal)) return true;
     if (!Carriers.matchesCarrier(terminal, carrier)) return true;
-    return isOutOfDeviceRange(player, terminal, maxDistanceSquared);
+    return isOutOfDeviceRange(player, terminal);
   }
 
   WirelessValidationResult wirelessValidation(
@@ -97,14 +98,15 @@ final class GuiSessionValidator {
     return WirelessValidationResult.valid();
   }
 
-  private boolean isOutOfDeviceRange(Player player, Block block, double maxDistanceSquared) {
+  private boolean isOutOfDeviceRange(Player player, Block block) {
     if (player.getWorld() == null || block.getWorld() == null) return true;
     if (!player.getWorld().getUID().equals(block.getWorld().getUID())) return true;
     Location playerLocation = player.getLocation();
     double dx = playerLocation.getX() - (block.getX() + 0.5D);
     double dy = playerLocation.getY() - (block.getY() + 0.5D);
     double dz = playerLocation.getZ() - (block.getZ() + 0.5D);
-    return dx * dx + dy * dy + dz * dz > maxDistanceSquared;
+    return dx * dx + dy * dy + dz * dz
+        > PlayerInteractionRange.blockInteractionRangeSquared(player);
   }
 
   private boolean isBlockChunkLoaded(Block block) {

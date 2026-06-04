@@ -17,11 +17,7 @@ class ResourcePackTranslationExportTest {
   void exportGeneratesSlimClientLanguageJsonFromRuntimeYaml() throws Exception {
     PackExporter.Result result =
         PackExporter.exportPack(
-            Path.of("src/main/resources"),
-            "pack/",
-            tempDir.toFile(),
-            false,
-            Logger.getLogger("test"));
+            Path.of("src/main/resources"), "pack/", tempDir.toFile(), Logger.getLogger("test"));
 
     assertTrue(result.available());
     try (ZipFile zip = new ZipFile(result.outputFile())) {

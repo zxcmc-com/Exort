@@ -13,12 +13,11 @@ public record PlacementGuardConfig(
   public static PlacementGuardConfig fromConfig(ConfigurationSection config) {
     Objects.requireNonNull(config, "config");
     return new PlacementGuardConfig(
-        config.getBoolean("placementGuard.enabled", true),
-        config.getInt("placementGuard.pollIntervalTicks", 1),
-        config.getInt("placementGuard.targetRangeBlocks", 5),
-        config.getDouble("placementGuard.guardScale", 0.0625),
-        config.getDouble("placementGuard.cornerInset", 0.01),
-        config.getBoolean("protocolLib.enabled", true)
-            && config.getBoolean("protocolLib.placementGuard.enabled", true));
+        config.getBoolean("placementGuard", true),
+        1,
+        5,
+        0.0625,
+        0.01,
+        config.getBoolean("protocolLib.enabled", true));
   }
 }

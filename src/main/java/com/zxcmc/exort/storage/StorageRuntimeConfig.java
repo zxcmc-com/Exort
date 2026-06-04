@@ -17,8 +17,8 @@ public record StorageRuntimeConfig(
     Objects.requireNonNull(config, "config");
     return new StorageRuntimeConfig(
         SortMode.fromString(config.getString("defaultSortMode", SortMode.AMOUNT.name())).name(),
-        config.getInt("flushIntervalSeconds", 10),
-        config.getLong("cache.idleUnloadSeconds", 300),
-        config.getLong("cache.idleCheckSeconds", 60));
+        config.getInt("performance.storage.flushIntervalSeconds", 10),
+        config.getLong("performance.storage.idleUnloadSeconds", 300),
+        config.getLong("performance.storage.idleCheckSeconds", 60));
   }
 }

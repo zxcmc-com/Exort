@@ -36,7 +36,6 @@ import com.zxcmc.exort.infra.metrics.ExortMetrics;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.infra.update.UpdateChecker;
-import com.zxcmc.exort.integration.protection.DebugRegionProtection;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.protection.WorldGuardProtection;
 import com.zxcmc.exort.integration.protection.WorldGuardProtectionConfig;
@@ -220,7 +219,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> storageCarrier,
                 () -> terminalCarrier,
                 () -> GuiRuntimeConfig.fromConfig(getConfig()),
-                () -> GuiOverlayConfig.fromConfig(getConfig()),
+                GuiOverlayConfig::defaults,
                 storageId -> {
                   if (monitorDisplayManager != null) {
                     monitorDisplayManager.refreshStorageMonitors(storageId);
@@ -493,7 +492,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         },
         block -> monitorPlacementTracker != null && monitorPlacementTracker.isRecentlyPlaced(block),
         () -> GuiRuntimeConfig.fromConfig(getConfig()),
-        () -> GuiOverlayConfig.fromConfig(getConfig()),
+        GuiOverlayConfig::defaults,
         storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE),
         WorldEditIntegration::tryRegister,
         integration -> worldEditIntegration = integration);
@@ -598,9 +597,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
               error);
       regionProtection = failClosed ? RegionProtection.denyAll() : RegionProtection.allowAll();
       return;
-    }
-    if (protectionConfig.debug()) {
-      regionProtection = new DebugRegionProtection(regionProtection, getLogger(), true);
     }
     ExortLog.success("[WorldGuard] Integration enabled.");
   }

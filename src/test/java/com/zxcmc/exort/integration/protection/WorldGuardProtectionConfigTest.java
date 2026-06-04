@@ -14,20 +14,17 @@ class WorldGuardProtectionConfigTest {
 
     assertTrue(config.enabled());
     assertFalse(config.failClosedOnError());
-    assertFalse(config.debug());
   }
 
   @Test
-  void readsConfiguredFlags() {
+  void readsConfiguredPublicFlags() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("worldguard.enabled", false);
     yaml.set("worldguard.failClosedOnError", true);
-    yaml.set("worldguard.debug", true);
 
     WorldGuardProtectionConfig config = WorldGuardProtectionConfig.fromConfig(yaml);
 
     assertFalse(config.enabled());
     assertTrue(config.failClosedOnError());
-    assertTrue(config.debug());
   }
 }

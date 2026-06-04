@@ -108,8 +108,7 @@ public final class ResourcePackService implements Listener {
       return;
     }
 
-    boolean obfuscate = plugin.getConfig().getBoolean("resourcePack.obfuscation", true);
-    PackExporter.Result pack = PackExporter.exportPack(plugin, obfuscate);
+    PackExporter.Result pack = PackExporter.exportPack(plugin);
     if (!pack.available()) {
       state.set(
           State.error(
@@ -299,7 +298,7 @@ public final class ResourcePackService implements Listener {
     return new DeliverySettings(
         configuredDelivery,
         serverResourcePackConfigured(),
-        plugin.getConfig().getBoolean("resourcePack.required", true),
+        true,
         prompt(),
         Math.max(1, plugin.getConfig().getInt("resourcePack.configurationTimeoutSeconds", 30)),
         plugin.getConfig().getBoolean("resourcePack.sendOnlineOnReady", false));
@@ -552,8 +551,6 @@ public final class ResourcePackService implements Listener {
               sender, "message.pack_status.raw_pack", current.pack().rawFile().getPath()));
       lines.add(
           translator.tr(sender, "message.pack_status.pack", current.pack().outputFile().getPath()));
-      lines.add(
-          translator.tr(sender, "message.pack_status.obfuscated", current.pack().obfuscated()));
     }
     if (current.handoffTarget() != null && !current.handoffTarget().isBlank()) {
       lines.add(translator.tr(sender, "message.pack_status.handoff", current.handoffTarget()));

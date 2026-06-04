@@ -1,7 +1,6 @@
 package com.zxcmc.exort.breaking;
 
 import java.util.Objects;
-import org.bukkit.configuration.ConfigurationSection;
 
 public record BreakVisualConfig(
     ParticleConfig vanillaParticles,
@@ -18,43 +17,20 @@ public record BreakVisualConfig(
     Objects.requireNonNull(resourceParticles, "resourceParticles");
   }
 
-  public static BreakVisualConfig fromConfig(ConfigurationSection config) {
-    Objects.requireNonNull(config, "config");
+  public static BreakVisualConfig defaults() {
     return new BreakVisualConfig(
-        readParticleConfig(config, "vanillaMode.breakParticles"),
-        readResourceOverlayConfig(config),
-        readResourceParticleConfig(config));
+        particleConfig(true),
+        new ResourceOverlayConfig(true, "PAPER", "breaking/stage_", 1.001),
+        new ResourceParticleConfig(true, defaultParticleSettings(), "NETHERITE_BLOCK"));
   }
 
-  private static ParticleConfig readParticleConfig(ConfigurationSection config, String path) {
-    return new ParticleConfig(
-        config.getBoolean(path + ".enabled", true), readParticleSettings(config, path));
+  private static ParticleConfig particleConfig(boolean enabled) {
+    return new ParticleConfig(enabled, defaultParticleSettings());
   }
 
-  private static ResourceOverlayConfig readResourceOverlayConfig(ConfigurationSection config) {
-    String path = "resourceMode.breakOverlay";
-    return new ResourceOverlayConfig(
-        config.getBoolean(path + ".enabled", true),
-        config.getString(path + ".displayBaseMaterial", "PAPER"),
-        config.getString(path + ".modelPrefix", "breaking/stage_"),
-        config.getDouble(path + ".displayScale", 1.001));
-  }
-
-  private static ResourceParticleConfig readResourceParticleConfig(ConfigurationSection config) {
-    String path = "resourceMode.breakParticles";
-    return new ResourceParticleConfig(
-        config.getBoolean(path + ".enabled", true),
-        readParticleSettings(config, path),
-        config.getString(path + ".material", "NETHERITE_BLOCK"));
-  }
-
-  private static BreakParticleSender.Settings readParticleSettings(
-      ConfigurationSection config, String path) {
-    double range = Math.max(0.0, config.getDouble(path + ".range", DEFAULT_RANGE));
-    int stageCount = Math.max(0, config.getInt(path + ".count", DEFAULT_STAGE_PARTICLES));
-    int breakCount = Math.max(0, config.getInt(path + ".breakCount", DEFAULT_BREAK_PARTICLES));
-    double spread = Math.max(0.0, config.getDouble(path + ".spread", DEFAULT_SPREAD));
-    return new BreakParticleSender.Settings(range, stageCount, breakCount, spread);
+  private static BreakParticleSender.Settings defaultParticleSettings() {
+    return new BreakParticleSender.Settings(
+        DEFAULT_RANGE, DEFAULT_STAGE_PARTICLES, DEFAULT_BREAK_PARTICLES, DEFAULT_SPREAD);
   }
 
   public record ParticleConfig(boolean enabled, BreakParticleSender.Settings settings) {

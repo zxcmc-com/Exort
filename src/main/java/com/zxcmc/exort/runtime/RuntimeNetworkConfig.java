@@ -14,16 +14,12 @@ public record RuntimeNetworkConfig(
   public static RuntimeNetworkConfig fromConfig(ConfigurationSection config) {
     Objects.requireNonNull(config, "config");
 
-    long storagePeekTicks =
-        Math.max(1, config.getLong("bossbar.storagePeekSeconds", 6) * TICKS_PER_SECOND);
-    long wirePeekTicks =
-        Math.max(1, config.getLong("bossbar.wirePeekSeconds", 6) * TICKS_PER_SECOND);
+    long storagePeekTicks = 6 * TICKS_PER_SECOND;
+    long wirePeekTicks = 6 * TICKS_PER_SECOND;
 
-    int wireLimitRaw = config.getInt("wire.limit", config.getInt("wireLimit", 32));
+    int wireLimitRaw = config.getInt("wire.limit", 32);
     int wireLimit = Math.max(1, wireLimitRaw);
-    int hardCapRaw =
-        config.getInt(
-            "wire.hardCap", config.getInt("wireHardCap", Math.max(wireLimit * 2, wireLimit)));
+    int hardCapRaw = config.getInt("wire.hardCap", Math.max(wireLimit * 2, wireLimit));
     boolean hardCapAdjusted = hardCapRaw < wireLimit;
     int wireHardCap = Math.max(wireLimit, hardCapRaw);
 

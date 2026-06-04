@@ -10,6 +10,7 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.platform.PlayerInteractionRange;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
@@ -84,10 +85,9 @@ public class BusSessionManager {
                 plugin,
                 () -> {
                   Material currentBusCarrier = busCarrier.get();
-                  double maxDistanceSquared = maxDeviceDistanceSquared();
                   List<Player> toClose = new ArrayList<>();
                   for (BusSession session : new ArrayList<>(byPlayer.values())) {
-                    if (shouldCloseSession(session, currentBusCarrier, maxDistanceSquared)) {
+                    if (shouldCloseSession(session, currentBusCarrier)) {
                       toClose.add(session.getViewer());
                     }
                   }
@@ -259,8 +259,7 @@ public class BusSessionManager {
       String inventoryName,
       boolean loopDisabled) {}
 
-  private boolean shouldCloseSession(
-      BusSession session, Material busCarrier, double maxDistanceSquared) {
+  private boolean shouldCloseSession(BusSession session, Material busCarrier) {
     Player player = session.getViewer();
     if (player == null || !player.isOnline()) return true;
     Block busBlock = session.getBusBlock();
@@ -269,25 +268,22 @@ public class BusSessionManager {
     if (!isBlockChunkLoaded(busBlock)) return true;
     if (!Carriers.matchesCarrier(busBlock, busCarrier)) return true;
     if (BusMarker.get(plugin, busBlock).isEmpty()) return true;
-    return isOutOfDeviceRange(player, busBlock, maxDistanceSquared);
+    return isOutOfDeviceRange(player, busBlock);
   }
 
-  private boolean isOutOfDeviceRange(Player player, Block block, double maxDistanceSquared) {
+  private boolean isOutOfDeviceRange(Player player, Block block) {
     if (player.getWorld() == null || block.getWorld() == null) return true;
     if (!player.getWorld().getUID().equals(block.getWorld().getUID())) return true;
     Location playerLocation = player.getLocation();
     double dx = playerLocation.getX() - (block.getX() + 0.5D);
     double dy = playerLocation.getY() - (block.getY() + 0.5D);
     double dz = playerLocation.getZ() - (block.getZ() + 0.5D);
-    return dx * dx + dy * dy + dz * dz > maxDistanceSquared;
+    return dx * dx + dy * dy + dz * dz
+        > PlayerInteractionRange.blockInteractionRangeSquared(player);
   }
 
   private boolean isBlockChunkLoaded(Block block) {
     return block.getWorld() != null
         && block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4);
-  }
-
-  private double maxDeviceDistanceSquared() {
-    return runtimeConfig.sessionMaxDeviceDistanceSquared();
   }
 }

@@ -21,9 +21,18 @@ class PlacementGuardConfigTest {
   }
 
   @Test
-  void configuredValuesOverrideDefaults() {
+  void readsScalarEnabled() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("placementGuard.enabled", false);
+    yaml.set("placementGuard", false);
+
+    PlacementGuardConfig config = PlacementGuardConfig.fromConfig(yaml);
+
+    assertFalse(config.enabled());
+  }
+
+  @Test
+  void keepsGeometryHardcoded() {
+    YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("placementGuard.pollIntervalTicks", 3);
     yaml.set("placementGuard.targetRangeBlocks", 7);
     yaml.set("placementGuard.guardScale", 0.125);
@@ -31,15 +40,14 @@ class PlacementGuardConfigTest {
 
     PlacementGuardConfig config = PlacementGuardConfig.fromConfig(yaml);
 
-    assertFalse(config.enabled());
-    assertEquals(3, config.pollIntervalTicks());
-    assertEquals(7, config.targetRangeBlocks());
-    assertEquals(0.125, config.guardScale());
-    assertEquals(0.03, config.cornerInset());
+    assertEquals(1, config.pollIntervalTicks());
+    assertEquals(5, config.targetRangeBlocks());
+    assertEquals(0.0625, config.guardScale());
+    assertEquals(0.01, config.cornerInset());
   }
 
   @Test
-  void protocolLibGuardRequiresBothProtocolFlags() {
+  void protocolLibGuardOnlyUsesBaseProtocolLibFlag() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("protocolLib.enabled", false);
     yaml.set("protocolLib.placementGuard.enabled", true);
@@ -48,10 +56,6 @@ class PlacementGuardConfigTest {
 
     yaml.set("protocolLib.enabled", true);
     yaml.set("protocolLib.placementGuard.enabled", false);
-
-    assertFalse(PlacementGuardConfig.fromConfig(yaml).protocolLibGuardEnabled());
-
-    yaml.set("protocolLib.placementGuard.enabled", true);
 
     assertTrue(PlacementGuardConfig.fromConfig(yaml).protocolLibGuardEnabled());
   }

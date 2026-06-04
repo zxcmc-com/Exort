@@ -2,14 +2,12 @@ package com.zxcmc.exort.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 class RuntimeDisplayModelConfigTest {
   @Test
   void resourceModeUsesCurrentDisplayModelDefaults() {
-    RuntimeDisplayModelConfig config =
-        RuntimeDisplayModelConfig.fromConfig(new YamlConfiguration(), true, "exort");
+    RuntimeDisplayModelConfig config = RuntimeDisplayModelConfig.forMode(true, "exort");
 
     assertEquals("exort:storage/storage", config.storage());
     assertEquals("exort:terminal/inventory", config.terminal());
@@ -24,8 +22,7 @@ class RuntimeDisplayModelConfigTest {
 
   @Test
   void vanillaModeUsesCurrentDisplayModelDefaults() {
-    RuntimeDisplayModelConfig config =
-        RuntimeDisplayModelConfig.fromConfig(new YamlConfiguration(), false, "minecraft");
+    RuntimeDisplayModelConfig config = RuntimeDisplayModelConfig.forMode(false, "minecraft");
 
     assertEquals("minecraft:vault", config.storage());
     assertEquals("minecraft:barrel", config.terminal());
@@ -36,17 +33,5 @@ class RuntimeDisplayModelConfigTest {
     assertEquals("minecraft:smooth_stone", config.monitorDisabled());
     assertEquals("minecraft:dispenser", config.importBus());
     assertEquals("minecraft:dropper", config.exportBus());
-  }
-
-  @Test
-  void configuredModelsAreNormalizedIntoRuntimeNamespace() {
-    YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("resourceMode.terminal.modelDisabledId", " terminal/custom_disabled ");
-    yaml.set("resourceMode.bus.export.modelId", "other:bus/custom_export");
-
-    RuntimeDisplayModelConfig config = RuntimeDisplayModelConfig.fromConfig(yaml, true, "custom");
-
-    assertEquals("custom:terminal/custom_disabled", config.terminalDisabled());
-    assertEquals("custom:bus/custom_export", config.exportBus());
   }
 }

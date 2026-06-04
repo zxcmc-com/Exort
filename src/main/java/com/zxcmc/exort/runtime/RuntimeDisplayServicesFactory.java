@@ -30,8 +30,7 @@ public final class RuntimeDisplayServicesFactory {
     RuntimeMaterials materials = deps.materials();
     RuntimeItemModelConfig itemModels = deps.itemModels();
     RuntimeDisplayModelConfig displayModels =
-        RuntimeDisplayModelConfig.fromConfig(
-            deps.config(), deps.resourceMode(), itemModels.displayNamespace());
+        RuntimeDisplayModelConfig.forMode(deps.resourceMode(), itemModels.displayNamespace());
     DisplayCullingConfig displayCullingConfig = DisplayCullingConfig.fromConfig(deps.config());
     DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
     DisplayMetadataService metadataService =
@@ -138,9 +137,7 @@ public final class RuntimeDisplayServicesFactory {
 
   private static WireDisplayManager createWireDisplayManager(
       RuntimeDisplayServicesDependencies deps, DisplayMetadataService metadataService) {
-    RuntimeDisplayConfig wireDisplay =
-        RuntimeDisplayConfig.fromConfig(
-            deps.config(), deps.resourceMode(), "resourceMode.wire", deps.materialResolver());
+    RuntimeDisplayConfig wireDisplay = RuntimeDisplayConfig.defaults();
     RuntimeMaterials materials = deps.materials();
     return new WireDisplayManager(
         deps.plugin(),
@@ -182,9 +179,7 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayServicesDependencies deps,
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
-    RuntimeDisplayConfig storageDisplay =
-        RuntimeDisplayConfig.fromConfig(
-            deps.config(), deps.resourceMode(), "resourceMode.storage", deps.materialResolver());
+    RuntimeDisplayConfig storageDisplay = RuntimeDisplayConfig.defaults();
     return new StorageDisplayManager(
         deps.plugin(),
         deps.materials().storageCarrier(),
@@ -202,9 +197,7 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayServicesDependencies deps,
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
-    RuntimeDisplayConfig terminalDisplay =
-        RuntimeDisplayConfig.fromConfig(
-            deps.config(), deps.resourceMode(), "resourceMode.terminal", deps.materialResolver());
+    RuntimeDisplayConfig terminalDisplay = RuntimeDisplayConfig.defaults();
     RuntimeMaterials materials = deps.materials();
     return new TerminalDisplayManager(
         deps.plugin(),
@@ -233,11 +226,9 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayServicesDependencies deps,
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
-    RuntimeDisplayConfig monitorDisplay =
-        RuntimeDisplayConfig.fromConfig(
-            deps.config(), deps.resourceMode(), "resourceMode.monitor", deps.materialResolver());
+    RuntimeDisplayConfig monitorDisplay = RuntimeDisplayConfig.defaults();
     RuntimeMonitorScreenConfig monitorScreens =
-        RuntimeMonitorScreenConfig.fromConfig(deps.config(), deps.resourceMode());
+        RuntimeMonitorScreenConfig.forMode(deps.resourceMode());
     RuntimeMaterials materials = deps.materials();
     return new MonitorDisplayManager(
         deps.plugin(),
@@ -271,9 +262,7 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayServicesDependencies deps,
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
-    RuntimeDisplayConfig busDisplay =
-        RuntimeDisplayConfig.fromConfig(
-            deps.config(), deps.resourceMode(), "resourceMode.bus", deps.materialResolver());
+    RuntimeDisplayConfig busDisplay = RuntimeDisplayConfig.defaults();
     return new BusDisplayManager(
         deps.plugin(),
         deps.materials().busCarrier(),
