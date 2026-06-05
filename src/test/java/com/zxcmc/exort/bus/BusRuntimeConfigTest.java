@@ -15,8 +15,8 @@ class BusRuntimeConfigTest {
     assertEquals(5, config.activeIntervalTicks());
     assertEquals(40, config.idleIntervalTicks());
     assertEquals(1, config.itemsPerOperation());
-    assertEquals(6000, config.maxOperationsPerTick());
-    assertEquals(600, config.maxOperationsPerChunk());
+    assertEquals(500, config.maxOperationsPerTick());
+    assertEquals(40, config.maxOperationsPerChunk());
     assertTrue(config.allowStorageTargets());
     assertEquals(BusMode.WHITELIST, config.defaultImportMode());
     assertEquals(BusMode.WHITELIST, config.defaultExportMode());
@@ -28,8 +28,8 @@ class BusRuntimeConfigTest {
     yaml.set("bus.activeIntervalTicks", 7);
     yaml.set("bus.idleIntervalTicks", 50);
     yaml.set("bus.itemsPerOperation", 3);
-    yaml.set("performance.bus.maxOperationsPerTick", 500);
-    yaml.set("performance.bus.maxOperationsPerChunk", 40);
+    yaml.set("performance.bus.maxOperationsPerTick", 6000);
+    yaml.set("performance.bus.maxOperationsPerChunk", 600);
     yaml.set("bus.allowStorageTargets", false);
     yaml.set("bus.defaultMode.import", "BLACKLIST");
     yaml.set("bus.defaultMode.export", "ALL");
@@ -39,8 +39,8 @@ class BusRuntimeConfigTest {
     assertEquals(7, config.activeIntervalTicks());
     assertEquals(50, config.idleIntervalTicks());
     assertEquals(3, config.itemsPerOperation());
-    assertEquals(500, config.maxOperationsPerTick());
-    assertEquals(40, config.maxOperationsPerChunk());
+    assertEquals(6000, config.maxOperationsPerTick());
+    assertEquals(600, config.maxOperationsPerChunk());
     assertFalse(config.allowStorageTargets());
     assertEquals(BusMode.BLACKLIST, config.defaultImportMode());
     assertEquals(BusMode.ALL, config.defaultExportMode());

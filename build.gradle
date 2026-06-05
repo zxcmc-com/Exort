@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.14.0'
+version = '0.14.1'
 description = 'Exort Storage Network'
 
 base {
@@ -156,7 +156,16 @@ tasks.register('exportResourcePack', JavaExec) {
 }
 
 tasks.withType(JavaCompile).configureEach {
+    // Artifact-producing Gradle entrypoints rely on this auto-format gate.
     dependsOn tasks.named('googleJavaFormat')
+}
+
+tasks.named('googleJavaFormatCheck') {
+    mustRunAfter tasks.named('googleJavaFormat')
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('googleJavaFormatCheck')
 }
 
 tasks.named('test') {

@@ -95,6 +95,27 @@ class ExortBlockProxyServiceTest {
   }
 
   @Test
+  void proxiedCounterTracksProxyAndRestoreTransitions() {
+    int count = 0;
+
+    count = ExortBlockProxyService.proxiedCountAfterTransition(count, false, true);
+    assertEquals(1, count);
+    count = ExortBlockProxyService.proxiedCountAfterTransition(count, true, true);
+    assertEquals(1, count);
+    count = ExortBlockProxyService.proxiedCountAfterTransition(count, true, false);
+    assertEquals(0, count);
+    count = ExortBlockProxyService.proxiedCountAfterTransition(count, false, false);
+    assertEquals(0, count);
+  }
+
+  @Test
+  void proxiedCounterTracksForgetOfProxiedCandidatesOnly() {
+    assertEquals(2, ExortBlockProxyService.proxiedCountAfterCandidateRemoval(3, true));
+    assertEquals(3, ExortBlockProxyService.proxiedCountAfterCandidateRemoval(3, false));
+    assertEquals(0, ExortBlockProxyService.proxiedCountAfterCandidateRemoval(0, true));
+  }
+
+  @Test
   void proxyDistanceIncludesPlayerHeight() {
     double distance = ExortBlockProxyService.visualDistanceToBlock(0.5, 62.5, 0.5, 0, 0, 0);
     assertEquals(62.0, distance, 0.0001);

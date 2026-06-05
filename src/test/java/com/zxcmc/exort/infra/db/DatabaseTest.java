@@ -3,7 +3,9 @@ package com.zxcmc.exort.infra.db;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -12,7 +14,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -236,6 +243,44 @@ class DatabaseTest {
     }
   }
 
+  @Test
+  void queueDepthReturnsToZeroAfterSuccessfulAsyncTask() throws Exception {
+    File file = tempDir.resolve("queue-depth.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      database.ensureStorage("storage").get(5, TimeUnit.SECONDS);
+
+      assertEquals(0, database.queuedOperations());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void asyncTaskAfterCloseReturnsFailedFutureAndLogsRejection() throws Exception {
+    File file = tempDir.resolve("closed.db").toFile();
+    CapturingHandler handler = new CapturingHandler();
+    Logger logger = Logger.getLogger("exort-db-test-" + UUID.randomUUID());
+    logger.setUseParentHandlers(false);
+    logger.addHandler(handler);
+    try {
+      Database database = new Database(logger, null);
+      database.init(file);
+      database.close();
+
+      var future = database.ensureStorage("after-close");
+
+      assertEquals(0, database.queuedOperations());
+      ExecutionException error =
+          assertThrows(ExecutionException.class, () -> future.get(5, TimeUnit.SECONDS));
+      assertInstanceOf(RejectedExecutionException.class, error.getCause());
+      assertTrue(handler.contains("Rejected async database task: ensure storage after-close"));
+    } finally {
+      logger.removeHandler(handler);
+    }
+  }
+
   private void insertItem(
       java.sql.Connection connection, String storageId, String key, byte[] blob, long amount)
       throws Exception {
@@ -263,6 +308,25 @@ class DatabaseTest {
       storage.setLong(4, now);
       storage.setLong(5, now);
       storage.executeUpdate();
+    }
+  }
+
+  private static final class CapturingHandler extends Handler {
+    private final ArrayList<LogRecord> records = new ArrayList<>();
+
+    @Override
+    public void publish(LogRecord record) {
+      records.add(record);
+    }
+
+    @Override
+    public void flush() {}
+
+    @Override
+    public void close() {}
+
+    private boolean contains(String message) {
+      return records.stream().anyMatch(record -> record.getMessage().contains(message));
     }
   }
 }

@@ -145,7 +145,9 @@ public final class WorldEditBridge implements Listener {
   private final Map<UUID, PendingHistoryCommand> pendingHistoryCommands = new ConcurrentHashMap<>();
   private final Map<UUID, PendingMovePatch> pendingMovePatches = new ConcurrentHashMap<>();
   private final WorldEditOperationTracker operationTracker = new WorldEditOperationTracker();
+  private final Object flushTaskLock = new Object();
   private BukkitTask flushTask;
+  private boolean shuttingDown;
   private long tickCounter;
 
   private WorldEditBridge(WorldEditBridgeDependencies deps) {
@@ -169,7 +171,6 @@ public final class WorldEditBridge implements Listener {
       WorldEditBridge bridge = new WorldEditBridge(deps);
       WorldEdit.getInstance().getEventBus().register(bridge);
       Bukkit.getPluginManager().registerEvents(bridge, plugin);
-      bridge.startFlushTask();
       ExortLog.success("[WorldEdit] Integration enabled.");
       return bridge;
     } catch (NoClassDefFoundError err) {
@@ -187,9 +188,12 @@ public final class WorldEditBridge implements Listener {
     } catch (Throwable ignored) {
     }
     HandlerList.unregisterAll(this);
-    if (flushTask != null) {
-      flushTask.cancel();
-      flushTask = null;
+    synchronized (flushTaskLock) {
+      shuttingDown = true;
+      if (flushTask != null) {
+        flushTask.cancel();
+        flushTask = null;
+      }
     }
     refreshScheduler.shutdown();
     clipboardPatcher.shutdown();
@@ -199,11 +203,6 @@ public final class WorldEditBridge implements Listener {
     pendingHistoryCommands.clear();
     pendingMovePatches.clear();
     operationTracker.clear();
-  }
-
-  private void startFlushTask() {
-    if (flushTask != null) return;
-    flushTask = Bukkit.getScheduler().runTaskTimer(plugin, this::flushUpdates, 1L, 1L);
   }
 
   @Subscribe
@@ -682,18 +681,46 @@ public final class WorldEditBridge implements Listener {
     operationTracker.record(update);
     updates.add(new PendingUpdate(update));
     updateQueueDepthGauge();
+    scheduleFlushIfNeeded();
     WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.incUpdatesQueued();
     }
   }
 
-  private void flushUpdates() {
+  private void scheduleFlushIfNeeded() {
     if (updates.isEmpty()) {
       updateQueueDepthGauge();
       return;
     }
-    PerfStats.measure("worldedit.markerApply", this::flushUpdatesMeasured);
+    synchronized (flushTaskLock) {
+      if (shuttingDown || flushTask != null || updates.isEmpty()) {
+        return;
+      }
+      try {
+        flushTask = Bukkit.getScheduler().runTaskLater(plugin, this::flushUpdates, 1L);
+      } catch (IllegalStateException ignored) {
+        flushTask = null;
+      }
+    }
+  }
+
+  private void flushUpdates() {
+    synchronized (flushTaskLock) {
+      flushTask = null;
+      if (shuttingDown) {
+        return;
+      }
+    }
+    if (updates.isEmpty()) {
+      updateQueueDepthGauge();
+      return;
+    }
+    try {
+      PerfStats.measure("worldedit.markerApply", this::flushUpdatesMeasured);
+    } finally {
+      scheduleFlushIfNeeded();
+    }
   }
 
   private void flushUpdatesMeasured() {

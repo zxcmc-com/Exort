@@ -66,9 +66,9 @@ performance:
   sessionDeviceCheckIntervalTicks: 5
   bus:
     # Global bus operation budget per tick.
-    maxOperationsPerTick: 6000
+    maxOperationsPerTick: 500
     # Per-chunk bus operation budget per tick. Set 0 for no per-chunk limit.
-    maxOperationsPerChunk: 600
+    maxOperationsPerChunk: 40
 
 # Prevent client-side ghost placement and sounds when right-clicking Exort blocks with placeable items.
 placementGuard: true

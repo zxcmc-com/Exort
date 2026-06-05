@@ -64,6 +64,7 @@ public final class ExortBlockProxyService implements Listener {
   private boolean started;
   private long budgetOverruns;
   private long chunkLoads;
+  private int proxiedCandidates;
 
   public ExortBlockProxyService(
       JavaPlugin plugin,
@@ -113,6 +114,7 @@ public final class ExortBlockProxyService implements Listener {
     proxyQueue.clear();
     hiddenDisplays.clear();
     playerStates.clear();
+    proxiedCandidates = 0;
     updateGauges(0, 0);
   }
 
@@ -245,7 +247,7 @@ public final class ExortBlockProxyService implements Listener {
     }
     ChunkKey chunkKey = ChunkKey.from(event.getChunk());
     state.sentChunks.remove(chunkKey);
-    state.candidates.keySet().removeIf(key -> key.chunkKey().equals(chunkKey));
+    removeCandidatesInChunk(state, chunkKey);
     removeQueuedInChunk(playerId, chunkKey);
     removeHiddenInChunk(playerId, chunkKey);
     removeEmptyState(playerId, state);
@@ -306,15 +308,19 @@ public final class ExortBlockProxyService implements Listener {
                 player, state, candidate, player.getLocation(), state.viewRangeMultiplier);
           });
     }
-    for (Iterator<BlockKey> iterator = state.candidates.keySet().iterator(); iterator.hasNext(); ) {
-      BlockKey key = iterator.next();
+    for (Iterator<Map.Entry<BlockKey, CandidateState>> iterator =
+            state.candidates.entrySet().iterator();
+        iterator.hasNext(); ) {
+      Map.Entry<BlockKey, CandidateState> entry = iterator.next();
+      BlockKey key = entry.getKey();
       if (!key.chunkKey().equals(chunkKey) || seen.contains(key)) {
         continue;
       }
-      CandidateState candidate = state.candidates.get(key);
+      CandidateState candidate = entry.getValue();
       iterator.remove();
+      boolean wasProxied = accountCandidateRemoval(candidate);
       removeQueued(player.getUniqueId(), key, false);
-      if (candidate != null && candidate.proxied) {
+      if (wasProxied) {
         enqueueRestore(player.getUniqueId(), key, true);
       }
     }
@@ -356,8 +362,9 @@ public final class ExortBlockProxyService implements Listener {
 
   private void forgetCandidate(UUID playerId, PlayerState state, BlockKey key) {
     CandidateState candidate = state.candidates.remove(key);
+    boolean wasProxied = accountCandidateRemoval(candidate);
     removeQueued(playerId, key, false);
-    if (candidate != null && candidate.proxied) {
+    if (wasProxied) {
       enqueueRestore(playerId, key, true);
     }
     removeEmptyState(playerId, state);
@@ -505,7 +512,7 @@ public final class ExortBlockProxyService implements Listener {
       CandidateState candidate =
           state == null ? null : state.candidates.get(change.request.blockKey());
       if (candidate != null) {
-        candidate.proxied = false;
+        setCandidateProxied(candidate, false);
       }
       showHiddenBlockDisplays(change.player, change.request.blockKey());
       if (state != null && change.request.forgetAfterRestore()) {
@@ -519,7 +526,7 @@ public final class ExortBlockProxyService implements Listener {
     }
     CandidateState candidate = state.candidates.get(change.request.blockKey());
     if (candidate != null) {
-      candidate.proxied = true;
+      setCandidateProxied(candidate, true);
       hideBlockDisplays(change.player, change.request.blockKey());
     }
     removeEmptyState(change.request.playerId(), state);
@@ -695,7 +702,7 @@ public final class ExortBlockProxyService implements Listener {
 
   private void clearPlayer(UUID playerId) {
     showHiddenForPlayer(playerId);
-    playerStates.remove(playerId);
+    accountPlayerStateRemoval(playerStates.remove(playerId));
     restoreQueue.keySet().removeIf(key -> key.playerId().equals(playerId));
     proxyQueue.keySet().removeIf(key -> key.playerId().equals(playerId));
     hiddenDisplays.keySet().removeIf(key -> key.playerId().equals(playerId));
@@ -719,6 +726,17 @@ public final class ExortBlockProxyService implements Listener {
         .keySet()
         .removeIf(
             key -> key.playerId().equals(playerId) && key.blockKey().chunkKey().equals(chunkKey));
+  }
+
+  private void removeCandidatesInChunk(PlayerState state, ChunkKey chunkKey) {
+    Iterator<Map.Entry<BlockKey, CandidateState>> iterator = state.candidates.entrySet().iterator();
+    while (iterator.hasNext()) {
+      Map.Entry<BlockKey, CandidateState> entry = iterator.next();
+      if (entry.getKey().chunkKey().equals(chunkKey)) {
+        accountCandidateRemoval(entry.getValue());
+        iterator.remove();
+      }
+    }
   }
 
   private void removeHiddenInChunk(UUID playerId, ChunkKey chunkKey) {
@@ -764,25 +782,52 @@ public final class ExortBlockProxyService implements Listener {
     }
   }
 
-  private int proxiedCount() {
-    int count = 0;
-    for (PlayerState state : playerStates.values()) {
-      for (CandidateState candidate : state.candidates.values()) {
-        if (candidate.proxied) {
-          count++;
-        }
-      }
+  private void setCandidateProxied(CandidateState candidate, boolean proxied) {
+    if (candidate == null) {
+      return;
     }
-    return count;
+    proxiedCandidates = proxiedCountAfterTransition(proxiedCandidates, candidate.proxied, proxied);
+    candidate.proxied = proxied;
+  }
+
+  private void accountPlayerStateRemoval(PlayerState state) {
+    if (state == null) {
+      return;
+    }
+    for (CandidateState candidate : state.candidates.values()) {
+      accountCandidateRemoval(candidate);
+    }
+  }
+
+  private boolean accountCandidateRemoval(CandidateState candidate) {
+    boolean wasProxied = candidate != null && candidate.proxied;
+    proxiedCandidates = proxiedCountAfterCandidateRemoval(proxiedCandidates, wasProxied);
+    if (candidate != null) {
+      candidate.proxied = false;
+    }
+    return wasProxied;
   }
 
   private void updateGauges(int sent, int restored) {
-    PerfStats.setGauge("display.blockProxy.proxied", proxiedCount());
+    PerfStats.setGauge("display.blockProxy.proxied", proxiedCandidates);
     PerfStats.setGauge("display.blockProxy.restored", restored);
     PerfStats.setGauge("display.blockProxy.queued", (long) restoreQueue.size() + proxyQueue.size());
     PerfStats.setGauge("display.blockProxy.sent", sent);
     PerfStats.setGauge("display.blockProxy.budgetOverrun", budgetOverruns);
     PerfStats.setGauge("display.blockProxy.chunkLoads", chunkLoads);
+  }
+
+  static int proxiedCountAfterTransition(int current, boolean wasProxied, boolean nowProxied) {
+    int safeCurrent = Math.max(0, current);
+    if (wasProxied == nowProxied) {
+      return safeCurrent;
+    }
+    return nowProxied ? safeCurrent + 1 : Math.max(0, safeCurrent - 1);
+  }
+
+  static int proxiedCountAfterCandidateRemoval(int current, boolean wasProxied) {
+    int safeCurrent = Math.max(0, current);
+    return wasProxied ? Math.max(0, safeCurrent - 1) : safeCurrent;
   }
 
   static VisualDecision decideVisual(

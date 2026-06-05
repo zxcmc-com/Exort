@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1 — 2026-06-05
+- Hardened asynchronous database scheduling so writes submitted during shutdown now return failed futures, log clear rejection context, and keep the DB queue-depth metric balanced after completed work.
+- Reduced default bus processing budgets to 500 global operations and 40 per chunk per tick, lowering tick spikes on new installs while keeping explicitly configured server values unchanged.
+- Changed WorldEdit marker application to schedule drain work only while marker updates are queued, removing the idle per-tick task without changing bounded retries or deferred refreshes.
+- Replaced RESOURCE block-proxy proxied gauge scans with a maintained counter updated on proxy, restore, and cleanup transitions.
+
 ## 0.14.0 — 2026-06-05
 - Added unified territory-protection checks for Exort placement, breaking, interaction, and storage access across WorldGuard, ProtectionStones regions, GriefPrevention claims, Towny permissions, Lands, and Residence.
 - Replaced the WorldGuard-only protection config with `protection.*` controls, including per-adapter toggles and a shared fail-closed option for protection-check errors.
