@@ -93,6 +93,19 @@ public final class DisplayEntityIndex {
     if (origin == null || origin.getWorld() == null) {
       return List.of();
     }
+    List<Entry> out = new ArrayList<>();
+    queryInto(origin, range, out);
+    return out;
+  }
+
+  public void queryInto(Location origin, double range, List<Entry> out) {
+    if (out == null) {
+      return;
+    }
+    out.clear();
+    if (origin == null || origin.getWorld() == null) {
+      return;
+    }
     double safeRange = Math.max(0.0, range);
     double rangeSquared = safeRange * safeRange;
     int minX = floorSection(origin.getBlockX() - (int) Math.ceil(safeRange));
@@ -102,7 +115,6 @@ public final class DisplayEntityIndex {
     int minZ = floorSection(origin.getBlockZ() - (int) Math.ceil(safeRange));
     int maxZ = floorSection(origin.getBlockZ() + (int) Math.ceil(safeRange));
     UUID worldId = origin.getWorld().getUID();
-    List<Entry> out = new ArrayList<>();
     for (int sectionX = minX; sectionX <= maxX; sectionX++) {
       for (int sectionY = minY; sectionY <= maxY; sectionY++) {
         for (int sectionZ = minZ; sectionZ <= maxZ; sectionZ++) {
@@ -122,7 +134,6 @@ public final class DisplayEntityIndex {
         }
       }
     }
-    return out;
   }
 
   public Display resolve(UUID entityUuid) {

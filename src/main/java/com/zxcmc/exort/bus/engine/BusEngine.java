@@ -369,20 +369,20 @@ public final class BusEngine implements Runnable {
   private boolean tickExportInventory(
       BusState state, StorageCache cache, BusTargetResolver.InventoryTarget target, long tick) {
     Inventory inventory = target.inventory();
-    List<StorageCache.StorageItem> list = cachedStorageList(state, cache);
+    List<StorageCache.StorageItemView> list = cachedStorageList(state, cache);
     if (list.isEmpty()) return false;
     int start = Math.floorMod(state.storageCursor(), list.size());
     for (int i = 0; i < list.size(); i++) {
       int idx = (start + i) % list.size();
-      StorageCache.StorageItem entry = list.get(idx);
+      StorageCache.StorageItemView entry = list.get(idx);
       if (entry.amount() <= 0) continue;
       if (!allows(state.mode(), entry.key(), state.filterKeys())) continue;
       int desired = Math.min(itemsPerOperation, (int) Math.min(Integer.MAX_VALUE, entry.amount()));
       if (desired <= 0) continue;
-      ItemStack outputSample = entry.sample();
+      ItemStack outputSample = entry.sampleCopy();
       String outputKey = entry.key();
       if (wirelessService != null && wirelessService.isWireless(outputSample)) {
-        outputSample = wirelessService.extractFromStorage(outputSample.clone());
+        outputSample = wirelessService.extractFromStorage(outputSample);
         outputKey = ItemKeyUtil.keyFor(outputSample);
       }
       long removed = cache.removeItem(entry.key(), desired);
@@ -391,7 +391,7 @@ public final class BusEngine implements Runnable {
           InventorySideRules.insert(
               inventory, target.state(), target.side(), outputSample, outputKey, (int) removed);
       if (moved < removed) {
-        cache.addItem(entry.key(), entry.sample(), removed - moved);
+        cache.addItem(entry.key(), entry.sampleCopy(), removed - moved);
       }
       if (moved > 0) {
         refreshVisualInventory(target);
@@ -406,12 +406,12 @@ public final class BusEngine implements Runnable {
   private boolean tickStorageTransfer(
       BusState state, StorageCache source, StorageCache dest, StorageTier destTier) {
     if (destTier == null) return false;
-    List<StorageCache.StorageItem> list = cachedStorageList(state, source);
+    List<StorageCache.StorageItemView> list = cachedStorageList(state, source);
     if (list.isEmpty()) return false;
     int start = Math.floorMod(state.storageCursor(), list.size());
     for (int i = 0; i < list.size(); i++) {
       int idx = (start + i) % list.size();
-      StorageCache.StorageItem entry = list.get(idx);
+      StorageCache.StorageItemView entry = list.get(idx);
       if (entry.amount() <= 0) continue;
       if (!allows(state.mode(), entry.key(), state.filterKeys())) continue;
       int desired = Math.min(itemsPerOperation, (int) Math.min(Integer.MAX_VALUE, entry.amount()));
@@ -420,7 +420,7 @@ public final class BusEngine implements Runnable {
       if (space <= 0) {
         return false;
       }
-      long weight = dest.nestedWeight(entry.sample());
+      long weight = entry.weight();
       long maxBySpace = Math.max(0, space / Math.max(1, weight));
       if (maxBySpace <= 0) {
         return false;
@@ -429,7 +429,7 @@ public final class BusEngine implements Runnable {
       if (move <= 0) continue;
       long removed = source.removeItem(entry.key(), move);
       if (removed <= 0) continue;
-      dest.addItem(entry.key(), entry.sample(), removed);
+      dest.addItem(entry.key(), entry.sampleCopy(), removed);
       state.setStorageCursor(idx + 1);
       return true;
     }
@@ -437,12 +437,12 @@ public final class BusEngine implements Runnable {
     return false;
   }
 
-  private List<StorageCache.StorageItem> cachedStorageList(BusState state, StorageCache cache) {
+  private List<StorageCache.StorageItemView> cachedStorageList(BusState state, StorageCache cache) {
     long version = cache.version();
     if (state.cachedItems() == null
         || state.cachedStorageVersion() != version
         || !cache.getStorageId().equals(state.cachedStorageId())) {
-      List<StorageCache.StorageItem> fresh = cache.itemsSnapshot();
+      List<StorageCache.StorageItemView> fresh = cache.itemViewsSnapshot();
       state.setCachedItems(fresh);
       state.setCachedStorageVersion(version);
       state.setCachedStorageId(cache.getStorageId());

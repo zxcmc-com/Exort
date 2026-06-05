@@ -458,6 +458,89 @@ public abstract class AbstractStorageSession implements SearchableSession {
     return allowed;
   }
 
+  protected void handleBottomInventoryShiftDeposit(InventoryClickEvent event) {
+    if (readOnly && event.isShiftClick()) {
+      event.setCancelled(true);
+      return;
+    }
+    if (!event.isShiftClick()) {
+      return;
+    }
+    ItemStack clicked = event.getCurrentItem();
+    if (clicked == null || clicked.getType() == Material.AIR) {
+      return;
+    }
+    setInfoErrorMessage(null);
+    long deposited = depositFromStack(clicked);
+    if (deposited > 0) {
+      if (deposited < clicked.getAmount()) {
+        triggerInfoError();
+      }
+      int remaining = (int) (clicked.getAmount() - deposited);
+      if (remaining <= 0) {
+        event.setCurrentItem(null);
+      } else {
+        clicked.setAmount(remaining);
+        event.setCurrentItem(clicked);
+      }
+      manager.renderStorage(cache.getStorageId(), SortEvent.DEPOSIT);
+    } else if (infoErrorMessage == null || infoErrorMessage.isBlank()) {
+      triggerInfoError();
+    }
+    event.setCancelled(true);
+  }
+
+  protected boolean handleStorageSlotTransfer(
+      InventoryClickEvent event,
+      DisplayEntry entry,
+      SortEvent noMoveEvent,
+      SortEvent withdrawEvent) {
+    if (readOnly) {
+      return false;
+    }
+    ItemStack cursor = event.getView().getCursor();
+    if (cursor != null && cursor.getType() != Material.AIR) {
+      setInfoErrorMessage(null);
+      int moveAmount = event.isRightClick() ? 1 : cursor.getAmount();
+      moveAmount = Math.min(moveAmount, cursor.getAmount());
+      long deposited = depositFromCursor(cursor, moveAmount, event);
+      if (deposited > 0) {
+        manager.renderStorage(cache.getStorageId(), SortEvent.DEPOSIT);
+      }
+      return true;
+    }
+
+    if (entry == null) {
+      return false;
+    }
+
+    if (event.isShiftClick()) {
+      var reserved = cache.reserveItem(entry.itemKey(), entry.amount()).orElse(null);
+      if (reserved == null) {
+        manager.renderStorage(cache.getStorageId(), noMoveEvent);
+        return true;
+      }
+      int moved = moveToInventory(event.getWhoClicked(), reserved, entry.amount());
+      rollbackReserved(reserved, moved);
+      manager.renderStorage(cache.getStorageId(), moved > 0 ? withdrawEvent : noMoveEvent);
+      return true;
+    }
+
+    int desired = entry.amount();
+    if (event.isRightClick()) {
+      desired = (desired + 1) / 2;
+    }
+    var reserved = cache.reserveItem(entry.itemKey(), desired).orElse(null);
+    if (reserved == null) {
+      manager.renderStorage(cache.getStorageId(), noMoveEvent);
+      return true;
+    }
+    int given = moveToCursor(event.getWhoClicked(), reserved, desired, event);
+    rollbackReserved(reserved, given);
+    manager.renderStorage(cache.getStorageId(), given > 0 ? withdrawEvent : noMoveEvent);
+    return true;
+  }
+
   protected long spaceLeft() {
     long space = tier.maxItems() - cache.effectiveTotal();
     return Math.max(0, space);
@@ -517,11 +600,19 @@ public abstract class AbstractStorageSession implements SearchableSession {
       sample = ws.extractFromStorage(sample);
     }
     String key = ItemKeyUtil.keyFor(sample);
+    int desired = Math.min(amount, (int) Math.min(Integer.MAX_VALUE, reserved.amount()));
+    return moveSampleToPlayerInventory(player, sample, key, desired);
+  }
+
+  protected static int moveSampleToPlayerInventory(
+      Player player, ItemStack sample, String key, int amount) {
+    if (player == null || sample == null || sample.getType() == Material.AIR || amount <= 0) {
+      return 0;
+    }
     var inv = player.getInventory();
     int moved = 0;
-    int remaining = Math.min(amount, (int) Math.min(Integer.MAX_VALUE, reserved.amount()));
-    int maxStack = sample.getMaxStackSize();
-    // Fill existing stacks
+    int remaining = amount;
+    int maxStack = Math.max(1, sample.getMaxStackSize());
     for (int i = 0; i < 36 && remaining > 0; i++) {
       ItemStack item = inv.getItem(i);
       if (item == null || item.getType() == Material.AIR) continue;
@@ -534,15 +625,13 @@ public abstract class AbstractStorageSession implements SearchableSession {
       remaining -= move;
       moved += move;
     }
-    while (remaining > 0 && inv.firstEmpty() != -1) {
+    for (int i = 0; i < 36 && remaining > 0; i++) {
+      ItemStack item = inv.getItem(i);
+      if (item != null && item.getType() != Material.AIR) continue;
       int move = Math.min(maxStack, remaining);
       ItemStack stack = sample.clone();
       stack.setAmount(move);
-      int empty = inv.firstEmpty();
-      if (empty < 0 || empty >= 36) {
-        break;
-      }
-      inv.setItem(empty, stack);
+      inv.setItem(i, stack);
       remaining -= move;
       moved += move;
     }

@@ -6,13 +6,17 @@ import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.plugin.Plugin;
 
 public final class RuntimePostRefreshScheduler {
   private static final long MODE_SWITCH_REFRESH_DELAY_TICKS = 5L;
+  private static final int CHUNK_REFRESHES_PER_TICK = 8;
 
   private RuntimePostRefreshScheduler() {}
 
@@ -28,21 +32,42 @@ public final class RuntimePostRefreshScheduler {
     if (graphCache != null) {
       graphCache.invalidateAll();
     }
-    DisplayRefreshService displayRefreshService = deps.displayRefreshService();
+    List<Chunk> chunks = loadedChunksSnapshot();
+    if (chunks.isEmpty()) {
+      finishRefresh(deps);
+      return;
+    }
+    new ChunkRefreshRun(deps, chunks).run();
+  }
+
+  private static List<Chunk> loadedChunksSnapshot() {
+    List<Chunk> chunks = new ArrayList<>();
     for (var world : Bukkit.getWorlds()) {
       for (var chunk : world.getLoadedChunks()) {
-        displayRefreshService.refreshChunk(chunk);
-        if (!ChunkMarkerStore.hasAnyBlockData(deps.plugin(), chunk)) continue;
-        ChunkMarkerStore.forEachBlock(
-            deps.plugin(),
-            chunk,
-            (block, root) -> {
-              if (StorageMarker.get(deps.plugin(), block).isPresent()) {
-                displayRefreshService.refreshNetworkFrom(block);
-              }
-            });
+        chunks.add(chunk);
       }
     }
+    return chunks;
+  }
+
+  private static void refreshChunk(RuntimePostRefreshDependencies deps, Chunk chunk) {
+    if (chunk == null || !chunk.isLoaded()) {
+      return;
+    }
+    DisplayRefreshService displayRefreshService = deps.displayRefreshService();
+    displayRefreshService.refreshChunk(chunk);
+    if (!ChunkMarkerStore.hasAnyBlockData(deps.plugin(), chunk)) return;
+    ChunkMarkerStore.forEachBlock(
+        deps.plugin(),
+        chunk,
+        (block, root) -> {
+          if (StorageMarker.get(deps.plugin(), block).isPresent()) {
+            displayRefreshService.refreshNetworkFrom(block);
+          }
+        });
+  }
+
+  private static void finishRefresh(RuntimePostRefreshDependencies deps) {
     StorageManager storageManager = deps.storageManager();
     if (storageManager != null) {
       storageManager.refreshLoadedCustomItems();
@@ -52,6 +77,32 @@ public final class RuntimePostRefreshScheduler {
       inventoryRefreshService.refreshPlayerInventory(player);
     }
     inventoryRefreshService.bumpEpoch();
+  }
+
+  private static final class ChunkRefreshRun implements Runnable {
+    private final RuntimePostRefreshDependencies deps;
+    private final List<Chunk> chunks;
+    private int cursor;
+
+    ChunkRefreshRun(RuntimePostRefreshDependencies deps, List<Chunk> chunks) {
+      this.deps = deps;
+      this.chunks = chunks;
+    }
+
+    @Override
+    public void run() {
+      int processed = 0;
+      while (cursor < chunks.size() && processed < CHUNK_REFRESHES_PER_TICK) {
+        refreshChunk(deps, chunks.get(cursor));
+        cursor++;
+        processed++;
+      }
+      if (cursor < chunks.size()) {
+        Bukkit.getScheduler().runTaskLater(deps.plugin(), this, 1L);
+        return;
+      }
+      finishRefresh(deps);
+    }
   }
 
   public record RuntimePostRefreshDependencies(

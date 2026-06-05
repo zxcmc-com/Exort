@@ -83,6 +83,36 @@ public class StorageCache {
     }
   }
 
+  public static final class StorageItemView {
+    private final String key;
+    private final ItemStack sample;
+    private final long amount;
+    private final long weight;
+
+    StorageItemView(String key, ItemStack sample, long amount, long weight) {
+      this.key = key;
+      this.sample = sample;
+      this.amount = amount;
+      this.weight = weight;
+    }
+
+    public String key() {
+      return key;
+    }
+
+    public long amount() {
+      return amount;
+    }
+
+    public long weight() {
+      return weight;
+    }
+
+    public ItemStack sampleCopy() {
+      return ItemKeyUtil.cloneSample(sample);
+    }
+  }
+
   private final String storageId;
   private final StorageKeys keys;
   private final Logger logger;
@@ -560,6 +590,16 @@ public class StorageCache {
               item.amount(),
               item.weight(),
               item.blob()));
+    }
+    return list;
+  }
+
+  public synchronized List<StorageItemView> itemViewsSnapshot() {
+    touch();
+    List<StorageItemView> list = new ArrayList<>(items.size());
+    for (StorageItem item : items.values()) {
+      if (item.amount() <= 0) continue;
+      list.add(new StorageItemView(item.key(), item.sample(), item.amount(), item.weight()));
     }
     return list;
   }

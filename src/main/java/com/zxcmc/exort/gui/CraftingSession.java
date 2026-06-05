@@ -347,37 +347,7 @@ public class CraftingSession extends AbstractStorageSession {
 
   private void handleBottomClick(InventoryClickEvent event) {
     state.resetConfirm();
-
-    if (readOnly && event.isShiftClick()) {
-      event.setCancelled(true);
-      return;
-    }
-
-    if (event.isShiftClick()) {
-      ItemStack clicked = event.getCurrentItem();
-      if (clicked != null && clicked.getType() != Material.AIR) {
-        setInfoErrorMessage(null);
-        long deposited = depositFromStack(clicked);
-        if (deposited > 0) {
-          if (deposited < clicked.getAmount()) {
-            triggerInfoError();
-          }
-          int remaining = (int) (clicked.getAmount() - deposited);
-          if (remaining <= 0) {
-            event.setCurrentItem(null);
-          } else {
-            clicked.setAmount(remaining);
-            event.setCurrentItem(clicked);
-          }
-          manager.renderStorage(cache.getStorageId(), SortEvent.DEPOSIT);
-        } else {
-          if (infoErrorMessage == null || infoErrorMessage.isBlank()) {
-            triggerInfoError();
-          }
-        }
-        event.setCancelled(true);
-      }
-    }
+    handleBottomInventoryShiftDeposit(event);
   }
 
   private void handleCraftSlotClick(InventoryClickEvent event, int index) {
@@ -410,56 +380,9 @@ public class CraftingSession extends AbstractStorageSession {
       manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
       return;
     }
-    ItemStack cursor = event.getView().getCursor();
-    DisplayEntry entry = slotEntries.get(rawSlot);
-    if (cursor != null && cursor.getType() != Material.AIR) {
-      setInfoErrorMessage(null);
-      int moveAmount = event.isRightClick() ? 1 : cursor.getAmount();
-      moveAmount = Math.min(moveAmount, cursor.getAmount());
-      long deposited = depositFromCursor(cursor, moveAmount, event);
-      if (deposited > 0) {
-        manager.renderStorage(cache.getStorageId(), SortEvent.DEPOSIT);
-      }
-      return;
-    }
-
-    if (entry == null) {
-      return;
-    }
-
-    if (event.isShiftClick()) {
-      var reserved = cache.reserveItem(entry.itemKey(), entry.amount()).orElse(null);
-      if (reserved == null) {
-        manager.renderStorage(cache.getStorageId(), flushed ? SortEvent.DEPOSIT : SortEvent.NONE);
-        return;
-      }
-      int moved = moveToInventory(event.getWhoClicked(), reserved, entry.amount());
-      rollbackReserved(reserved, moved);
-      if (moved > 0) {
-        manager.renderStorage(
-            cache.getStorageId(), flushed ? SortEvent.DEPOSIT : SortEvent.WITHDRAW);
-      } else {
-        manager.renderStorage(cache.getStorageId(), flushed ? SortEvent.DEPOSIT : SortEvent.NONE);
-      }
-      return;
-    }
-
-    int desired = entry.amount();
-    if (event.isRightClick()) {
-      desired = (desired + 1) / 2;
-    }
-    var reserved = cache.reserveItem(entry.itemKey(), desired).orElse(null);
-    if (reserved == null) {
-      manager.renderStorage(cache.getStorageId(), flushed ? SortEvent.DEPOSIT : SortEvent.NONE);
-      return;
-    }
-    int given = moveToCursor(event.getWhoClicked(), reserved, desired, event);
-    rollbackReserved(reserved, given);
-    if (given > 0) {
-      manager.renderStorage(cache.getStorageId(), flushed ? SortEvent.DEPOSIT : SortEvent.WITHDRAW);
-    } else {
-      manager.renderStorage(cache.getStorageId(), flushed ? SortEvent.DEPOSIT : SortEvent.NONE);
-    }
+    SortEvent noMoveEvent = flushed ? SortEvent.DEPOSIT : SortEvent.NONE;
+    SortEvent withdrawEvent = flushed ? SortEvent.DEPOSIT : SortEvent.WITHDRAW;
+    handleStorageSlotTransfer(event, slotEntries.get(rawSlot), noMoveEvent, withdrawEvent);
   }
 
   private void handleOutputClick(InventoryClickEvent event) {
@@ -1247,38 +1170,9 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private int addToPlayerInventory(Player player, ItemStack stack) {
-    int remaining = stack.getAmount();
-    int moved = 0;
     ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(stack);
     ItemStack sample = data.sample();
-    String key = data.key();
-    int maxStack = sample.getMaxStackSize();
-    var inv = player.getInventory();
-    for (int i = 0; i < 36 && remaining > 0; i++) {
-      ItemStack item = inv.getItem(i);
-      if (item == null || item.getType() == Material.AIR) continue;
-      if (!key.equals(ItemKeyUtil.keyFor(item))) continue;
-      int space = maxStack - item.getAmount();
-      if (space <= 0) continue;
-      int move = Math.min(space, remaining);
-      item.setAmount(item.getAmount() + move);
-      inv.setItem(i, item);
-      remaining -= move;
-      moved += move;
-    }
-    while (remaining > 0 && inv.firstEmpty() != -1) {
-      int move = Math.min(maxStack, remaining);
-      ItemStack copy = sample.clone();
-      copy.setAmount(move);
-      int empty = inv.firstEmpty();
-      if (empty < 0 || empty >= 36) {
-        break;
-      }
-      inv.setItem(empty, copy);
-      remaining -= move;
-      moved += move;
-    }
-    return moved;
+    return moveSampleToPlayerInventory(player, sample, data.key(), stack.getAmount());
   }
 
   private int maxAddableToPlayer(Player player, ItemStack sample, int desired) {

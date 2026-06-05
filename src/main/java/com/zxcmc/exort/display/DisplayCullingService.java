@@ -65,6 +65,13 @@ public final class DisplayCullingService implements Listener {
   private final Set<UUID> debugViewers = ConcurrentHashMap.newKeySet();
   private final DebugSummary debugSummary = new DebugSummary();
   private final Object debugSummaryLock = new Object();
+  private final EnumMap<DisplayRole, Integer> tickRolesScratch = new EnumMap<>(DisplayRole.class);
+  private final Set<UUID> onlinePlayersScratch = new HashSet<>();
+  private final List<UUID> stalePlayersScratch = new ArrayList<>();
+  private final List<DisplayEntityIndex.Entry> nearbyScratch = new ArrayList<>();
+  private final List<CullingCandidate> candidatesScratch = new ArrayList<>();
+  private final EnumMap<DisplayRole, Integer> playerRolesScratch = new EnumMap<>(DisplayRole.class);
+  private final Set<UUID> seenDisplaysScratch = new HashSet<>();
   private final ClientCullingTranslationProbe translationProbe;
   private DisplayCullingBackend backend;
   private int taskId = -1;
@@ -443,8 +450,12 @@ public final class DisplayCullingService implements Listener {
     int staleRestored = 0;
     int clientBypassPlayers = 0;
     int maxAdaptiveLevel = 0;
-    EnumMap<DisplayRole, Integer> roles = new EnumMap<>(DisplayRole.class);
-    Set<UUID> onlinePlayers = new HashSet<>();
+    EnumMap<DisplayRole, Integer> roles = tickRolesScratch;
+    Set<UUID> onlinePlayers = onlinePlayersScratch;
+    List<UUID> stalePlayers = stalePlayersScratch;
+    roles.clear();
+    onlinePlayers.clear();
+    stalePlayers.clear();
 
     for (Player player : Bukkit.getOnlinePlayers()) {
       UUID playerId = player.getUniqueId();
@@ -469,7 +480,8 @@ public final class DisplayCullingService implements Listener {
         incrementRole(roles, roleEntry.getKey(), roleEntry.getValue());
       }
     }
-    for (UUID playerId : new ArrayList<>(trackedByPlayer.keySet())) {
+    stalePlayers.addAll(trackedByPlayer.keySet());
+    for (UUID playerId : stalePlayers) {
       if (!onlinePlayers.contains(playerId)) {
         trackedByPlayer.remove(playerId);
         motionStates.remove(playerId);
@@ -501,15 +513,22 @@ public final class DisplayCullingService implements Listener {
             directionalKeepsThisTick,
             maxAdaptiveLevel,
             Map.copyOf(roles)));
+    roles.clear();
+    onlinePlayers.clear();
+    stalePlayers.clear();
   }
 
   private PlayerCullingStats processPlayer(Player player) {
     Map<UUID, TrackedDisplay> states =
         trackedByPlayer.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>());
-    List<DisplayEntityIndex.Entry> nearby = index.query(player.getLocation(), config.maxDistance());
-    List<CullingCandidate> candidates = new ArrayList<>(nearby.size());
-    EnumMap<DisplayRole, Integer> roles = new EnumMap<>(DisplayRole.class);
-    Set<UUID> seen = new HashSet<>();
+    List<DisplayEntityIndex.Entry> nearby = nearbyScratch;
+    List<CullingCandidate> candidates = candidatesScratch;
+    EnumMap<DisplayRole, Integer> roles = playerRolesScratch;
+    Set<UUID> seen = seenDisplaysScratch;
+    index.queryInto(player.getLocation(), config.maxDistance(), nearby);
+    candidates.clear();
+    roles.clear();
+    seen.clear();
     for (DisplayEntityIndex.Entry entry : nearby) {
       Display display = index.resolve(entry.entityUuid());
       if (display == null || !isCullableDisplay(display)) {
@@ -561,14 +580,21 @@ public final class DisplayCullingService implements Listener {
     if (states.isEmpty()) {
       trackedByPlayer.remove(player.getUniqueId());
     }
-    return new PlayerCullingStats(
-        candidates.size(),
-        states.size(),
-        hiddenCount,
-        dirtyCount,
-        staleRestored,
-        rangeLevel,
-        Map.copyOf(roles));
+    Map<DisplayRole, Integer> roleSnapshot = roles.isEmpty() ? Map.of() : Map.copyOf(roles);
+    PlayerCullingStats stats =
+        new PlayerCullingStats(
+            candidates.size(),
+            states.size(),
+            hiddenCount,
+            dirtyCount,
+            staleRestored,
+            rangeLevel,
+            roleSnapshot);
+    nearby.clear();
+    candidates.clear();
+    roles.clear();
+    seen.clear();
+    return stats;
   }
 
   private void applyDensityDecision(
@@ -579,21 +605,22 @@ public final class DisplayCullingService implements Listener {
       int rangeLevel,
       MotionSnapshot motion) {
     DisplayRole role = tracked.role;
-    double distance = safeDistance(origin, display.getLocation());
-    boolean forceVisible = distance <= config.forceVisibleDistance();
+    Location displayLocation = display.getLocation();
+    double distanceSquared = safeDistanceSquared(origin, displayLocation);
+    boolean forceVisible = distanceSquared <= square(config.forceVisibleDistance());
     int roleLevel = forceVisible ? 0 : rangeLevelForRole(rangeLevel);
-    roleLevel = applyForwardRetention(origin, display, tracked, motion, roleLevel);
+    roleLevel = applyForwardRetention(origin, displayLocation, tracked, motion, roleLevel);
     double multiplier = config.adaptiveViewRange().rangeMultiplier(role, roleLevel);
     float effectiveViewRange =
         (float) Math.max(0.05, DisplayMetadataNormalizer.BASE_VIEW_RANGE * multiplier);
     boolean hide =
-        shouldHideForDensity(
+        shouldHideForDensitySquared(
             backend.supportsPerPlayerViewRange(),
             roleLevel > 0,
             role,
             forceVisible,
             tracked.hidden,
-            distance,
+            distanceSquared,
             config.maxDistance(),
             multiplier);
     if (hide) {
@@ -601,7 +628,7 @@ public final class DisplayCullingService implements Listener {
     }
     applyVisibility(player, display, tracked, hide, effectiveViewRange, roleLevel);
     if (role == DisplayRole.BLOCK) {
-      processBlockDisplayDecision(player, display, tracked);
+      processBlockDisplayDecision(player, displayLocation, tracked);
     }
   }
 
@@ -659,8 +686,8 @@ public final class DisplayCullingService implements Listener {
     if (player == null || display == null || tracked == null) {
       return false;
     }
-    double distance = safeDistance(player.getLocation(), display.getLocation());
-    if (distance <= config.maxDistance()) {
+    double distanceSquared = safeDistanceSquared(player.getLocation(), display.getLocation());
+    if (distanceSquared <= square(config.maxDistance())) {
       return false;
     }
     float baseViewRange = metadataService.baseViewRange(tracked.role);
@@ -833,8 +860,9 @@ public final class DisplayCullingService implements Listener {
     }
   }
 
-  private void processBlockDisplayDecision(Player player, Display display, TrackedDisplay tracked) {
-    if (blockProxyService == null || player == null || display == null || tracked == null) {
+  private void processBlockDisplayDecision(
+      Player player, Location displayLocation, TrackedDisplay tracked) {
+    if (blockProxyService == null || player == null || displayLocation == null || tracked == null) {
       return;
     }
     double multiplier = 1.0;
@@ -843,7 +871,7 @@ public final class DisplayCullingService implements Listener {
       float activeViewRange = tracked.sentViewRange == null ? baseViewRange : tracked.sentViewRange;
       multiplier = Math.max(0.05, activeViewRange / baseViewRange);
     }
-    blockProxyService.updateBlockDisplayDecision(player, display.getLocation(), multiplier);
+    blockProxyService.updateBlockDisplayDecision(player, displayLocation, multiplier);
   }
 
   private int effectiveRangeLevel(AdaptiveViewRangeState adaptiveState) {
@@ -856,7 +884,7 @@ public final class DisplayCullingService implements Listener {
 
   private int applyForwardRetention(
       Location origin,
-      Display display,
+      Location displayLocation,
       TrackedDisplay tracked,
       MotionSnapshot motion,
       int targetRoleLevel) {
@@ -871,10 +899,10 @@ public final class DisplayCullingService implements Listener {
         || tracked.hidden
         || motion == null
         || !motion.active()
-        || display == null) {
+        || displayLocation == null) {
       return targetRoleLevel;
     }
-    double projection = motion.forwardProjection(origin, display.getLocation());
+    double projection = motion.forwardProjection(origin, displayLocation);
     if (Double.isNaN(projection)) {
       return targetRoleLevel;
     }
@@ -906,25 +934,62 @@ public final class DisplayCullingService implements Listener {
       double distance,
       double maxDistance,
       double multiplier) {
+    return shouldHideForDensitySquared(
+        supportsPerPlayerViewRange,
+        adaptiveActive,
+        role,
+        forceVisible,
+        currentlyHidden,
+        square(distance),
+        maxDistance,
+        multiplier);
+  }
+
+  static boolean shouldHideForDensitySquared(
+      boolean supportsPerPlayerViewRange,
+      boolean adaptiveActive,
+      DisplayRole role,
+      boolean forceVisible,
+      boolean currentlyHidden,
+      double distanceSquared,
+      double maxDistance,
+      double multiplier) {
     if (supportsPerPlayerViewRange || !adaptiveActive || !isLowPriority(role) || forceVisible) {
       return false;
     }
     double hideDistance = maxDistance * multiplier;
     if (!currentlyHidden) {
-      return distance > hideDistance;
+      return distanceSquared > square(hideDistance);
     }
     double showDistance = Math.max(0.0, hideDistance - PAPER_SHOW_DISTANCE_BUFFER_BLOCKS);
-    return distance > showDistance;
+    return distanceSquared > square(showDistance);
   }
 
   private static double safeDistance(Location first, Location second) {
+    double distanceSquared = safeDistanceSquared(first, second);
+    return Double.isInfinite(distanceSquared)
+        ? Double.POSITIVE_INFINITY
+        : Math.sqrt(distanceSquared);
+  }
+
+  private static double safeDistanceSquared(Location first, Location second) {
     if (first == null
         || second == null
         || first.getWorld() == null
         || !first.getWorld().equals(second.getWorld())) {
       return Double.POSITIVE_INFINITY;
     }
-    return Math.sqrt(Math.max(0.0, first.distanceSquared(second)));
+    return Math.max(0.0, first.distanceSquared(second));
+  }
+
+  private static double square(double value) {
+    if (Double.isInfinite(value)) {
+      return Double.POSITIVE_INFINITY;
+    }
+    if (Double.isNaN(value)) {
+      return Double.NaN;
+    }
+    return value * value;
   }
 
   private void recordDebugTick(TickCullingStats stats) {

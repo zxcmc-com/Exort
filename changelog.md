@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.2 — 2026-06-05
+- Optimized bus exports and storage-to-storage transfers to cache lightweight storage item views, avoiding full sample clone sweeps after storage changes while preserving cursor and rollback behavior.
+- Reduced RESOURCE display culling overhead by reusing per-player scratch collections, adding caller-owned index queries, and using squared-distance checks outside debug output.
+- Batched runtime mode post-refresh loaded-chunk scans over ticks, reducing `/exort mode` and reload stalls while preserving graph invalidation, display refresh, storage item refresh, and player inventory refresh order.
+- Simplified storage and crafting GUI item delivery so player-inventory insertion scans empty slots once, keeps 36-slot bounds, and shares common deposit/withdraw click handling.
+- Physical terminal and bus GUIs now allow a 4-block safety buffer beyond the player's block interaction range before closing.
+
 ## 0.14.1 — 2026-06-05
 - Hardened asynchronous database scheduling so writes submitted during shutdown now return failed futures, log clear rejection context, and keep the DB queue-depth metric balanced after completed work.
 - Reduced default bus processing budgets to 500 global operations and 40 per chunk per tick, lowering tick spikes on new installs while keeping explicitly configured server values unchanged.

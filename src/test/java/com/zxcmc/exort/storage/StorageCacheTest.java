@@ -1,10 +1,13 @@
 package com.zxcmc.exort.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.infra.db.DbItem;
 import java.util.Map;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
 class StorageCacheTest {
@@ -26,5 +29,61 @@ class StorageCacheTest {
     assertTrue(cache.isLoaded());
     assertEquals(0, cache.totalAmount());
     assertEquals(0, cache.effectiveTotal());
+  }
+
+  @Test
+  void storageItemViewClonesOnlyWhenSampleCopyIsRequested() {
+    CountingItemStack sample = new CountingItemStack();
+
+    StorageCache.StorageItemView view =
+        new StorageCache.StorageItemView("minecraft:stone", sample, 10L, 1L);
+
+    assertEquals(0, sample.cloneCount());
+    assertEquals("minecraft:stone", view.key());
+    assertEquals(10L, view.amount());
+    assertEquals(1L, view.weight());
+
+    ItemStack copy = view.sampleCopy();
+
+    assertEquals(1, sample.cloneCount());
+    assertSame(sample.lastClone(), copy);
+  }
+
+  private static final class CountingItemStack extends ItemStack {
+    private int amount = 1;
+    private int cloneCount;
+    private ItemStack lastClone;
+
+    @Override
+    public Material getType() {
+      return Material.STONE;
+    }
+
+    @Override
+    public int getAmount() {
+      return amount;
+    }
+
+    @Override
+    public void setAmount(int amount) {
+      this.amount = amount;
+    }
+
+    @Override
+    public ItemStack clone() {
+      cloneCount++;
+      CountingItemStack clone = new CountingItemStack();
+      clone.setAmount(amount);
+      lastClone = clone;
+      return lastClone;
+    }
+
+    int cloneCount() {
+      return cloneCount;
+    }
+
+    ItemStack lastClone() {
+      return lastClone;
+    }
   }
 }

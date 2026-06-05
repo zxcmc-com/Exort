@@ -22,7 +22,7 @@ public final class BusState {
   private long settingsRevision;
   private long cachedStorageVersion = -1L;
   private String cachedStorageId;
-  private List<StorageCache.StorageItem> cachedItems;
+  private List<StorageCache.StorageItemView> cachedItems;
 
   public BusState(BusPos pos, BusType type, BlockFace facing, BusMode mode) {
     this.pos = pos;
@@ -200,11 +200,11 @@ public final class BusState {
     this.cachedStorageId = cachedStorageId;
   }
 
-  public List<StorageCache.StorageItem> cachedItems() {
+  public List<StorageCache.StorageItemView> cachedItems() {
     return cachedItems;
   }
 
-  public void setCachedItems(List<StorageCache.StorageItem> cachedItems) {
+  public void setCachedItems(List<StorageCache.StorageItemView> cachedItems) {
     this.cachedItems = cachedItems;
   }
 }

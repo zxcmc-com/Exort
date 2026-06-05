@@ -279,7 +279,7 @@ public class BusSessionManager {
     double dy = playerLocation.getY() - (block.getY() + 0.5D);
     double dz = playerLocation.getZ() - (block.getZ() + 0.5D);
     return dx * dx + dy * dy + dz * dz
-        > PlayerInteractionRange.blockInteractionRangeSquared(player);
+        > PlayerInteractionRange.physicalDeviceCloseRangeSquared(player);
   }
 
   private boolean isBlockChunkLoaded(Block block) {

@@ -85,6 +85,20 @@ class DisplayCullingServiceTest {
   }
 
   @Test
+  void squaredDensityDecisionMatchesDistanceDecision() {
+    assertEquals(
+        DisplayCullingService.shouldHideForDensity(
+            false, true, DisplayRole.WIRE, false, false, 40.0, 64.0, 0.5),
+        DisplayCullingService.shouldHideForDensitySquared(
+            false, true, DisplayRole.WIRE, false, false, 40.0 * 40.0, 64.0, 0.5));
+    assertEquals(
+        DisplayCullingService.shouldHideForDensity(
+            false, true, DisplayRole.WIRE, false, true, 27.0, 64.0, 0.5),
+        DisplayCullingService.shouldHideForDensitySquared(
+            false, true, DisplayRole.WIRE, false, true, 27.0 * 27.0, 64.0, 0.5));
+  }
+
+  @Test
   void forwardRetentionKeepsFrontAndShortBehindBufferOnly() {
     assertTrue(DisplayCullingService.isWithinForwardRetention(1.0, 0.0, 20.0, 0.0));
     assertTrue(DisplayCullingService.isWithinForwardRetention(1.0, 0.0, 0.0, 20.0));

@@ -12,7 +12,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -238,38 +237,7 @@ public class StorageSession extends AbstractStorageSession {
 
     int rawSlot = event.getRawSlot();
     if (rawSlot >= inventory.getSize()) {
-      if (readOnly && event.isShiftClick()) {
-        event.setCancelled(true);
-        return;
-      }
-      // Bottom inventory zone
-      if (event.isShiftClick()) {
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked != null && clicked.getType() != Material.AIR) {
-          setInfoErrorMessage(null);
-          long deposited = depositFromStack(clicked);
-          if (deposited > 0) {
-            if (deposited < clicked.getAmount()) {
-              setInfoErrorMessage(null);
-              triggerInfoError();
-            }
-            int remaining = (int) (clicked.getAmount() - deposited);
-            if (remaining <= 0) {
-              event.setCurrentItem(null);
-            } else {
-              clicked.setAmount(remaining);
-              event.setCurrentItem(clicked);
-            }
-            manager.renderStorage(cache.getStorageId(), SortEvent.DEPOSIT);
-          } else {
-            if (infoErrorMessage == null || infoErrorMessage.isBlank()) {
-              setInfoErrorMessage(null);
-              triggerInfoError();
-            }
-          }
-          event.setCancelled(true);
-        }
-      }
+      handleBottomInventoryShiftDeposit(event);
       return;
     }
 
@@ -288,59 +256,7 @@ public class StorageSession extends AbstractStorageSession {
       return;
     }
 
-    if (readOnly) {
-      return;
-    }
-
-    ItemStack cursor = event.getView().getCursor();
-    DisplayEntry entry = slotEntries.get(rawSlot);
-    if (cursor != null && cursor.getType() != Material.AIR) {
-      setInfoErrorMessage(null);
-      int moveAmount = event.isRightClick() ? 1 : cursor.getAmount();
-      moveAmount = Math.min(moveAmount, cursor.getAmount());
-      long deposited = depositFromCursor(cursor, moveAmount, event);
-      if (deposited > 0) {
-        manager.renderStorage(cache.getStorageId(), SortEvent.DEPOSIT);
-      }
-      return;
-    }
-
-    if (entry == null) {
-      return;
-    }
-
-    if (event.isShiftClick()) {
-      var reserved = cache.reserveItem(entry.itemKey(), entry.amount()).orElse(null);
-      if (reserved == null) {
-        manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
-        return;
-      }
-      int moved = moveToInventory(event.getWhoClicked(), reserved, entry.amount());
-      rollbackReserved(reserved, moved);
-      if (moved > 0) {
-        manager.renderStorage(cache.getStorageId(), SortEvent.WITHDRAW);
-      } else {
-        manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
-      }
-      return;
-    }
-
-    int desired = entry.amount();
-    if (event.isRightClick()) {
-      desired = (desired + 1) / 2;
-    }
-    var reserved = cache.reserveItem(entry.itemKey(), desired).orElse(null);
-    if (reserved == null) {
-      manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
-      return;
-    }
-    int given = moveToCursor(event.getWhoClicked(), reserved, desired, event);
-    rollbackReserved(reserved, given);
-    if (given > 0) {
-      manager.renderStorage(cache.getStorageId(), SortEvent.WITHDRAW);
-    } else {
-      manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
-    }
+    handleStorageSlotTransfer(event, slotEntries.get(rawSlot), SortEvent.NONE, SortEvent.WITHDRAW);
   }
 
   private void handleButtonClick(int rawSlot) {
