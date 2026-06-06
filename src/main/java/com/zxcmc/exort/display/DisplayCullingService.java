@@ -3,7 +3,7 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.text.ExortText;
 import io.papermc.paper.event.player.PlayerTrackEntityEvent;
 import io.papermc.paper.event.player.PlayerUntrackEntityEvent;
@@ -47,7 +47,7 @@ public final class DisplayCullingService implements Listener {
 
   private final JavaPlugin plugin;
   private final DisplayCullingConfig config;
-  private final ProtocolLibEnhancements protocolLibEnhancements;
+  private final PacketEnhancements packetEnhancements;
   private final DisplayEntityIndex index;
   private final DisplayMetadataService metadataService;
   private final ExortBlockProxyService blockProxyService;
@@ -89,14 +89,14 @@ public final class DisplayCullingService implements Listener {
   public DisplayCullingService(
       JavaPlugin plugin,
       DisplayCullingConfig config,
-      ProtocolLibEnhancements protocolLibEnhancements,
+      PacketEnhancements packetEnhancements,
       DisplayEntityIndex index,
       DisplayMetadataService metadataService,
       ExortBlockProxyService blockProxyService,
       Database database) {
     this.plugin = plugin;
     this.config = config;
-    this.protocolLibEnhancements = protocolLibEnhancements;
+    this.packetEnhancements = packetEnhancements;
     this.index = index;
     this.metadataService = metadataService;
     this.blockProxyService = blockProxyService;
@@ -272,14 +272,14 @@ public final class DisplayCullingService implements Listener {
   }
 
   private DisplayCullingBackend createBackend() {
-    if (config.backend() != DisplayCullingConfig.Backend.PAPER && protocolLibEnhancements != null) {
-      ProtocolLibEnhancements.DisplayCullingPackets packets =
-          protocolLibEnhancements.tryCreateDisplayCullingPackets();
+    if (config.backend() != DisplayCullingConfig.Backend.PAPER && packetEnhancements != null) {
+      PacketEnhancements.DisplayCullingPackets packets =
+          packetEnhancements.tryCreateDisplayCullingPackets();
       if (packets != null) {
-        return new ProtocolLibDisplayCullingBackend(packets);
+        return new PacketEventsDisplayCullingBackend(packets);
       }
-      if (config.backend() == DisplayCullingConfig.Backend.PROTOCOL_LIB) {
-        ExortLog.warn("[Display] ProtocolLib culling unavailable; falling back to Paper API.");
+      if (config.backend() == DisplayCullingConfig.Backend.PACKET_EVENTS) {
+        ExortLog.warn("[Display] PacketEvents culling unavailable; falling back to Paper API.");
       }
     }
     return new PaperDisplayCullingBackend(plugin);

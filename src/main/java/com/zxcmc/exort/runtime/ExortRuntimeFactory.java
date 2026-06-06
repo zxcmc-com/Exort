@@ -9,7 +9,8 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.auth.KnownAuthenticationGate;
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancementsFactory;
 import com.zxcmc.exort.integration.worldedit.KnownWorldEditWandGuard;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeDependencies;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeMaterials;
@@ -63,8 +64,8 @@ public final class ExortRuntimeFactory {
     deps.sessionManager().reconfigure();
 
     deps.stopReloadableRuntime().run();
-    ProtocolLibEnhancements protocolLibEnhancements =
-        ProtocolLibEnhancements.tryCreate(deps.plugin(), deps.pickDebugFullSink());
+    PacketEnhancements packetEnhancements =
+        PacketEnhancementsFactory.tryCreate(deps.plugin(), deps.pickDebugFullSink());
     BreakAnimationSender breakAnimationSender =
         RuntimeBreakAnimationSenders.create(
             deps.plugin(), deps.resourceMode(), itemModels.displayNamespace());
@@ -91,7 +92,7 @@ public final class ExortRuntimeFactory {
                 deps.resourceMode(),
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
-                protocolLibEnhancements,
+                packetEnhancements,
                 deps.worldEditDebugService(),
                 () -> state.busService,
                 () -> {
@@ -177,7 +178,7 @@ public final class ExortRuntimeFactory {
                 breakingServices.customBlockBreaker(),
                 breakingServices.breakHandler(),
                 breakingServices.breakSoundConfig(),
-                protocolLibEnhancements,
+                packetEnhancements,
                 deps.previousRecipeService(),
                 busRuntime,
                 CraftingRulesConfig.defaults(),
@@ -245,7 +246,7 @@ public final class ExortRuntimeFactory {
         breakingServices.breakSoundConfig(),
         listenerRegistration.craftingRules(),
         listenerRegistration.recipeService(),
-        protocolLibEnhancements,
+        packetEnhancements,
         listenerRegistration.placementGuard(),
         worldEditIntegration,
         dialogSupported);

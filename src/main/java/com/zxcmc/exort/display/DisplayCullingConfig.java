@@ -48,7 +48,7 @@ public record DisplayCullingConfig(
 
   public enum Backend {
     AUTO,
-    PROTOCOL_LIB,
+    PACKET_EVENTS,
     PAPER;
 
     static Backend fromString(String raw) {

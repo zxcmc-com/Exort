@@ -15,7 +15,7 @@ import com.zxcmc.exort.display.StorageDisplayManager;
 import com.zxcmc.exort.display.TerminalDisplayManager;
 import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.i18n.ExortItemLocalizationService;
-import com.zxcmc.exort.integration.protocol.ProtocolLocalizationLevel;
+import com.zxcmc.exort.integration.protocol.PacketLocalizationLevel;
 import com.zxcmc.exort.sanity.ChunkSanityService;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;
@@ -35,8 +35,8 @@ public final class RuntimeDisplayServicesFactory {
     DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
     DisplayMetadataService metadataService =
         new DisplayMetadataService(displayEntityIndex, displayCullingConfig);
-    boolean fullProtocolLocalization = registerProtocolLocalization(deps, displayEntityIndex);
-    if (fullProtocolLocalization) {
+    boolean fullPacketLocalization = registerPacketLocalization(deps, displayEntityIndex);
+    if (fullPacketLocalization) {
       Bukkit.getPluginManager()
           .registerEvents(
               new DisplayLocalizationRefreshService(
@@ -99,7 +99,7 @@ public final class RuntimeDisplayServicesFactory {
         new DisplayCullingService(
             deps.plugin(),
             displayCullingConfig,
-            deps.protocolLibEnhancements(),
+            deps.packetEnhancements(),
             displayEntityIndex,
             metadataService,
             blockProxyService,
@@ -159,15 +159,15 @@ public final class RuntimeDisplayServicesFactory {
         metadataService);
   }
 
-  private static boolean registerProtocolLocalization(
+  private static boolean registerPacketLocalization(
       RuntimeDisplayServicesDependencies deps, DisplayEntityIndex displayEntityIndex) {
-    if (deps.protocolLibEnhancements() == null) {
+    if (deps.packetEnhancements() == null) {
       return false;
     }
-    ProtocolLocalizationLevel level = ProtocolLocalizationLevel.fromConfig(deps.config());
+    PacketLocalizationLevel level = PacketLocalizationLevel.fromConfig(deps.config());
     ExortDisplayLocalizationService displayLocalization =
         new ExortDisplayLocalizationService(displayEntityIndex, deps.lang());
-    return deps.protocolLibEnhancements()
+    return deps.packetEnhancements()
         .registerLocalization(
             new ExortItemLocalizationService(deps.keys(), deps.lang())::localize,
             displayLocalization::localize,

@@ -9,17 +9,16 @@ import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
 import com.zxcmc.exort.gui.listener.TerminalListener;
 import com.zxcmc.exort.infra.logging.ExortLog;
-import com.zxcmc.exort.integration.protocol.ProtocolLibCompatibility;
 import com.zxcmc.exort.items.listener.InventoryRefreshListener;
 import com.zxcmc.exort.items.listener.PickListener;
 import com.zxcmc.exort.monitor.listener.MonitorListener;
 import com.zxcmc.exort.monitor.listener.MonitorListenerDependencies;
 import com.zxcmc.exort.placement.ExortBlockTargetResolver;
 import com.zxcmc.exort.placement.FailoverPlacementGuardBackend;
+import com.zxcmc.exort.placement.PacketPlacementGuardBackend;
 import com.zxcmc.exort.placement.PaperEntityPlacementGuardBackend;
 import com.zxcmc.exort.placement.PlacementGuardBackend;
 import com.zxcmc.exort.placement.PlacementGuardConfig;
-import com.zxcmc.exort.placement.ProtocolLibPlacementGuardBackend;
 import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
@@ -172,8 +171,8 @@ public final class RuntimeListenerRegistrar {
             materials.monitorCarrier(),
             materials.busCarrier());
     register(deps, pickListener);
-    if (deps.protocolLibEnhancements() != null) {
-      deps.protocolLibEnhancements().registerPickBridge(pickListener);
+    if (deps.packetEnhancements() != null) {
+      deps.packetEnhancements().registerPickBridge(pickListener);
     }
   }
 
@@ -237,8 +236,8 @@ public final class RuntimeListenerRegistrar {
   private static RightClickPlacementGuard registerPlacementGuard(
       RuntimeListenerDependencies deps, PlacementGuardConfig placementConfig) {
     if (!placementConfig.enabled()) {
-      if (deps.protocolLibEnhancements() != null) {
-        deps.protocolLibEnhancements().markPlacementGuardDisabledByConfig();
+      if (deps.packetEnhancements() != null) {
+        deps.packetEnhancements().markPlacementGuardDisabledByConfig();
       }
       return null;
     }
@@ -272,32 +271,31 @@ public final class RuntimeListenerRegistrar {
       RuntimeListenerDependencies deps, PlacementGuardConfig config) {
     PaperEntityPlacementGuardBackend paperBackend =
         new PaperEntityPlacementGuardBackend(deps.plugin(), config.guardScale());
-    if (!config.protocolLibGuardEnabled()) {
-      if (deps.protocolLibEnhancements() != null) {
-        deps.protocolLibEnhancements().markPlacementGuardDisabledByConfig();
+    if (!config.packetEventsGuardEnabled()) {
+      if (deps.packetEnhancements() != null) {
+        deps.packetEnhancements().markPlacementGuardDisabledByConfig();
       }
       return paperBackend;
     }
-    if (deps.protocolLibEnhancements() != null) {
-      var packets =
-          deps.protocolLibEnhancements().tryCreatePlacementGuardPackets(config.guardScale());
+    if (deps.packetEnhancements() != null) {
+      var packets = deps.packetEnhancements().tryCreatePlacementGuardPackets(config.guardScale());
       if (packets != null) {
         final FailoverPlacementGuardBackend[] holder = new FailoverPlacementGuardBackend[1];
-        ProtocolLibPlacementGuardBackend protocolBackend =
-            new ProtocolLibPlacementGuardBackend(
+        PacketPlacementGuardBackend packetBackend =
+            new PacketPlacementGuardBackend(
                 packets,
                 reason -> {
-                  deps.protocolLibEnhancements().markPlacementGuardRuntimeFallback(reason);
+                  deps.packetEnhancements().markPlacementGuardRuntimeFallback(reason);
                   holder[0].switchToPaperFallback(reason);
                 });
         FailoverPlacementGuardBackend failoverBackend =
-            new FailoverPlacementGuardBackend(protocolBackend, paperBackend);
+            new FailoverPlacementGuardBackend(packetBackend, paperBackend);
         holder[0] = failoverBackend;
         return failoverBackend;
       }
     }
-    if (deps.protocolLibEnhancements() == null) {
-      ExortLog.warn(protocolLibPlacementGuardUnavailableMessage());
+    if (deps.packetEnhancements() == null) {
+      ExortLog.warn(packetEventsPlacementGuardUnavailableMessage());
     }
     return paperBackend;
   }
@@ -353,17 +351,16 @@ public final class RuntimeListenerRegistrar {
     register(deps, new WirelessCraftListener(deps.wirelessService()));
   }
 
-  private static String protocolLibPlacementGuardUnavailableMessage() {
-    var protocolLib = Bukkit.getPluginManager().getPlugin("ProtocolLib");
-    if (protocolLib == null) {
-      return "[ProtocolLib] Placement guard is enabled but ProtocolLib is not installed; using"
+  private static String packetEventsPlacementGuardUnavailableMessage() {
+    var packetEvents = Bukkit.getPluginManager().getPlugin("packetevents");
+    if (packetEvents == null) {
+      return "[PacketEvents] Placement guard is enabled but PacketEvents is not installed; using"
           + " Paper entity placement guard.";
     }
-    String version = protocolLib.getPluginMeta().getVersion();
-    return "[ProtocolLib] Placement guard is enabled but ProtocolLib "
+    String version = packetEvents.getPluginMeta().getVersion();
+    return "[PacketEvents] Placement guard is enabled but PacketEvents "
         + version
-        + " is unavailable; using Paper entity placement guard. "
-        + ProtocolLibCompatibility.failureAdvice(Bukkit.getMinecraftVersion(), version);
+        + " is unavailable; using Paper entity placement guard.";
   }
 
   private static void register(RuntimeListenerDependencies deps, Listener listener) {

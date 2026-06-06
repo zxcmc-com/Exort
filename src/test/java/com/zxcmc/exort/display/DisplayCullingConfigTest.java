@@ -46,7 +46,7 @@ class DisplayCullingConfigTest {
   void readsOnlyPublicTogglesAndKeepsTuningHardcoded() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("performance.displayCulling.enabled", false);
-    yaml.set("performance.displayCulling.backend", "protocol-lib");
+    yaml.set("performance.displayCulling.backend", "packet-events");
     yaml.set("performance.displayCulling.forceVisibleDistance", 2.0);
     yaml.set("performance.displayCulling.blockProxy.enabled", false);
     yaml.set("performance.displayCulling.adaptiveViewRange.enabled", false);
@@ -56,7 +56,7 @@ class DisplayCullingConfigTest {
     DisplayCullingConfig config = DisplayCullingConfig.fromConfig(yaml);
 
     assertFalse(config.enabled());
-    assertEquals(DisplayCullingConfig.Backend.PROTOCOL_LIB, config.backend());
+    assertEquals(DisplayCullingConfig.Backend.PACKET_EVENTS, config.backend());
     assertEquals(8.0, config.forceVisibleDistance());
     assertTrue(config.blockProxy().enabled());
     assertTrue(config.adaptiveViewRange().enabled());

@@ -39,7 +39,7 @@ import com.zxcmc.exort.infra.update.UpdateChecker;
 import com.zxcmc.exort.integration.protection.CompositeRegionProtection;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.InventoryRefreshService;
@@ -126,7 +126,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private Metrics metrics;
   private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
-  private ProtocolLibEnhancements protocolLibEnhancements;
+  private PacketEnhancements packetEnhancements;
   private RightClickPlacementGuard placementGuard;
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
@@ -382,12 +382,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
   }
 
-  private void stopProtocolEnhancements() {
-    if (protocolLibEnhancements == null) {
+  private void stopPacketEnhancements() {
+    if (packetEnhancements == null) {
       return;
     }
-    protocolLibEnhancements.unregister();
-    protocolLibEnhancements = null;
+    packetEnhancements.unregister();
+    packetEnhancements = null;
   }
 
   private void stopPlacementGuard() {
@@ -412,7 +412,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
     stopWorldEditIntegration();
     stopPlacementGuard();
-    stopProtocolEnhancements();
+    stopPacketEnhancements();
     if (customBlockBreaker != null) {
       customBlockBreaker.shutdown();
       customBlockBreaker = null;
@@ -520,7 +520,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     customBlockBreaker = services.customBlockBreaker();
     craftingRules = services.craftingRules();
     recipeService = services.recipeService();
-    protocolLibEnhancements = services.protocolLibEnhancements();
+    packetEnhancements = services.packetEnhancements();
     placementGuard = services.placementGuard();
     worldEditIntegration = services.worldEditIntegration();
     dialogSupported = services.dialogSupported();

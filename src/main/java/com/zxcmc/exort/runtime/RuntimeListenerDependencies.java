@@ -20,7 +20,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.InventoryRefreshService;
@@ -68,7 +68,7 @@ public record RuntimeListenerDependencies(
     CustomBlockBreaker customBlockBreaker,
     BlockBreakHandler breakHandler,
     BreakSoundConfig breakSoundConfig,
-    ProtocolLibEnhancements protocolLibEnhancements,
+    PacketEnhancements packetEnhancements,
     RecipeService previousRecipeService,
     BusRuntimeConfig busRuntimeConfig,
     CraftingRulesConfig craftingConfig,

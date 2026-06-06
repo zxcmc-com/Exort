@@ -3,8 +3,8 @@
   "credit": "phantomfighterxx",
   "ambientocclusion": false,
   "textures": {
-    "0": "minecraft:block/destroy_stage_9",
-    "particle": "minecraft:block/destroy_stage_9"
+    "0": "exort:breaking/destroy_stage_9",
+    "particle": "exort:breaking/destroy_stage_9"
   },
   "elements": [
     {

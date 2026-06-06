@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.4 — 2026-06-07
+- Replaced the optional ProtocolLib packet integration with PacketEvents for VANILLA packet localization, creative pick bridging, fake placement guards, and per-player display culling, while keeping Paper fallbacks when PacketEvents is unavailable.
+- RESOURCE breaking overlays now use destroy-stage textures bundled with the Exort resource pack instead of relying on vanilla textures, so provider-generated packs such as ItemsAdder no longer show missing textures while Exort blocks are being broken.
+
 ## 0.14.3 — 2026-06-06
 - Placement guard ArmorStand geometry now overlaps chest-sized placement shapes, preventing client-side ghost chest placement and sounds next to Exort blocks.
 - Storage monitor item-count bossbars now resolve vanilla item names in the clicking player's client language when that item dictionary is available.

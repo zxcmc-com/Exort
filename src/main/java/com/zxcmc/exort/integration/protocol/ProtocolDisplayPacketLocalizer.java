@@ -24,11 +24,19 @@ final class ProtocolDisplayPacketLocalizer {
 
     T withValue(T value, Object replacement);
 
+    default ItemStack itemStackFromValue(Object previousValue) {
+      return previousValue instanceof ItemStack stack ? stack : null;
+    }
+
     default Object itemStackValue(Object previousValue, ItemStack localizedStack) {
       return localizedStack;
     }
 
     Object customNameValue(Object previousValue, String localizedName);
+
+    default Object customNameValue(T metadataValue, Object previousValue, String localizedName) {
+      return customNameValue(previousValue, localizedName);
+    }
   }
 
   private ProtocolDisplayPacketLocalizer() {}
@@ -64,13 +72,14 @@ final class ProtocolDisplayPacketLocalizer {
   private static <T> Object localizedValue(
       T metadataValue, MetadataValueAdapter<T> adapter, String localizedName) {
     Object raw = adapter.value(metadataValue);
-    if (raw instanceof ItemStack stack) {
+    ItemStack stack = adapter.itemStackFromValue(raw);
+    if (stack != null) {
       ItemStack localized = localizedStack(stack, localizedName);
       return localized == null ? null : adapter.itemStackValue(raw, localized);
     }
     if (adapter.index(metadataValue) == ENTITY_CUSTOM_NAME_METADATA_INDEX
         && raw instanceof Optional<?>) {
-      return adapter.customNameValue(raw, localizedName);
+      return adapter.customNameValue(metadataValue, raw, localizedName);
     }
     return null;
   }
