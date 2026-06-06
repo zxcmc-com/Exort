@@ -16,7 +16,7 @@ class PlacementGuardConfigTest {
     assertEquals(1, config.pollIntervalTicks());
     assertEquals(5, config.targetRangeBlocks());
     assertEquals(0.0625, config.guardScale());
-    assertEquals(0.01, config.cornerInset());
+    assertEquals(0.065, config.cornerInset());
     assertTrue(config.protocolLibGuardEnabled());
   }
 
@@ -43,7 +43,40 @@ class PlacementGuardConfigTest {
     assertEquals(1, config.pollIntervalTicks());
     assertEquals(5, config.targetRangeBlocks());
     assertEquals(0.0625, config.guardScale());
-    assertEquals(0.01, config.cornerInset());
+    assertEquals(0.065, config.cornerInset());
+  }
+
+  @Test
+  void defaultGeometryOverlapsSingleChestShapeAtAllGuardCandidateExtremes() {
+    PlacementGuardConfig config = PlacementGuardConfig.fromConfig(new YamlConfiguration());
+    double guardScale = config.guardScale();
+    double guardRadius = 0.125 * guardScale;
+    double guardHeight = 0.9875 * guardScale;
+    double inset = Math.min(0.45, config.cornerInset());
+    double horizontalInset = Math.min(inset, Math.max(0.0, 0.5 - guardRadius));
+    double verticalInset = Math.min(inset, Math.max(0.0, 1.0 - guardHeight));
+
+    double lowX = guardRadius + horizontalInset;
+    double highX = 1.0 - guardRadius - horizontalInset;
+    double lowY = verticalInset;
+    double highY = 1.0 - guardHeight - verticalInset;
+    double lowZ = guardRadius + horizontalInset;
+    double highZ = 1.0 - guardRadius - horizontalInset;
+
+    double chestMin = 1.0 / 16.0;
+    double chestMax = 15.0 / 16.0;
+    double chestTop = 14.0 / 16.0;
+    assertOverlaps(lowX - guardRadius, lowX + guardRadius, chestMin, chestMax);
+    assertOverlaps(highX - guardRadius, highX + guardRadius, chestMin, chestMax);
+    assertOverlaps(lowZ - guardRadius, lowZ + guardRadius, chestMin, chestMax);
+    assertOverlaps(highZ - guardRadius, highZ + guardRadius, chestMin, chestMax);
+    assertOverlaps(lowY, lowY + guardHeight, 0.0, chestTop);
+    assertOverlaps(highY, highY + guardHeight, 0.0, chestTop);
+  }
+
+  private static void assertOverlaps(
+      double firstMin, double firstMax, double secondMin, double secondMax) {
+    assertTrue(firstMax >= secondMin && secondMax >= firstMin);
   }
 
   @Test

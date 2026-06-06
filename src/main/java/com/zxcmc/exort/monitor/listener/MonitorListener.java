@@ -108,7 +108,10 @@ public class MonitorListener implements Listener {
         if (blobOpt.isPresent()) {
           ItemStack sample = ItemKeyUtil.deserialize(blobOpt.get());
           if (sample != null && sample.getType() != Material.AIR) {
-            itemName = itemNameService.resolveDisplayName(sample);
+            String language =
+                itemNameService.dictionaryLanguage(
+                    event.getPlayer().locale().toString(), itemNameService.getActiveLanguage());
+            itemName = itemNameService.resolveDisplayName(sample, language);
           }
         }
         if (itemKey != null) {
