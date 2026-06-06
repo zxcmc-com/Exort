@@ -5,29 +5,28 @@ import java.util.UUID;
 import org.bukkit.entity.Player;
 
 public final class FailoverPlacementGuardBackend implements PlacementGuardBackend {
-  private final PlacementGuardBackend protocolBackend;
+  private final PlacementGuardBackend packetBackend;
   private final PlacementGuardBackend paperBackend;
   private boolean paperFallback;
   private boolean warned;
 
   public FailoverPlacementGuardBackend(
-      ProtocolLibPlacementGuardBackend protocolBackend,
-      PaperEntityPlacementGuardBackend paperBackend) {
-    this.protocolBackend = protocolBackend;
+      PacketPlacementGuardBackend packetBackend, PaperEntityPlacementGuardBackend paperBackend) {
+    this.packetBackend = packetBackend;
     this.paperBackend = paperBackend;
   }
 
   @Override
   public String name() {
-    return paperFallback ? paperBackend.name() : protocolBackend.name();
+    return paperFallback ? paperBackend.name() : packetBackend.name();
   }
 
   @Override
   public boolean usesServerEntities() {
-    return paperFallback ? paperBackend.usesServerEntities() : protocolBackend.usesServerEntities();
+    return paperFallback ? paperBackend.usesServerEntities() : packetBackend.usesServerEntities();
   }
 
-  public boolean usingProtocolLib() {
+  public boolean usingPacketBackend() {
     return !paperFallback;
   }
 
@@ -40,9 +39,9 @@ public final class FailoverPlacementGuardBackend implements PlacementGuardBacken
     if (paperFallback) {
       return wrapPaper(paperBackend.createGuard(player, target));
     }
-    PlacementGuardHandle protocolHandle = protocolBackend.createGuard(player, target);
-    if (protocolHandle != null && !paperFallback) {
-      return wrapProtocol(protocolHandle);
+    PlacementGuardHandle packetHandle = packetBackend.createGuard(player, target);
+    if (packetHandle != null && !paperFallback) {
+      return wrapPacket(packetHandle);
     }
     if (paperFallback) {
       return wrapPaper(paperBackend.createGuard(player, target));
@@ -59,12 +58,12 @@ public final class FailoverPlacementGuardBackend implements PlacementGuardBacken
     }
     warned = true;
     ExortLog.warn(
-        "[ProtocolLib] Placement guard packet backend failed at runtime; switching to Paper entity"
+        "[PacketEvents] Placement guard packet backend failed at runtime; switching to Paper entity"
             + " placement guard. Cause: "
             + (reason == null || reason.isBlank() ? "unknown" : reason));
   }
 
-  private PlacementGuardHandle wrapProtocol(PlacementGuardHandle handle) {
+  private PlacementGuardHandle wrapPacket(PlacementGuardHandle handle) {
     return handle == null ? null : new FailoverHandle(handle, false);
   }
 

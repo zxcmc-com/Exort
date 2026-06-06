@@ -1,13 +1,13 @@
 package com.zxcmc.exort.placement;
 
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements.PlacementGuardPackets;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements.PlacementGuardPackets;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
-public final class ProtocolLibPlacementGuardBackend implements PlacementGuardBackend {
+public final class PacketPlacementGuardBackend implements PlacementGuardBackend {
   private static final int ENTITY_ID_START = 2_000_000_000;
   private static final int ENTITY_ID_RESET = 1_900_000_000;
 
@@ -15,15 +15,14 @@ public final class ProtocolLibPlacementGuardBackend implements PlacementGuardBac
   private final Consumer<String> failureSink;
   private int nextEntityId = ENTITY_ID_START;
 
-  public ProtocolLibPlacementGuardBackend(
-      PlacementGuardPackets packets, Consumer<String> failureSink) {
+  public PacketPlacementGuardBackend(PlacementGuardPackets packets, Consumer<String> failureSink) {
     this.packets = packets;
     this.failureSink = failureSink;
   }
 
   @Override
   public String name() {
-    return "ProtocolLib fake entity";
+    return "PacketEvents fake entity";
   }
 
   @Override
@@ -39,7 +38,7 @@ public final class ProtocolLibPlacementGuardBackend implements PlacementGuardBac
       markFailure();
       return null;
     }
-    return new ProtocolGuardHandle(
+    return new PacketGuardHandle(
         packets, failureSink, player.getUniqueId(), entityId, target.location());
   }
 
@@ -54,7 +53,7 @@ public final class ProtocolLibPlacementGuardBackend implements PlacementGuardBac
     return nextEntityId--;
   }
 
-  private static final class ProtocolGuardHandle implements PlacementGuardHandle {
+  private static final class PacketGuardHandle implements PlacementGuardHandle {
     private final PlacementGuardPackets packets;
     private final Consumer<String> failureSink;
     private final UUID playerId;
@@ -62,7 +61,7 @@ public final class ProtocolLibPlacementGuardBackend implements PlacementGuardBac
     private Location location;
     private boolean valid = true;
 
-    private ProtocolGuardHandle(
+    private PacketGuardHandle(
         PlacementGuardPackets packets,
         Consumer<String> failureSink,
         UUID playerId,

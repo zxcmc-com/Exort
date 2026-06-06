@@ -1,19 +1,19 @@
 package com.zxcmc.exort.display;
 
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 
-final class ProtocolLibDisplayCullingBackend implements DisplayCullingBackend {
-  private final ProtocolLibEnhancements.DisplayCullingPackets packets;
+final class PacketEventsDisplayCullingBackend implements DisplayCullingBackend {
+  private final PacketEnhancements.DisplayCullingPackets packets;
 
-  ProtocolLibDisplayCullingBackend(ProtocolLibEnhancements.DisplayCullingPackets packets) {
+  PacketEventsDisplayCullingBackend(PacketEnhancements.DisplayCullingPackets packets) {
     this.packets = packets;
   }
 
   @Override
   public String name() {
-    return "protocollib";
+    return "packetevents";
   }
 
   @Override

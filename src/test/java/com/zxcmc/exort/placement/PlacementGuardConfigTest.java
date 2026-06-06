@@ -17,7 +17,7 @@ class PlacementGuardConfigTest {
     assertEquals(5, config.targetRangeBlocks());
     assertEquals(0.0625, config.guardScale());
     assertEquals(0.065, config.cornerInset());
-    assertTrue(config.protocolLibGuardEnabled());
+    assertTrue(config.packetEventsGuardEnabled());
   }
 
   @Test
@@ -80,16 +80,16 @@ class PlacementGuardConfigTest {
   }
 
   @Test
-  void protocolLibGuardOnlyUsesBaseProtocolLibFlag() {
+  void packetGuardOnlyUsesBasePacketEventsFlag() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("protocolLib.enabled", false);
-    yaml.set("protocolLib.placementGuard.enabled", true);
+    yaml.set("packetEvents.enabled", false);
+    yaml.set("packetEvents.placementGuard.enabled", true);
 
-    assertFalse(PlacementGuardConfig.fromConfig(yaml).protocolLibGuardEnabled());
+    assertFalse(PlacementGuardConfig.fromConfig(yaml).packetEventsGuardEnabled());
 
-    yaml.set("protocolLib.enabled", true);
-    yaml.set("protocolLib.placementGuard.enabled", false);
+    yaml.set("packetEvents.enabled", true);
+    yaml.set("packetEvents.placementGuard.enabled", false);
 
-    assertTrue(PlacementGuardConfig.fromConfig(yaml).protocolLibGuardEnabled());
+    assertTrue(PlacementGuardConfig.fromConfig(yaml).packetEventsGuardEnabled());
   }
 }

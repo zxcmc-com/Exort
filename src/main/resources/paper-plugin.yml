@@ -40,10 +40,10 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
-    ProtocolLib:
+    packetevents:
       load: BEFORE
       required: false
-      join-classpath: false
+      join-classpath: true
     Nexo:
       load: AFTER
       required: false

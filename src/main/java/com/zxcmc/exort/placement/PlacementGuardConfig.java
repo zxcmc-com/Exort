@@ -9,7 +9,7 @@ public record PlacementGuardConfig(
     int targetRangeBlocks,
     double guardScale,
     double cornerInset,
-    boolean protocolLibGuardEnabled) {
+    boolean packetEventsGuardEnabled) {
   public static PlacementGuardConfig fromConfig(ConfigurationSection config) {
     Objects.requireNonNull(config, "config");
     return new PlacementGuardConfig(
@@ -18,6 +18,6 @@ public record PlacementGuardConfig(
         5,
         0.0625,
         0.065,
-        config.getBoolean("protocolLib.enabled", true));
+        config.getBoolean("packetEvents.enabled", true));
   }
 }

@@ -15,7 +15,7 @@ import com.zxcmc.exort.display.StorageDisplayManager;
 import com.zxcmc.exort.display.TerminalDisplayManager;
 import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.i18n.ItemNameService;
-import com.zxcmc.exort.integration.protocol.ProtocolLibEnhancements;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.placement.RightClickPlacementGuard;
@@ -49,7 +49,7 @@ public record ExortRuntimeServices(
     BreakSoundConfig breakSoundConfig,
     CraftingRules craftingRules,
     RecipeService recipeService,
-    ProtocolLibEnhancements protocolLibEnhancements,
+    PacketEnhancements packetEnhancements,
     RightClickPlacementGuard placementGuard,
     WorldEditIntegration worldEditIntegration,
     boolean dialogSupported) {}

@@ -32,11 +32,11 @@ resourcePack:
     # API key for LOBFILE hosting. Keep empty unless hosting is set to LOBFILE.
     apiKey: ""
 
-# Optional ProtocolLib integration. Exort remains usable without ProtocolLib installed.
-protocolLib:
+# Optional PacketEvents integration. Exort remains usable without PacketEvents installed.
+packetEvents:
   enabled: true
   # SIMPLE rewrites Exort item name/lore packets in VANILLA mode.
-  # FULL also rewrites Exort display entity names/item metadata when the ProtocolLib backend supports it.
+  # FULL also rewrites Exort display entity names/item metadata when PacketEvents is available.
   # RESOURCE mode uses resource-pack translation keys instead.
   # SIMPLE | FULL
   localizationLevel: SIMPLE
@@ -46,7 +46,7 @@ performance:
   displayCulling:
     # Dynamically lowers Exort display render ranges per player in dense scenes.
     enabled: true
-    # AUTO | PROTOCOL_LIB | PAPER. AUTO prefers ProtocolLib metadata packets when available.
+    # AUTO | PACKET_EVENTS | PAPER. AUTO prefers PacketEvents metadata packets when available.
     backend: AUTO
     clientCullingBypass:
       # Stores and applies per-player bypass for clients with a client-side culling mod such as EntityCulling.
