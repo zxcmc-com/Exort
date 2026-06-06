@@ -17,7 +17,7 @@ public record PlacementGuardConfig(
         1,
         5,
         0.0625,
-        0.01,
+        0.065,
         config.getBoolean("protocolLib.enabled", true));
   }
 }

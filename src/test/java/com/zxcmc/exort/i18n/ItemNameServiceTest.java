@@ -9,7 +9,10 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -49,6 +52,21 @@ class ItemNameServiceTest {
   }
 
   @Test
+  void resolveDisplayNameUsesRequestedDictionaryBeforeConfiguredLanguage() throws Exception {
+    Files.createDirectories(tempDir.resolve("lang/items"));
+    Files.writeString(tempDir.resolve("lang/items/de_de.yml"), "diamond: Diamant\n");
+    Files.writeString(tempDir.resolve("lang/items/ru_ru.yml"), "diamond: Almaz\n");
+    ItemNameService service = serviceWithLanguages(Set.of("de_de", "en_us", "ru_ru"));
+    setField(service, "activeLanguage", "ru_ru");
+    setField(service, "active", Map.of("diamond", "Almaz"));
+
+    ItemStack stack = new MaterialStack(Material.DIAMOND);
+
+    assertEquals("Diamant", service.resolveDisplayName(stack, "de_de"));
+    assertEquals("Almaz", service.resolveDisplayName(stack, "zz_zz"));
+  }
+
+  @Test
   void dictionaryRefreshIgnoresBundledPluginLanguageFilesUntilItemDictionaryExists()
       throws Exception {
     Files.createDirectories(tempDir.resolve("lang/items"));
@@ -76,5 +94,28 @@ class ItemNameServiceTest {
     Field field = ItemNameService.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.set(service, value);
+  }
+
+  private static final class MaterialStack extends ItemStack {
+    private final Material type;
+
+    private MaterialStack(Material type) {
+      this.type = type;
+    }
+
+    @Override
+    public Material getType() {
+      return type;
+    }
+
+    @Override
+    public boolean hasItemMeta() {
+      return false;
+    }
+
+    @Override
+    public ItemMeta getItemMeta() {
+      return null;
+    }
   }
 }

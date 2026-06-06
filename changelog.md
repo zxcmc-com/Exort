@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.3 — 2026-06-06
+- Placement guard ArmorStand geometry now overlaps chest-sized placement shapes, preventing client-side ghost chest placement and sounds next to Exort blocks.
+- Storage monitor item-count bossbars now resolve vanilla item names in the clicking player's client language when that item dictionary is available.
+
 ## 0.14.2 — 2026-06-05
 - Optimized bus exports and storage-to-storage transfers to cache lightweight storage item views, avoiding full sample clone sweeps after storage changes while preserving cursor and rollback behavior.
 - Reduced RESOURCE display culling overhead by reusing per-player scratch collections, adding caller-owned index queries, and using squared-distance checks outside debug output.
