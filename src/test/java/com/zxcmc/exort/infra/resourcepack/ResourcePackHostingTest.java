@@ -11,6 +11,16 @@ class ResourcePackHostingTest {
   }
 
   @Test
+  void invalidHostingFallsBackToAutoAtRuntime() {
+    assertEquals(ResourcePackHosting.AUTO, ResourcePackHosting.fromConfig("bad"));
+  }
+
+  @Test
+  void invalidDeliveryFallsBackToAutoAtRuntime() {
+    assertEquals(ResourcePackDelivery.AUTO, ResourcePackDelivery.fromConfig("bad"));
+  }
+
+  @Test
   void autoHostingPrefersNexoBeforeItemsAdder() {
     assertEquals(
         ResourcePackHosting.NEXO, ResourcePackService.resolveAutoHosting(true, true, true));

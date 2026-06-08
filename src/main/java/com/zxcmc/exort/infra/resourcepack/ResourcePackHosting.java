@@ -1,6 +1,6 @@
 package com.zxcmc.exort.infra.resourcepack;
 
-import java.util.Locale;
+import com.zxcmc.exort.infra.config.ConfigEnums;
 
 public enum ResourcePackHosting {
   AUTO,
@@ -12,13 +12,6 @@ public enum ResourcePackHosting {
   DISABLED;
 
   public static ResourcePackHosting fromConfig(String raw) {
-    if (raw == null || raw.isBlank()) {
-      return AUTO;
-    }
-    try {
-      return valueOf(raw.trim().toUpperCase(Locale.ROOT));
-    } catch (IllegalArgumentException ignored) {
-      return AUTO;
-    }
+    return ConfigEnums.parse("resourcePack.hosting", raw, AUTO);
   }
 }

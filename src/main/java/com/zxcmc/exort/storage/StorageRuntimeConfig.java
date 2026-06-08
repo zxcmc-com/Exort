@@ -1,6 +1,7 @@
 package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.infra.config.ConfigEnums;
 import java.util.Objects;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -16,7 +17,8 @@ public record StorageRuntimeConfig(
   public static StorageRuntimeConfig fromConfig(ConfigurationSection config) {
     Objects.requireNonNull(config, "config");
     return new StorageRuntimeConfig(
-        SortMode.fromString(config.getString("defaultSortMode", SortMode.AMOUNT.name())).name(),
+        ConfigEnums.parse("defaultSortMode", config.getString("defaultSortMode"), SortMode.AMOUNT)
+            .name(),
         config.getInt("performance.storage.flushIntervalSeconds", 10),
         config.getLong("performance.storage.idleUnloadSeconds", 300),
         config.getLong("performance.storage.idleCheckSeconds", 60));

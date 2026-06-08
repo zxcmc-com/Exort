@@ -110,6 +110,10 @@ bus:
 
 # Wire traversal limits.
 wire:
+  # CHORUS_PLANT | BARRIER.
+  # CHORUS_PLANT uses chorus carriers when Paper chorus-plant updates are disabled,
+  # and safely falls back to BARRIER otherwise. BARRIER always uses full-block wire hitboxes.
+  carrier: CHORUS_PLANT
   # Maximum logical wire length used to connect a terminal to storage.
   limit: 32
   # Hard traversal cap. If exceeded, the network is ignored.

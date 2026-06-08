@@ -47,6 +47,7 @@ public record ExortRuntimeFactoryDependencies(
     RecipeService previousRecipeService,
     RuntimeTaskScheduler runtimeTasks,
     boolean resourceMode,
+    boolean resourceWireUsesBarrier,
     Runnable reloadDefaultSortMode,
     Runnable stopReloadableRuntime,
     Runnable unregisterReloadableRuntimeListeners,

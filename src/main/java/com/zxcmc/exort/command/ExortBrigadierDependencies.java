@@ -17,6 +17,7 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
@@ -47,7 +48,7 @@ public record ExortBrigadierDependencies(
     Consumer<String> configuredModeSaver,
     Supplier<String> configuredMode,
     Supplier<String> effectiveMode,
-    Supplier<String> modeFallbackReason,
+    BooleanSupplier resourceWireCarrierFallback,
     Supplier<String> pluginVersion,
     Supplier<PaperChorusPlantUpdates.FixResult> chorusPlantUpdateDisabler,
     LongSupplier cacheIdleUnloadSeconds,
@@ -78,7 +79,7 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(configuredModeSaver, "configuredModeSaver");
     Objects.requireNonNull(configuredMode, "configuredMode");
     Objects.requireNonNull(effectiveMode, "effectiveMode");
-    Objects.requireNonNull(modeFallbackReason, "modeFallbackReason");
+    Objects.requireNonNull(resourceWireCarrierFallback, "resourceWireCarrierFallback");
     Objects.requireNonNull(pluginVersion, "pluginVersion");
     Objects.requireNonNull(chorusPlantUpdateDisabler, "chorusPlantUpdateDisabler");
     Objects.requireNonNull(cacheIdleUnloadSeconds, "cacheIdleUnloadSeconds");

@@ -4,35 +4,73 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.carrier.WireCarrierMode;
 import org.junit.jupiter.api.Test;
 
 class ModePolicyTest {
   @Test
-  void resourceModeStaysResourceWhenChorusUpdatesAreDisabled() {
-    ModePolicy policy = ModePolicy.evaluate("RESOURCE", true);
+  void resourceModeUsesChorusCarrierWhenConfiguredAndPaperAllowsIt() {
+    ModePolicy policy = ModePolicy.evaluate("RESOURCE", true, WireCarrierMode.CHORUS_PLANT);
 
     assertEquals("RESOURCE", policy.configuredMode());
     assertTrue(policy.resourceMode());
-    assertEquals("", policy.fallbackReason());
+    assertFalse(policy.resourceWireUsesBarrier());
+    assertFalse(policy.resourceWireCarrierFallback());
     assertFalse(policy.unknownMode());
   }
 
   @Test
-  void resourceModeFallsBackToVanillaWhenChorusUpdatesAreEnabled() {
-    ModePolicy policy = ModePolicy.evaluate("RESOURCE", false);
+  void resourceModeFallsBackToBarrierCarrierWhenConfiguredChorusButPaperBlocksIt() {
+    ModePolicy policy = ModePolicy.evaluate("RESOURCE", false, WireCarrierMode.CHORUS_PLANT);
 
     assertEquals("RESOURCE", policy.configuredMode());
+    assertTrue(policy.resourceMode());
+    assertTrue(policy.resourceWireUsesBarrier());
+    assertTrue(policy.resourceWireCarrierFallback());
+    assertFalse(policy.unknownMode());
+  }
+
+  @Test
+  void explicitBarrierCarrierDoesNotNeedFallbackWarningWhenPaperBlocksChorus() {
+    ModePolicy policy = ModePolicy.evaluate("RESOURCE", false, WireCarrierMode.BARRIER);
+
+    assertEquals("RESOURCE", policy.configuredMode());
+    assertTrue(policy.resourceMode());
+    assertTrue(policy.resourceWireUsesBarrier());
+    assertFalse(policy.resourceWireCarrierFallback());
+    assertFalse(policy.unknownMode());
+  }
+
+  @Test
+  void explicitBarrierCarrierDoesNotNeedFallbackWarningWhenPaperAllowsChorus() {
+    ModePolicy policy = ModePolicy.evaluate("RESOURCE", true, WireCarrierMode.BARRIER);
+
+    assertEquals("RESOURCE", policy.configuredMode());
+    assertTrue(policy.resourceMode());
+    assertTrue(policy.resourceWireUsesBarrier());
+    assertFalse(policy.resourceWireCarrierFallback());
+    assertFalse(policy.unknownMode());
+  }
+
+  @Test
+  void vanillaModeUsesBarrierCarrierWithoutResourceFallbackWarning() {
+    ModePolicy policy = ModePolicy.evaluate("VANILLA", false, WireCarrierMode.CHORUS_PLANT);
+
+    assertEquals("VANILLA", policy.configuredMode());
     assertFalse(policy.resourceMode());
-    assertEquals(ModePolicy.CHORUS_FALLBACK_REASON, policy.fallbackReason());
+    assertFalse(policy.resourceWireUsesBarrier());
+    assertFalse(policy.resourceWireCarrierFallback());
     assertFalse(policy.unknownMode());
   }
 
   @Test
   void unknownModeUsesResourceDefault() {
-    ModePolicy policy = ModePolicy.evaluate("custom", true);
+    ModePolicy policy = ModePolicy.evaluate("custom", true, WireCarrierMode.CHORUS_PLANT);
 
     assertEquals("RESOURCE", policy.configuredMode());
     assertTrue(policy.resourceMode());
+    assertFalse(policy.resourceWireUsesBarrier());
+    assertFalse(policy.resourceWireCarrierFallback());
     assertTrue(policy.unknownMode());
   }
 }

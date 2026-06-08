@@ -23,7 +23,12 @@ public record RuntimeItemModelConfig(
   private static final String VANILLA_NAMESPACE = "minecraft";
 
   public static RuntimeItemModelConfig forMode(boolean resourceMode) {
-    return resourceMode ? resourceConfig() : vanillaConfig();
+    return forMode(resourceMode, false);
+  }
+
+  public static RuntimeItemModelConfig forMode(
+      boolean resourceMode, boolean resourceWireUsesBarrier) {
+    return resourceMode ? resourceConfig(resourceWireUsesBarrier) : vanillaConfig();
   }
 
   public static String normalizeModelId(String raw, String namespace) {
@@ -38,11 +43,11 @@ public record RuntimeItemModelConfig(
     return ns + ":" + id;
   }
 
-  private static RuntimeItemModelConfig resourceConfig() {
+  private static RuntimeItemModelConfig resourceConfig(boolean resourceWireUsesBarrier) {
     String resourceNamespace = "exort";
     return new RuntimeItemModelConfig(
         resourceNamespace,
-        Carriers.CHORUS_MATERIAL,
+        resourceWireUsesBarrier ? Carriers.CARRIER_BARRIER : Carriers.CHORUS_MATERIAL,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,

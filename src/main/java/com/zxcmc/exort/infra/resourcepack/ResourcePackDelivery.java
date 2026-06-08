@@ -1,6 +1,6 @@
 package com.zxcmc.exort.infra.resourcepack;
 
-import java.util.Locale;
+import com.zxcmc.exort.infra.config.ConfigEnums;
 
 public enum ResourcePackDelivery {
   AUTO,
@@ -9,13 +9,6 @@ public enum ResourcePackDelivery {
   MANUAL;
 
   public static ResourcePackDelivery fromConfig(String raw) {
-    if (raw == null || raw.isBlank()) {
-      return AUTO;
-    }
-    try {
-      return valueOf(raw.trim().toUpperCase(Locale.ROOT));
-    } catch (IllegalArgumentException ignored) {
-      return AUTO;
-    }
+    return ConfigEnums.parse("resourcePack.delivery", raw, AUTO);
   }
 }

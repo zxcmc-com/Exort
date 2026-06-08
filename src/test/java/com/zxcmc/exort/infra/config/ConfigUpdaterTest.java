@@ -94,4 +94,29 @@ class ConfigUpdaterTest {
     assertEquals(-1, merged.indexOf("enabled: false"), merged);
     assertEquals(-1, merged.indexOf("Removed/unknown options"), merged);
   }
+
+  @Test
+  void mergeAddsMissingWireCarrierWithoutOverwritingWireLimits() {
+    YamlConfiguration defaults = new YamlConfiguration();
+    defaults.set("wire.carrier", "CHORUS_PLANT");
+    defaults.set("wire.limit", 32);
+    defaults.set("wire.hardCap", 64);
+    YamlConfiguration user = new YamlConfiguration();
+    user.set("wire.limit", 48);
+    user.set("wire.hardCap", 96);
+    List<String> defaultLines =
+        List.of(
+            "wire:",
+            "  # CHORUS_PLANT | BARRIER.",
+            "  carrier: CHORUS_PLANT",
+            "  limit: 32",
+            "  hardCap: 64");
+
+    String merged =
+        ConfigUpdater.mergeLinesWithDefaults(defaults, user, List.of(), defaultLines, true);
+
+    assertTrue(merged.contains("  carrier: CHORUS_PLANT"), merged);
+    assertTrue(merged.contains("  limit: 48"), merged);
+    assertTrue(merged.contains("  hardCap: 96"), merged);
+  }
 }

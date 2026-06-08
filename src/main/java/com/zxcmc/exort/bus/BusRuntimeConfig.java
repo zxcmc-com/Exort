@@ -1,5 +1,6 @@
 package com.zxcmc.exort.bus;
 
+import com.zxcmc.exort.infra.config.ConfigEnums;
 import java.util.Objects;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -39,7 +40,6 @@ public record BusRuntimeConfig(
   }
 
   private static BusMode readMode(ConfigurationSection config, String path) {
-    BusMode mode = BusMode.fromString(config.getString(path, "WHITELIST"));
-    return mode == null ? BusMode.WHITELIST : mode;
+    return ConfigEnums.parse(path, config.getString(path), BusMode.WHITELIST);
   }
 }

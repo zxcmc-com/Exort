@@ -63,6 +63,7 @@ class LangTest {
             "message.usage_mode_header",
             "message.usage_mode_info",
             "message.usage_mode_set",
+            "message.usage_mode_fix",
             "message.usage_debug_header",
             "message.usage_debug_player",
             "message.usage_debug_storage",
@@ -76,6 +77,8 @@ class LangTest {
             "message.debug_culling_mode_invalid",
             "message.debug_culling_client_invalid",
             "message.debug_culling_client_status",
+            "message.mode_carrier_warning",
+            "message.mode_fix_not_resource",
             "message.wire.hard_cap");
 
     for (String key : requiredKeys) {

@@ -40,7 +40,8 @@ public final class ExortRuntimeFactory {
         reloadLanguage(deps, refreshItemDictionaries);
     CreativeTabOrder.init(deps.plugin());
 
-    RuntimeItemModelConfig itemModels = RuntimeItemModelConfig.forMode(deps.resourceMode());
+    RuntimeItemModelConfig itemModels =
+        RuntimeItemModelConfig.forMode(deps.resourceMode(), deps.resourceWireUsesBarrier());
     RuntimeMaterials materials =
         new RuntimeMaterials(
             itemModels.wireMaterial(),

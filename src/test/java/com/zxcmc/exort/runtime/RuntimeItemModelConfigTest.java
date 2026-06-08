@@ -20,6 +20,17 @@ class RuntimeItemModelConfigTest {
   }
 
   @Test
+  void resourceBarrierWireCarrierKeepsResourceModels() {
+    RuntimeItemModelConfig config = RuntimeItemModelConfig.forMode(true, true);
+
+    assertEquals("exort", config.displayNamespace());
+    assertEquals(Carriers.CARRIER_BARRIER, config.wireMaterial());
+    assertEquals(Carriers.CARRIER_BARRIER, config.storageCarrier());
+    assertEquals("exort:wire/center", config.wireItemModel());
+    assertEquals("exort:storage/storage", config.storageItemModel());
+  }
+
+  @Test
   void vanillaDefaultsUseMinecraftNamespaceAndBarrierCarriers() {
     RuntimeItemModelConfig config = RuntimeItemModelConfig.forMode(false);
 

@@ -5,6 +5,7 @@ import com.zxcmc.exort.api.model.StorageTierDescriptor;
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.carrier.WireCarrierMode;
 import com.zxcmc.exort.command.ExortBrigadier;
 import com.zxcmc.exort.command.ExortBrigadierDependencies;
 import com.zxcmc.exort.debug.CacheDebugService;
@@ -86,7 +87,7 @@ import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCacheProvider {
-  static final String MODE_SET_RESOURCE_COMMAND = "/exort mode set RESOURCE";
+  static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
   private static final MinecraftVersionRequirement MIN_MC_VERSION =
       MinecraftVersionRequirement.atLeast(1, 21, 7);
   private Database database;
@@ -130,8 +131,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private RightClickPlacementGuard placementGuard;
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
+  private boolean resourceWireUsesBarrier;
+  private boolean resourceWireCarrierFallback;
   private String configuredMode = "RESOURCE";
-  private String modeFallbackReason = "";
   private volatile String defaultSortModeName = SortMode.AMOUNT.name();
   private RegionProtection regionProtection = RegionProtection.allowAll();
 
@@ -477,6 +479,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         recipeService,
         runtimeTasks,
         resourceMode,
+        resourceWireUsesBarrier,
         this::reloadDefaultSortMode,
         this::stopReloadableRuntime,
         this::unregisterReloadableRuntimeListeners,
@@ -547,15 +550,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     var state =
         RuntimeModeCoordinator.evaluate(
             getConfig().getString("mode", ModePolicy.DEFAULT_MODE),
+            WireCarrierMode.fromConfig(getConfig()),
             this::isChorusUpdatesDisabled,
-            MODE_SET_RESOURCE_COMMAND);
+            MODE_FIX_RESOURCE_COMMAND);
     configuredMode = state.configuredMode();
     resourceMode = state.resourceMode();
-    modeFallbackReason = state.fallbackReason();
+    resourceWireUsesBarrier = state.resourceWireUsesBarrier();
+    resourceWireCarrierFallback = state.resourceWireCarrierFallback();
   }
 
-  static List<String> chorusFallbackHelpLines() {
-    return RuntimeModeCoordinator.chorusFallbackHelpLines(MODE_SET_RESOURCE_COMMAND);
+  static List<String> resourceWireCarrierWarningLines() {
+    return RuntimeModeCoordinator.resourceWireCarrierWarningLines(MODE_FIX_RESOURCE_COMMAND);
   }
 
   public PaperChorusPlantUpdates.Status chorusPlantUpdateStatus() {
@@ -783,7 +788,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         },
         () -> configuredMode,
         () -> resourceMode ? "RESOURCE" : "VANILLA",
-        () -> modeFallbackReason,
+        () -> resourceWireCarrierFallback,
         () -> getPluginMeta().getVersion(),
         this::disableChorusPlantUpdatesInPaperConfig,
         () -> StorageRuntimeConfig.fromConfig(getConfig()).cacheIdleUnloadSeconds(),

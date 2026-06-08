@@ -1,5 +1,6 @@
 package com.zxcmc.exort.display;
 
+import com.zxcmc.exort.infra.config.ConfigEnums;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,7 +37,7 @@ public record DisplayCullingConfig(
   public static DisplayCullingConfig fromConfig(ConfigurationSection config) {
     return new DisplayCullingConfig(
         config.getBoolean(PATH + "enabled", true),
-        Backend.fromString(config.getString(PATH + "backend", "AUTO")),
+        Backend.fromConfig(config),
         10,
         64.0,
         8.0,
@@ -51,15 +52,9 @@ public record DisplayCullingConfig(
     PACKET_EVENTS,
     PAPER;
 
-    static Backend fromString(String raw) {
-      if (raw == null || raw.isBlank()) {
-        return AUTO;
-      }
-      try {
-        return Backend.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace('-', '_'));
-      } catch (IllegalArgumentException ignored) {
-        return AUTO;
-      }
+    static Backend fromConfig(ConfigurationSection config) {
+      return ConfigEnums.parse(
+          PATH + "backend", config == null ? null : config.getString(PATH + "backend"), AUTO);
     }
   }
 

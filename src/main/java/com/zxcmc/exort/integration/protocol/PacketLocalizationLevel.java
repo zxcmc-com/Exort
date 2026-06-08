@@ -1,5 +1,6 @@
 package com.zxcmc.exort.integration.protocol;
 
+import com.zxcmc.exort.infra.config.ConfigEnums;
 import java.util.Locale;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -10,7 +11,7 @@ public enum PacketLocalizationLevel {
   private static final String PATH = "packetEvents.localizationLevel";
 
   public static PacketLocalizationLevel fromConfig(ConfigurationSection config) {
-    return fromString(config == null ? null : config.getString(PATH, SIMPLE.name()));
+    return ConfigEnums.parse(PATH, config == null ? null : config.getString(PATH), SIMPLE);
   }
 
   public static PacketLocalizationLevel fromString(String raw) {

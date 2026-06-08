@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.5 — 2026-06-08
+- RESOURCE mode now stays active when Paper chorus-plant updates are enabled: `wire.carrier` defaults to `CHORUS_PLANT` with safe `BARRIER` fallback, while admins can set `wire.carrier: BARRIER` for intentional full-block wire hitboxes without chorus-carrier repair warnings.
+- The bundled resource pack now hides unused impossible `chorus_plant` states with `exort:none` while preserving Exort's dedicated proxy states.
+
 ## 0.14.4 — 2026-06-07
 - Replaced the optional ProtocolLib packet integration with PacketEvents for VANILLA packet localization, creative pick bridging, fake placement guards, and per-player display culling, while keeping Paper fallbacks when PacketEvents is unavailable.
 - RESOURCE breaking overlays now use destroy-stage textures bundled with the Exort resource pack instead of relying on vanilla textures, so provider-generated packs such as ItemsAdder no longer show missing textures while Exort blocks are being broken.

@@ -29,6 +29,7 @@ import org.bukkit.util.StringUtil;
 final class ModeCommand {
   private static final String PERMISSION_ADMIN = "exort.storagenetwork.admin";
   private static final String ARG_MODE = "mode";
+  private static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
 
   private final ExortBrigadierDependencies dependencies;
 
@@ -46,7 +47,13 @@ final class ModeCommand {
                 .then(
                     Commands.argument(ARG_MODE, StringArgumentType.word())
                         .suggests(this::suggestModes)
-                        .executes(this::set)));
+                        .executes(this::set)))
+        .then(
+            Commands.literal("fix")
+                .then(
+                    Commands.argument(ARG_MODE, StringArgumentType.word())
+                        .suggests(this::suggestFixModes)
+                        .executes(this::fix)));
   }
 
   private int usage(CommandContext<CommandSourceStack> context) {
@@ -57,7 +64,8 @@ final class ModeCommand {
         Component.text(dependencies.lang().tr(sender, "message.usage_mode_header")),
         List.of(
             usageLine(sender, "/exort mode info", "message.usage_mode_info"),
-            usageLine(sender, "/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set")));
+            usageLine(sender, "/exort mode set <VANILLA|RESOURCE>", "message.usage_mode_set"),
+            usageLine(sender, MODE_FIX_RESOURCE_COMMAND, "message.usage_mode_fix")));
     return 1;
   }
 
@@ -72,14 +80,14 @@ final class ModeCommand {
                 "message.mode_info",
                 dependencies.configuredMode().get(),
                 dependencies.effectiveMode().get());
-    if (!dependencies.modeFallbackReason().get().isBlank()) {
+    if (dependencies.resourceWireCarrierFallback().getAsBoolean()) {
       CommandFeedback.sendBlock(
           sender,
           title,
           List.of(
               dependencies
                   .lang()
-                  .tr(sender, "message.mode_fallback", dependencies.modeFallbackReason().get())));
+                  .tr(sender, "message.mode_carrier_warning", MODE_FIX_RESOURCE_COMMAND)));
     } else {
       sendMessage(sender, title);
     }
@@ -102,15 +110,24 @@ final class ModeCommand {
       sendMessage(sender, dependencies.lang().tr(sender, "message.mode_invalid", raw));
       return 1;
     }
-    if (normalized.equals("RESOURCE")) {
-      enableResourceMode(sender);
-    } else {
-      setMode(sender, normalized);
-    }
+    setMode(sender, normalized);
     return 1;
   }
 
-  private void enableResourceMode(CommandSender sender) {
+  private int fix(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    String raw = StringArgumentType.getString(context, ARG_MODE);
+    String normalized = raw.toUpperCase(Locale.ROOT);
+    if (!normalized.equals("RESOURCE")) {
+      sendMessage(sender, dependencies.lang().tr(sender, "message.mode_fix_not_resource", raw));
+      return 1;
+    }
+    fixResourceMode(sender);
+    return 1;
+  }
+
+  private void fixResourceMode(CommandSender sender) {
     PaperChorusPlantUpdates.FixResult result = dependencies.chorusPlantUpdateDisabler().get();
     if (result.state() == PaperChorusPlantUpdates.State.MISSING) {
       sendMessage(
@@ -182,15 +199,15 @@ final class ModeCommand {
                                 "message.mode_set",
                                 normalized,
                                 dependencies.effectiveMode().get()));
-                    if (!dependencies.modeFallbackReason().get().isBlank()) {
+                    if (dependencies.resourceWireCarrierFallback().getAsBoolean()) {
                       sendMessage(
                           sender,
                           dependencies
                               .lang()
                               .tr(
                                   sender,
-                                  "message.mode_fallback",
-                                  dependencies.modeFallbackReason().get()));
+                                  "message.mode_carrier_warning",
+                                  MODE_FIX_RESOURCE_COMMAND));
                     }
                   });
             });
@@ -272,6 +289,17 @@ final class ModeCommand {
     List<String> matches =
         StringUtil.copyPartialMatches(
             builder.getRemaining().toUpperCase(Locale.ROOT), options, new ArrayList<>());
+    matches.forEach(builder::suggest);
+    return builder.buildFuture();
+  }
+
+  private CompletableFuture<Suggestions> suggestFixModes(
+      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    List<String> matches =
+        StringUtil.copyPartialMatches(
+            builder.getRemaining().toUpperCase(Locale.ROOT),
+            List.of("RESOURCE"),
+            new ArrayList<>());
     matches.forEach(builder::suggest);
     return builder.buildFuture();
   }

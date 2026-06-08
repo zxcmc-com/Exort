@@ -1,45 +1,54 @@
 package com.zxcmc.exort.platform;
 
+import com.zxcmc.exort.carrier.WireCarrierMode;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
 public final class RuntimeModeCoordinator {
-  private static final String CHORUS_RESOURCE_COMMAND_BEFORE =
-      "To enable RESOURCE mode safely, run ";
-  private static final String CHORUS_RESOURCE_COMMAND_AFTER =
-      ". This command will update the Paper option, set Exort mode to RESOURCE, notify players,"
-          + " and restart the server after 10 seconds.";
+  private static final String RESOURCE_BARRIER_WARNING =
+      "RESOURCE wire carriers are using BARRIER because Paper chorus-plant updates are enabled;"
+          + " wire visuals stay RESOURCE, but wire hitboxes are full blocks.";
+  private static final String RESOURCE_FIX_COMMAND_BEFORE = "Run ";
+  private static final String RESOURCE_FIX_COMMAND_AFTER =
+      " to enable chorus carriers after restart.";
 
   private RuntimeModeCoordinator() {}
 
   public static RuntimeModeState evaluate(
-      String rawMode, BooleanSupplier chorusUpdatesDisabled, String resourceCommand) {
+      String rawMode, BooleanSupplier chorusUpdatesDisabled, String resourceFixCommand) {
+    return evaluate(rawMode, WireCarrierMode.DEFAULT, chorusUpdatesDisabled, resourceFixCommand);
+  }
+
+  public static RuntimeModeState evaluate(
+      String rawMode,
+      WireCarrierMode wireCarrierMode,
+      BooleanSupplier chorusUpdatesDisabled,
+      String resourceFixCommand) {
     Objects.requireNonNull(chorusUpdatesDisabled, "chorusUpdatesDisabled");
-    Objects.requireNonNull(resourceCommand, "resourceCommand");
-    ModePolicy policy = ModePolicy.evaluate(rawMode, chorusUpdatesDisabled.getAsBoolean());
+    Objects.requireNonNull(resourceFixCommand, "resourceFixCommand");
+    ModePolicy policy =
+        ModePolicy.evaluate(rawMode, chorusUpdatesDisabled.getAsBoolean(), wireCarrierMode);
     if (policy.unknownMode()) {
       ExortLog.warn("Unknown mode '" + rawMode + "' in config.yml; using RESOURCE.");
     }
-    if (!policy.fallbackReason().isBlank()) {
-      ExortLog.warn(policy.fallbackReason());
-      List<String> helpLines = chorusFallbackHelpLines(resourceCommand);
-      ExortLog.warn(helpLines.get(0));
+    if (policy.resourceWireCarrierFallback()) {
+      ExortLog.warn(RESOURCE_BARRIER_WARNING);
       ExortLog.warnCommand(
-          CHORUS_RESOURCE_COMMAND_BEFORE, resourceCommand, CHORUS_RESOURCE_COMMAND_AFTER);
-      ExortLog.warn(helpLines.get(2));
+          RESOURCE_FIX_COMMAND_BEFORE, resourceFixCommand, RESOURCE_FIX_COMMAND_AFTER);
     }
     return new RuntimeModeState(
-        policy.configuredMode(), policy.resourceMode(), policy.fallbackReason());
+        policy.configuredMode(),
+        policy.resourceMode(),
+        policy.resourceWireUsesBarrier(),
+        policy.resourceWireCarrierFallback());
   }
 
-  public static List<String> chorusFallbackHelpLines(String resourceCommand) {
-    Objects.requireNonNull(resourceCommand, "resourceCommand");
+  public static List<String> resourceWireCarrierWarningLines(String resourceFixCommand) {
+    Objects.requireNonNull(resourceFixCommand, "resourceFixCommand");
     return List.of(
-        "It is HIGHLY recommended to enable this setting for improved performance and prevent bugs"
-            + " with chorus-plants which are used to display wires by default in RESOURCE mode.",
-        CHORUS_RESOURCE_COMMAND_BEFORE + resourceCommand + CHORUS_RESOURCE_COMMAND_AFTER,
-        "Until then, Exort effective mode is VANILLA and resource-pack delivery is disabled.");
+        RESOURCE_BARRIER_WARNING,
+        RESOURCE_FIX_COMMAND_BEFORE + resourceFixCommand + RESOURCE_FIX_COMMAND_AFTER);
   }
 }
