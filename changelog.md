@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.6 — 2026-06-08
+- RESOURCE `CHORUS_PLANT` wires now use Exort's custom breaker instead of vanilla chorus breaking, so `break.wire.hardness` and `break.wire.tools` apply to RESOURCE wire break speed.
+- Exort now temporarily suppresses the client's vanilla block-break speed during RESOURCE chorus wire custom breaks, preventing local chorus break sounds, rollback animations, and neighboring wire carrier flicks before the server-side break completes.
+- Creative-mode Exort block breaks now route through the shared Exort destruction path, attempt to stop the carrier break sound for the breaker, and play the matching Exort break sound for storage, terminal, monitor, bus, and wire blocks.
+- The bundled and fallback `break.wire.hardness` default is now `2.0`, making custom wire breaking faster while preserving explicitly configured server values.
+
 ## 0.14.5 — 2026-06-08
 - RESOURCE mode now stays active when Paper chorus-plant updates are enabled: `wire.carrier` defaults to `CHORUS_PLANT` with safe `BARRIER` fallback, while admins can set `wire.carrier: BARRIER` for intentional full-block wire hitboxes without chorus-carrier repair warnings.
 - The bundled resource pack now hides unused impossible `chorus_plant` states with `exort:none` while preserving Exort's dedicated proxy states.

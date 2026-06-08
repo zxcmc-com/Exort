@@ -149,7 +149,7 @@ break:
       - pickaxe
       - axe
   wire:
-    hardness: 4.0
+    hardness: 2.0
     tools:
       - pickaxe
       - axe

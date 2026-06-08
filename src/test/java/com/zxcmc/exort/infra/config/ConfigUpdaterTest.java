@@ -33,7 +33,7 @@ class ConfigUpdaterTest {
   void mergePreservesUserListValuesFromBlockDefaults() {
     YamlConfiguration defaults = new YamlConfiguration();
     defaults.set("break.wire.tools", List.of("pickaxe", "axe", "sword"));
-    defaults.set("break.wire.hardness", 4.0);
+    defaults.set("break.wire.hardness", 2.0);
     YamlConfiguration user = new YamlConfiguration();
     user.set("break.wire.tools", List.of("shears"));
     user.set("break.wire.hardness", 6.0);
@@ -41,7 +41,7 @@ class ConfigUpdaterTest {
         List.of(
             "break:",
             "  wire:",
-            "    hardness: 4.0",
+            "    hardness: 2.0",
             "    tools:",
             "      - pickaxe",
             "      - axe",

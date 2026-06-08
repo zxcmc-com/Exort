@@ -18,11 +18,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -42,6 +45,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
   private final BreakConfig breakConfig;
   private final BreakSoundService soundService;
   private final BreakAnimationSender breakAnimationSender;
+  private final ClientBreakSpeedSuppressor clientBreakSpeedSuppressor;
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material terminalCarrier;
@@ -75,6 +79,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     this.soundService = new BreakSoundService(soundConfig);
     this.breakAnimationSender =
         breakAnimationSender == null ? BreakAnimationSender.NOOP : breakAnimationSender;
+    this.clientBreakSpeedSuppressor = new ClientBreakSpeedSuppressor(plugin);
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
     this.terminalCarrier = terminalCarrier;
@@ -93,6 +98,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       taskId = -1;
     }
     clearAllBreakAnimations();
+    clientBreakSpeedSuppressor.clearAll();
     sessionManager.clear();
     vanillaDamageIntents.clear();
     rightClickTicks.clear();
@@ -126,8 +132,51 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       return;
     }
     clearVanillaDamageIntent(event.getPlayer());
+    event.setInstaBreak(false);
     event.setCancelled(true);
     tryStartOrContinueBreaking(event.getPlayer(), block, type);
+  }
+
+  @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+  public void onCreativeBlockBreak(BlockBreakEvent event) {
+    Player player = event.getPlayer();
+    if (player.getGameMode() != GameMode.CREATIVE) {
+      return;
+    }
+    Block block = event.getBlock();
+    BreakType type = resolveType(block);
+    if (type == BreakType.NONE) {
+      return;
+    }
+    if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
+      stopBreaking(player);
+      return;
+    }
+    clearVanillaDamageIntentIfSource(player, block);
+    stopBreaking(player);
+    event.setDropItems(false);
+    event.setExpToDrop(0);
+    event.setCancelled(true);
+    breakCreative(player, block, type);
+  }
+
+  @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+  public void onCreativeLeftClick(PlayerInteractEvent event) {
+    if (event.getHand() != EquipmentSlot.HAND) return;
+    if (event.getAction() != Action.LEFT_CLICK_BLOCK) return;
+    Player player = event.getPlayer();
+    if (player.getGameMode() != GameMode.CREATIVE) return;
+    Block block = event.getClickedBlock();
+    BreakType type = resolveType(block);
+    if (type == BreakType.NONE) return;
+    if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
+      stopBreaking(player);
+      return;
+    }
+    event.setCancelled(true);
+    event.setUseInteractedBlock(Result.DENY);
+    event.setUseItemInHand(Result.DENY);
+    breakCreative(player, block, type);
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -180,10 +229,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       return;
     }
     if (player.getGameMode() == GameMode.CREATIVE) {
-      stopBreaking(player);
-      if (breakHandler.handleBreak(player, block, false) == BlockBreakHandler.BreakResult.BROKEN) {
-        soundService.playBreak(block, type);
-      }
+      breakCreative(player, block, type);
       return;
     }
     startBreaking(player, block, type, settingsFor(type));
@@ -211,7 +257,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       Block block = session.block;
       if (block == null || resolveType(block) != session.type) {
         clearBreakAnimation(session);
-        sessionManager.clearSession(session);
+        clearSession(session);
         it.remove();
         continue;
       }
@@ -222,11 +268,13 @@ public final class CustomBlockBreaker implements Listener, Runnable {
         BreakSessionManager.PlayerState state = pit.next();
         Player player = Bukkit.getPlayer(state.playerId);
         if (player == null || !player.isOnline()) {
+          clientBreakSpeedSuppressor.forget(state.playerId);
           sessionManager.clearPlayerMapping(state.playerId);
           pit.remove();
           continue;
         }
         if (!isStillBreaking(player, block, state.lastSwingTick)) {
+          clientBreakSpeedSuppressor.clear(player);
           sessionManager.clearPlayerMapping(player.getUniqueId());
           pit.remove();
           continue;
@@ -234,7 +282,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
         if (player.getGameMode() == GameMode.CREATIVE) {
           breakHandler.handleBreak(player, block, false);
           clearBreakAnimation(session);
-          sessionManager.clearSession(session);
+          clearSession(session);
           it.remove();
           removed = true;
           break;
@@ -244,7 +292,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       if (removed) continue;
       if (session.players.isEmpty()) {
         clearBreakAnimation(session);
-        sessionManager.clearSession(session);
+        clearSession(session);
         it.remove();
         continue;
       }
@@ -264,7 +312,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
           session.soundTracker.markBreakPlayed();
         }
         clearBreakAnimation(session);
-        sessionManager.clearSession(session);
+        clearSession(session);
         it.remove();
         continue;
       }
@@ -282,6 +330,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       BreakSessionManager.BreakSession session = sessionManager.getSession(key);
       if (session != null) {
         session.touch(player.getUniqueId(), tick);
+        updateClientBreakSpeedSuppression(player, type);
         return;
       }
     }
@@ -292,12 +341,61 @@ public final class CustomBlockBreaker implements Listener, Runnable {
       breakHandler.preloadStorageForBreakStart(player, block);
     }
     sessionManager.attachPlayer(key, player.getUniqueId(), tick);
+    updateClientBreakSpeedSuppression(player, type);
   }
 
   private void stopBreaking(Player player) {
+    clientBreakSpeedSuppressor.clear(player);
     BreakSessionManager.BreakSession removed = sessionManager.detachPlayer(player.getUniqueId());
     if (removed != null) {
       clearBreakAnimation(removed);
+    }
+  }
+
+  private void breakCreative(Player player, Block block, BreakType type) {
+    clearVanillaDamageIntent(player);
+    stopBreaking(player);
+    Sound carrierBreakSound = CarrierBreakSoundSuppressor.breakSound(block);
+    CarrierBreakSoundSuppressor.stop(player, carrierBreakSound);
+    if (!regionProtection.canBreak(player, block)) {
+      return;
+    }
+    if (breakHandler.handleBreak(player, block, false) == BlockBreakHandler.BreakResult.BROKEN) {
+      playCreativeBreakSound(player, block, type, carrierBreakSound);
+    }
+  }
+
+  private void playCreativeBreakSound(
+      Player player, Block block, BreakType type, Sound carrierBreakSound) {
+    Bukkit.getScheduler()
+        .runTask(
+            plugin,
+            () -> {
+              if (player != null && player.isOnline()) {
+                CarrierBreakSoundSuppressor.stop(player, carrierBreakSound);
+              }
+              soundService.playBreak(block, type);
+            });
+  }
+
+  private void clearSession(BreakSessionManager.BreakSession session) {
+    if (session == null) return;
+    for (BreakSessionManager.PlayerState state : session.players) {
+      Player player = Bukkit.getPlayer(state.playerId);
+      if (player != null && player.isOnline()) {
+        clientBreakSpeedSuppressor.clear(player);
+      } else {
+        clientBreakSpeedSuppressor.forget(state.playerId);
+      }
+    }
+    sessionManager.clearSession(session);
+  }
+
+  private void updateClientBreakSpeedSuppression(Player player, BreakType type) {
+    if (ClientBreakSpeedSuppressor.shouldSuppress(wireMaterial, type)) {
+      clientBreakSpeedSuppressor.apply(player);
+    } else {
+      clientBreakSpeedSuppressor.clear(player);
     }
   }
 
@@ -403,7 +501,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     return worldEditWandGuard.isWorldEditWand(player, item);
   }
 
-  private BreakType resolveType(Block block) {
+  BreakType resolveType(Block block) {
     if (block == null) return BreakType.NONE;
     if (Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block)) {
       return BreakType.MONITOR;
@@ -422,9 +520,7 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     if (Carriers.matchesCarrier(block, storageCarrier) && StorageCoreMarker.isCore(plugin, block)) {
       return BreakType.STORAGE;
     }
-    if (wireMaterial == Carriers.CARRIER_BARRIER
-        && Carriers.matchesCarrier(block, wireMaterial)
-        && WireMarker.isWire(plugin, block)) {
+    if (Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block)) {
       return BreakType.WIRE;
     }
     return BreakType.NONE;
