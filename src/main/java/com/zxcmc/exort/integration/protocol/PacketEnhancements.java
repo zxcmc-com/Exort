@@ -3,6 +3,7 @@ package com.zxcmc.exort.integration.protocol;
 import com.zxcmc.exort.items.listener.PickListener;
 import java.util.UUID;
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 public interface PacketEnhancements {
@@ -25,6 +26,7 @@ public interface PacketEnhancements {
       FeatureProbe placementGuard,
       FeatureProbe placementGuardScale,
       FeatureProbe placementGuardTeleport,
+      FeatureProbe customBreaking,
       FeatureProbe localization) {}
 
   @FunctionalInterface
@@ -47,9 +49,13 @@ public interface PacketEnhancements {
 
   DisplayCullingPackets tryCreateDisplayCullingPackets();
 
+  CustomBreakingPackets tryCreateCustomBreakingPackets(CustomBreakingController controller);
+
   void markPlacementGuardDisabledByConfig();
 
   void markPlacementGuardRuntimeFallback(String reason);
+
+  void markCustomBreakingRuntimeFallback(String reason);
 
   void unregister();
 
@@ -74,6 +80,18 @@ public interface PacketEnhancements {
 
     boolean sendViewRange(Player player, int entityId, float viewRange);
 
+    String lastFailure();
+  }
+
+  interface CustomBreakingController {
+    boolean handleDestroyStart(Player player, Block block, int sequence);
+
+    boolean handleDestroyAbort(Player player, Block block, int sequence);
+
+    boolean handleDestroyFinish(Player player, Block block, int sequence);
+  }
+
+  interface CustomBreakingPackets {
     String lastFailure();
   }
 }

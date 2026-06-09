@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.7 — 2026-06-09
+- Releasing the attack button while breaking Exort blocks now clears the custom break session as soon as Exort receives the Paper or optional PacketEvents abort signal, so short clicks and rapid release/repress cycles no longer continue stale break progress.
+- Custom break progress now starts closer to vanilla timing and throttles hit sounds to vanilla-like intervals, reducing multi-stage jumps and sound spam during very fast Exort break stages.
+- When PacketEvents is installed and `packetEvents.enabled` is true, Exort now also watches digging packets for custom break start, cancel, and finish actions while keeping the Paper-only custom breaking path as fallback.
+
 ## 0.14.6 — 2026-06-08
 - RESOURCE `CHORUS_PLANT` wires now use Exort's custom breaker instead of vanilla chorus breaking, so `break.wire.hardness` and `break.wire.tools` apply to RESOURCE wire break speed.
 - Exort now temporarily suppresses the client's vanilla block-break speed during RESOURCE chorus wire custom breaks, preventing local chorus break sounds, rollback animations, and neighboring wire carrier flicks before the server-side break completes.

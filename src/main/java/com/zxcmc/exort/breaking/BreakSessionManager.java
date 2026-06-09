@@ -95,6 +95,7 @@ public final class BreakSessionManager {
     public final List<PlayerState> players = new ArrayList<>();
     public double progress = 0.0;
     public int lastBreakAnimationStage = Integer.MIN_VALUE;
+    public long lastHitSoundTick = Long.MIN_VALUE;
     public final BreakSoundTracker soundTracker = new BreakSoundTracker();
 
     private BreakSession(Block block, BreakType type, BreakSettings settings) {
