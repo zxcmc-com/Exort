@@ -106,6 +106,7 @@ public final class PackExporter {
         }
       }
       count += addGeneratedLanguageEntries(logger, source, entries);
+      count += BreakingModelGenerator.addGeneratedEntries(logger, entries);
       entries.putIfAbsent(PACK_META_NAME, DEFAULT_PACK_META.getBytes(StandardCharsets.UTF_8));
       entries.putIfAbsent(BLOCKS_ATLAS_NAME, generatedBlocksAtlas(entries));
       for (Map.Entry<String, byte[]> entry : entries.entrySet()) {

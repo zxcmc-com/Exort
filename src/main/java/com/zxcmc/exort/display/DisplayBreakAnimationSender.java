@@ -27,7 +27,8 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
 
   private final Plugin plugin;
   private final Material displayBaseMaterial;
-  private final String modelPrefix;
+  private final String modelRoot;
+  private final BreakingOverlayModelResolver modelResolver;
   private final float displayScale;
   private final Map<BlockKey, UUID> overlays = new HashMap<>();
   private final Set<String> warnedModels = new HashSet<>();
@@ -36,15 +37,17 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
       Plugin plugin,
       Material displayBaseMaterial,
       String namespace,
-      String modelPrefix,
-      double displayScale) {
+      String modelRoot,
+      double displayScale,
+      BreakingOverlayModelResolver modelResolver) {
     this.plugin = plugin;
     this.displayBaseMaterial =
         displayBaseMaterial == null || !displayBaseMaterial.isItem()
             ? Material.PAPER
             : displayBaseMaterial;
-    this.modelPrefix = normalizePrefix(namespace, modelPrefix);
+    this.modelRoot = normalizeRoot(namespace, modelRoot);
     this.displayScale = (float) Math.max(0.01, displayScale);
+    this.modelResolver = modelResolver;
   }
 
   public static void clearStaleOverlays() {
@@ -62,6 +65,11 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
     if (block == null || block.getWorld() == null) {
       return;
     }
+    String modelKey = modelResolver == null ? null : modelResolver.modelKey(block, type);
+    if (modelKey == null || modelKey.isBlank()) {
+      clear(block);
+      return;
+    }
     BlockKey key = BlockKey.of(block);
     ItemDisplay display = findOverlay(key);
     if (display == null) {
@@ -72,7 +80,7 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
       overlays.put(key, display.getUniqueId());
     }
     display.teleport(target(block));
-    apply(display, BreakAnimationStages.stageForProgress(progress));
+    apply(display, modelKey, BreakAnimationStages.stageForProgress(progress));
   }
 
   @Override
@@ -128,10 +136,10 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
             });
   }
 
-  private void apply(ItemDisplay display, int stage) {
+  private void apply(ItemDisplay display, String modelKey, int stage) {
     ItemStack stack = new ItemStack(displayBaseMaterial);
     var meta = stack.getItemMeta();
-    String modelId = modelPrefix + stage;
+    String modelId = modelRoot + modelKey + "/stage_" + stage;
     ItemModelUtil.ApplyResult result = ItemModelUtil.applyItemModelDetailed(meta, modelId);
     if (meta != null) {
       stack.setItemMeta(meta);
@@ -166,14 +174,17 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
     return block.getLocation().add(0.5, 0.5, 0.5);
   }
 
-  private static String normalizePrefix(String namespace, String rawPrefix) {
-    String prefix = rawPrefix == null || rawPrefix.isBlank() ? "breaking/stage_" : rawPrefix.trim();
-    prefix = prefix.toLowerCase(Locale.ROOT);
-    if (prefix.indexOf(':') >= 0) {
-      return prefix;
+  private static String normalizeRoot(String namespace, String rawRoot) {
+    String root = rawRoot == null || rawRoot.isBlank() ? "breaking/" : rawRoot.trim();
+    root = root.toLowerCase(Locale.ROOT);
+    if (!root.endsWith("/")) {
+      root = root + "/";
+    }
+    if (root.indexOf(':') >= 0) {
+      return root;
     }
     String ns = namespace == null || namespace.isBlank() ? "exort" : namespace.trim();
-    return ns.toLowerCase(Locale.ROOT) + ":" + prefix;
+    return ns.toLowerCase(Locale.ROOT) + ":" + root;
   }
 
   private record BlockKey(UUID worldId, int x, int y, int z) {

@@ -4,6 +4,7 @@ import com.zxcmc.exort.breaking.BreakAnimationSender;
 import com.zxcmc.exort.breaking.BreakParticleSender;
 import com.zxcmc.exort.breaking.BreakVisualConfig;
 import com.zxcmc.exort.breaking.CompositeBreakAnimationSender;
+import com.zxcmc.exort.display.BreakingOverlayModelResolver;
 import com.zxcmc.exort.display.DisplayBreakAnimationSender;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,7 @@ public final class RuntimeBreakAnimationSenders {
   private RuntimeBreakAnimationSenders() {}
 
   public static BreakAnimationSender create(
-      Plugin plugin, boolean resourceMode, String resourceNamespace) {
+      Plugin plugin, boolean resourceMode, String resourceNamespace, RuntimeMaterials materials) {
     BreakVisualConfig visualConfig = BreakVisualConfig.defaults();
     DisplayBreakAnimationSender.clearStaleOverlays();
     if (resourceMode) {
@@ -23,9 +24,22 @@ public final class RuntimeBreakAnimationSenders {
       if (overlay.enabled()) {
         Material base =
             RuntimeMaterialResolver.resolve(overlay.displayBaseMaterial(), Material.PAPER);
+        BreakingOverlayModelResolver resolver =
+            new BreakingOverlayModelResolver(
+                plugin,
+                materials.wire(),
+                materials.terminalCarrier(),
+                materials.storageCarrier(),
+                materials.monitorCarrier(),
+                materials.busCarrier());
         senders.add(
             new DisplayBreakAnimationSender(
-                plugin, base, resourceNamespace, overlay.modelPrefix(), overlay.displayScale()));
+                plugin,
+                base,
+                resourceNamespace,
+                overlay.modelRoot(),
+                overlay.displayScale(),
+                resolver));
       }
       if (visualConfig.resourceParticles().enabled()) {
         senders.add(createResourceParticleSender(plugin, visualConfig.resourceParticles()));

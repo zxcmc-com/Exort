@@ -60,9 +60,8 @@ public final class ResourcePackService implements Listener {
   private final SelfHostPackServer selfHost;
   private final AtomicLong generation = new AtomicLong();
   private final ConcurrentMap<UUID, String> configurationAttempts = new ConcurrentHashMap<>();
-  private final AtomicReference<State> state =
-      new AtomicReference<>(
-          State.disabled("Not started", ResourcePackHosting.AUTO, ResourcePackDelivery.AUTO));
+  private final Object stateMonitor = new Object();
+  private final AtomicReference<State> state;
 
   public ResourcePackService(
       JavaPlugin plugin,
@@ -74,6 +73,40 @@ public final class ResourcePackService implements Listener {
     this.translator = Objects.requireNonNull(translator, "translator");
     this.richTextParser = Objects.requireNonNull(richTextParser, "richTextParser");
     this.selfHost = new SelfHostPackServer();
+    this.state = new AtomicReference<>(initialState());
+  }
+
+  private State initialState() {
+    ResourcePackHosting configured =
+        ResourcePackHosting.fromConfig(
+            plugin.getConfig().getString("resourcePack.hosting", "AUTO"));
+    ResourcePackDelivery configuredDelivery =
+        ResourcePackDelivery.fromConfig(
+            plugin.getConfig().getString("resourcePack.delivery", "AUTO"));
+    if (configured == ResourcePackHosting.DISABLED) {
+      return State.disabled("resourcePack.hosting is DISABLED", configured, configuredDelivery);
+    }
+    if (!resourceMode.getAsBoolean()) {
+      return State.disabled("Effective mode is VANILLA", configured, configuredDelivery);
+    }
+    DeliverySettings settings = readDeliverySettings(configuredDelivery);
+    ResourcePackHosting effective = resolveHosting(configured);
+    if (configurationGateEnabled(
+        effective, settings.configuredDelivery(), settings.serverResourcePackConfigured())) {
+      return State.starting(
+          configured,
+          effective,
+          settings,
+          "Waiting for Exort resource-pack delivery to initialize");
+    }
+    return State.disabled("Not started", configured, configuredDelivery);
+  }
+
+  private void setState(State next) {
+    state.set(next);
+    synchronized (stateMonitor) {
+      stateMonitor.notifyAll();
+    }
   }
 
   public synchronized void reload() {
@@ -91,11 +124,11 @@ public final class ResourcePackService implements Listener {
 
     if (configured == ResourcePackHosting.DISABLED) {
       ResourcePackProviderBridge.removeAll(plugin);
-      state.set(State.disabled("resourcePack.hosting is DISABLED", configured, configuredDelivery));
+      setState(State.disabled("resourcePack.hosting is DISABLED", configured, configuredDelivery));
       return;
     }
     if (!resourceMode.getAsBoolean()) {
-      state.set(State.disabled("Effective mode is VANILLA", configured, configuredDelivery));
+      setState(State.disabled("Effective mode is VANILLA", configured, configuredDelivery));
       return;
     }
 
@@ -110,11 +143,11 @@ public final class ResourcePackService implements Listener {
 
     PackExporter.Result pack = PackExporter.exportPack(plugin);
     if (!pack.available()) {
-      state.set(
-          State.error(
+      setState(
+          errorState(
               configured,
               effective,
-              configuredDelivery,
+              deliverySettings,
               ResourcePackDelivery.MANUAL,
               "Pack export failed",
               pack,
@@ -130,11 +163,11 @@ public final class ResourcePackService implements Listener {
       ResourcePackProviderBridge.HandoffResult handoff =
           ResourcePackProviderBridge.handoff(plugin, effective, pack.rawFile());
       if (!handoff.success()) {
-        state.set(
-            State.error(
+        setState(
+            errorState(
                 configured,
                 effective,
-                configuredDelivery,
+                deliverySettings,
                 ResourcePackDelivery.MANUAL,
                 handoff.error(),
                 pack,
@@ -171,11 +204,11 @@ public final class ResourcePackService implements Listener {
                 plugin.getConfig().getString("resourcePack.selfHost.publicUrl", ""));
         setReady(configured, effective, deliverySettings, pack, null, url, pack.outputSha1(), null);
       } catch (IOException e) {
-        state.set(
-            State.error(
+        setState(
+            errorState(
                 configured,
                 effective,
-                configuredDelivery,
+                deliverySettings,
                 ResourcePackDelivery.MANUAL,
                 e.getMessage(),
                 pack,
@@ -191,11 +224,11 @@ public final class ResourcePackService implements Listener {
     if (effective == ResourcePackHosting.LOBFILE) {
       String apiKey = readLobFileApiKey();
       if (apiKey == null || apiKey.isBlank()) {
-        state.set(
-            State.error(
+        setState(
+            errorState(
                 configured,
                 effective,
-                configuredDelivery,
+                deliverySettings,
                 ResourcePackDelivery.MANUAL,
                 "LobFile API key is missing",
                 pack,
@@ -208,7 +241,7 @@ public final class ResourcePackService implements Listener {
             .warning("Resource-pack hosting is LOBFILE, but resourcePack.lobfile.apiKey is empty.");
         return;
       }
-      state.set(State.uploading(configured, effective, configuredDelivery, pack));
+      setState(State.uploading(configured, effective, deliverySettings, pack));
       Bukkit.getScheduler()
           .runTaskAsynchronously(
               plugin,
@@ -231,11 +264,11 @@ public final class ResourcePackService implements Listener {
                   if (generation.get() != currentGeneration) {
                     return;
                   }
-                  state.set(
-                      State.error(
+                  setState(
+                      errorState(
                           configured,
                           effective,
-                          configuredDelivery,
+                          deliverySettings,
                           ResourcePackDelivery.MANUAL,
                           e.getMessage(),
                           pack,
@@ -255,7 +288,7 @@ public final class ResourcePackService implements Listener {
     generation.incrementAndGet();
     configurationAttempts.clear();
     selfHost.stop();
-    state.set(State.disabled("Stopped", ResourcePackHosting.AUTO, ResourcePackDelivery.AUTO));
+    setState(State.disabled("Stopped", ResourcePackHosting.AUTO, ResourcePackDelivery.AUTO));
   }
 
   private ResourcePackHosting resolveHosting(ResourcePackHosting configured) {
@@ -266,6 +299,36 @@ public final class ResourcePackService implements Listener {
         ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.NEXO),
         ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.ITEMSADDER),
         officialPackConfigured());
+  }
+
+  private State errorState(
+      ResourcePackHosting configured,
+      ResourcePackHosting effective,
+      DeliverySettings settings,
+      ResourcePackDelivery effectiveDelivery,
+      String error,
+      PackExporter.Result pack,
+      String handoffTarget,
+      String url,
+      String sha1,
+      String note) {
+    return State.error(
+        configured,
+        effective,
+        settings.configuredDelivery(),
+        effectiveDelivery,
+        error,
+        pack,
+        handoffTarget,
+        url,
+        sha1,
+        note,
+        configurationGateEnabled(
+            effective, settings.configuredDelivery(), settings.serverResourcePackConfigured()),
+        settings.required(),
+        settings.prompt(),
+        settings.configurationTimeoutSeconds(),
+        settings.sendOnlineOnReady());
   }
 
   static ResourcePackHosting resolveAutoHosting(
@@ -284,6 +347,19 @@ public final class ResourcePackService implements Listener {
 
   private boolean isProviderHosting(ResourcePackHosting hosting) {
     return hosting == ResourcePackHosting.NEXO || hosting == ResourcePackHosting.ITEMSADDER;
+  }
+
+  static boolean configurationGateEnabled(
+      ResourcePackHosting effective,
+      ResourcePackDelivery configuredDelivery,
+      boolean serverResourcePackConfigured) {
+    if (!isDirectHosting(effective)) {
+      return false;
+    }
+    if (configuredDelivery == ResourcePackDelivery.CONFIGURATION) {
+      return true;
+    }
+    return configuredDelivery == ResourcePackDelivery.AUTO && !serverResourcePackConfigured;
   }
 
   private String providerManagedNote(ResourcePackHosting hosting) {
@@ -307,11 +383,11 @@ public final class ResourcePackService implements Listener {
   private void resolveOfficialPack(
       ResourcePackHosting configured, DeliverySettings settings, long currentGeneration) {
     if (!officialPackConfigured()) {
-      state.set(
-          State.error(
+      setState(
+          errorState(
               configured,
               ResourcePackHosting.EXORT,
-              settings.configuredDelivery(),
+              settings,
               ResourcePackDelivery.MANUAL,
               "Official Exort resource-pack URL/SHA-1 are not configured yet",
               null,
@@ -321,7 +397,7 @@ public final class ResourcePackService implements Listener {
               "Publish immutable HTTPS pack metadata before enabling EXORT hosting."));
       return;
     }
-    state.set(State.resolving(configured, settings.configuredDelivery()));
+    setState(State.resolving(configured, settings));
     Bukkit.getScheduler()
         .runTaskAsynchronously(
             plugin,
@@ -346,11 +422,11 @@ public final class ResourcePackService implements Listener {
                 if (generation.get() != currentGeneration) {
                   return;
                 }
-                state.set(
-                    State.error(
+                setState(
+                    errorState(
                         configured,
                         ResourcePackHosting.EXORT,
-                        settings.configuredDelivery(),
+                        settings,
                         ResourcePackDelivery.MANUAL,
                         "Official Exort resource-pack metadata is unavailable: " + e.getMessage(),
                         null,
@@ -365,11 +441,11 @@ public final class ResourcePackService implements Listener {
                 if (generation.get() != currentGeneration) {
                   return;
                 }
-                state.set(
-                    State.error(
+                setState(
+                    errorState(
                         configured,
                         ResourcePackHosting.EXORT,
-                        settings.configuredDelivery(),
+                        settings,
                         ResourcePackDelivery.MANUAL,
                         "Official Exort resource-pack metadata lookup was interrupted",
                         null,
@@ -403,6 +479,9 @@ public final class ResourcePackService implements Listener {
       String note) {
     boolean dispatchReady = isDirectHosting(effective) && isDispatchMetadataValid(url, sha1);
     ResourcePackDelivery effectiveDelivery = resolveDelivery(settings, dispatchReady);
+    boolean configurationGate =
+        configurationGateEnabled(
+            effective, settings.configuredDelivery(), settings.serverResourcePackConfigured());
     State ready =
         State.ready(
             configured,
@@ -415,11 +494,12 @@ public final class ResourcePackService implements Listener {
             sha1,
             mergeNotes(note, autoDeliveryNote(settings, dispatchReady, effectiveDelivery)),
             dispatchReady,
+            configurationGate,
             settings.required(),
             settings.prompt(),
             settings.configurationTimeoutSeconds(),
             settings.sendOnlineOnReady());
-    state.set(ready);
+    setState(ready);
     logReadyState(ready);
     if (ready.dispatchReady() && ready.sendOnlineOnReady()) {
       scheduleSendAll();
@@ -593,17 +673,45 @@ public final class ResourcePackService implements Listener {
     return current.status();
   }
 
+  static ConfigurationGateDecision configurationGateDecision(State current) {
+    if (current == null || !current.configurationGate()) {
+      return ConfigurationGateDecision.IGNORE;
+    }
+    if (current.dispatchReady()
+        && current.effectiveDelivery() == ResourcePackDelivery.CONFIGURATION) {
+      return ConfigurationGateDecision.SEND_CONFIGURATION_PACK;
+    }
+    return switch (current.status()) {
+      case "STARTING", "RESOLVING", "UPLOADING" -> ConfigurationGateDecision.WAIT_FOR_READY;
+      case "ERROR", "READY" -> ConfigurationGateDecision.DISCONNECT;
+      default -> ConfigurationGateDecision.IGNORE;
+    };
+  }
+
   @EventHandler
   public void onPlayerConfigure(AsyncPlayerConnectionConfigureEvent event) {
     State current = state.get();
-    if (!current.dispatchReady()
-        || current.effectiveDelivery() != ResourcePackDelivery.CONFIGURATION) {
+    ConfigurationGateDecision decision = configurationGateDecision(current);
+    if (decision == ConfigurationGateDecision.IGNORE) {
       return;
     }
+    long deadlineNanos = configurationDeadlineNanos(current);
+    if (decision == ConfigurationGateDecision.WAIT_FOR_READY) {
+      current = waitForConfigurationGate(current, deadlineNanos);
+      decision = configurationGateDecision(current);
+    }
+    if (decision == ConfigurationGateDecision.IGNORE) {
+      return;
+    }
+    if (decision == ConfigurationGateDecision.WAIT_FOR_READY
+        || decision == ConfigurationGateDecision.DISCONNECT) {
+      if (current.required()) {
+        event.getConnection().disconnect(requiredPackFailureMessage());
+      }
+      return;
+    }
+
     UUID playerId = event.getConnection().getProfile().getId();
-    if (playerId == null) {
-      return;
-    }
 
     CompletableFuture<ResourcePackStatus> terminalStatus = new CompletableFuture<>();
     ResourcePackCallback callback =
@@ -613,10 +721,14 @@ public final class ResourcePackService implements Listener {
           }
         };
     try {
-      configurationAttempts.put(playerId, current.sha1());
+      if (playerId != null) {
+        configurationAttempts.put(playerId, current.sha1());
+      }
       send(event.getConnection().getAudience(), current, callback);
     } catch (RuntimeException e) {
-      configurationAttempts.remove(playerId, current.sha1());
+      if (playerId != null) {
+        configurationAttempts.remove(playerId, current.sha1());
+      }
       plugin
           .getLogger()
           .warning("Cannot send Exort resource pack during configuration: " + e.getMessage());
@@ -626,19 +738,61 @@ public final class ResourcePackService implements Listener {
       return;
     }
 
-    ResourcePackStatus status = waitForTerminalStatus(terminalStatus, current);
+    ResourcePackStatus status = waitForTerminalStatus(terminalStatus, deadlineNanos);
     if (status == ResourcePackStatus.SUCCESSFULLY_LOADED) {
       return;
+    }
+    if (playerId != null) {
+      configurationAttempts.remove(playerId, current.sha1());
     }
     if (current.required()) {
       event.getConnection().disconnect(requiredPackFailureMessage());
     }
   }
 
+  private long configurationDeadlineNanos(State current) {
+    return System.nanoTime()
+        + TimeUnit.SECONDS.toNanos(Math.max(1, current.configurationTimeoutSeconds()));
+  }
+
+  private State waitForConfigurationGate(State current, long deadlineNanos) {
+    State latest = current;
+    while (configurationGateDecision(latest) == ConfigurationGateDecision.WAIT_FOR_READY) {
+      long remainingNanos = deadlineNanos - System.nanoTime();
+      if (remainingNanos <= 0) {
+        return latest;
+      }
+      synchronized (stateMonitor) {
+        latest = state.get();
+        if (configurationGateDecision(latest) != ConfigurationGateDecision.WAIT_FOR_READY) {
+          return latest;
+        }
+        remainingNanos = deadlineNanos - System.nanoTime();
+        if (remainingNanos <= 0) {
+          return latest;
+        }
+        try {
+          long millis = TimeUnit.NANOSECONDS.toMillis(remainingNanos);
+          int nanos = (int) (remainingNanos - TimeUnit.MILLISECONDS.toNanos(millis));
+          stateMonitor.wait(millis, nanos);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return latest;
+        }
+        latest = state.get();
+      }
+    }
+    return latest;
+  }
+
   private ResourcePackStatus waitForTerminalStatus(
-      CompletableFuture<ResourcePackStatus> terminalStatus, State current) {
+      CompletableFuture<ResourcePackStatus> terminalStatus, long deadlineNanos) {
     try {
-      return terminalStatus.get(current.configurationTimeoutSeconds(), TimeUnit.SECONDS);
+      long remainingNanos = deadlineNanos - System.nanoTime();
+      if (remainingNanos <= 0) {
+        return null;
+      }
+      return terminalStatus.get(remainingNanos, TimeUnit.NANOSECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;
@@ -706,7 +860,7 @@ public final class ResourcePackService implements Listener {
     return translator.tr(sender, "message.pack_status.provider_note", provider);
   }
 
-  private boolean isDirectHosting(ResourcePackHosting hosting) {
+  private static boolean isDirectHosting(ResourcePackHosting hosting) {
     return hosting == ResourcePackHosting.EXORT
         || hosting == ResourcePackHosting.SELFHOST
         || hosting == ResourcePackHosting.LOBFILE;
@@ -765,7 +919,14 @@ public final class ResourcePackService implements Listener {
       int configurationTimeoutSeconds,
       boolean sendOnlineOnReady) {}
 
-  private record State(
+  enum ConfigurationGateDecision {
+    IGNORE,
+    WAIT_FOR_READY,
+    SEND_CONFIGURATION_PACK,
+    DISCONNECT
+  }
+
+  record State(
       String status,
       ResourcePackHosting configured,
       ResourcePackHosting effective,
@@ -778,6 +939,7 @@ public final class ResourcePackService implements Listener {
       String note,
       String error,
       boolean dispatchReady,
+      boolean configurationGate,
       boolean required,
       Component prompt,
       int configurationTimeoutSeconds,
@@ -798,21 +960,47 @@ public final class ResourcePackService implements Listener {
           null,
           false,
           false,
+          false,
           null,
           30,
           false);
     }
 
+    static State starting(
+        ResourcePackHosting configured,
+        ResourcePackHosting effective,
+        DeliverySettings settings,
+        String note) {
+      return new State(
+          "STARTING",
+          configured,
+          effective,
+          settings.configuredDelivery(),
+          ResourcePackDelivery.MANUAL,
+          null,
+          null,
+          null,
+          null,
+          note,
+          null,
+          false,
+          true,
+          settings.required(),
+          settings.prompt(),
+          settings.configurationTimeoutSeconds(),
+          settings.sendOnlineOnReady());
+    }
+
     static State uploading(
         ResourcePackHosting configured,
         ResourcePackHosting effective,
-        ResourcePackDelivery configuredDelivery,
+        DeliverySettings settings,
         PackExporter.Result pack) {
       return new State(
           "UPLOADING",
           configured,
           effective,
-          configuredDelivery,
+          settings.configuredDelivery(),
           ResourcePackDelivery.MANUAL,
           pack,
           null,
@@ -821,19 +1009,20 @@ public final class ResourcePackService implements Listener {
           null,
           null,
           false,
-          false,
-          null,
-          30,
-          false);
+          configurationGateEnabled(
+              effective, settings.configuredDelivery(), settings.serverResourcePackConfigured()),
+          settings.required(),
+          settings.prompt(),
+          settings.configurationTimeoutSeconds(),
+          settings.sendOnlineOnReady());
     }
 
-    static State resolving(
-        ResourcePackHosting configured, ResourcePackDelivery configuredDelivery) {
+    static State resolving(ResourcePackHosting configured, DeliverySettings settings) {
       return new State(
           "RESOLVING",
           configured,
           ResourcePackHosting.EXORT,
-          configuredDelivery,
+          settings.configuredDelivery(),
           ResourcePackDelivery.MANUAL,
           null,
           null,
@@ -842,10 +1031,14 @@ public final class ResourcePackService implements Listener {
           "Resolving official Exort resource-pack metadata",
           null,
           false,
-          false,
-          null,
-          30,
-          false);
+          configurationGateEnabled(
+              ResourcePackHosting.EXORT,
+              settings.configuredDelivery(),
+              settings.serverResourcePackConfigured()),
+          settings.required(),
+          settings.prompt(),
+          settings.configurationTimeoutSeconds(),
+          settings.sendOnlineOnReady());
     }
 
     static State ready(
@@ -859,6 +1052,7 @@ public final class ResourcePackService implements Listener {
         String sha1,
         String note,
         boolean dispatchReady,
+        boolean configurationGate,
         boolean required,
         Component prompt,
         int configurationTimeoutSeconds,
@@ -876,6 +1070,7 @@ public final class ResourcePackService implements Listener {
           note,
           null,
           dispatchReady,
+          configurationGate,
           required,
           prompt,
           configurationTimeoutSeconds,
@@ -892,7 +1087,12 @@ public final class ResourcePackService implements Listener {
         String handoffTarget,
         String url,
         String sha1,
-        String note) {
+        String note,
+        boolean configurationGate,
+        boolean required,
+        Component prompt,
+        int configurationTimeoutSeconds,
+        boolean sendOnlineOnReady) {
       return new State(
           "ERROR",
           configured,
@@ -906,10 +1106,11 @@ public final class ResourcePackService implements Listener {
           note,
           error,
           false,
-          false,
-          null,
-          30,
-          false);
+          configurationGate,
+          required,
+          prompt,
+          configurationTimeoutSeconds,
+          sendOnlineOnReady);
     }
   }
 }

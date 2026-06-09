@@ -2,12 +2,8 @@ package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.items.ItemModelUtil;
-import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
-import com.zxcmc.exort.marker.MonitorMarker;
-import com.zxcmc.exort.marker.StorageMarker;
-import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,15 +29,6 @@ import org.joml.Vector3f;
 
 /** Wire rendering: one ItemDisplay per wire block with a baked connection-mask model. */
 public class WireDisplayManager {
-  private static final BlockFace[] FACES =
-      new BlockFace[] {
-        BlockFace.UP,
-        BlockFace.DOWN,
-        BlockFace.NORTH,
-        BlockFace.SOUTH,
-        BlockFace.EAST,
-        BlockFace.WEST
-      };
   // Minecraft's ItemDisplayRenderer applies an implicit Y+180 to item models. This compensates
   // that renderer transform so RESOURCE wire model axes match block-space axes.
   private static final Quaternionf MIRROR_Y_180 = new Quaternionf().rotateY((float) Math.PI);
@@ -137,7 +124,7 @@ public class WireDisplayManager {
     if (!isEnabled()) return;
     if (!isWire(wire)) return;
     updateWire(wire);
-    for (BlockFace face : FACES) {
+    for (BlockFace face : WireModelKeys.CONNECTION_FACES) {
       Block other = wire.getRelative(face);
       if (Carriers.matchesCarrier(other, wireCarrierMaterial) && WireMarker.isWire(plugin, other)) {
         updateWire(other);
@@ -148,7 +135,7 @@ public class WireDisplayManager {
   public void removeWire(Block wire) {
     if (!isEnabled()) return;
     removeDisplay(wire);
-    for (BlockFace face : FACES) {
+    for (BlockFace face : WireModelKeys.CONNECTION_FACES) {
       Block other = wire.getRelative(face);
       if (Carriers.matchesCarrier(other, wireCarrierMaterial) && WireMarker.isWire(plugin, other)) {
         updateWire(other);
@@ -338,7 +325,8 @@ public class WireDisplayManager {
       return new WireRender(wireModel, new Quaternionf(MIRROR_Y_180));
     }
 
-    return new WireRender(compactModelId(suffix(mask)), new Quaternionf(MIRROR_Y_180));
+    return new WireRender(
+        compactModelId(WireModelKeys.compactModelKeyForMask(mask)), new Quaternionf(MIRROR_Y_180));
   }
 
   private String compactModelId(String key) {
@@ -353,92 +341,18 @@ public class WireDisplayManager {
   }
 
   private int connectionsMask(Block wire) {
-    int mask = 0;
-    if (isConnected(wire, BlockFace.UP)) mask |= bit(BlockFace.UP);
-    if (isConnected(wire, BlockFace.DOWN)) mask |= bit(BlockFace.DOWN);
-    if (isConnected(wire, BlockFace.NORTH)) mask |= bit(BlockFace.NORTH);
-    if (isConnected(wire, BlockFace.SOUTH)) mask |= bit(BlockFace.SOUTH);
-    if (isConnected(wire, BlockFace.EAST)) mask |= bit(BlockFace.EAST);
-    if (isConnected(wire, BlockFace.WEST)) mask |= bit(BlockFace.WEST);
-    return mask;
-  }
-
-  private boolean isConnected(Block wire, BlockFace face) {
-    Block neighbor = wire.getRelative(face);
-    if (neighbor == null) return false;
-    if (Carriers.matchesCarrier(neighbor, wireCarrierMaterial)
-        && WireMarker.isWire(plugin, neighbor)) return true;
-    if (isTerminal(neighbor)) return !isFrontFace(neighbor, face.getOppositeFace());
-    if (isStorage(neighbor)) return true;
-    if (isMonitor(neighbor)) return !isFrontFace(neighbor, face.getOppositeFace());
-    if (isBus(neighbor)) return !isFrontFace(neighbor, face.getOppositeFace());
-    return false;
-  }
-
-  private boolean isTerminal(Block block) {
-    return Carriers.matchesCarrier(block, terminalMaterial)
-        && TerminalMarker.isTerminal(plugin, block);
-  }
-
-  private boolean isStorage(Block block) {
-    return Carriers.matchesCarrier(block, storageCarrier)
-        && StorageMarker.get(plugin, block).isPresent();
-  }
-
-  private boolean isMonitor(Block block) {
-    return Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block);
-  }
-
-  private boolean isBus(Block block) {
-    return Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
-  }
-
-  private boolean isFrontFace(Block block, BlockFace towardWire) {
-    if (towardWire == null) return false;
-    if (isTerminal(block)) {
-      return TerminalMarker.facing(plugin, block).map(towardWire::equals).orElse(false);
-    }
-    if (isMonitor(block)) {
-      return MonitorMarker.facing(plugin, block).map(towardWire::equals).orElse(false);
-    }
-    if (isBus(block)) {
-      return BusMarker.get(plugin, block)
-          .map(BusMarker.Data::facing)
-          .map(towardWire::equals)
-          .orElse(false);
-    }
-    return false;
-  }
-
-  private static int bit(BlockFace face) {
-    return 1 << faceIndex(face);
-  }
-
-  private static int faceIndex(BlockFace face) {
-    return switch (face) {
-      case UP -> 0;
-      case DOWN -> 1;
-      case NORTH -> 2;
-      case SOUTH -> 3;
-      case EAST -> 4;
-      case WEST -> 5;
-      default -> throw new IllegalArgumentException("Unsupported face: " + face);
-    };
-  }
-
-  private static String suffix(int mask) {
-    StringBuilder sb = new StringBuilder(6);
-    if ((mask & bit(BlockFace.UP)) != 0) sb.append('u');
-    if ((mask & bit(BlockFace.DOWN)) != 0) sb.append('d');
-    if ((mask & bit(BlockFace.NORTH)) != 0) sb.append('n');
-    if ((mask & bit(BlockFace.SOUTH)) != 0) sb.append('s');
-    if ((mask & bit(BlockFace.EAST)) != 0) sb.append('e');
-    if ((mask & bit(BlockFace.WEST)) != 0) sb.append('w');
-    return sb.toString();
+    return WireConnectionModelResolver.connectionsMask(
+        plugin,
+        wire,
+        wireCarrierMaterial,
+        terminalMaterial,
+        storageCarrier,
+        monitorCarrier,
+        busCarrier);
   }
 
   static String compactModelKeyForMask(int mask) {
-    return suffix(mask);
+    return WireModelKeys.compactModelKeyForMask(mask);
   }
 
   private record WireRender(String modelId, Quaternionf rotation) {}
