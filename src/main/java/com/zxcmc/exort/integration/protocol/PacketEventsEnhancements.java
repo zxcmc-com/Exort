@@ -14,11 +14,14 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
+import com.github.retrooper.packetevents.protocol.player.DiggingAction;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPickItemFromBlock;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPickItemFromEntity;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerAcknowledgeBlockChanges;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
@@ -67,6 +70,8 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   private final Map<Feature, FeatureProbe> featureProbes = new EnumMap<>(Feature.class);
   private boolean localizationRegistered;
   private boolean pickBridgeRegistered;
+  private boolean customBreakingRegistered;
+  private PacketEventsCustomBreakingPackets customBreakingPackets;
 
   private PacketEventsEnhancements(
       JavaPlugin plugin,
@@ -107,6 +112,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
         probe(Feature.PLACEMENT_GUARD),
         probe(Feature.PLACEMENT_GUARD_SCALE),
         probe(Feature.PLACEMENT_GUARD_TELEPORT),
+        probe(Feature.CUSTOM_BREAKING),
         probe(Feature.LOCALIZATION));
   }
 
@@ -228,6 +234,46 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   }
 
   @Override
+  public CustomBreakingPackets tryCreateCustomBreakingPackets(CustomBreakingController controller) {
+    if (controller == null) {
+      setProbe(Feature.CUSTOM_BREAKING, FeatureStatus.UNAVAILABLE, "Missing controller.");
+      return null;
+    }
+    if (customBreakingRegistered) {
+      return customBreakingPackets;
+    }
+    try {
+      PacketEventsCustomBreakingPackets packets = new PacketEventsCustomBreakingPackets(api);
+      packets.validate();
+      PacketListener listener =
+          new PacketListener() {
+            @Override
+            public void onPacketReceive(PacketReceiveEvent event) {
+              handleCustomBreakingPacket(event, controller, packets);
+            }
+          };
+      packetListeners.add(
+          api.getEventManager().registerListener(listener, PacketListenerPriority.NORMAL));
+      customBreakingRegistered = true;
+      customBreakingPackets = packets;
+      setProbe(
+          Feature.CUSTOM_BREAKING,
+          FeatureStatus.ENABLED,
+          "PLAYER_DIGGING START/CANCEL/FINISH observer enabled.");
+      ExortLog.success("[PacketEvents] Custom breaking controls enabled.");
+      return packets;
+    } catch (LinkageError | RuntimeException e) {
+      String detail = describeError(e);
+      setProbe(Feature.CUSTOM_BREAKING, FeatureStatus.UNAVAILABLE, detail);
+      ExortLog.warn(
+          "[PacketEvents] Custom breaking packet backend unavailable; using Paper fallback. Cause:"
+              + " "
+              + detail);
+      return null;
+    }
+  }
+
+  @Override
   public void markPlacementGuardDisabledByConfig() {
     setProbe(Feature.PLACEMENT_GUARD, FeatureStatus.DISABLED_BY_CONFIG, "Disabled by config.");
   }
@@ -238,6 +284,14 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
         Feature.PLACEMENT_GUARD,
         FeatureStatus.FALLBACK,
         reason == null || reason.isBlank() ? "Runtime send failure." : reason);
+  }
+
+  @Override
+  public void markCustomBreakingRuntimeFallback(String reason) {
+    setProbe(
+        Feature.CUSTOM_BREAKING,
+        FeatureStatus.FALLBACK,
+        reason == null || reason.isBlank() ? "Runtime failure." : reason);
   }
 
   @Override
@@ -252,6 +306,8 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     packetListeners.clear();
     localizationRegistered = false;
     pickBridgeRegistered = false;
+    customBreakingRegistered = false;
+    customBreakingPackets = null;
   }
 
   private void handleLocalizationPacket(
@@ -359,6 +415,77 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     } else if (type == PacketType.Play.Client.PICK_ITEM_FROM_ENTITY) {
       handleEntityPickPacket(event, player, pickListener);
     }
+  }
+
+  private void handleCustomBreakingPacket(
+      PacketReceiveEvent event,
+      CustomBreakingController controller,
+      PacketEventsCustomBreakingPackets packets) {
+    if (event == null || event.isCancelled()) {
+      return;
+    }
+    Object rawPlayer = event.getPlayer();
+    if (!(rawPlayer instanceof Player player)) {
+      return;
+    }
+    if (event.getPacketType() != PacketType.Play.Client.PLAYER_DIGGING) {
+      return;
+    }
+    DiggingAction action;
+    Vector3i blockPos;
+    int sequence;
+    try {
+      WrapperPlayClientPlayerDigging packet = new WrapperPlayClientPlayerDigging(event);
+      action = packet.getAction();
+      blockPos = packet.getBlockPosition();
+      sequence = packet.getSequence();
+    } catch (LinkageError | RuntimeException e) {
+      packets.recordRuntimeFailure("read PLAYER_DIGGING", e);
+      markCustomBreakingRuntimeFallback(packets.lastFailure());
+      return;
+    }
+    if (blockPos == null || !isDestroyAction(action)) {
+      return;
+    }
+    PacketTarget target = new PacketTarget(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+    if (!plugin.isEnabled()) {
+      return;
+    }
+    Bukkit.getScheduler()
+        .runTask(
+            plugin,
+            () ->
+                handleScheduledCustomBreaking(
+                    player, controller, packets, action, target, sequence));
+  }
+
+  private void handleScheduledCustomBreaking(
+      Player player,
+      CustomBreakingController controller,
+      PacketEventsCustomBreakingPackets packets,
+      DiggingAction action,
+      PacketTarget target,
+      int sequence) {
+    if (!player.isOnline()) {
+      return;
+    }
+    Block block = player.getWorld().getBlockAt(target.x(), target.y(), target.z());
+    boolean handled =
+        switch (action) {
+          case START_DIGGING -> controller.handleDestroyStart(player, block, sequence);
+          case CANCELLED_DIGGING -> controller.handleDestroyAbort(player, block, sequence);
+          case FINISHED_DIGGING -> controller.handleDestroyFinish(player, block, sequence);
+          default -> false;
+        };
+    if (handled && !packets.acknowledge(player, sequence)) {
+      markCustomBreakingRuntimeFallback(packets.lastFailure());
+    }
+  }
+
+  private static boolean isDestroyAction(DiggingAction action) {
+    return action == DiggingAction.START_DIGGING
+        || action == DiggingAction.CANCELLED_DIGGING
+        || action == DiggingAction.FINISHED_DIGGING;
   }
 
   private void handleBlockPickPacket(
@@ -593,6 +720,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     PLACEMENT_GUARD,
     PLACEMENT_GUARD_SCALE,
     PLACEMENT_GUARD_TELEPORT,
+    CUSTOM_BREAKING,
     LOCALIZATION
   }
 
@@ -881,6 +1009,40 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
           List.of(
               new EntityData<>(
                   VIEW_RANGE_METADATA_INDEX, EntityDataTypes.FLOAT, Float.valueOf(1.0f))));
+    }
+  }
+
+  private static final class PacketEventsCustomBreakingPackets
+      implements PacketEnhancements.CustomBreakingPackets {
+    private final PacketEventsAPI<?> api;
+    private String lastFailure = "";
+
+    private PacketEventsCustomBreakingPackets(PacketEventsAPI<?> api) {
+      this.api = api;
+    }
+
+    private boolean acknowledge(Player player, int sequence) {
+      try {
+        api.getPlayerManager()
+            .sendPacket(player, new WrapperPlayServerAcknowledgeBlockChanges(sequence));
+        return true;
+      } catch (LinkageError | RuntimeException e) {
+        recordRuntimeFailure("acknowledge block changes", e);
+        return false;
+      }
+    }
+
+    @Override
+    public String lastFailure() {
+      return lastFailure;
+    }
+
+    private void validate() {
+      new WrapperPlayServerAcknowledgeBlockChanges(0);
+    }
+
+    private void recordRuntimeFailure(String action, Throwable error) {
+      lastFailure = action + ": " + describeError(error);
     }
   }
 }

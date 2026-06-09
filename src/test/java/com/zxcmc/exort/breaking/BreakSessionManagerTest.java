@@ -1,8 +1,10 @@
 package com.zxcmc.exort.breaking;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
@@ -48,6 +50,31 @@ class BreakSessionManagerTest {
     assertNotNull(manager.detachPlayer(playerId));
     assertNull(manager.getSession(key));
     assertNull(manager.getPlayerSession(playerId));
+  }
+
+  @Test
+  void cancelThenRestartCreatesFreshProgress() {
+    BreakSessionManager manager = new BreakSessionManager();
+    Block block = block(UUID.randomUUID(), 7, 80, -5);
+    BreakSessionManager.BlockKey key = BreakSessionManager.BlockKey.from(block);
+    UUID playerId = UUID.randomUUID();
+
+    BreakSessionManager.BreakSession first = manager.getOrCreate(block, BreakType.WIRE, settings());
+    manager.attachPlayer(key, playerId, 1L);
+    first.progress = 0.75;
+    first.lastBreakAnimationStage = 7;
+
+    assertSame(first, manager.detachPlayer(playerId));
+    assertNull(manager.getPlayerSession(playerId));
+    assertNull(manager.getSession(key));
+
+    BreakSessionManager.BreakSession second =
+        manager.getOrCreate(block, BreakType.WIRE, settings());
+    manager.attachPlayer(key, playerId, 3L);
+
+    assertNotNull(manager.getSession(key));
+    assertEquals(0.0, second.progress);
+    assertFalse(second.hasFollowUpSwing());
   }
 
   private static BreakSettings settings() {

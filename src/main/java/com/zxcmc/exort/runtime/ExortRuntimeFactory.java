@@ -143,7 +143,8 @@ public final class ExortRuntimeFactory {
                 deps.regionProtection().get(),
                 worldEditWandGuard,
                 deps.playerFeedback(),
-                breakAnimationSender));
+                breakAnimationSender,
+                packetEnhancements));
 
     boolean dialogSupported = detectDialogSupport(deps);
     RuntimeListenerRegistration listenerRegistration =

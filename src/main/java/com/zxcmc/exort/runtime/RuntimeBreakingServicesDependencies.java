@@ -10,6 +10,7 @@ import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.network.NetworkGraphCache;
@@ -38,7 +39,8 @@ public record RuntimeBreakingServicesDependencies(
     RegionProtection regionProtection,
     WorldEditWandGuard worldEditWandGuard,
     PlayerFeedback playerFeedback,
-    BreakAnimationSender breakAnimationSender) {
+    BreakAnimationSender breakAnimationSender,
+    PacketEnhancements packetEnhancements) {
   public RuntimeBreakingServicesDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(config, "config");

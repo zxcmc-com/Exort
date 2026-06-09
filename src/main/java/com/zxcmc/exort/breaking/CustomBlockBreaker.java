@@ -2,6 +2,7 @@ package com.zxcmc.exort.breaking;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -27,6 +28,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDamageAbortEvent;
 import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -34,7 +36,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-public final class CustomBlockBreaker implements Listener, Runnable {
+public final class CustomBlockBreaker
+    implements Listener, Runnable, PacketEnhancements.CustomBreakingController {
   private static final int MAX_SWING_TICKS = 5;
   private static final double DEFAULT_REACH = 5.0;
 
@@ -119,6 +122,47 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     tryStartOrContinueBreaking(player, block, type);
   }
 
+  @Override
+  public boolean handleDestroyStart(Player player, Block block, int sequence) {
+    if (player == null || block == null) {
+      return false;
+    }
+    BreakType type = resolveType(block);
+    if (type == BreakType.NONE) {
+      stopBreaking(player);
+      return false;
+    }
+    if (isCurrentSession(player, block)) {
+      clearVanillaDamageIntent(player);
+      updateClientBreakSpeedSuppression(player, type);
+      return true;
+    }
+    tryStartOrContinueBreaking(player, block, type);
+    return true;
+  }
+
+  @Override
+  public boolean handleDestroyAbort(Player player, Block block, int sequence) {
+    if (player == null || block == null) {
+      return false;
+    }
+    boolean currentSession = isCurrentSession(player, block);
+    if (!currentSession && resolveType(block) == BreakType.NONE) {
+      return false;
+    }
+    clearVanillaDamageIntent(player);
+    stopBreaking(player);
+    return true;
+  }
+
+  @Override
+  public boolean handleDestroyFinish(Player player, Block block, int sequence) {
+    if (player == null || block == null) {
+      return false;
+    }
+    return isCurrentSession(player, block) || resolveType(block) != BreakType.NONE;
+  }
+
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
   public void onBlockDamage(BlockDamageEvent event) {
     Block block = event.getBlock();
@@ -135,6 +179,11 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     event.setInstaBreak(false);
     event.setCancelled(true);
     tryStartOrContinueBreaking(event.getPlayer(), block, type);
+  }
+
+  @EventHandler(priority = EventPriority.HIGHEST)
+  public void onBlockDamageAbort(BlockDamageAbortEvent event) {
+    handleDestroyAbort(event.getPlayer(), event.getBlock(), 0);
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -287,7 +336,10 @@ public final class CustomBlockBreaker implements Listener, Runnable {
           removed = true;
           break;
         }
-        totalDamage += BreakProgressCalculator.computeDamage(player, session.settings);
+        double damage = BreakProgressCalculator.computeDamage(player, session.settings);
+        if (BreakTimingPolicy.canApplyDamage(tick, state.startedTick, damage)) {
+          totalDamage += damage;
+        }
       }
       if (removed) continue;
       if (session.players.isEmpty()) {
@@ -317,8 +369,9 @@ public final class CustomBlockBreaker implements Listener, Runnable {
         continue;
       }
       session.progress = nextProgress;
-      if (updateBreakAnimation(session)) {
+      if (updateBreakAnimation(session) && shouldPlayHitSound(session)) {
         soundService.playHit(block, session.type);
+        markHitSoundPlayed(session);
       }
     }
   }
@@ -472,6 +525,14 @@ public final class CustomBlockBreaker implements Listener, Runnable {
     return true;
   }
 
+  private boolean shouldPlayHitSound(BreakSessionManager.BreakSession session) {
+    return BreakTimingPolicy.canPlayHitSound(tick, session.lastHitSoundTick);
+  }
+
+  private void markHitSoundPlayed(BreakSessionManager.BreakSession session) {
+    session.lastHitSoundTick = tick;
+  }
+
   private void clearBreakAnimation(BreakSessionManager.BreakSession session) {
     if (session == null || session.lastBreakAnimationStage == Integer.MIN_VALUE) {
       return;
@@ -495,6 +556,11 @@ public final class CustomBlockBreaker implements Listener, Runnable {
         || target.getY() != block.getY()
         || target.getZ() != block.getZ()) return false;
     return true;
+  }
+
+  private boolean isCurrentSession(Player player, Block block) {
+    BreakSessionManager.BlockKey current = sessionManager.getPlayerSession(player.getUniqueId());
+    return current != null && current.equals(BreakSessionManager.BlockKey.from(block));
   }
 
   private boolean isWorldEditWand(Player player, ItemStack item) {

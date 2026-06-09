@@ -5,6 +5,8 @@ import com.zxcmc.exort.breaking.BlockBreakHandlerDependencies;
 import com.zxcmc.exort.breaking.BreakConfig;
 import com.zxcmc.exort.breaking.BreakSoundConfig;
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
+import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 
 public final class RuntimeBreakingServicesFactory {
   private RuntimeBreakingServicesFactory() {}
@@ -49,6 +51,24 @@ public final class RuntimeBreakingServicesFactory {
             materials.terminalCarrier(),
             materials.monitorCarrier(),
             materials.busCarrier());
+    registerCustomBreakingPackets(deps, customBlockBreaker);
     return new RuntimeBreakingServices(breakHandler, breakSoundConfig, customBlockBreaker);
+  }
+
+  private static void registerCustomBreakingPackets(
+      RuntimeBreakingServicesDependencies deps, CustomBlockBreaker customBlockBreaker) {
+    PacketEnhancements packetEnhancements = deps.packetEnhancements();
+    if (!shouldRegisterCustomBreakingPackets(packetEnhancements)) {
+      return;
+    }
+    PacketEnhancements.CustomBreakingPackets packets =
+        packetEnhancements.tryCreateCustomBreakingPackets(customBlockBreaker);
+    if (packets == null) {
+      ExortLog.warn("[Breaking] Vanilla-like packet controls unavailable; using Paper fallback.");
+    }
+  }
+
+  static boolean shouldRegisterCustomBreakingPackets(PacketEnhancements packetEnhancements) {
+    return packetEnhancements != null;
   }
 }
