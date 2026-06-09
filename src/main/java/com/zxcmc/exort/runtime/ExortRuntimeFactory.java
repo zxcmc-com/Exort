@@ -69,7 +69,7 @@ public final class ExortRuntimeFactory {
         PacketEnhancementsFactory.tryCreate(deps.plugin(), deps.pickDebugFullSink());
     BreakAnimationSender breakAnimationSender =
         RuntimeBreakAnimationSenders.create(
-            deps.plugin(), deps.resourceMode(), itemModels.displayNamespace());
+            deps.plugin(), deps.resourceMode(), itemModels.displayNamespace(), materials);
     deps.unregisterReloadableRuntimeListeners().run();
     deps.setupRegionProtection().run();
     deps.resetReloadableDisplayState().run();

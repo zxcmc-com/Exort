@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.8 — 2026-06-09
+- Direct-delivery RESOURCE mode now keeps early joins in Paper's configuration phase until the required Exort resource pack is ready, accepted, and loaded; if the pack cannot be sent or loaded within the timeout, the player is disconnected before entering the world.
+- RESOURCE breaking overlays now use generated models for each Exort block shape instead of one full-cube crack shell, matching storage blocks, terminals, monitors, buses including vertical facings, and wire connection models while respecting transparent cutouts and safe destroy-stage UV bounds.
+
 ## 0.14.7 — 2026-06-09
 - Releasing the attack button while breaking Exort blocks now clears the custom break session as soon as Exort receives the Paper or optional PacketEvents abort signal, so short clicks and rapid release/repress cycles no longer continue stale break progress.
 - Custom break progress now starts closer to vanilla timing and throttles hit sounds to vanilla-like intervals, reducing multi-stage jumps and sound spam during very fast Exort break stages.

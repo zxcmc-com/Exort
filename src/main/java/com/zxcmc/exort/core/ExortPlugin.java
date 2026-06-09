@@ -35,7 +35,6 @@ import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.metrics.ExortMetrics;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
-import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.infra.update.UpdateChecker;
 import com.zxcmc.exort.integration.protection.CompositeRegionProtection;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
@@ -149,9 +148,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (!initCoreServices()) {
       return;
     }
-    registerRuntime(true)
-        .whenComplete(
-            (status, err) -> PluginTasks.runSyncIfEnabled(this, this::reloadResourcePackService));
+    registerRuntime(true);
+    reloadResourcePackService();
     registerBrigadierCommands();
   }
 
@@ -361,8 +359,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     ensureRecipesFile();
     evaluateModePolicy();
     CompletableFuture<ItemNameService.Status> future = registerRuntime(false);
-    future.whenComplete(
-        (status, err) -> PluginTasks.runSyncIfEnabled(this, this::reloadResourcePackService));
+    reloadResourcePackService();
     return future;
   }
 
