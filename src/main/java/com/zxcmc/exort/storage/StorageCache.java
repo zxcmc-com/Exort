@@ -608,10 +608,10 @@ public class StorageCache {
     touch();
     List<DbItem> snap = new ArrayList<>(items.size());
     for (StorageItem item : items.values()) {
-      if (item.amount() <= 0) continue;
-      byte[] blob = blobFor(item);
-      if (blob == null) continue;
-      snap.add(new DbItem(item.key(), blob, item.amount()));
+      DbItem dbItem = runtimeDbItem(item);
+      if (dbItem != null) {
+        snap.add(dbItem);
+      }
     }
     return snap;
   }
@@ -627,10 +627,10 @@ public class StorageCache {
     List<DbItem> upserts = new ArrayList<>(dirtyKeys.size());
     for (String key : dirtyKeys) {
       StorageItem item = items.get(key);
-      if (item == null || item.amount() <= 0) continue;
-      byte[] blob = blobFor(item);
-      if (blob == null) continue;
-      upserts.add(new DbItem(item.key(), blob, item.amount()));
+      DbItem dbItem = runtimeDbItem(item);
+      if (dbItem != null) {
+        upserts.add(dbItem);
+      }
     }
     Set<String> removals = removedKeys.isEmpty() ? Set.of() : new HashSet<>(removedKeys);
     return new DeltaSnapshot(version, upserts, removals);
@@ -772,6 +772,13 @@ public class StorageCache {
     return Math.max(0, val);
   }
 
+  DbItem runtimeDbItem(StorageItem item) {
+    if (item == null || item.amount() <= 0) {
+      return null;
+    }
+    return new DbItem(item.key(), blobFor(item), item.amount());
+  }
+
   private byte[] blobFor(StorageItem item) {
     byte[] blob = item.blob();
     if (blob != null && blob.length > 0 && blob.length <= MAX_ITEM_BLOB_BYTES) {
@@ -779,19 +786,37 @@ public class StorageCache {
     }
     try {
       blob = item.sample().serializeAsBytes();
-      if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
-        logInvalidDbItem(
-            new DbItem(item.key(), blob, item.amount()), "serialized blob size invalid");
-        return null;
-      }
-      item.setBlob(blob);
-      return blob;
     } catch (RuntimeException e) {
       logInvalidDbItem(
           new DbItem(item.key(), null, item.amount()),
           "failed to serialize item sample: " + e.getMessage());
-      return null;
+      throw new IllegalStateException(
+          "Storage "
+              + storageId
+              + ": item cannot be serialized for persistence"
+              + " (key="
+              + item.key()
+              + ", amount="
+              + item.amount()
+              + ")",
+          e);
     }
+    if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+      logInvalidDbItem(new DbItem(item.key(), blob, item.amount()), "serialized blob size invalid");
+      throw new IllegalStateException(
+          "Storage "
+              + storageId
+              + ": item cannot be persisted"
+              + " (key="
+              + item.key()
+              + ", amount="
+              + item.amount()
+              + ", blobLength="
+              + (blob == null ? 0 : blob.length)
+              + ")");
+    }
+    item.setBlob(blob);
+    return blob;
   }
 
   private void warnInvalidDbItem(DbItem item, String reason) {

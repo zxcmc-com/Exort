@@ -2,6 +2,7 @@ package com.zxcmc.exort.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.infra.db.DbItem;
@@ -49,6 +50,16 @@ class StorageCacheTest {
     assertSame(sample.lastClone(), copy);
   }
 
+  @Test
+  void runtimeDbItemFailsWhenSampleCannotBeSerialized() {
+    StorageCache cache = new StorageCache("storage", null, null, null);
+    StorageCache.StorageItem item =
+        new StorageCache.StorageItem(
+            "minecraft:stone", new UnserializableItemStack(), 1L, 1L, null);
+
+    assertThrows(IllegalStateException.class, () -> cache.runtimeDbItem(item));
+  }
+
   private static final class CountingItemStack extends ItemStack {
     private int amount = 1;
     private int cloneCount;
@@ -84,6 +95,23 @@ class StorageCacheTest {
 
     ItemStack lastClone() {
       return lastClone;
+    }
+  }
+
+  private static final class UnserializableItemStack extends ItemStack {
+    @Override
+    public Material getType() {
+      return Material.STONE;
+    }
+
+    @Override
+    public int getAmount() {
+      return 1;
+    }
+
+    @Override
+    public byte[] serializeAsBytes() {
+      throw new IllegalStateException("cannot serialize");
     }
   }
 }

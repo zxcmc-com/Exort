@@ -133,13 +133,9 @@ class CustomBlockBreakerTest {
 
   private static final class BlockProbe {
     private final SimplePdc chunkPdc = new SimplePdc();
-    private final Material material;
-    private final boolean fullChorus;
     private final Block block;
 
     private BlockProbe(Material material, boolean fullChorus) {
-      this.material = material;
-      this.fullChorus = fullChorus;
       Chunk chunk =
           proxy(
               Chunk.class,

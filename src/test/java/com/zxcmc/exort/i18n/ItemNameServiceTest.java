@@ -1,5 +1,6 @@
 package com.zxcmc.exort.i18n;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
@@ -80,6 +81,27 @@ class ItemNameServiceTest {
     Set<String> requested = service.dictionaryRefreshLanguages();
 
     assertEquals(Set.of("de_de", "en_us", "fr_fr", "ru_ru"), requested);
+  }
+
+  @Test
+  void fallbackDictionaryDownloadDoesNotLogOnSuccess() {
+    ItemNameService service =
+        new ItemNameService(null, tempDir.toFile()) {
+          @Override
+          Map<String, String> downloadFromMojang(String code) {
+            return Map.of();
+          }
+
+          @Override
+          Map<String, String> downloadFromInventive(String code) {
+            return Map.of("stone", "Stone");
+          }
+        };
+
+    Map<String, String> translations =
+        assertDoesNotThrow(() -> service.downloadDictionary("en_us"));
+
+    assertEquals(Map.of("stone", "Stone"), translations);
   }
 
   private ItemNameService serviceWithLanguages(Set<String> languages) throws Exception {

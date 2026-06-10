@@ -344,6 +344,7 @@ public class Database implements AutoCloseable {
     return runDbTask(
         "create storage " + storageId,
         () -> {
+          validatePersistableDbItems(storageId, safeItems, "create");
           try {
             connection.setAutoCommit(false);
             String sql =
@@ -368,7 +369,6 @@ public class Database implements AutoCloseable {
             try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
               int batchSize = 0;
               for (DbItem item : safeItems) {
-                if (!isPersistableDbItem(storageId, item, "create")) continue;
                 insert.setString(1, storageId);
                 insert.setString(2, item.key());
                 insert.setBytes(3, item.blob());
@@ -966,6 +966,7 @@ public class Database implements AutoCloseable {
 
   private void writeSnapshotInternal(String storageId, Collection<DbItem> items)
       throws SQLException {
+    validatePersistableDbItems(storageId, items, "snapshot");
     try {
       connection.setAutoCommit(false);
       try (PreparedStatement delete =
@@ -979,7 +980,6 @@ public class Database implements AutoCloseable {
         int batchSize = 0;
         // Limit batch size to reduce memory spikes on very large storages.
         for (DbItem item : items) {
-          if (!isPersistableDbItem(storageId, item, "snapshot")) continue;
           insert.setString(1, storageId);
           insert.setString(2, item.key());
           insert.setBytes(3, item.blob());
@@ -1024,9 +1024,11 @@ public class Database implements AutoCloseable {
     return runDbTask(
         "write delta for " + storageId,
         () -> {
-          if ((upserts == null || upserts.isEmpty()) && (removals == null || removals.isEmpty())) {
+          Collection<DbItem> safeUpserts = upserts == null ? List.of() : upserts;
+          if (safeUpserts.isEmpty() && (removals == null || removals.isEmpty())) {
             return;
           }
+          validatePersistableDbItems(storageId, safeUpserts, "delta");
           try {
             connection.setAutoCommit(false);
             if (removals != null && !removals.isEmpty()) {
@@ -1051,19 +1053,18 @@ public class Database implements AutoCloseable {
                 }
               }
             }
-            if (upserts != null && !upserts.isEmpty()) {
+            if (!safeUpserts.isEmpty()) {
               String insertSql =
                   """
-                  INSERT INTO storage_items(storage_id, item_key, item_blob, amount)
-                  VALUES(?, ?, ?, ?)
-                  ON CONFLICT(storage_id, item_key) DO UPDATE SET
-                      item_blob = excluded.item_blob,
-                      amount = excluded.amount
+                      INSERT INTO storage_items(storage_id, item_key, item_blob, amount)
+                      VALUES(?, ?, ?, ?)
+                      ON CONFLICT(storage_id, item_key) DO UPDATE SET
+                          item_blob = excluded.item_blob,
+                          amount = excluded.amount
                   """;
               try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
                 int batchSize = 0;
-                for (DbItem item : upserts) {
-                  if (!isPersistableDbItem(storageId, item, "delta")) continue;
+                for (DbItem item : safeUpserts) {
                   insert.setString(1, storageId);
                   insert.setString(2, item.key());
                   insert.setBytes(3, item.blob());
@@ -1116,6 +1117,12 @@ public class Database implements AutoCloseable {
           if (safeWrites.isEmpty()) {
             return;
           }
+          for (DeltaWrite write : safeWrites) {
+            validatePersistableDbItems(
+                write.storageId(),
+                write.upserts() == null ? List.of() : write.upserts(),
+                "delta-batch");
+          }
           try {
             connection.setAutoCommit(false);
             try (PreparedStatement delete =
@@ -1154,7 +1161,6 @@ public class Database implements AutoCloseable {
                 }
                 Collection<DbItem> upserts = write.upserts() == null ? List.of() : write.upserts();
                 for (DbItem item : upserts) {
-                  if (!isPersistableDbItem(storageId, item, "delta-batch")) continue;
                   insert.setString(1, storageId);
                   insert.setString(2, item.key());
                   insert.setBytes(3, item.blob());
@@ -1197,31 +1203,59 @@ public class Database implements AutoCloseable {
         });
   }
 
-  private boolean isPersistableDbItem(String storageId, DbItem item, String operation) {
+  private void validatePersistableDbItems(
+      String storageId, Collection<DbItem> items, String operation) {
+    if (items == null) return;
+    for (DbItem item : items) {
+      validatePersistableDbItem(storageId, item, operation);
+    }
+  }
+
+  private void validatePersistableDbItem(String storageId, DbItem item, String operation) {
     if (item == null) {
-      warnInvalidStorageRow(storageId, "<null>", 0L, 0L, operation + " item is null");
-      return false;
+      throw invalidStorageWrite(storageId, "<null>", 0L, 0L, operation, "item is null");
     }
     if (item.key() == null || item.key().isBlank()) {
-      warnInvalidStorageRow(storageId, item.key(), item.amount(), blobLength(item), "missing key");
-      return false;
+      throw invalidStorageWrite(
+          storageId, item.key(), item.amount(), blobLength(item), operation, "missing key");
     }
     if (item.amount() <= 0) {
-      warnInvalidStorageRow(
-          storageId, item.key(), item.amount(), blobLength(item), "amount must be positive");
-      return false;
+      throw invalidStorageWrite(
+          storageId,
+          item.key(),
+          item.amount(),
+          blobLength(item),
+          operation,
+          "amount must be positive");
     }
     byte[] blob = item.blob();
     if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
-      warnInvalidStorageRow(
+      throw invalidStorageWrite(
           storageId,
           item.key(),
           item.amount(),
           blob == null ? 0L : blob.length,
+          operation,
           "invalid serialized item blob length");
-      return false;
     }
-    return true;
+  }
+
+  private IllegalArgumentException invalidStorageWrite(
+      String storageId, String key, long amount, long blobLength, String operation, String reason) {
+    return new IllegalArgumentException(
+        "Invalid storage item for "
+            + operation
+            + " write"
+            + " (storage="
+            + storageId
+            + ", key="
+            + key
+            + ", amount="
+            + amount
+            + ", blobLength="
+            + blobLength
+            + "): "
+            + reason);
   }
 
   private long blobLength(DbItem item) {

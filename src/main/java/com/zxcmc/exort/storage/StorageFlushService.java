@@ -31,7 +31,22 @@ public final class StorageFlushService {
 
   public CompletableFuture<Void> flushAsync(StorageCache cache) {
     String storageId = cache.getStorageId();
-    return inFlightFlushes.computeIfAbsent(storageId, ignored -> flushUntilCleanAsync(cache));
+    CompletableFuture<Void> placeholder = new CompletableFuture<>();
+    CompletableFuture<Void> existing = inFlightFlushes.putIfAbsent(storageId, placeholder);
+    if (existing != null) {
+      return existing;
+    }
+    flushUntilCleanAsync(cache)
+        .whenComplete(
+            (ignored, err) -> {
+              inFlightFlushes.remove(storageId, placeholder);
+              if (err != null) {
+                placeholder.completeExceptionally(err);
+              } else {
+                placeholder.complete(null);
+              }
+            });
+    return placeholder;
   }
 
   public CompletableFuture<Void> flushBatchAsync(Collection<StorageCache> caches) {
@@ -52,7 +67,16 @@ public final class StorageFlushService {
         futures.add(existing);
         continue;
       }
-      StorageCache.DeltaSnapshot delta = cache.snapshotDeltaWithVersion();
+      StorageCache.DeltaSnapshot delta;
+      try {
+        delta = cache.snapshotDeltaWithVersion();
+      } catch (RuntimeException e) {
+        inFlightFlushes.remove(storageId, placeholder);
+        logger.log(Level.SEVERE, "Failed to prepare storage flush " + storageId, e);
+        placeholder.completeExceptionally(e);
+        futures.add(placeholder);
+        continue;
+      }
       int deltaRows = delta.upserts().size() + delta.removals().size();
       if (deltaRows <= 0
           || pendingDeltas.size() >= MAX_BATCH_STORAGES
@@ -75,14 +99,12 @@ public final class StorageFlushService {
   }
 
   private CompletableFuture<Void> flushUntilCleanAsync(StorageCache cache) {
-    String storageId = cache.getStorageId();
     return flushOnceAsync(cache)
         .thenCompose(
             ignored ->
                 cache.isDirty()
                     ? flushUntilCleanAsync(cache)
-                    : CompletableFuture.completedFuture(null))
-        .whenComplete((ignored, err) -> inFlightFlushes.remove(storageId));
+                    : CompletableFuture.completedFuture(null));
   }
 
   private void flushPendingDeltas(List<PendingDeltaFlush> pendingDeltas) {
@@ -131,7 +153,13 @@ public final class StorageFlushService {
   }
 
   private CompletableFuture<Void> flushOnceAsync(StorageCache cache) {
-    StorageCache.DeltaSnapshot delta = cache.snapshotDeltaWithVersion();
+    StorageCache.DeltaSnapshot delta;
+    try {
+      delta = cache.snapshotDeltaWithVersion();
+    } catch (RuntimeException e) {
+      logger.log(Level.SEVERE, "Failed to prepare storage flush " + cache.getStorageId(), e);
+      return CompletableFuture.failedFuture(e);
+    }
     if (!delta.upserts().isEmpty() || !delta.removals().isEmpty()) {
       int count = delta.upserts().size() + delta.removals().size();
       log(
@@ -150,7 +178,13 @@ public final class StorageFlushService {
               })
           .thenAccept(ignored -> {});
     }
-    StorageCache.Snapshot snapshot = cache.snapshotWithVersion();
+    StorageCache.Snapshot snapshot;
+    try {
+      snapshot = cache.snapshotWithVersion();
+    } catch (RuntimeException e) {
+      logger.log(Level.SEVERE, "Failed to prepare storage snapshot " + cache.getStorageId(), e);
+      return CompletableFuture.failedFuture(e);
+    }
     log(
         CacheDebugService.EventType.FLUSH,
         cache.getStorageId(),

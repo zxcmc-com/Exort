@@ -581,7 +581,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     regionProtection = RegionProtection.allowAll();
     ProtectionRuntimeConfig protectionConfig = ProtectionRuntimeConfig.fromConfig(getConfig());
     if (!protectionConfig.enabled()) {
-      ExortLog.info("[Protection] Integration disabled by config.");
+      ExortLog.info(ProtectionStartupLog.disabledByConfig());
       return;
     }
     boolean failClosed = protectionConfig.failClosedOnError();
@@ -644,7 +644,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
 
     if (adapters.isEmpty()) {
-      ExortLog.info("[Protection] Integration disabled: no supported protection plugin found.");
+      ExortLog.info(ProtectionStartupLog.noSupportedProvider());
       registerProtectionEnableHook(missingPlugins);
       return;
     }
@@ -652,8 +652,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     CompositeRegionProtection composite =
         new CompositeRegionProtection(adapters, getLogger(), failClosed);
     regionProtection = composite;
-    ExortLog.success(
-        "[Protection] Integration enabled: " + String.join(", ", composite.adapterNames()));
+    ExortLog.success(ProtectionStartupLog.enabled(composite.adapterNames()));
     registerProtectionEnableHook(missingPlugins);
   }
 
@@ -665,7 +664,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       boolean failClosed) {
     var plugin = getServer().getPluginManager().getPlugin(pluginName);
     if (plugin == null || !plugin.isEnabled()) {
-      ExortLog.info("[Protection] " + pluginName + " adapter disabled: plugin not found.");
       missingPlugins.add(pluginName);
       return true;
     }

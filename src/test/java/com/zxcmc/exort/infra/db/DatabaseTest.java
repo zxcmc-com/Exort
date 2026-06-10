@@ -67,15 +67,17 @@ class DatabaseTest {
   }
 
   @Test
-  void writeSnapshotSkipsInvalidRows() throws Exception {
+  void writeSnapshotRejectsInvalidRowsBeforeDeletingExistingRows() throws Exception {
     File file = tempDir.resolve("snapshot.db").toFile();
     Database database = new Database();
     database.init(file);
     try {
       String storageId = "storage";
       long now = Instant.now().getEpochSecond();
+      byte[] oldBlob = new byte[] {7};
       try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
         insertStorage(connection, storageId, now);
+        insertItem(connection, storageId, "old", oldBlob, 9);
       }
 
       byte[] nonEmptyBlob = new byte[] {42};
@@ -87,7 +89,11 @@ class DatabaseTest {
       items.add(new DbItem("oversized", oversizedBlob, 1));
       items.add(null);
 
-      database.writeSnapshot(storageId, items).get(5, TimeUnit.SECONDS);
+      ExecutionException error =
+          assertThrows(
+              ExecutionException.class,
+              () -> database.writeSnapshot(storageId, items).get(5, TimeUnit.SECONDS));
+      assertInstanceOf(IllegalArgumentException.class, error.getCause());
 
       try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
           var query =
@@ -96,9 +102,9 @@ class DatabaseTest {
         query.setString(1, storageId);
         try (var rs = query.executeQuery()) {
           assertTrue(rs.next());
-          assertEquals("valid", rs.getString("item_key"));
-          assertArrayEquals(nonEmptyBlob, rs.getBytes("item_blob"));
-          assertEquals(5, rs.getLong("amount"));
+          assertEquals("old", rs.getString("item_key"));
+          assertArrayEquals(oldBlob, rs.getBytes("item_blob"));
+          assertEquals(9, rs.getLong("amount"));
           assertFalse(rs.next());
         }
       }
@@ -108,7 +114,7 @@ class DatabaseTest {
   }
 
   @Test
-  void writeDeltaSkipsInvalidUpsertsAndAppliesRemovals() throws Exception {
+  void writeDeltaRejectsInvalidUpsertsBeforeApplyingRemovals() throws Exception {
     File file = tempDir.resolve("delta.db").toFile();
     Database database = new Database();
     database.init(file);
@@ -130,7 +136,14 @@ class DatabaseTest {
       upserts.add(new DbItem("oversized", oversizedBlob, 1));
       upserts.add(null);
 
-      database.writeDelta(storageId, upserts, java.util.List.of("old")).get(5, TimeUnit.SECONDS);
+      ExecutionException error =
+          assertThrows(
+              ExecutionException.class,
+              () ->
+                  database
+                      .writeDelta(storageId, upserts, java.util.List.of("old"))
+                      .get(5, TimeUnit.SECONDS));
+      assertInstanceOf(IllegalArgumentException.class, error.getCause());
 
       try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
           var query =
@@ -139,9 +152,9 @@ class DatabaseTest {
         query.setString(1, storageId);
         try (var rs = query.executeQuery()) {
           assertTrue(rs.next());
-          assertEquals("valid", rs.getString("item_key"));
-          assertArrayEquals(nonEmptyBlob, rs.getBytes("item_blob"));
-          assertEquals(5, rs.getLong("amount"));
+          assertEquals("old", rs.getString("item_key"));
+          assertArrayEquals(oldBlob, rs.getBytes("item_blob"));
+          assertEquals(9, rs.getLong("amount"));
           assertFalse(rs.next());
         }
       }
@@ -151,7 +164,7 @@ class DatabaseTest {
   }
 
   @Test
-  void createStorageWithItemsSkipsInvalidRows() throws Exception {
+  void createStorageWithItemsRejectsInvalidRowsWithoutPartialStorage() throws Exception {
     File file = tempDir.resolve("create.db").toFile();
     Database database = new Database();
     database.init(file);
@@ -166,18 +179,78 @@ class DatabaseTest {
       items.add(new DbItem("oversized", oversizedBlob, 1));
       items.add(null);
 
-      database.createStorageWithItems(storageId, "BASIC", "AMOUNT", items).get(5, TimeUnit.SECONDS);
+      ExecutionException error =
+          assertThrows(
+              ExecutionException.class,
+              () ->
+                  database
+                      .createStorageWithItems(storageId, "BASIC", "AMOUNT", items)
+                      .get(5, TimeUnit.SECONDS));
+      assertInstanceOf(IllegalArgumentException.class, error.getCause());
+
+      try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+          var storageQuery = connection.prepareStatement("SELECT COUNT(*) FROM storages");
+          var itemQuery = connection.prepareStatement("SELECT COUNT(*) FROM storage_items")) {
+        try (var rs = storageQuery.executeQuery()) {
+          assertTrue(rs.next());
+          assertEquals(0, rs.getInt(1));
+        }
+        try (var rs = itemQuery.executeQuery()) {
+          assertTrue(rs.next());
+          assertEquals(0, rs.getInt(1));
+        }
+      }
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void writeDeltaBatchRejectsInvalidUpsertsBeforeApplyingAnyWrite() throws Exception {
+    File file = tempDir.resolve("delta-batch.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      long now = Instant.now().getEpochSecond();
+      byte[] oldBlob = new byte[] {1};
+      try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
+        insertStorage(connection, "storage-a", now);
+        insertStorage(connection, "storage-b", now);
+        insertItem(connection, "storage-a", "old-a", oldBlob, 3);
+        insertItem(connection, "storage-b", "old-b", oldBlob, 4);
+      }
+
+      ExecutionException error =
+          assertThrows(
+              ExecutionException.class,
+              () ->
+                  database
+                      .writeDeltaBatch(
+                          java.util.List.of(
+                              new Database.DeltaWrite(
+                                  "storage-a",
+                                  java.util.List.of(new DbItem("valid", new byte[] {2}, 5)),
+                                  java.util.List.of("old-a")),
+                              new Database.DeltaWrite(
+                                  "storage-b",
+                                  java.util.List.of(new DbItem("invalid", new byte[0], 1)),
+                                  java.util.List.of("old-b"))))
+                      .get(5, TimeUnit.SECONDS));
+      assertInstanceOf(IllegalArgumentException.class, error.getCause());
 
       try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
           var query =
               connection.prepareStatement(
-                  "SELECT item_key, item_blob, amount FROM storage_items WHERE storage_id = ?")) {
-        query.setString(1, storageId);
+                  "SELECT storage_id, item_key, amount FROM storage_items ORDER BY storage_id")) {
         try (var rs = query.executeQuery()) {
           assertTrue(rs.next());
-          assertEquals("valid", rs.getString("item_key"));
-          assertArrayEquals(nonEmptyBlob, rs.getBytes("item_blob"));
-          assertEquals(5, rs.getLong("amount"));
+          assertEquals("storage-a", rs.getString("storage_id"));
+          assertEquals("old-a", rs.getString("item_key"));
+          assertEquals(3, rs.getLong("amount"));
+          assertTrue(rs.next());
+          assertEquals("storage-b", rs.getString("storage_id"));
+          assertEquals("old-b", rs.getString("item_key"));
+          assertEquals(4, rs.getLong("amount"));
           assertFalse(rs.next());
         }
       }

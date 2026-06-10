@@ -110,7 +110,8 @@ public class CraftingSession extends AbstractStorageSession {
 
   @Override
   public void onClose() {
-    if (!flushBufferToStorage()) {
+    CraftingState.Buffer buffer = state.snapshotBuffer();
+    if (CraftingBufferFlushPolicy.shouldFlushOnClose(readOnly, buffer) && !flushBufferToStorage()) {
       flushBufferToPlayerOrDrop();
     }
     sortFrozen = false;
@@ -199,7 +200,8 @@ public class CraftingSession extends AbstractStorageSession {
     }
     CraftPlan plan = computePlan();
     CraftingState.Buffer buffer = state.snapshotBuffer();
-    if (buffer != null && (plan == null || !buffer.key().equals(plan.resultKey))) {
+    if (CraftingBufferFlushPolicy.shouldFlushRenderMismatch(
+        readOnly, buffer, plan == null ? null : plan.resultKey)) {
       flushBufferToStorage();
     }
     if (plan == null) {

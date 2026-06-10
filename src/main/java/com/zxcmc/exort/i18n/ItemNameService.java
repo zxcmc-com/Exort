@@ -602,21 +602,15 @@ public class ItemNameService {
     return true;
   }
 
-  private Map<String, String> downloadDictionary(String code) {
+  Map<String, String> downloadDictionary(String code) {
     Map<String, String> primary = downloadFromMojang(code);
     if (!primary.isEmpty()) {
       return primary;
     }
-    Map<String, String> fallback = downloadFromInventive(code);
-    if (!fallback.isEmpty()) {
-      plugin
-          .getLogger()
-          .info("Downloaded lang file for " + code + " from InventivetalentDev assets.");
-    }
-    return fallback;
+    return downloadFromInventive(code);
   }
 
-  private Map<String, String> downloadFromMojang(String code) {
+  Map<String, String> downloadFromMojang(String code) {
     if (!langHashes.containsKey(code)) {
       return Collections.emptyMap();
     }
@@ -634,7 +628,7 @@ public class ItemNameService {
     }
   }
 
-  private Map<String, String> downloadFromInventive(String code) {
+  Map<String, String> downloadFromInventive(String code) {
     String version = serverVersion == null || serverVersion.isBlank() ? "latest" : serverVersion;
     String url = INVENTIVE_ROOT + version + "/assets/minecraft/lang/" + code + ".json";
     try {

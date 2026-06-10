@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.9 — 2026-06-10
+- Runtime storage persistence now fails closed when a dirty item cannot be serialized into a valid database row, keeping the cache dirty instead of silently dropping that item from the saved state.
+- Crafting terminal read-only viewers can no longer flush, drop, or clear another viewer's shared crafting output buffer when closing or rendering a changed shared recipe grid.
+- Wireless terminal sessions now revalidate the live storage marker at the bound storage block, closing with missing-storage feedback if the block was replaced or now points at another storage id.
+- Startup logging is quieter: missing optional protection providers and successful fallback item-language downloads no longer create console noise, while enabled integrations and real download or adapter errors remain visible.
+
 ## 0.14.8 — 2026-06-09
 - Direct-delivery RESOURCE mode now keeps early joins in Paper's configuration phase until the required Exort resource pack is ready, accepted, and loaded; if the pack cannot be sent or loaded within the timeout, the player is disconnected before entering the world.
 - RESOURCE breaking overlays now use generated models for each Exort block shape instead of one full-cube crack shell, matching storage blocks, terminals, monitors, buses including vertical facings, and wire connection models while respecting transparent cutouts and safe destroy-stage UV bounds.

@@ -2,6 +2,7 @@ package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.platform.PlayerInteractionRange;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -9,6 +10,7 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -92,10 +94,32 @@ final class GuiSessionValidator {
     if (!wirelessService.inRange(anchor, player.getLocation())) {
       return new WirelessValidationResult(player, "message.wireless.out_of_range", false);
     }
-    if (!Carriers.matchesCarrier(anchor.getBlock(), storageCarrier.get())) {
+    if (!hasLiveStorageAnchor(session.getStorageId(), anchor)) {
       return new WirelessValidationResult(player, "message.wireless.missing_storage", false);
     }
     return WirelessValidationResult.valid();
+  }
+
+  boolean hasLiveStorageAnchor(String expectedStorageId, Location anchor) {
+    if (expectedStorageId == null || expectedStorageId.isBlank()) return false;
+    if (anchor == null) return false;
+    Material carrier = storageCarrier.get();
+    if (carrier == null) return false;
+    World world;
+    try {
+      world = anchor.getWorld();
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+    if (world == null) return false;
+    int x = anchor.getBlockX();
+    int z = anchor.getBlockZ();
+    if (!world.isChunkLoaded(x >> 4, z >> 4)) return false;
+    Block block = world.getBlockAt(x, anchor.getBlockY(), z);
+    if (!Carriers.matchesCarrier(block, carrier)) return false;
+    return StorageMarker.get(plugin, block)
+        .map(data -> expectedStorageId.equals(data.storageId()))
+        .orElse(false);
   }
 
   private boolean isOutOfDeviceRange(Player player, Block block) {
