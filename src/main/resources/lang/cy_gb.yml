@@ -28,6 +28,7 @@ message:
   usage_debug_player: "dangos storfa weithredol neu olaf chwaraewr"
   usage_debug_storage: "agor storfa yn ôl id neu storfa olaf chwaraewr"
   usage_debug_cache: "archwilio cache storfa a chysylltiadau rhwydwaith wedi'u llwytho"
+  usage_debug_protection: "dangos statws integreiddio diogelu tiriogaeth"
   usage_debug_verbose: "toglo logiau diagnostig cryno/arferol/llawn"
   usage_debug_culling_client: "rheoli client-side culling bypass"
   usage_debug_benchmark: "dechrau neu stopio'r benchmark llwyth"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Rheswm llwytho chunk: {0}"
   debug_cache_status_connections: "Nodau rhwydwaith wedi'u llwytho: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Dim terminals/monitors/buses wedi'u llwytho wedi'u cysylltu â'r storfa hon."
+  debug_protection_status_header: "Statws diogelu tiriogaeth:"
+  debug_protection_status_mode: "Modd: {0}"
+  debug_protection_status_policy: "Config: {0}; polisi: {1}"
+  debug_protection_status_active: "Darparwyr gweithredol: {0}"
+  debug_protection_status_missing: "Disgwyliedig ond heb eu llwytho: {0}"
+  debug_protection_status_failed: "Methiannau cychwyn: {0}"
+  debug_protection_status_runtime: "Methiannau gwiriad runtime: {0}"
   version: "Exort Storage Network v{0} gan phantomfighterxx"
   usage_language_header: "Gosodiadau iaith:"
   usage_language_status: "dangos yr iaith weithredol a'r geiriaduron"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index ar goll"
   lang_status_index_fetched: "Cafwyd yr index yn y rhediad hwn"
   lang_status_dict: "Geiriadur {0}: {1} ({2} cofnod)"
+  lang_status_dict_compact: "Geiriaduron ({0}): {1}"
   lang_status_paths: "Llwybrau: {0}, {1}"
   wire:
     hard_cap: "Mae cadwyn y wifren yn rhy fawr: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Heb ei gysylltu"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Eitemau Exort"
   prev_page: "Tudalen flaenorol"
   next_page: "Tudalen nesaf"
   page_info: "Tudalen {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Storfa: heb ei chysylltu"
       storage_multiple: "Storfa: sawl un wedi'u cysylltu"
+      exort_storage: "Storfa Exort"
       vanilla: "Rhestr eiddo: {0}"
       vanilla_missing: "Rhestr eiddo: heb ei chysylltu"
   info:

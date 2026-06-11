@@ -5,13 +5,13 @@ import java.util.List;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-final class ProtocolItemPacketLocalizer {
+final class PacketItemLocalizer {
   @FunctionalInterface
   interface ItemLocalizer {
     ItemStack localize(Player player, ItemStack item);
   }
 
-  private ProtocolItemPacketLocalizer() {}
+  private PacketItemLocalizer() {}
 
   static ItemStack localizeSlot(Player player, ItemStack item, ItemLocalizer localizer) {
     if (item == null || localizer == null) {

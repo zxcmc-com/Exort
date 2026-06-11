@@ -28,6 +28,7 @@ message:
   usage_debug_player: "näütä mängijä aktiivnõ või viimäne hoidla"
   usage_debug_storage: "ava hoidla id või mängijä viimädsõ hoidla perrä"
   usage_debug_cache: "kae hoidla cache ja laadit võrgulingiq"
+  usage_debug_protection: "näütä maa-ala kaitse lõimingustaatust"
   usage_debug_verbose: "lülitä compact/normal/full diagnostikalogiq"
   usage_debug_culling_client: "juhi client-side culling bypass"
   usage_debug_benchmark: "käivitä või peätä koormusbenchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk'i laadimisõ põhjus: {0}"
   debug_cache_status_connections: "Laadit võrgu sõlmõq: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Laadit terminaleq/monitoriq/siiniq olõ-i seo hoidlaga lingit."
+  debug_protection_status_header: "Maa-ala kaitse staatus:"
+  debug_protection_status_mode: "Režiim: {0}"
+  debug_protection_status_policy: "Konfig: {0}; poliitika: {1}"
+  debug_protection_status_active: "Aktiivseq pakkujaq: {0}"
+  debug_protection_status_missing: "Oodõt, a laadimalda: {0}"
+  debug_protection_status_failed: "Käivütämise veaq: {0}"
+  debug_protection_status_runtime: "Runtime-kontrolli veaq: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Keeleseaded:"
   usage_language_status: "näütä aktiivnõ kiil ja sõnastiguq"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index puudus"
   lang_status_index_fetched: "Index tõmmati seon jooksun"
   lang_status_dict: "Sõnastik {0}: {1} ({2} kirjet)"
+  lang_status_dict_compact: "Sõnastiguq ({0}): {1}"
   lang_status_paths: "Rajaq: {0}, {1}"
   wire:
     hard_cap: "Juhtmekett om liiq suur: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Lingimäldä"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort esemeq"
   prev_page: "Eelmine leht"
   next_page: "Järgmine leht"
   page_info: "Leht {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Hoidla ID: {0}"
       storage_missing: "Hoidla: ühendümälda"
       storage_multiple: "Hoidla: mitu ühendüsen"
+      exort_storage: "Exort hoidla"
       vanilla: "Inventar: {0}"
       vanilla_missing: "Inventar: ühendümälda"
   info:

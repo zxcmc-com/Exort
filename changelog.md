@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.10 — 2026-06-11
+- Bus and crafting item flow is stricter under load: due bus attempts now consume the existing tick budget even when no items move, brewing stands reject invalid side inserts, and crafting-to-storage or crafting-to-inventory now preflights output, remainders, and overflow before reserving ingredients.
+- RESOURCE/display maintenance is safer on large scenes: oversized wire refreshes stop at the configured hard cap with diagnostics, wire display reuse now requires wire role tags, holograms refresh through a bounded dirty queue, and RESOURCE break particles follow the block type being broken.
+- Switching Exort back to VANILLA mode now cleans scoped Nexo/ItemsAdder handoff files so provider packs do not keep stale Exort RESOURCE data.
+- WorldEdit/FAWE recovery and diagnostics are clearer: marker updates that exhaust retries are deferred per chunk with aggregated warnings and load-time reconciliation, async snapshot reads no longer block WorldEdit workers, FAWE extent auto-edit logs exact verification/write results, and compatibility docs now reference the current marker extent class.
+- Protection integrations now keep a runtime health status, retry adapter initialization on later plugin enables where safe, and expose provider state through `/exort debug protection status`; PacketEvents fallback is logged once when packet features fall back to Paper.
+- Existing UI/status text is more consistent across bundled locales: Exort item menu titles, protection debug status, bus Exort-storage labels, and compact dictionary status are localized; bus target names use localized item dictionaries or readable material names; missing storage-tier display names fall back to readable labels.
+
 ## 0.14.9 — 2026-06-10
 - Runtime storage persistence now fails closed when a dirty item cannot be serialized into a valid database row, keeping the cache dirty instead of silently dropping that item from the saved state.
 - Crafting terminal read-only viewers can no longer flush, drop, or clear another viewer's shared crafting output buffer when closing or rendering a changed shared recipe grid.
@@ -47,8 +55,8 @@
 - Replaced RESOURCE block-proxy proxied gauge scans with a maintained counter updated on proxy, restore, and cleanup transitions.
 
 ## 0.14.0 — 2026-06-05
-- Added unified territory-protection checks for Exort placement, breaking, interaction, and storage access across WorldGuard, ProtectionStones regions, GriefPrevention claims, Towny permissions, Lands, and Residence.
-- Replaced the WorldGuard-only protection config with `protection.*` controls, including per-adapter toggles and a shared fail-closed option for protection-check errors.
+- Added unified territory-protection checks for Exort placement, breaking, interaction, and storage access across WorldGuard-backed regions including ProtectionStones, GriefPrevention claims, Towny permissions, Lands, and Residence.
+- Replaced the old WorldGuard-only protection settings with `protection.*`, including per-adapter toggles for WorldGuard, GriefPrevention, Towny, Lands, and Residence plus a shared fail-closed option for protection-check errors.
 
 ## 0.13.4 — 2026-06-04
 - Simplified `config.yml`: debug/tuning defaults for display culling, WorldEdit bulk processing, placement guard geometry, visual models, break sounds, crafting rules, bossbar durations, and resource-pack required state are now fixed in code.

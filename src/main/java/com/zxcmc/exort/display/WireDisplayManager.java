@@ -191,8 +191,7 @@ public class WireDisplayManager {
     // Fallback: remove any stray displays in the block space with our tag
     var loc = targetLoc(wire);
     for (var ent : wire.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
-      if (ent instanceof ItemDisplay display
-          && display.getScoreboardTags().contains(DisplayTags.DISPLAY_TAG)) {
+      if (ent instanceof ItemDisplay display && isWireDisplayTags(display.getScoreboardTags())) {
         removeManagedDisplay(display);
       }
     }
@@ -202,11 +201,15 @@ public class WireDisplayManager {
     var loc = targetLoc(wire);
     for (var ent : wire.getWorld().getNearbyEntities(loc, 0.35, 0.35, 0.35)) {
       if (!(ent instanceof ItemDisplay display)) continue;
-      if (!display.getScoreboardTags().contains(DisplayTags.DISPLAY_TAG)) continue;
+      if (!isWireDisplayTags(display.getScoreboardTags())) continue;
       if (!display.getLocation().getBlock().equals(wire)) continue;
       return display;
     }
     return null;
+  }
+
+  static boolean isWireDisplayTags(Set<String> tags) {
+    return DisplayClassification.isAdoptableWireDisplay(tags);
   }
 
   private ItemDisplay spawnDisplay(Block wire, WireRender render) {

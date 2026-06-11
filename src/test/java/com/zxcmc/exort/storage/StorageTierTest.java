@@ -68,6 +68,31 @@ class StorageTierTest {
   }
 
   @Test
+  void loadFromConfigHumanizesMissingDisplayName() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("basic_storage.maxItems", 128);
+    config.set("basic_storage.material", "CHEST");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var tier = StorageTier.fromString("basic_storage").orElseThrow();
+    assertEquals("Basic Storage", tier.displayName());
+    assertEquals("Basic Storage", tier.descriptor().displayName());
+  }
+
+  @Test
+  void loadFromConfigHumanizesBlankDisplayName() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("wire-tier.maxItems", 128);
+    config.set("wire-tier.material", "CHEST");
+    config.set("wire-tier.displayName", " ");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    assertEquals("Wire Tier", StorageTier.fromString("wire-tier").orElseThrow().displayName());
+  }
+
+  @Test
   void descriptorUsesPublicImmutableProjection() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("basic.maxItems", 128);

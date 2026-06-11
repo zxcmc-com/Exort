@@ -1,6 +1,8 @@
 package com.zxcmc.exort.bus;
 
 import com.zxcmc.exort.items.ItemKeyUtil;
+import java.util.EnumSet;
+import java.util.Set;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
@@ -16,6 +18,29 @@ public final class InventorySideRules {
   private static final int[] BREWING_BOTTLES = new int[] {0, 1, 2};
   private static final int[] BREWING_INGREDIENT = new int[] {3};
   private static final int[] BREWING_FUEL = new int[] {4};
+  private static final Set<Material> BREWING_BOTTLE_ITEMS =
+      EnumSet.of(Material.POTION, Material.SPLASH_POTION, Material.LINGERING_POTION);
+  private static final Set<Material> BREWING_INGREDIENT_ITEMS =
+      EnumSet.of(
+          Material.NETHER_WART,
+          Material.REDSTONE,
+          Material.GLOWSTONE_DUST,
+          Material.FERMENTED_SPIDER_EYE,
+          Material.GUNPOWDER,
+          Material.DRAGON_BREATH,
+          Material.SUGAR,
+          Material.RABBIT_FOOT,
+          Material.GLISTERING_MELON_SLICE,
+          Material.SPIDER_EYE,
+          Material.PUFFERFISH,
+          Material.MAGMA_CREAM,
+          Material.GOLDEN_CARROT,
+          Material.TURTLE_HELMET,
+          Material.PHANTOM_MEMBRANE,
+          Material.STONE,
+          Material.SLIME_BLOCK,
+          Material.COBWEB,
+          Material.BREEZE_ROD);
 
   private InventorySideRules() {}
 
@@ -53,7 +78,7 @@ public final class InventorySideRules {
 
   public static boolean canInsert(
       Inventory inventory, BlockState state, BlockFace side, ItemStack stack, int slot) {
-    if (stack == null || stack.getType().isAir()) return false;
+    if (stack == null || isAir(stack.getType())) return false;
     InventoryType type = inventory.getType();
     if (type == InventoryType.FURNACE
         || type == InventoryType.BLAST_FURNACE
@@ -70,15 +95,22 @@ public final class InventorySideRules {
       return false;
     }
     if (type == InventoryType.BREWING) {
-      if (slot == 4) {
-        return stack.getType() == Material.BLAZE_POWDER;
-      }
-      if (slot == 3) {
-        return stack.getType() != Material.BLAZE_POWDER;
-      }
-      return slot >= 0 && slot <= 2;
+      return canInsertBrewing(stack.getType(), slot);
     }
     return true;
+  }
+
+  static boolean canInsertBrewing(Material material, int slot) {
+    if (material == null || isAir(material)) {
+      return false;
+    }
+    if (slot == 4) {
+      return material == Material.BLAZE_POWDER;
+    }
+    if (slot == 3) {
+      return BREWING_INGREDIENT_ITEMS.contains(material);
+    }
+    return slot >= 0 && slot <= 2 && BREWING_BOTTLE_ITEMS.contains(material);
   }
 
   public static boolean isSideSensitive(Inventory inventory) {
@@ -92,7 +124,7 @@ public final class InventorySideRules {
 
   public static boolean canExtract(
       Inventory inventory, BlockState state, BlockFace side, ItemStack stack, int slot) {
-    if (stack == null || stack.getType().isAir()) return false;
+    if (stack == null || isAir(stack.getType())) return false;
     InventoryType type = inventory.getType();
     if (type == InventoryType.FURNACE
         || type == InventoryType.BLAST_FURNACE
@@ -118,7 +150,7 @@ public final class InventorySideRules {
       ItemStack sample,
       String key,
       int maxAmount) {
-    if (inventory == null || sample == null || sample.getType().isAir()) return 0;
+    if (inventory == null || sample == null || isAir(sample.getType())) return 0;
     int remaining = Math.max(0, maxAmount);
     if (remaining == 0) return 0;
     int[] slots = insertSlots(inventory, state, side);
@@ -158,6 +190,12 @@ public final class InventorySideRules {
       slots[i] = i;
     }
     return slots;
+  }
+
+  private static boolean isAir(Material material) {
+    return material == Material.AIR
+        || material == Material.CAVE_AIR
+        || material == Material.VOID_AIR;
   }
 
   private static int[] concat(int[] a, int[] b) {

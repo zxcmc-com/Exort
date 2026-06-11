@@ -9,7 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-final class ProtocolDisplayPacketLocalizer {
+final class PacketDisplayLocalizer {
   private static final int ENTITY_CUSTOM_NAME_METADATA_INDEX = 2;
 
   @FunctionalInterface
@@ -39,7 +39,7 @@ final class ProtocolDisplayPacketLocalizer {
     }
   }
 
-  private ProtocolDisplayPacketLocalizer() {}
+  private PacketDisplayLocalizer() {}
 
   static <T> List<T> localizeValues(
       Player player,

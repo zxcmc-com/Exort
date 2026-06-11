@@ -28,6 +28,7 @@ message:
   usage_debug_player: "ak' ta ilel stsobel yakal o slajebal yu'un jugador"
   usage_debug_storage: "jam stsobel ta id o slajebal stsobel yu'un jugador"
   usage_debug_cache: "il cache stsobel sok xch'akel network skuchoj"
+  usage_debug_protection: "ak' ta ilel estado integracion proteccion territorio"
   usage_debug_verbose: "jel log diagnostico compact/normal/full"
   usage_debug_culling_client: "kolta client-side culling bypass"
   usage_debug_benchmark: "ta sjakel o smakel load benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Sk'oplal skuch chunk: {0}"
   debug_cache_status_connections: "Nodes network skuchoj: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Mu'yuk terminals/monitors/buses skuchoj ch'akel ta li stsobele."
+  debug_protection_status_header: "Estado proteccion territorio:"
+  debug_protection_status_mode: "Modo: {0}"
+  debug_protection_status_policy: "Config: {0}; politica: {1}"
+  debug_protection_status_active: "Providers activos: {0}"
+  debug_protection_status_missing: "Sk'an xkuch pero mu'yuk skuchoj: {0}"
+  debug_protection_status_failed: "Fallas inicializacion: {0}"
+  debug_protection_status_runtime: "Fallas runtime check: {0}"
   version: "Exort Storage Network v{0} yu'un phantomfighterxx"
   usage_language_header: "Sjelobil k'op:"
   usage_language_status: "ak' ta ilel k'op yakal sok dictionaries"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Mu'yuk index"
   lang_status_index_fetched: "Index laj tael ta vuelta li'i"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "Dictionaries k'op ({0}): {1}"
   lang_status_paths: "Be: {0}, {1}"
   wire:
     hard_cap: "Cadena kable toj muk': {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Mu'yuk linked"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Items Exort"
   prev_page: "Sba Pagina"
   next_page: "Yan Pagina"
   page_info: "Pagina {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Stsobel: mu'yuk ch'akel"
       storage_multiple: "Stsobel: ep ch'akel"
+      exort_storage: "Stsobel Exort"
       vanilla: "Inventario: {0}"
       vanilla_missing: "Inventario: mu'yuk ch'akel"
   info:

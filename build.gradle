@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.14.9'
+version = '0.14.10'
 description = 'Exort Storage Network'
 
 base {
@@ -178,6 +178,7 @@ tasks.named('test') {
 
 tasks.named('shadowJar') {
     archiveClassifier = ''
+    includeEmptyDirs = false
     configurations = [project.configurations.runtimeClasspath]
     dependencies {
         include(dependency('org.bstats:bstats-bukkit:3.1.0'))
@@ -195,6 +196,7 @@ tasks.named('build') {
 }
 
 tasks.processResources {
+    includeEmptyDirs = false
     filteringCharset = 'UTF-8'
     inputs.property('version', project.version)
     inputs.property('description', project.description)

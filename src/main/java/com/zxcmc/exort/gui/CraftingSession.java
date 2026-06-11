@@ -546,12 +546,17 @@ public class CraftingSession extends AbstractStorageSession {
     if (crafts <= 0) return false;
     long outputAmount = outputAmount(plan, crafts);
     if (target == CraftingState.ConfirmTarget.STORAGE) {
+      List<OutputStack> output = targetAdditions(plan, crafts);
+      if (!canStoreAdditions(output)) {
+        setInfoErrorMessage(null);
+        triggerInfoError();
+        return false;
+      }
       List<StorageCache.ReservedItem> reserved = reserveIngredients(plan, crafts);
       if (reserved == null) {
         showWirelessMissingError();
         return false;
       }
-      List<OutputStack> output = outputAdditions(plan, outputAmount);
       if (!canStoreAdditions(output)) {
         rollbackIngredients(reserved);
         setInfoErrorMessage(null);
@@ -559,7 +564,6 @@ public class CraftingSession extends AbstractStorageSession {
         return false;
       }
       addToStorage(output);
-      deliverRemainders(plan, crafts);
       return true;
     }
     return craftToPlayer(plan, crafts);
@@ -567,7 +571,9 @@ public class CraftingSession extends AbstractStorageSession {
 
   private boolean craftToPlayer(CraftPlan plan, int crafts) {
     long outputAmount = outputAmount(plan, crafts);
-    List<OutputStack> output = outputAdditions(plan, outputAmount);
+    List<OutputStack> output =
+        CraftingTargetPreflight.merge(
+            outputAdditions(plan, outputAmount), remainderAdditions(plan, crafts));
     if (!canAddAllToPlayer(viewer, output)) {
       return false;
     }
@@ -580,8 +586,10 @@ public class CraftingSession extends AbstractStorageSession {
       rollbackIngredients(reserved);
       return false;
     }
-    addAllToPlayerOrStorage(viewer, output);
-    deliverRemainders(plan, crafts);
+    if (!addAllToPlayerStrict(viewer, output)) {
+      rollbackIngredients(reserved);
+      return false;
+    }
     return true;
   }
 
@@ -600,12 +608,18 @@ public class CraftingSession extends AbstractStorageSession {
     if (stack == null || stack.give <= 0) return false;
     List<StorageCache.ReservedItem> reserved = null;
     if (stack.crafts > 0) {
+      if (!canDeliverRemaindersWithoutDrop(plan, stack.crafts)) {
+        return false;
+      }
       reserved = reserveIngredients(plan, stack.crafts);
       if (reserved == null) {
         showWirelessMissingError();
         return false;
       }
-      deliverRemainders(plan, stack.crafts);
+      if (!deliverRemaindersSafely(plan, stack.crafts)) {
+        rollbackIngredients(reserved);
+        return false;
+      }
     }
     if (cursor == null || cursor.getType() == Material.AIR) {
       ItemStack out = plan.result.clone();
@@ -626,7 +640,9 @@ public class CraftingSession extends AbstractStorageSession {
     if (fit <= 0) return false;
     StackCraft stack = planStackCraft(plan, fit);
     if (stack == null || stack.give <= 0) return false;
-    List<OutputStack> output = outputAdditions(plan, stack.give);
+    List<OutputStack> output =
+        CraftingTargetPreflight.merge(
+            outputAdditions(plan, stack.give), remainderAdditions(plan, stack.crafts));
     if (!canAddAllToPlayer(viewer, output)) return false;
     List<StorageCache.ReservedItem> reserved = null;
     if (stack.crafts > 0) {
@@ -636,8 +652,12 @@ public class CraftingSession extends AbstractStorageSession {
         return false;
       }
     }
-    addAllToPlayerOrStorage(viewer, output);
-    deliverRemainders(plan, stack.crafts);
+    if (!addAllToPlayerStrict(viewer, output)) {
+      if (reserved != null) {
+        rollbackIngredients(reserved);
+      }
+      return false;
+    }
     int bufferGive = Math.min(stack.bufferUsed, stack.give);
     if (bufferGive > 0) {
       state.takeFromBuffer(plan.resultKey, bufferGive);
@@ -703,13 +723,18 @@ public class CraftingSession extends AbstractStorageSession {
       actualGive = Math.min(giveAmount, buffered);
       int bufferLeft = buffered - actualGive;
       List<OutputStack> capacityAdditions = outputAdditions(plan, bufferLeft);
-      if (!canStoreAdditions(capacityAdditions)) {
+      if (!canStoreAdditions(capacityAdditions) || !canDeliverRemaindersWithoutDrop(plan, 1)) {
         rollbackIngredients(reserved);
         setInfoErrorMessage(null);
         triggerInfoError();
         return false;
       }
-      deliverRemainders(plan, 1);
+      if (!deliverRemaindersSafely(plan, 1)) {
+        rollbackIngredients(reserved);
+        setInfoErrorMessage(null);
+        triggerInfoError();
+        return false;
+      }
       if (bufferLeft > 0) {
         state.setBuffer(resultKey, plan.result, bufferLeft);
       } else {
@@ -749,7 +774,7 @@ public class CraftingSession extends AbstractStorageSession {
     int high = Math.max(0, craftCount);
     while (low < high) {
       int mid = low + (high - low + 1) / 2;
-      List<OutputStack> additions = outputAdditions(plan, outputAmount(plan, mid));
+      List<OutputStack> additions = targetAdditions(plan, mid);
       if (canAddAllToPlayer(viewer, additions)) {
         low = mid;
       } else {
@@ -760,9 +785,17 @@ public class CraftingSession extends AbstractStorageSession {
   }
 
   private int limitToStorage(CraftPlan plan, int craftCount) {
-    long space = spaceLeftFor(plan.result);
-    int maxBySpace = (int) Math.min(Integer.MAX_VALUE, space / plan.resultPerCraft);
-    return Math.min(craftCount, maxBySpace);
+    int low = 0;
+    int high = Math.max(0, craftCount);
+    while (low < high) {
+      int mid = low + (high - low + 1) / 2;
+      if (canStoreAdditions(targetAdditions(plan, mid))) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return low;
   }
 
   private long outputAmount(CraftPlan plan, int crafts) {
@@ -1059,6 +1092,11 @@ public class CraftingSession extends AbstractStorageSession {
         key, new OutputStack(key, existing.sample(), saturatingAdd(existing.amount(), amount)));
   }
 
+  private List<OutputStack> targetAdditions(CraftPlan plan, int crafts) {
+    return CraftingTargetPreflight.merge(
+        outputAdditions(plan, outputAmount(plan, crafts)), remainderAdditions(plan, crafts));
+  }
+
   private boolean canStoreAdditions(List<OutputStack> additions) {
     long needed = 0L;
     for (OutputStack addition : additions) {
@@ -1078,14 +1116,21 @@ public class CraftingSession extends AbstractStorageSession {
     }
   }
 
-  private void deliverRemainders(CraftPlan plan, int crafts) {
+  private boolean canDeliverRemaindersWithoutDrop(CraftPlan plan, int crafts) {
     List<OutputStack> remainders = remainderAdditions(plan, crafts);
-    if (remainders.isEmpty()) return;
+    return remainders.isEmpty()
+        || canStoreAdditions(remainders)
+        || canAddAllToPlayer(viewer, remainders);
+  }
+
+  private boolean deliverRemaindersSafely(CraftPlan plan, int crafts) {
+    List<OutputStack> remainders = remainderAdditions(plan, crafts);
+    if (remainders.isEmpty()) return true;
     if (canStoreAdditions(remainders)) {
       addToStorage(remainders);
-      return;
+      return true;
     }
-    addAllToPlayerOrStorage(viewer, remainders);
+    return addAllToPlayerStrict(viewer, remainders);
   }
 
   private boolean canAddAllToPlayer(Player player, List<OutputStack> additions) {
@@ -1146,6 +1191,26 @@ public class CraftingSession extends AbstractStorageSession {
         }
       }
     }
+  }
+
+  private boolean addAllToPlayerStrict(Player player, List<OutputStack> additions) {
+    if (!canAddAllToPlayer(player, additions)) {
+      return false;
+    }
+    for (OutputStack addition : additions) {
+      long remaining = addition.amount();
+      while (remaining > 0) {
+        int move = (int) Math.min(Integer.MAX_VALUE, remaining);
+        ItemStack stack = addition.sample().clone();
+        stack.setAmount(move);
+        int moved = addToPlayerInventory(player, stack);
+        remaining -= moved;
+        if (moved < move) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   private void dropOutput(Player player, OutputStack stack) {
@@ -1224,8 +1289,6 @@ public class CraftingSession extends AbstractStorageSession {
   private record Ingredient(String key, ItemStack sample, int perCraft) {}
 
   private record CraftItem(String key, ItemStack sample, int amountPerCraft) {}
-
-  private record OutputStack(String key, ItemStack sample, long amount) {}
 
   private record CraftPlan(
       ItemStack result,

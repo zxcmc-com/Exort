@@ -15,8 +15,8 @@ Exort turns your storage into a searchable network. Items live in the storage da
 
 ## Compatibility
 - **Server software**: Paper / Purpur
-- **Target Minecraft**: 26.1.2
-- **Declared compatibility**: 1.21.7+
+- **Supported Minecraft**: 1.21.7-26.1.2
+- **Primary target**: 26.1.2
 - **Java**: 25 for Minecraft 26.1+ servers; Java 21 remains supported for the generated plugin bytecode and older 1.21.x servers.
 
 ## Installation

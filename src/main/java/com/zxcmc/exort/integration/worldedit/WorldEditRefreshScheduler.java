@@ -6,6 +6,8 @@ import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
+import com.zxcmc.exort.sanity.MarkerSanityDependencies;
+import com.zxcmc.exort.sanity.MarkerSanityService;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -166,12 +168,14 @@ final class WorldEditRefreshScheduler {
         () -> {
           DisplayRefreshService refreshService = deps.displayRefreshService();
           DisplayCleanupService cleanupService = newDisplayCleanupService();
+          MarkerSanityService markerSanityService = newMarkerSanityService();
           int refreshed = 0;
           for (ChunkKey key : chunks) {
             Chunk chunk = loadedChunk(key);
             if (chunk == null) {
               continue;
             }
+            markerSanityService.cleanupStaleMarkers(chunk);
             cleanupService.cleanupDisplays(chunk);
             if (refreshService != null) {
               refreshService.refreshChunk(chunk);
@@ -243,12 +247,14 @@ final class WorldEditRefreshScheduler {
     DisplayRefreshService refreshService = deps.displayRefreshService();
     BusService busService = deps.busService();
     DisplayCleanupService cleanupService = newDisplayCleanupService();
+    MarkerSanityService markerSanityService = newMarkerSanityService();
     int refreshedChunks = 0;
     for (ChunkKey key : chunkKeys) {
       Chunk chunk = loadedChunk(key);
       if (chunk == null) {
         continue;
       }
+      markerSanityService.cleanupStaleMarkers(chunk);
       cleanupService.cleanupDisplays(chunk);
       if (refreshService != null) {
         refreshService.refreshChunk(chunk);
@@ -310,6 +316,22 @@ final class WorldEditRefreshScheduler {
         deps.terminalCarrier(),
         deps.monitorCarrier(),
         deps.busCarrier());
+  }
+
+  private MarkerSanityService newMarkerSanityService() {
+    return new MarkerSanityService(
+        new MarkerSanityDependencies(
+            deps.plugin(),
+            deps.displayRefreshService(),
+            deps::hologramManager,
+            deps::busService,
+            deps.storageManager(),
+            deps.database(),
+            deps.wireMaterial(),
+            deps.storageCarrier(),
+            deps.terminalCarrier(),
+            deps.monitorCarrier(),
+            deps.busCarrier()));
   }
 
   private void updatePostQueueGauge() {

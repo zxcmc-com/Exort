@@ -35,7 +35,10 @@ final class InventoryCommand {
       return 1;
     }
     try {
-      new ExortGiveMenu(dependencies.customItems(), () -> dependencies.wirelessService().create())
+      new ExortGiveMenu(
+              dependencies.customItems(),
+              () -> dependencies.wirelessService().create(),
+              ExortGiveMenu.title(dependencies.lang().tr(player, "gui.give.title")))
           .open(player);
     } catch (IllegalStateException e) {
       ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to open Exort inventory menu", e);

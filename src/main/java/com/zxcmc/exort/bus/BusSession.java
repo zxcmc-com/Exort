@@ -164,7 +164,7 @@ public class BusSession implements InventoryHolder {
 
   private ItemStack infoButton() {
     List<Component> lore = new ArrayList<>();
-    BusSessionManager.BusLinkStatus status = manager.resolveStatus(state);
+    BusSessionManager.BusLinkStatus status = manager.resolveStatus(state, viewer);
     boolean loopDisabled = status.loopDisabled() && state.mode() != BusMode.DISABLED;
     if (status.loopDisabled()) {
       lore.add(
@@ -228,7 +228,7 @@ public class BusSession implements InventoryHolder {
   }
 
   private void updateStatusBar() {
-    BusSessionManager.BusLinkStatus status = manager.resolveStatus(state);
+    BusSessionManager.BusLinkStatus status = manager.resolveStatus(state, viewer);
     if (state.mode() == BusMode.DISABLED) {
       bossBarManager.remove(viewer);
       return;

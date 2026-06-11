@@ -337,7 +337,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
       PacketSendEvent event, Player player, ItemLocalizer itemLocalizer) {
     WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
     ItemStack original = fromPacketItem(packet.getItem());
-    ItemStack localized = ProtocolItemPacketLocalizer.localizeSlot(player, original, itemLocalizer);
+    ItemStack localized = PacketItemLocalizer.localizeSlot(player, original, itemLocalizer);
     if (localized == original) {
       return;
     }
@@ -359,7 +359,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
 
     boolean changed = false;
     List<ItemStack> localizedItems =
-        ProtocolItemPacketLocalizer.localizeItems(player, bukkitItems, itemLocalizer);
+        PacketItemLocalizer.localizeItems(player, bukkitItems, itemLocalizer);
     if (localizedItems != bukkitItems) {
       List<com.github.retrooper.packetevents.protocol.item.ItemStack> encoded =
           new ArrayList<>(localizedItems.size());
@@ -375,7 +375,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     if (carried.isPresent()) {
       ItemStack carriedItem = fromPacketItem(carried.get());
       ItemStack localizedCarried =
-          ProtocolItemPacketLocalizer.localizeSlot(player, carriedItem, itemLocalizer);
+          PacketItemLocalizer.localizeSlot(player, carriedItem, itemLocalizer);
       if (localizedCarried != carriedItem) {
         packet.setCarriedItem(toPacketItem(localizedCarried));
         changed = true;
@@ -392,7 +392,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
     List<EntityData<?>> metadata = packet.getEntityMetadata();
     List<EntityData<?>> localized =
-        ProtocolDisplayPacketLocalizer.localizeValues(
+        PacketDisplayLocalizer.localizeValues(
             player, packet.getEntityId(), metadata, METADATA_ADAPTER, displayLocalizer);
     if (localized == metadata) {
       return;
@@ -729,7 +729,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   private record MetadataIndexes(int entityFlags, int noGravity, int armorStandFlags) {}
 
   private static final class PacketEventsMetadataValueAdapter
-      implements ProtocolDisplayPacketLocalizer.MetadataValueAdapter<EntityData<?>> {
+      implements PacketDisplayLocalizer.MetadataValueAdapter<EntityData<?>> {
     @Override
     public int index(EntityData<?> value) {
       return value.getIndex();

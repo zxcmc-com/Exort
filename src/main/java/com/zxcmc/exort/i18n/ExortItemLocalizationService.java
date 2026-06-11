@@ -1,5 +1,6 @@
 package com.zxcmc.exort.i18n;
 
+import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
@@ -62,15 +63,11 @@ public final class ExortItemLocalizationService {
     boolean changed =
         switch (type) {
           case "storage" -> localizeStorage(meta, pdc, language);
-          case "storage_core" -> localizeName(meta, language, "item.storage_core");
-          case "terminal" -> localizeName(meta, language, "item.terminal");
-          case "crafting_terminal" -> localizeName(meta, language, "item.crafting_terminal");
-          case "wire" -> localizeName(meta, language, "item.wire");
-          case "monitor" -> localizeName(meta, language, "item.monitor");
-          case "import_bus" -> localizeName(meta, language, "item.import_bus");
-          case "export_bus" -> localizeName(meta, language, "item.export_bus");
           case "wireless_terminal" -> localizeWireless(meta, pdc, language);
-          default -> false;
+          default ->
+              CustomItemRegistry.fixedItem(type)
+                  .map(identity -> localizeName(meta, language, identity.translationKey()))
+                  .orElse(false);
         };
     if (!changed) {
       return source;

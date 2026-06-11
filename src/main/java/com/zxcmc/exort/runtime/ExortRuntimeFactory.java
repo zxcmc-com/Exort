@@ -113,6 +113,7 @@ public final class ExortRuntimeFactory {
                 deps.database(),
                 wirelessService,
                 deps.lang(),
+                deps.itemNameService(),
                 materials,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),

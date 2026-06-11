@@ -28,6 +28,7 @@ message:
   usage_debug_player: "плеерӗн актив е юлашки хранилищине кӑтарт"
   usage_debug_storage: "id тӑрӑх е плеерӗн юлашки хранилищине уҫ"
   usage_debug_cache: "хранилище кэшӗпе тиенӗ сеть ҫыхӑнӑвӗсене пӑх"
+  usage_debug_protection: "территори хӳтӗлевӗн интеграци статусне кӑтарт"
   usage_debug_verbose: "compact/normal/full диагностика логӗсене улӑштар"
   usage_debug_culling_client: "client-side culling bypass управлять"
   usage_debug_benchmark: "нагрузка benchmark пуҫла е чар"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Чанк тиенни сӑлтавӗ: {0}"
   debug_cache_status_connections: "Тиенӗ сеть узелӗсем: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Ку хранилищене ҫыхӑннӑ тиенӗ terminal/monitor/bus ҫук."
+  debug_protection_status_header: "Территори хӳтӗлевӗн статусӗ:"
+  debug_protection_status_mode: "Режим: {0}"
+  debug_protection_status_policy: "Конфиг: {0}; политика: {1}"
+  debug_protection_status_active: "Актив провайдерсем: {0}"
+  debug_protection_status_missing: "Кӗтнӗ, анчах тиенменнисем: {0}"
+  debug_protection_status_failed: "Инициализаци хаталӑхӗсем: {0}"
+  debug_protection_status_runtime: "Runtime пӑхӑв хаталӑхӗсем: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Чӗлхе настройкийӗсем:"
   usage_language_status: "актив чӗлхепе словарьсене кӑтарт"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Индекс ҫук"
   lang_status_index_fetched: "Индекс ку пусканӑҫра тиенчӗ"
   lang_status_dict: "Словарь {0}: {1} ({2} запись)"
+  lang_status_dict_compact: "Словарьсем ({0}): {1}"
   lang_status_paths: "Сукмаксем: {0}, {1}"
   wire:
     hard_cap: "Wire chain питӗ пысӑк: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Ҫыхӑнман"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort предметсем"
   prev_page: "Каялла страница"
   next_page: "Малалла страница"
   page_info: "Страница {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Хранилище: ҫыхӑнман"
       storage_multiple: "Хранилище: нумай ҫыхӑннӑ"
+      exort_storage: "Exort хранилище"
       vanilla: "Инвентарь: {0}"
       vanilla_missing: "Инвентарь: ҫыхӑнман"
   info:

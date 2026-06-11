@@ -28,6 +28,7 @@ message:
   usage_debug_player: "tunjukkan storan aktif atau terakhir pemain"
   usage_debug_storage: "buka storan mengikut id atau storan terakhir pemain"
   usage_debug_cache: "periksa cache storan dan pautan rangkaian yang dimuatkan"
+  usage_debug_protection: "tunjukkan status integrasi perlindungan kawasan"
   usage_debug_verbose: "togol log diagnostik compact/normal/full"
   usage_debug_culling_client: "urus client-side culling bypass"
   usage_debug_benchmark: "mulakan atau hentikan benchmark beban"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Sebab muatan chunk: {0}"
   debug_cache_status_connections: "Nod rangkaian dimuatkan: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Tiada terminal/monitor/bus dimuatkan yang dipautkan ke storan ini."
+  debug_protection_status_header: "Status perlindungan kawasan:"
+  debug_protection_status_mode: "Mod: {0}"
+  debug_protection_status_policy: "Konfigurasi: {0}; dasar: {1}"
+  debug_protection_status_active: "Penyedia aktif: {0}"
+  debug_protection_status_missing: "Dijangka ada tetapi tidak dimuatkan: {0}"
+  debug_protection_status_failed: "Kegagalan permulaan: {0}"
+  debug_protection_status_runtime: "Kegagalan pemeriksaan runtime: {0}"
   version: "Exort Storage Network v{0} oleh phantomfighterxx"
   usage_language_header: "Tetapan bahasa:"
   usage_language_status: "tunjukkan bahasa aktif dan kamus"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Indeks tiada"
   lang_status_index_fetched: "Indeks diambil dalam run ini"
   lang_status_dict: "Kamus {0}: {1} ({2} entri)"
+  lang_status_dict_compact: "Kamus ({0}): {1}"
   lang_status_paths: "Path: {0}, {1}"
   wire:
     hard_cap: "Rantai wayar terlalu besar: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Belum dipautkan"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Item Exort"
   prev_page: "Halaman Sebelumnya"
   next_page: "Halaman Seterusnya"
   page_info: "Halaman {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID Storan: {0}"
       storage_missing: "Storan: tidak bersambung"
       storage_multiple: "Storan: beberapa bersambung"
+      exort_storage: "Storan Exort"
       vanilla: "Inventori: {0}"
       vanilla_missing: "Inventori: tidak bersambung"
   info:

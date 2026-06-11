@@ -28,6 +28,7 @@ message:
   usage_debug_player: "hōʻike i ka waihona hana a hope paha o ka mea pāʻani"
   usage_debug_storage: "wehe waihona ma id a i ʻole waihona hope o ka mea pāʻani"
   usage_debug_cache: "nānā i cache waihona a me nā loulou network i hoʻouka ʻia"
+  usage_debug_protection: "hōʻike i ke kūlana hoʻohui pale ʻāina"
   usage_debug_verbose: "hoʻololi i nā log diagnostic compact/normal/full"
   usage_debug_culling_client: "hoʻokele client-side culling bypass"
   usage_debug_benchmark: "hoʻomaka a hoʻopau paha i ka load benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Kumu hoʻouka chunk: {0}"
   debug_cache_status_connections: "Nā node network i hoʻouka ʻia: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "ʻAʻohe terminals/monitors/buses i hoʻouka ʻia i pili i kēia waihona."
+  debug_protection_status_header: "Kūlana pale ʻāina:"
+  debug_protection_status_mode: "ʻAno: {0}"
+  debug_protection_status_policy: "Hoʻonohonoho: {0}; kulekele: {1}"
+  debug_protection_status_active: "Nā mea hoʻolako hana: {0}"
+  debug_protection_status_missing: "I manaʻo ʻia akā ʻaʻole i hoʻouka ʻia: {0}"
+  debug_protection_status_failed: "Nā hāʻule hoʻomaka: {0}"
+  debug_protection_status_runtime: "Nā hāʻule nānā runtime: {0}"
   version: "Exort Storage Network v{0} na phantomfighterxx"
   usage_language_header: "Nā hoʻonohonoho ʻōlelo:"
   usage_language_status: "hōʻike i ka ʻōlelo hana a me nā dictionaries"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Nalo ka index"
   lang_status_index_fetched: "Ua kiʻi ʻia ka index i kēia holo"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "Nā puke wehewehe ʻōlelo ({0}): {1}"
   lang_status_paths: "Nā ala: {0}, {1}"
   wire:
     hard_cap: "Nui loa ke kaulahao uea: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "ʻAʻole link"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Nā mea Exort"
   prev_page: "ʻAoʻao Mua"
   next_page: "ʻAoʻao Aʻe"
   page_info: "ʻAoʻao {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Waihona: ʻaʻole pili"
       storage_multiple: "Waihona: pili he nui"
+      exort_storage: "Waihona Exort"
       vanilla: "Inventory: {0}"
       vanilla_missing: "Inventory: ʻaʻole pili"
   info:

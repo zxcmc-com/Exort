@@ -128,6 +128,7 @@ public final class ResourcePackService implements Listener {
       return;
     }
     if (!resourceMode.getAsBoolean()) {
+      ResourcePackProviderBridge.removeAll(plugin);
       setState(State.disabled("Effective mode is VANILLA", configured, configuredDelivery));
       return;
     }

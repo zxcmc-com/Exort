@@ -17,7 +17,6 @@ class BreakVisualConfigTest {
     assertEquals("breaking/", config.resourceOverlay().modelRoot());
     assertEquals(1.001, config.resourceOverlay().displayScale());
     assertTrue(config.resourceParticles().enabled());
-    assertEquals("NETHERITE_BLOCK", config.resourceParticles().materialName());
     assertParticleSettings(config.resourceParticles().settings(), 16.0, 6, 30, 0.31);
   }
 

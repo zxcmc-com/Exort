@@ -28,6 +28,7 @@ message:
   usage_debug_player: "show active or last stokejo of a ludanto"
   usage_debug_storage: "open stokejo by id or ludanto last stokejo"
   usage_debug_cache: "inspect stokejo kaŝmemoro and links"
+  usage_debug_protection: "montri staton de teritoria protekta integriĝo"
   usage_debug_verbose: "toggle compact/normal/full diagnostic logs"
   usage_debug_culling_client: "manage client-side culling bypass"
   usage_debug_benchmark: "start or stop ŝargtesto"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk load reason: {0}"
   debug_cache_status_connections: "Loaded network nodes: terminalos={0} monitoros={1} busoes={2} total={3}"
   debug_cache_status_connections_empty: "Neniuj ŝargitaj terminaloj/monitoroj/busoj estas ligitaj al ĉi tiu stokejo."
+  debug_protection_status_header: "Stato de teritoria protekto:"
+  debug_protection_status_mode: "Reĝimo: {0}"
+  debug_protection_status_policy: "Agordo: {0}; politiko: {1}"
+  debug_protection_status_active: "Aktivaj provizantoj: {0}"
+  debug_protection_status_missing: "Atenditaj sed ne ŝargitaj: {0}"
+  debug_protection_status_failed: "Inicialigaj malsukcesoj: {0}"
+  debug_protection_status_runtime: "Rultempaj kontrolaj malsukcesoj: {0}"
   version: "Exort Stokejo Network v{0} by phantomfighterxx"
   usage_language_header: "Lingvo settings:"
   usage_language_status: "show active lingvo and dictionaries"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index missing"
   lang_status_index_fetched: "Index fetched this run"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "Vortaroj ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "Kablo chain too large: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Ne ligita"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort-aĵoj"
   prev_page: "Antaŭa paĝo"
   next_page: "Sekva paĝo"
   page_info: "Paĝo {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Stokejo ID: {0}"
       storage_missing: "Stokejo: ne konektita"
       storage_multiple: "Stokejo: many konektita"
+      exort_storage: "Exort-stokejo"
       vanilla: "Inventaro: {0}"
       vanilla_missing: "Inventaro: ne konektita"
   info:

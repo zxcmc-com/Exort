@@ -1,5 +1,6 @@
 package com.zxcmc.exort.integration.protection;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,6 +30,7 @@ class CompositeRegionProtectionTest {
         new CompositeRegionProtection(List.of(adapter("throwing", throwing())), null, false);
 
     assertTrue(protection.canBuild(null, null, null));
+    assertEquals(List.of("throwing:build"), protection.runtimeFailureKeys());
   }
 
   @Test

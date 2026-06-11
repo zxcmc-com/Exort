@@ -298,15 +298,20 @@ public final class DisplayRefreshService {
     Set<Block> terminals = new HashSet<>();
     Set<Block> monitors = new HashSet<>();
     Set<Block> buses = new HashSet<>();
+    WireRefreshBudget budget = new WireRefreshBudget(hardCap);
     queue.add(start);
     visited.add(start);
-    while (!queue.isEmpty() && visited.size() <= hardCap) {
+    budget.recordStartWire();
+    while (!queue.isEmpty()) {
       Block current = queue.poll();
       for (var face : FACES) {
         Block next = current.getRelative(face);
         if (visited.contains(next)) continue;
         if (!isChunkLoaded(next)) continue;
         if (Carriers.matchesCarrier(next, wireMaterial) && WireMarker.isWire(plugin, next)) {
+          if (!budget.tryVisitNextWire()) {
+            continue;
+          }
           visited.add(next);
           queue.add(next);
           continue;
@@ -333,6 +338,10 @@ public final class DisplayRefreshService {
       }
     }
     PerfStats.addCounter("wire.networkRefreshVisited", visited.size());
+    if (budget.skipped() > 0) {
+      PerfStats.addCounter("wire.networkRefreshSkipped", budget.skipped());
+      PerfStats.incrementCounter("wire.networkRefreshHardCapOverflow");
+    }
     for (Block terminal : terminals) {
       refreshTerminal(terminal);
     }

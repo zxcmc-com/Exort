@@ -74,10 +74,10 @@ public final class StorageTier {
       if (tierSec == null) continue;
       long maxItems = parseMaxItems(tierSec.get("maxItems"), logger, key);
       String matRaw = tierSec.getString("material");
-      String name = tierSec.getString("displayName", key);
+      String name = tierSec.getString("displayName", humanizeTierKey(key));
       if (name == null || name.trim().isEmpty()) {
-        logger.warning("Tier '" + key + "': displayName empty, using key");
-        name = key;
+        name = humanizeTierKey(key);
+        logger.warning("Tier '" + key + "': displayName empty, using " + name);
       }
       Material mat = null;
       if (matRaw == null || matRaw.isBlank()) {
@@ -97,6 +97,27 @@ public final class StorageTier {
     if (REGISTRY.isEmpty()) {
       logger.warning("No storage tiers configured; storages will be unusable.");
     }
+  }
+
+  static String humanizeTierKey(String key) {
+    if (key == null || key.isBlank()) {
+      return "Storage";
+    }
+    String[] parts = key.trim().toLowerCase(Locale.ROOT).split("[_\\-\\s]+");
+    StringBuilder builder = new StringBuilder();
+    for (String part : parts) {
+      if (part.isBlank()) {
+        continue;
+      }
+      if (!builder.isEmpty()) {
+        builder.append(' ');
+      }
+      builder.append(Character.toUpperCase(part.charAt(0)));
+      if (part.length() > 1) {
+        builder.append(part.substring(1));
+      }
+    }
+    return builder.isEmpty() ? "Storage" : builder.toString();
   }
 
   private static long parseMaxItems(Object raw, Logger logger, String tierKey) {

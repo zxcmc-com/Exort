@@ -28,6 +28,7 @@ message:
   usage_debug_player: "parādīt spēlētāja aktīvo vai pēdējo krātuvi"
   usage_debug_storage: "atvērt krātuvi pēc id vai spēlētāja pēdējās krātuves"
   usage_debug_cache: "pārbaudīt krātuves kešu un ielādētās tīkla saites"
+  usage_debug_protection: "parādīt teritorijas aizsardzības integrāciju statusu"
   usage_debug_verbose: "pārslēgt compact/normal/full diagnostikas žurnālus"
   usage_debug_culling_client: "pārvaldīt klienta display culling apvedceļu"
   usage_debug_benchmark: "sākt vai apturēt slodzes benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk ielādes iemesls: {0}"
   debug_cache_status_connections: "Ielādētie tīkla mezgli: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Nav ielādētu termināļu, monitoru vai kopņu, kas saistīti ar šo krātuvi."
+  debug_protection_status_header: "Teritorijas aizsardzības statuss:"
+  debug_protection_status_mode: "Režīms: {0}"
+  debug_protection_status_policy: "Konfigurācija: {0}; politika: {1}"
+  debug_protection_status_active: "Aktīvie nodrošinātāji: {0}"
+  debug_protection_status_missing: "Gaidīti, bet nav ielādēti: {0}"
+  debug_protection_status_failed: "Inicializācijas kļūmes: {0}"
+  debug_protection_status_runtime: "Pārbaužu kļūmes darbības laikā: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Valodas iestatījumi:"
   usage_language_status: "parādīt aktīvo valodu un vārdnīcas"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Indekss trūkst"
   lang_status_index_fetched: "Indekss iegūts šajā palaišanā"
   lang_status_dict: "Vārdnīca {0}: {1} ({2} ieraksti)"
+  lang_status_dict_compact: "Vārdnīcas ({0}): {1}"
   lang_status_paths: "Ceļi: {0}, {1}"
   wire:
     hard_cap: "Vada ķēde ir pārāk liela: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Nav piesaistīts"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort priekšmeti"
   prev_page: "Iepr. lapa"
   next_page: "Nāk. lapa"
   page_info: "Lapa {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Krātuves ID: {0}"
       storage_missing: "Krātuve: nav pievienota"
       storage_multiple: "Krātuve: pievienotas vairākas"
+      exort_storage: "Exort krātuve"
       vanilla: "Inventārs: {0}"
       vanilla_missing: "Inventārs: nav pievienots"
   info:

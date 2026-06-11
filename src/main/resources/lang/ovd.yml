@@ -28,6 +28,7 @@ message:
   usage_debug_player: "vis aktiv eller sist brukad lagring for ein spelar"
   usage_debug_storage: "opna lagring etter id eller spelarens siste lagring"
   usage_debug_cache: "granska lagringscache og laddaðe nettlenkjer"
+  usage_debug_protection: "vis status för områdesskydds-integrasjon"
   usage_debug_verbose: "slå kompakt/normal/full diagnostikklogg på eller av"
   usage_debug_culling_client: "styra client-side culling bypass"
   usage_debug_benchmark: "starta eller stoppa lastbenchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Grunn for chunkladding: {0}"
   debug_cache_status_connections: "Laddaðe nettknutar: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Inga laddaðe terminalar/monitorar/bussar ir lenka til denna lagring."
+  debug_protection_status_header: "Status för områdesskydd:"
+  debug_protection_status_mode: "Läge: {0}"
+  debug_protection_status_policy: "Inställning: {0}; policy: {1}"
+  debug_protection_status_active: "Aktiva leverantörer: {0}"
+  debug_protection_status_missing: "Väntaðe, men ikkje laddaðe: {0}"
+  debug_protection_status_failed: "Initieringsfel: {0}"
+  debug_protection_status_runtime: "Runtime-kontrollfel: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Språkstillingar:"
   usage_language_status: "vis aktivt språk og ordbøker"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index saknas"
   lang_status_index_fetched: "Index henta denna køyring"
   lang_status_dict: "Ordbok {0}: {1} ({2} innslag)"
+  lang_status_dict_compact: "Ordböker ({0}): {1}"
   lang_status_paths: "Stigar: {0}, {1}"
   wire:
     hard_cap: "Kabelkjeda ir for stor: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Int lenka"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort-grejer"
   prev_page: "Førre sida"
   next_page: "Neste sida"
   page_info: "Sida {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Lagrings-ID: {0}"
       storage_missing: "Lagring: int kopplað"
       storage_multiple: "Lagring: fleire kopplaðe"
+      exort_storage: "Exort-lagring"
       vanilla: "Inventar: {0}"
       vanilla_missing: "Inventar: int kopplað"
   info:

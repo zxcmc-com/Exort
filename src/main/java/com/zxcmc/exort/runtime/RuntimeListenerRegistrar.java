@@ -8,7 +8,6 @@ import com.zxcmc.exort.bus.listener.BusListener;
 import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
 import com.zxcmc.exort.gui.listener.TerminalListener;
-import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.items.listener.InventoryRefreshListener;
 import com.zxcmc.exort.items.listener.PickListener;
 import com.zxcmc.exort.monitor.listener.MonitorListener;
@@ -294,9 +293,6 @@ public final class RuntimeListenerRegistrar {
         return failoverBackend;
       }
     }
-    if (deps.packetEnhancements() == null) {
-      ExortLog.warn(packetEventsPlacementGuardUnavailableMessage());
-    }
     return paperBackend;
   }
 
@@ -349,18 +345,6 @@ public final class RuntimeListenerRegistrar {
                 materials.wire(),
                 materials.storageCarrier())));
     register(deps, new WirelessCraftListener(deps.wirelessService()));
-  }
-
-  private static String packetEventsPlacementGuardUnavailableMessage() {
-    var packetEvents = Bukkit.getPluginManager().getPlugin("packetevents");
-    if (packetEvents == null) {
-      return "[PacketEvents] Placement guard is enabled but PacketEvents is not installed; using"
-          + " Paper entity placement guard.";
-    }
-    String version = packetEvents.getPluginMeta().getVersion();
-    return "[PacketEvents] Placement guard is enabled but PacketEvents "
-        + version
-        + " is unavailable; using Paper entity placement guard.";
   }
 
   private static void register(RuntimeListenerDependencies deps, Listener listener) {

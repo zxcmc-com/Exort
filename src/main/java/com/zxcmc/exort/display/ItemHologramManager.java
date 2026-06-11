@@ -1,13 +1,13 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageTier;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +31,8 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public class ItemHologramManager implements Listener {
+  private static final int HOLOGRAM_REFRESH_BUDGET_PER_TICK = 64;
+
   public enum Kind {
     TERMINAL,
     STORAGE
@@ -53,7 +55,7 @@ public class ItemHologramManager implements Listener {
   private final Map<HoloPos, Kind> holograms = new ConcurrentHashMap<>();
   private final Map<HoloPos, ItemDisplay> displays = new ConcurrentHashMap<>();
   private final Map<HoloPos, Material> cache = new ConcurrentHashMap<>();
-  private volatile boolean dirtyAll = true;
+  private final BoundedRefreshQueue<HoloPos> queuedRefreshes = new BoundedRefreshQueue<>();
   private int taskId = -1;
 
   public ItemHologramManager(
@@ -97,8 +99,9 @@ public class ItemHologramManager implements Listener {
 
   public void registerTerminal(Block block) {
     if (!terminalConfig.enabled()) return;
-    holograms.put(HoloPos.of(block), Kind.TERMINAL);
-    dirtyAll = true;
+    HoloPos pos = HoloPos.of(block);
+    holograms.put(pos, Kind.TERMINAL);
+    queuedRefreshes.enqueue(pos);
   }
 
   public void unregisterTerminal(Block block) {
@@ -106,14 +109,15 @@ public class ItemHologramManager implements Listener {
     if (holograms.remove(pos) != null) {
       removeDisplay(pos);
       cache.remove(pos);
+      queuedRefreshes.remove(pos);
     }
-    dirtyAll = true;
   }
 
   public void registerStorage(Block block) {
     if (!storageConfig.enabled()) return;
-    holograms.put(HoloPos.of(block), Kind.STORAGE);
-    dirtyAll = true;
+    HoloPos pos = HoloPos.of(block);
+    holograms.put(pos, Kind.STORAGE);
+    queuedRefreshes.enqueue(pos);
   }
 
   public void unregisterStorage(Block block) {
@@ -121,12 +125,13 @@ public class ItemHologramManager implements Listener {
     if (holograms.remove(pos) != null) {
       removeDisplay(pos);
       cache.remove(pos);
+      queuedRefreshes.remove(pos);
     }
-    dirtyAll = true;
   }
 
   public void invalidateAll() {
-    dirtyAll = true;
+    cache.clear();
+    queuedRefreshes.enqueueAll(holograms.keySet());
   }
 
   public void clearAll() {
@@ -139,6 +144,7 @@ public class ItemHologramManager implements Listener {
     displays.clear();
     holograms.clear();
     cache.clear();
+    queuedRefreshes.clear();
   }
 
   private void removeDisplay(HoloPos pos) {
@@ -163,62 +169,65 @@ public class ItemHologramManager implements Listener {
   }
 
   private void tick() {
-    boolean recomputeAll = dirtyAll;
-    if (recomputeAll) {
-      dirtyAll = false;
+    for (HoloPos pos : queuedRefreshes.poll(HOLOGRAM_REFRESH_BUDGET_PER_TICK)) {
+      refreshHologram(pos);
     }
-    Iterator<Map.Entry<HoloPos, Kind>> it = holograms.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<HoloPos, Kind> entry = it.next();
-      HoloPos pos = entry.getKey();
-      Kind kind = entry.getValue();
-      Config config = kind == Kind.TERMINAL ? terminalConfig : storageConfig;
-      if (!config.enabled()) {
-        removeDisplay(pos);
-        it.remove();
-        cache.remove(pos);
-        continue;
-      }
-      World world = Bukkit.getWorld(pos.world());
-      if (world == null) {
-        removeDisplay(pos);
-        it.remove();
-        cache.remove(pos);
-        continue;
-      }
-      if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) {
-        removeDisplay(pos);
-        continue;
-      }
-      Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
-      if (!isValidBlock(block, kind)) {
-        removeDisplay(pos);
-        it.remove();
-        cache.remove(pos);
-        continue;
-      }
-      Material display = resolveDisplay(block, kind, recomputeAll, pos);
-      if (display == null) {
-        removeDisplay(pos);
-        continue;
-      }
-      ItemDisplay entity = displays.get(pos);
-      if (entity == null || entity.isDead()) {
-        Location desired = targetLoc(block, kind, config);
-        entity = spawnDisplay(desired, display, config.scale(), kind);
-        displays.put(pos, entity);
-      } else {
-        applySettings(entity, config.scale(), kind);
-        entity.setItemStack(new ItemStack(display));
-        entity.teleport(targetLoc(block, kind, config));
-      }
-      orientDisplay(entity, block, kind, config.scale());
-    }
+    PerfStats.setGauge("hologram.refreshQueueDepth", queuedRefreshes.size());
   }
 
-  private Material resolveDisplay(Block block, Kind kind, boolean recomputeAll, HoloPos pos) {
+  private void refreshHologram(HoloPos pos) {
+    Kind kind = holograms.get(pos);
+    if (kind == null) {
+      removeDisplay(pos);
+      cache.remove(pos);
+      return;
+    }
+    Config config = kind == Kind.TERMINAL ? terminalConfig : storageConfig;
+    if (!config.enabled()) {
+      removeDisplay(pos);
+      holograms.remove(pos);
+      cache.remove(pos);
+      return;
+    }
+    World world = Bukkit.getWorld(pos.world());
+    if (world == null) {
+      removeDisplay(pos);
+      holograms.remove(pos);
+      cache.remove(pos);
+      return;
+    }
+    if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) {
+      removeDisplay(pos);
+      return;
+    }
+    Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
+    if (!isValidBlock(block, kind)) {
+      removeDisplay(pos);
+      holograms.remove(pos);
+      cache.remove(pos);
+      return;
+    }
+    Material display = resolveDisplay(block, kind, pos);
+    if (display == null) {
+      removeDisplay(pos);
+      return;
+    }
+    ItemDisplay entity = displays.get(pos);
+    if (entity == null || entity.isDead()) {
+      Location desired = targetLoc(block, kind, config);
+      entity = spawnDisplay(desired, display, config.scale(), kind);
+      displays.put(pos, entity);
+    } else {
+      applySettings(entity, config.scale(), kind);
+      entity.setItemStack(new ItemStack(display));
+      entity.teleport(targetLoc(block, kind, config));
+    }
+    orientDisplay(entity, block, kind, config.scale());
+  }
+
+  private Material resolveDisplay(Block block, Kind kind, HoloPos pos) {
     Material cached = cache.get(pos);
-    if (!recomputeAll && cached != null) return cached;
+    if (cached != null) return cached;
     Material resolved =
         switch (kind) {
           case TERMINAL -> resolveTerminalDisplay(block);

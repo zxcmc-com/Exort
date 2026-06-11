@@ -43,7 +43,8 @@ public final class RuntimeBusServicesFactory {
             materials.wire(),
             materials.storageCarrier(),
             deps.guiRuntimeConfig(),
-            deps.guiOverlayConfig());
+            deps.guiOverlayConfig(),
+            deps.itemNameService());
     BusSessionManager busSessionManager =
         new BusSessionManager(busSessionDependencies, busService, deps.lang());
     busSessionManager.reconfigure();

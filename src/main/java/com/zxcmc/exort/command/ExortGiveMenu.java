@@ -1,5 +1,6 @@
 package com.zxcmc.exort.command;
 
+import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.ArrayList;
@@ -22,28 +23,20 @@ public final class ExortGiveMenu implements InventoryHolder {
   static final int SIZE = 54;
   static final String TITLE = "Exort Storage Network";
 
-  private static final List<String> FIXED_ITEM_IDS =
-      List.of(
-          "storage_core",
-          "terminal",
-          "crafting_terminal",
-          "monitor",
-          "import_bus",
-          "export_bus",
-          "wire",
-          "wireless_terminal");
+  private static final List<String> FIXED_ITEM_IDS = CustomItemRegistry.fixedItemIds();
 
   private final Inventory inventory;
   private final CustomItems customItems;
 
-  public ExortGiveMenu(CustomItems customItems, Supplier<ItemStack> wirelessTerminalFactory) {
+  public ExortGiveMenu(
+      CustomItems customItems, Supplier<ItemStack> wirelessTerminalFactory, Component title) {
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     List<ItemStack> items =
         catalogItems(
             customItems,
             Objects.requireNonNull(wirelessTerminalFactory, "wirelessTerminalFactory"));
     validateCatalogSize(items.size());
-    inventory = Bukkit.createInventory(this, SIZE, Component.text(TITLE));
+    inventory = Bukkit.createInventory(this, SIZE, title == null ? Component.text(TITLE) : title);
     for (int i = 0; i < items.size(); i++) {
       inventory.setItem(i, items.get(i));
     }
@@ -117,6 +110,11 @@ public final class ExortGiveMenu implements InventoryHolder {
     ids.addAll(FIXED_ITEM_IDS);
     validateCatalogSize(ids.size());
     return List.copyOf(ids);
+  }
+
+  static Component title(String localizedTitle) {
+    return Component.text(
+        localizedTitle == null || localizedTitle.isBlank() ? TITLE : localizedTitle);
   }
 
   static void validateCatalogSize(int size) {

@@ -45,6 +45,14 @@ public final class BreakParticleSender implements BreakAnimationSender {
     return new BreakParticleSender(plugin, settings, particleMaterial);
   }
 
+  public static BreakParticleSender resource(Plugin plugin, Settings settings) {
+    return new BreakParticleSender(plugin, settings, null);
+  }
+
+  boolean usesTypeAwareParticleBlockData() {
+    return particleBlockData == null;
+  }
+
   @Override
   public void show(Block block, BreakType type, double progress) {
     spawn(block, type, stageCount);

@@ -28,6 +28,7 @@ message:
   usage_debug_player: "mostra lo stoccaggio attivo o ultimo di un giocatore"
   usage_debug_storage: "apri uno stoccaggio per id o l’ultimo di un giocatore"
   usage_debug_cache: "ispeziona cache di stoccaggio e collegamenti di rete caricati"
+  usage_debug_protection: "mostra lo stato dell’integrazione di protezione territoriale"
   usage_debug_verbose: "attiva/disattiva log diagnostici compact/normal/full"
   usage_debug_culling_client: "gestionar bypass de culling del cliente"
   usage_debug_benchmark: "iniciar o detener el benchmark de carga"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Razón de carga del chunk: {0}"
   debug_cache_status_connections: "Nodos de red cargados: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "No hay terminales/monitores/buses cargados enlazados a este almacenamiento."
+  debug_protection_status_header: "Stato della protezione territoriale:"
+  debug_protection_status_mode: "Modalità: {0}"
+  debug_protection_status_policy: "Config: {0}; criterio: {1}"
+  debug_protection_status_active: "Provider attivi: {0}"
+  debug_protection_status_missing: "Attesi ma non caricati: {0}"
+  debug_protection_status_failed: "Errori di inizializzazione: {0}"
+  debug_protection_status_runtime: "Errori di verifica in runtime: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Impostazioni lingua:"
   usage_language_status: "mostrar idioma activo y diccionarios"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Índice ausente"
   lang_status_index_fetched: "Índice obtenido en esta ejecución"
   lang_status_dict: "Dizionario {0}: {1} ({2} voci)"
+  lang_status_dict_compact: "Dizionari ({0}): {1}"
   lang_status_paths: "Percorsi: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Non collegato"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Oggetti Exort"
   prev_page: "Pagina precedente"
   next_page: "Pagina successiva"
   page_info: "Pagina {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID de almacenamiento: {0}"
       storage_missing: "Stoccaggio: no conectado"
       storage_multiple: "Stoccaggio: varios conectados"
+      exort_storage: "Stoccaggio Exort"
       vanilla: "Inventario: {0}"
       vanilla_missing: "Inventario: no conectado"
   info:

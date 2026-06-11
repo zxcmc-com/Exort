@@ -107,46 +107,40 @@ final class LangCommand {
 
   static List<String> dictionaryStatusLines(
       Lang lang, CommandSender sender, ItemNameService.Status status) {
+    return dictionaryStatusEntries(status).stream().map(line -> line.render(lang, sender)).toList();
+  }
+
+  static List<DictionaryStatusLine> dictionaryStatusEntries(ItemNameService.Status status) {
     if (status == null || status.dictVersions().isEmpty()) {
       return List.of();
     }
     List<String> languages = new ArrayList<>(status.dictVersions().keySet());
     languages.sort(String::compareTo);
     if (languages.size() >= COMPACT_DICTIONARY_LIST_THRESHOLD) {
-      return List.of(compactDictionaryStatusLine(lang, sender, languages));
+      return List.of(
+          new DictionaryStatusLine(
+              "message.lang_status_dict_compact",
+              List.of(languages.size(), String.join(", ", languages))));
     }
-    List<String> lines = new ArrayList<>(languages.size());
+    List<DictionaryStatusLine> lines = new ArrayList<>(languages.size());
     for (String language : languages) {
       int size = status.dictSizes().getOrDefault(language, 0);
       lines.add(
-          lang.tr(
-              sender,
+          new DictionaryStatusLine(
               "message.lang_status_dict",
-              language,
-              status.dictVersions().get(language),
-              size));
+              List.of(language, status.dictVersions().get(language), size)));
     }
     return lines;
   }
 
-  private static String compactDictionaryStatusLine(
-      Lang lang, CommandSender sender, List<String> languages) {
-    String label = dictionaryStatusLabel(lang, sender);
-    return label + " (" + languages.size() + "): " + String.join(", ", languages);
-  }
+  record DictionaryStatusLine(String key, List<Object> args) {
+    DictionaryStatusLine {
+      args = args == null ? List.of() : List.copyOf(args);
+    }
 
-  private static String dictionaryStatusLabel(Lang lang, CommandSender sender) {
-    String marker = "__exort_lang__";
-    String sample = lang.tr(sender, "message.lang_status_dict", marker, "-", 0);
-    int markerIndex = sample.indexOf(marker);
-    if (markerIndex <= 0) {
-      return "Dictionaries";
+    String render(Lang lang, CommandSender sender) {
+      return lang.tr(sender, key, args.toArray());
     }
-    String label = sample.substring(0, markerIndex).trim();
-    if (label.endsWith(":")) {
-      label = label.substring(0, label.length() - 1).trim();
-    }
-    return label.isBlank() ? "Dictionaries" : label;
   }
 
   private Component usageLine(CommandSender sender, String command, String descriptionKey) {

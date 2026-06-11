@@ -28,6 +28,7 @@ message:
   usage_debug_player: "show active or last storehouse of a player"
   usage_debug_storage: "open storehouse by id or player last storehouse"
   usage_debug_cache: "inspect storehouse cache and links"
+  usage_debug_protection: "show land-warding link status"
   usage_debug_verbose: "toggle compact/normal/full diagnostic logs"
   usage_debug_culling_client: "manage client-side culling bypass"
   usage_debug_benchmark: "start or stop load trial"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Old-speech chunk load reason: {0}"
   debug_cache_status_connections: "Loaded network nodes: terminals={0} watchs={1} cartes={2} total={3}"
   debug_cache_status_connections_empty: "No loaded terminals/watchs/cartes are bound to this storehouse."
+  debug_protection_status_header: "Land-warding status:"
+  debug_protection_status_mode: "Way: {0}"
+  debug_protection_status_policy: "Setup: {0}; rule: {1}"
+  debug_protection_status_active: "Active warders: {0}"
+  debug_protection_status_missing: "Looked-for but not loaded: {0}"
+  debug_protection_status_failed: "Startup mishaps: {0}"
+  debug_protection_status_runtime: "Runtime check mishaps: {0}"
   version: "Exort Storehouse Network v{0} by phantomfighterxx"
   usage_language_header: "Tongue settings:"
   usage_language_status: "show active tongue and dictionaries"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index missing"
   lang_status_index_fetched: "Index fetched this run"
   lang_status_dict: "Wordbook {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "Wordbooks ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "Wire chain too large: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "No bond set"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort Things"
   prev_page: "Back Page"
   next_page: "Forward Page"
   page_info: "Leaf {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storehouse ID: {0}"
       storage_missing: "Storehouse: not bound"
       storage_multiple: "Storehouse: many linked"
+      exort_storage: "Exort Storehouse"
       vanilla: "Pack: {0}"
       vanilla_missing: "Pack: not bound"
   info:

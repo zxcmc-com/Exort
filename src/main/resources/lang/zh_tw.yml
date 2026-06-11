@@ -28,6 +28,7 @@ message:
   usage_debug_player: "顯示玩家正在使用或上次使用的儲存"
   usage_debug_storage: "依 id 或玩家上次使用紀錄開啟儲存"
   usage_debug_cache: "檢查儲存快取和已載入的網路連線"
+  usage_debug_protection: "顯示區域保護整合狀態"
   usage_debug_verbose: "切換 compact/normal/full 診斷紀錄"
   usage_debug_culling_client: "管理 client-side culling bypass"
   usage_debug_benchmark: "啟動或停止負載基準測試"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "區塊載入原因：{0}"
   debug_cache_status_connections: "已載入網路節點：terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "沒有已載入的終端、監視器或匯流排連線到此儲存。"
+  debug_protection_status_header: "區域保護狀態："
+  debug_protection_status_mode: "模式：{0}"
+  debug_protection_status_policy: "設定：{0}；策略：{1}"
+  debug_protection_status_active: "作用中的提供者：{0}"
+  debug_protection_status_missing: "預期存在但未載入：{0}"
+  debug_protection_status_failed: "初始化失敗：{0}"
+  debug_protection_status_runtime: "執行階段檢查失敗：{0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "語言設定："
   usage_language_status: "顯示使用中的語言和字典"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "索引缺失"
   lang_status_index_fetched: "本次執行已擷取索引"
   lang_status_dict: "字典 {0}：{1}（{2} 個項目）"
+  lang_status_dict_compact: "字典（{0}）：{1}"
   lang_status_paths: "路徑：{0}, {1}"
   wire:
     hard_cap: "纜線鏈過大：{0}/{1}。"
@@ -194,6 +203,8 @@ lore:
     not_linked: "未綁定"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort 物品"
   prev_page: "上一頁"
   next_page: "下一頁"
   page_info: "第 {0}/{1} 頁"
@@ -261,6 +272,7 @@ gui:
       storage_id: "儲存 ID：{0}"
       storage_missing: "儲存：未連線"
       storage_multiple: "儲存：已連線多個"
+      exort_storage: "Exort 儲存"
       vanilla: "物品欄：{0}"
       vanilla_missing: "物品欄：未連線"
   info:

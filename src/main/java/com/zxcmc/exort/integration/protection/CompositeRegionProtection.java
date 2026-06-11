@@ -61,7 +61,10 @@ public final class CompositeRegionProtection implements RegionProtection {
   }
 
   private void warnFailure(String adapterName, String action, Throwable error) {
-    if (logger == null || !warnedFailures.add(adapterName + ":" + action)) {
+    if (!warnedFailures.add(adapterName + ":" + action)) {
+      return;
+    }
+    if (logger == null) {
       return;
     }
     logger.log(
@@ -80,6 +83,10 @@ public final class CompositeRegionProtection implements RegionProtection {
       names.add(adapter.name());
     }
     return names;
+  }
+
+  public List<String> runtimeFailureKeys() {
+    return warnedFailures.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
   }
 
   public record Adapter(String name, RegionProtection protection) {}

@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -53,8 +52,6 @@ public final class BusEngine implements Runnable {
   private final BusDueScheduler dueScheduler = new BusDueScheduler();
 
   private int taskId = -1;
-  private long chunkOpTick = Long.MIN_VALUE;
-  private final Map<ChunkKey, Integer> chunkOps = new HashMap<>();
   private final Map<BusPos, CachedContext> contextCache = new HashMap<>();
   private long loopGuardNextRefreshTick = Long.MIN_VALUE;
   private long loopGuardRegistryVersion = Long.MIN_VALUE;
@@ -93,7 +90,6 @@ public final class BusEngine implements Runnable {
       Bukkit.getScheduler().cancelTask(taskId);
       taskId = -1;
     }
-    chunkOps.clear();
     dueScheduler.clear();
     contextCache.clear();
     loopDisabled.clear();
@@ -130,22 +126,19 @@ public final class BusEngine implements Runnable {
       dueScheduler.clear();
       return;
     }
-    int opsLeft = maxOperationsPerTick;
+    BusTickBudget budget = new BusTickBudget(maxOperationsPerTick, maxOperationsPerChunk);
     long tick = Bukkit.getCurrentTick();
-    if (chunkOpTick != tick) {
-      chunkOps.clear();
-      chunkOpTick = tick;
-    }
     dueScheduler.sync(list, registry.version(), tick);
     PerfStats.setGauge("bus.dueDepth", dueScheduler.size());
     refreshLoopDisabledSnapshotIfNeeded(list, tick);
     Set<String> changedStorages = new HashSet<>();
     int contextBudget = contextBudget();
-    while (opsLeft > 0 && contextBudget-- > 0) {
+    while (budget.hasGlobalBudget() && contextBudget-- > 0) {
       BusState state = dueScheduler.pollDue(tick);
       if (state == null) {
         break;
       }
+      budget.recordDueAttempt();
       long nextTick;
       if (state.viewers() > 0) {
         nextTick = tick + idleIntervalTicks;
@@ -153,12 +146,13 @@ public final class BusEngine implements Runnable {
         dueScheduler.schedule(state, nextTick);
         continue;
       }
-      if (maxOperationsPerChunk > 0 && isChunkLimitReached(state.pos())) {
+      if (budget.isChunkBudgetReached(state.pos())) {
         nextTick = tick + idleIntervalTicks;
         state.setNextTick(nextTick);
         dueScheduler.schedule(state, nextTick);
         continue;
       }
+      budget.recordChunkAttempt(state.pos());
       boolean moved = false;
       try {
         moved = tickBus(state, tick, changedStorages);
@@ -168,12 +162,6 @@ public final class BusEngine implements Runnable {
       nextTick = tick + (moved ? activeIntervalTicks : idleIntervalTicks);
       state.setNextTick(nextTick);
       dueScheduler.schedule(state, nextTick);
-      if (moved) {
-        opsLeft--;
-        if (maxOperationsPerChunk > 0) {
-          incrementChunkOps(state.pos());
-        }
-      }
     }
     if (dueScheduler.hasDue(tick)) {
       PerfStats.incrementCounter("bus.budgetOverrun");
@@ -691,20 +679,4 @@ public final class BusEngine implements Runnable {
             invKey,
             sideSensitiveInventory));
   }
-
-  private boolean isChunkLimitReached(BusPos pos) {
-    if (pos == null || maxOperationsPerChunk <= 0) return false;
-    ChunkKey key = new ChunkKey(pos.world(), pos.x() >> 4, pos.z() >> 4);
-    int used = chunkOps.getOrDefault(key, 0);
-    return used >= maxOperationsPerChunk;
-  }
-
-  private void incrementChunkOps(BusPos pos) {
-    if (pos == null || maxOperationsPerChunk <= 0) return;
-    ChunkKey key = new ChunkKey(pos.world(), pos.x() >> 4, pos.z() >> 4);
-    int used = chunkOps.getOrDefault(key, 0);
-    chunkOps.put(key, used + 1);
-  }
-
-  private record ChunkKey(UUID world, int x, int z) {}
 }

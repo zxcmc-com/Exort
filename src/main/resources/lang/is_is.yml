@@ -28,6 +28,7 @@ message:
   usage_debug_player: "sýna virka eða síðustu geymslu spilara"
   usage_debug_storage: "opna geymslu með id eða síðustu geymslu spilara"
   usage_debug_cache: "skoða geymslu-cache og hlaðnar nettengingar"
+  usage_debug_protection: "sýna stöðu svæðaverndarsamþættingar"
   usage_debug_verbose: "skipta compact/normal/full greiningarloggum"
   usage_debug_culling_client: "stýra client-side culling bypass"
   usage_debug_benchmark: "ræsa eða stöðva load benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Ástæða chunk-hleðslu: {0}"
   debug_cache_status_connections: "Hlaðnir nethnútar: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Engir hlaðnir terminalar/monitors/buses eru tengdir þessari geymslu."
+  debug_protection_status_header: "Staða svæðaverndar:"
+  debug_protection_status_mode: "Hamur: {0}"
+  debug_protection_status_policy: "Stilling: {0}; stefna: {1}"
+  debug_protection_status_active: "Virkir þjónustuveitendur: {0}"
+  debug_protection_status_missing: "Vænt en ekki hlaðið: {0}"
+  debug_protection_status_failed: "Frumstillingarvillur: {0}"
+  debug_protection_status_runtime: "Keyrslutímaathugunarvillur: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Tungumálastillingar:"
   usage_language_status: "sýna virkt tungumál og orðabækur"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index vantar"
   lang_status_index_fetched: "Index sótt í þessari keyrslu"
   lang_status_dict: "Orðabók {0}: {1} ({2} færslur)"
+  lang_status_dict_compact: "Orðabækur ({0}): {1}"
   lang_status_paths: "Slóðir: {0}, {1}"
   wire:
     hard_cap: "Vírkeðjan er of stór: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Ekki tengt"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort-hlutir"
   prev_page: "Fyrri síða"
   next_page: "Næsta síða"
   page_info: "Síða {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Geymsla: ekki tengd"
       storage_multiple: "Geymsla: fleiri tengdar"
+      exort_storage: "Exort-geymsla"
       vanilla: "Birgðir: {0}"
       vanilla_missing: "Birgðir: ekki tengdar"
   info:

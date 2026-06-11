@@ -129,6 +129,29 @@ class ResourcePackProviderBridgeTest {
     assertTrue(atlas.contains("\"resource\":\"exort:item/ia_block_storage\""));
   }
 
+  @Test
+  void removeAllDeletesOnlyExortProviderHandoffs() throws IOException {
+    Path nexoPack = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    Path nexoOther = tempDir.resolve("Nexo/pack/external_packs/other.zip");
+    Path itemsAdderPack = tempDir.resolve("ItemsAdder/contents/exort/resourcepack/assets/a.txt");
+    Path itemsAdderOther =
+        tempDir.resolve("ItemsAdder/contents/other/resourcepack/assets/keep.txt");
+    Files.createDirectories(nexoPack.getParent());
+    Files.writeString(nexoPack, "exort");
+    Files.writeString(nexoOther, "other");
+    Files.createDirectories(itemsAdderPack.getParent());
+    Files.writeString(itemsAdderPack, "exort");
+    Files.createDirectories(itemsAdderOther.getParent());
+    Files.writeString(itemsAdderOther, "other");
+
+    ResourcePackProviderBridge.removeAll(tempDir.toFile());
+
+    assertFalse(Files.exists(nexoPack));
+    assertTrue(Files.isRegularFile(nexoOther));
+    assertFalse(Files.exists(tempDir.resolve("ItemsAdder/contents/exort/resourcepack")));
+    assertTrue(Files.isRegularFile(itemsAdderOther));
+  }
+
   private static void writeZip(Path target, Map<String, String> entries) throws IOException {
     Files.createDirectories(target.getParent());
     try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(target))) {

@@ -28,6 +28,7 @@ message:
   usage_debug_player: "ಆಟಗಾರನ ಸಕ್ರಿಯ ಅಥವಾ ಕೊನೆಯ ಸಂಗ್ರಹಣೆಯನ್ನು ತೋರಿಸಿ"
   usage_debug_storage: "id ಮೂಲಕ ಅಥವಾ ಆಟಗಾರನ ಕೊನೆಯ ಸಂಗ್ರಹಣೆ ಮೂಲಕ ಸಂಗ್ರಹಣೆ ತೆರೆಯಿರಿ"
   usage_debug_cache: "ಸಂಗ್ರಹಣೆ ಕ್ಯಾಶ್ ಮತ್ತು ಲೋಡ್ ಆದ ಜಾಲ ಸಂಪರ್ಕಗಳನ್ನು ಪರಿಶೀಲಿಸಿ"
+  usage_debug_protection: "ಪ್ರದೇಶ-ರಕ್ಷಣಾ ಇಂಟಿಗ್ರೇಶನ್ ಸ್ಥಿತಿಯನ್ನು ತೋರಿಸಿ"
   usage_debug_verbose: "compact/normal/full ಡಯಾಗ್ನೋಸ್ಟಿಕ್ ಲಾಗ್‌ಗಳನ್ನು ಬದಲಿಸಿ"
   usage_debug_culling_client: "client-side culling bypass ನಿರ್ವಹಿಸಿ"
   usage_debug_benchmark: "ಲೋಡ್ benchmark ಆರಂಭಿಸಿ ಅಥವಾ ನಿಲ್ಲಿಸಿ"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk ಲೋಡ್ ಕಾರಣ: {0}"
   debug_cache_status_connections: "ಲೋಡ್ ಆದ ಜಾಲ nodes: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "ಈ ಸಂಗ್ರಹಣೆಗೆ ಯಾವುದೇ ಲೋಡ್ ಆದ terminal/monitor/bus ಲಿಂಕ್ ಆಗಿಲ್ಲ."
+  debug_protection_status_header: "ಪ್ರದೇಶ ರಕ್ಷಣೆಯ ಸ್ಥಿತಿ:"
+  debug_protection_status_mode: "ಮೋಡ್: {0}"
+  debug_protection_status_policy: "ಕಾನ್ಫಿಗ್: {0}; ನೀತಿ: {1}"
+  debug_protection_status_active: "ಸಕ್ರಿಯ ಪ್ರೊವೈಡರ್‌ಗಳು: {0}"
+  debug_protection_status_missing: "ನಿರೀಕ್ಷಿತ ಆದರೆ ಲೋಡ್ ಆಗಿಲ್ಲ: {0}"
+  debug_protection_status_failed: "ಆರಂಭಿಕರಣ ವೈಫಲ್ಯಗಳು: {0}"
+  debug_protection_status_runtime: "ರನ್‌ಟೈಮ್ ಪರಿಶೀಲನೆ ವೈಫಲ್ಯಗಳು: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "ಭಾಷೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳು:"
   usage_language_status: "ಸಕ್ರಿಯ ಭಾಷೆ ಮತ್ತು dictionary ಗಳು ತೋರಿಸಿ"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index ಇಲ್ಲ"
   lang_status_index_fetched: "ಈ run ನಲ್ಲಿ index fetched"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "ನಿಘಂಟುಗಳು ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "ವೈರ್ chain ತುಂಬಾ ದೊಡ್ಡದು: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "ಲಿಂಕ್ ಆಗಿಲ್ಲ"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort ಐಟಂಗಳು"
   prev_page: "ಹಿಂದಿನ ಪುಟ"
   next_page: "ಮುಂದಿನ ಪುಟ"
   page_info: "ಪುಟ {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ಸಂಗ್ರಹಣೆ ID: {0}"
       storage_missing: "ಸಂಗ್ರಹಣೆ: ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ"
       storage_multiple: "ಸಂಗ್ರಹಣೆ: ಹಲವಾರು ಸಂಪರ್ಕಗೊಂಡಿವೆ"
+      exort_storage: "Exort ಸಂಗ್ರಹಣೆ"
       vanilla: "ಇನ್‌ವೆಂಟರಿ: {0}"
       vanilla_missing: "ಇನ್‌ವೆಂಟರಿ: ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ"
   info:

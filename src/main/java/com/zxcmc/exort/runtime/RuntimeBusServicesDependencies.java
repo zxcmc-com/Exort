@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.gui.GuiRuntimeConfig;
+import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -23,6 +24,7 @@ public record RuntimeBusServicesDependencies(
     Database database,
     WirelessTerminalService wirelessService,
     Lang lang,
+    ItemNameService itemNameService,
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,
@@ -39,6 +41,7 @@ public record RuntimeBusServicesDependencies(
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(wirelessService, "wirelessService");
     Objects.requireNonNull(lang, "lang");
+    Objects.requireNonNull(itemNameService, "itemNameService");
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(busRuntime, "busRuntime");
     Objects.requireNonNull(resourceMode, "resourceMode");

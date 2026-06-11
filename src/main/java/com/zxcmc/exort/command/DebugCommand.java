@@ -15,6 +15,7 @@ import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
+import com.zxcmc.exort.integration.protection.ProtectionStatus;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -186,6 +187,9 @@ final class DebugCommand {
                                 .suggests(this::suggestPlayers)
                                 .executes(this::cacheStatus))))
         .then(
+            Commands.literal("protection")
+                .then(Commands.literal("status").executes(this::protectionStatus)))
+        .then(
             Commands.literal("storage")
                 .then(
                     Commands.argument(ARG_STORAGE_ID, StringArgumentType.word())
@@ -277,6 +281,7 @@ final class DebugCommand {
                 sender,
                 "/exort debug cache status <storageId|player>",
                 "message.usage_debug_cache"),
+            usageLine(sender, "/exort debug protection status", "message.usage_debug_protection"),
             usageLine(
                 sender,
                 "/exort debug verbose <cache|worldedit|pick|culling> start|stop [mode]",
@@ -292,9 +297,56 @@ final class DebugCommand {
     return 1;
   }
 
+  private int protectionStatus(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    ProtectionStatus status = dependencies.protectionStatus().get();
+    CommandFeedback.sendBlock(
+        sender,
+        Component.text(tr(sender, "message.debug_protection_status_header")),
+        List.of(
+            Component.text(
+                tr(sender, "message.debug_protection_status_mode", statusMode(status.mode()))),
+            Component.text(
+                tr(
+                    sender,
+                    "message.debug_protection_status_policy",
+                    status.enabled() ? "enabled" : "disabled",
+                    status.failClosedOnError() ? "fail-closed" : "fail-open")),
+            Component.text(
+                tr(
+                    sender,
+                    "message.debug_protection_status_active",
+                    joinStatus(status.activeAdapters()))),
+            Component.text(
+                tr(
+                    sender,
+                    "message.debug_protection_status_missing",
+                    joinStatus(status.missingPlugins()))),
+            Component.text(
+                tr(
+                    sender,
+                    "message.debug_protection_status_failed",
+                    joinStatus(status.failedAdapters()))),
+            Component.text(
+                tr(
+                    sender,
+                    "message.debug_protection_status_runtime",
+                    joinStatus(status.runtimeFailures())))));
+    return 1;
+  }
+
   private Component usageLine(CommandSender sender, String command, String descriptionKey) {
     return CommandFeedback.commandLine(
         command, tr(sender, descriptionKey), tr(sender, "message.command_click", command));
+  }
+
+  private static String statusMode(ProtectionStatus.Mode mode) {
+    return mode.name().toLowerCase(Locale.ROOT).replace('_', '-');
+  }
+
+  private static String joinStatus(List<String> values) {
+    return values == null || values.isEmpty() ? "none" : String.join(", ", values);
   }
 
   private int cacheVerboseStart(

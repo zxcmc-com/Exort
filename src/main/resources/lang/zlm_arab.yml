@@ -28,6 +28,7 @@ message:
   usage_debug_player: "تونجوقكن ستورن ڤماين يڠ اكتيف اتاو تراخير"
   usage_debug_storage: "بوک ستورن مڠيكوت id اتاو ستورن تراخير ڤماين"
   usage_debug_cache: "ڤريكس storage cache دان loaded network links"
+  usage_debug_protection: "تونجوقكن ستاتوس اينتيݢراسي ڤرليندوڠن ولايه"
   usage_debug_verbose: "توكر compact/normal/full diagnostic logs"
   usage_debug_culling_client: "اوروس client-side culling bypass"
   usage_debug_benchmark: "مولاكن اتاو هنتيكن load benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "سبب chunk load: {0}"
   debug_cache_status_connections: "Loaded network nodes: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "تياد terminals/monitors/buses يڠ dimuat ترسامبوڠ ك ستورن اين."
+  debug_protection_status_header: "ستاتوس ڤرليندوڠن ولايه:"
+  debug_protection_status_mode: "مود: {0}"
+  debug_protection_status_policy: "كونفيݢ: {0}; ڤوليسي: {1}"
+  debug_protection_status_active: "ڤروڤايدر اكتيف: {0}"
+  debug_protection_status_missing: "دجڠكاکن تاتڤي تيدق دمواتكن: {0}"
+  debug_protection_status_failed: "ݢاݢل اينيسياليساسي: {0}"
+  debug_protection_status_runtime: "ݢاݢل ڤمريکساءن runtime: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "تتڤن بهاس:"
   usage_language_status: "تونجوقكن بهاس اكتيف دان dictionaries"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index تياد"
   lang_status_index_fetched: "Index دأمبيل دالم run اين"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "کاموس ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "رانتاين wire ترلالو بسر: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "بلوم د-link"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "ايتيم Exort"
   prev_page: "هلامن سبلوم"
   next_page: "هلامن ستروس"
   page_info: "هلامن {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Storage: تيدق ترسامبوڠ"
       storage_multiple: "Storage: ببراڤ ترسامبوڠ"
+      exort_storage: "ستورن Exort"
       vanilla: "Inventory: {0}"
       vanilla_missing: "Inventory: تيدق ترسامبوڠ"
   info:

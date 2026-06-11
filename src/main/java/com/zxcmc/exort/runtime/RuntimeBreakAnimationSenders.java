@@ -55,17 +55,6 @@ public final class RuntimeBreakAnimationSenders {
 
   private static BreakAnimationSender createResourceParticleSender(
       Plugin plugin, BreakVisualConfig.ResourceParticleConfig particleConfig) {
-    Material material =
-        RuntimeMaterialResolver.resolve(particleConfig.materialName(), Material.NETHERITE_BLOCK);
-    if (material == null || !material.isBlock()) {
-      plugin
-          .getLogger()
-          .warning(
-              "Invalid RESOURCE break particle block material '"
-                  + particleConfig.materialName()
-                  + "', falling back to NETHERITE_BLOCK");
-      material = Material.NETHERITE_BLOCK;
-    }
-    return BreakParticleSender.resource(plugin, particleConfig.settings(), material);
+    return BreakParticleSender.resource(plugin, particleConfig.settings());
   }
 }

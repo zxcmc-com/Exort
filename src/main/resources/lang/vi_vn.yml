@@ -28,6 +28,7 @@ message:
   usage_debug_player: "hiển thị kho lưu trữ đang mở hoặc gần nhất của người chơi"
   usage_debug_storage: "mở kho lưu trữ theo id hoặc kho gần nhất của người chơi"
   usage_debug_cache: "kiểm tra storage cache và các liên kết mạng đã tải"
+  usage_debug_protection: "hiển thị trạng thái tích hợp bảo vệ khu vực"
   usage_debug_verbose: "bật/tắt log chẩn đoán compact/normal/full"
   usage_debug_culling_client: "quản lý client-side culling bypass"
   usage_debug_benchmark: "bắt đầu hoặc dừng load benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Lý do load chunk: {0}"
   debug_cache_status_connections: "Loaded network nodes: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Không có terminals/monitors/buses đã tải nào liên kết với kho lưu trữ này."
+  debug_protection_status_header: "Trạng thái bảo vệ khu vực:"
+  debug_protection_status_mode: "Chế độ: {0}"
+  debug_protection_status_policy: "Cấu hình: {0}; chính sách: {1}"
+  debug_protection_status_active: "Nhà cung cấp đang hoạt động: {0}"
+  debug_protection_status_missing: "Dự kiến có nhưng chưa tải: {0}"
+  debug_protection_status_failed: "Lỗi khởi tạo: {0}"
+  debug_protection_status_runtime: "Lỗi kiểm tra lúc chạy: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Thiết lập ngôn ngữ:"
   usage_language_status: "hiển thị ngôn ngữ đang dùng và dictionaries"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Thiếu index"
   lang_status_index_fetched: "Index đã được lấy trong lần chạy này"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "Từ điển ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "Chuỗi wire quá lớn: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Chưa liên kết"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Vật phẩm Exort"
   prev_page: "Trang trước"
   next_page: "Trang sau"
   page_info: "Trang {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Storage ID: {0}"
       storage_missing: "Storage: chưa kết nối"
       storage_multiple: "Storage: kết nối nhiều kho"
+      exort_storage: "Kho Exort"
       vanilla: "Inventory: {0}"
       vanilla_missing: "Inventory: chưa kết nối"
   info:

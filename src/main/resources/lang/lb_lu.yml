@@ -28,6 +28,7 @@ message:
   usage_debug_player: "den aktiven oder leschte Späicher vum Spiller weisen"
   usage_debug_storage: "Späicher no id oder leschte vum Spiller opmaachen"
   usage_debug_cache: "Späicher-Cache a geluede Netzverbindunge kucken"
+  usage_debug_protection: "Status vun der Gebittsschutz-Integratioun weisen"
   usage_debug_verbose: "kompakt/normal/voll Diagnos-Logs wiesselen"
   usage_debug_culling_client: "client-side culling bypass verwalten"
   usage_debug_benchmark: "Laascht-Benchmark starten oder stoppen"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk-Luedgrond: {0}"
   debug_cache_status_connections: "Geluede Netzkniet: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Keng geluede Terminaler/Monitoren/Bussen si mat dësem Späicher verbonnen."
+  debug_protection_status_header: "Gebittsschutz-Status:"
+  debug_protection_status_mode: "Modus: {0}"
+  debug_protection_status_policy: "Konfiguratioun: {0}; Richtlinn: {1}"
+  debug_protection_status_active: "Aktiv Provider: {0}"
+  debug_protection_status_missing: "Erwaart, mee net gelueden: {0}"
+  debug_protection_status_failed: "Initialiséierungsfeeler: {0}"
+  debug_protection_status_runtime: "Runtime-Kontrollfeeler: {0}"
   version: "Exort Storage Network v{0} vum phantomfighterxx"
   usage_language_header: "Sproochastellungen:"
   usage_language_status: "aktiv Sprooch an Dictionnairen weisen"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index feelt"
   lang_status_index_fetched: "Index an dësem Laf gelueden"
   lang_status_dict: "Dictionnaire {0}: {1} ({2} Entréen)"
+  lang_status_dict_compact: "Dictionnairen ({0}): {1}"
   lang_status_paths: "Weeër: {0}, {1}"
   wire:
     hard_cap: "Kabelkette ass ze grouss: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Net verlinkt"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort-Itemen"
   prev_page: "Vireg Säit"
   next_page: "Nächst Säit"
   page_info: "Säit {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Späicher-ID: {0}"
       storage_missing: "Späicher: net verbonnen"
       storage_multiple: "Späicher: méi verbonnen"
+      exort_storage: "Exort-Späicher"
       vanilla: "Inventaire: {0}"
       vanilla_missing: "Inventaire: net verbonnen"
   info:

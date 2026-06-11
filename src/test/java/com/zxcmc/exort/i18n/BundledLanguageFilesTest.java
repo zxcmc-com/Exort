@@ -24,6 +24,23 @@ class BundledLanguageFilesTest {
   private static final Path LOCALES_FIXTURE =
       Path.of("src/test/resources/minecraft-lang-locales.txt");
   private static final Pattern JAVA_PLACEHOLDER = Pattern.compile("\\{\\d+}");
+  private static final Set<String> CRITICAL_PLAYER_FACING_KEYS =
+      Set.of(
+          "item.storage_core",
+          "item.terminal",
+          "item.crafting_terminal",
+          "item.wire",
+          "item.monitor",
+          "item.import_bus",
+          "item.export_bus",
+          "item.wireless_terminal",
+          "gui.give.title",
+          "gui.bus.import_title",
+          "gui.bus.export_title",
+          "gui.bus.info.exort_storage",
+          "message.storage_load_failed",
+          "message.storage_loading",
+          "message.operation_failed");
 
   @Test
   void everyPinnedMinecraftLocaleHasBundledRuntimeLanguageFile() throws IOException {
@@ -73,6 +90,23 @@ class BundledLanguageFilesTest {
             placeholders(localized.get(key)),
             locale + " has mismatched placeholders for " + key);
       }
+    }
+  }
+
+  @Test
+  void russianCriticalPlayerFacingKeysDoNotUseEnglishFallbacks() {
+    Map<String, String> english = readRuntimeLang("en_us");
+    Map<String, String> russian = readRuntimeLang("ru_ru");
+
+    for (String key : CRITICAL_PLAYER_FACING_KEYS) {
+      assertTrue(russian.containsKey(key), "ru_ru missing critical key " + key);
+      assertEquals(
+          placeholders(english.get(key)),
+          placeholders(russian.get(key)),
+          "ru_ru critical key placeholders changed for " + key);
+      assertTrue(
+          !english.get(key).equals(russian.get(key)),
+          "ru_ru critical key still equals English fallback: " + key);
     }
   }
 

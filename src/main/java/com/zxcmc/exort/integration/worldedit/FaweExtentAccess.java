@@ -2,7 +2,6 @@ package com.zxcmc.exort.integration.worldedit;
 
 import java.io.File;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
@@ -12,24 +11,15 @@ final class FaweExtentAccess {
 
   private FaweExtentAccess() {}
 
-  static void allowMarkerExtent(Plugin fawe, Logger logger, String extentClass) {
-    boolean modified = false;
+  static Result allowMarkerExtent(Plugin fawe, String extentClass) {
+    File configFile = new File(fawe.getDataFolder(), "config.yml");
+    ConfigResult configResult = allowMarkerExtentInConfig(configFile, extentClass);
+    boolean modified = configResult.modified() && configResult.saved();
     boolean runtimeAllowed = false;
     Throwable runtimeError = null;
-    try {
-      File configFile = new File(fawe.getDataFolder(), "config.yml");
-      if (configFile.isFile()) {
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-        var allowed = config.getStringList(ALLOWED_PLUGINS_KEY);
-        if (!allowed.contains(extentClass)) {
-          allowed.add(extentClass);
-          config.set(ALLOWED_PLUGINS_KEY, allowed);
-          config.save(configFile);
-          modified = true;
-        }
-      }
-    } catch (Exception ignored) {
-    }
+    boolean reloadAttempted = false;
+    boolean reloadSucceeded = false;
+    Throwable reloadError = null;
     try {
       Class<?> settingsClass = Class.forName("com.fastasyncworldedit.core.configuration.Settings");
       Object settings = settingsClass.getMethod("settings").invoke(null);
@@ -57,34 +47,62 @@ final class FaweExtentAccess {
         }
       }
       if (modified) {
+        reloadAttempted = true;
         try {
-          File configFile = new File(fawe.getDataFolder(), "config.yml");
           settingsClass.getMethod("reload", File.class).invoke(settings, configFile);
+          reloadSucceeded = true;
           extent = settingsClass.getField("EXTENT").get(settings);
           allowedField = extent.getClass().getField("ALLOWED_PLUGINS");
-        } catch (Exception ignored) {
+        } catch (Exception error) {
+          reloadError = error;
         }
       }
       runtimeAllowed = containsString(allowedField.get(extent), extentClass);
     } catch (Throwable err) {
       runtimeError = err;
     }
-    if (!runtimeAllowed && logger != null && WARNED_KEYS.add(ALLOWED_PLUGINS_KEY)) {
-      String suffix =
-          runtimeError == null
-              ? ""
-              : " Runtime check failed: "
-                  + runtimeError.getClass().getSimpleName()
-                  + ": "
-                  + runtimeError.getMessage();
-      logger.warning(
-          "[WorldEdit] Could not verify FAWE "
-              + ALLOWED_PLUGINS_KEY
-              + " contains "
-              + extentClass
-              + "; Exort marker extent may be rejected by FAWE."
-              + suffix);
+    return new Result(
+        configResult,
+        reloadAttempted,
+        reloadSucceeded,
+        describe(reloadError),
+        runtimeAllowed,
+        describe(runtimeError));
+  }
+
+  static ConfigResult allowMarkerExtentInConfig(File configFile, String extentClass) {
+    String path = configFile == null ? "<unknown>" : configFile.getAbsolutePath();
+    if (configFile == null || !configFile.isFile()) {
+      return new ConfigResult(path, false, false, false, null);
     }
+    try {
+      YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+      var allowed = config.getStringList(ALLOWED_PLUGINS_KEY);
+      if (allowed.contains(extentClass)) {
+        return new ConfigResult(path, true, false, false, null);
+      }
+      allowed.add(extentClass);
+      config.set(ALLOWED_PLUGINS_KEY, allowed);
+      config.save(configFile);
+      return new ConfigResult(path, true, true, true, null);
+    } catch (Exception error) {
+      return new ConfigResult(path, true, true, false, describe(error));
+    }
+  }
+
+  static boolean shouldLogWarning(Result result) {
+    if (result == null) {
+      return false;
+    }
+    return result.hasFailure() && WARNED_KEYS.add(ALLOWED_PLUGINS_KEY);
+  }
+
+  private static String describe(Throwable error) {
+    if (error == null) {
+      return null;
+    }
+    String message = error.getMessage();
+    return error.getClass().getSimpleName() + (message == null ? "" : ": " + message);
   }
 
   private static boolean containsString(Object value, String expected) {
@@ -96,5 +114,49 @@ final class FaweExtentAccess {
       }
     }
     return false;
+  }
+
+  record ConfigResult(
+      String path, boolean fileFound, boolean modified, boolean saved, String error) {}
+
+  record Result(
+      ConfigResult config,
+      boolean reloadAttempted,
+      boolean reloadSucceeded,
+      String reloadError,
+      boolean runtimeAllowed,
+      String runtimeError) {
+    boolean hasFailure() {
+      return !runtimeAllowed || config.error() != null || reloadError != null;
+    }
+
+    String logMessage(String extentClass) {
+      return "[WorldEdit] FAWE marker extent access: class="
+          + extentClass
+          + ", config="
+          + config.path()
+          + ", fileFound="
+          + config.fileFound()
+          + ", modified="
+          + config.modified()
+          + ", saved="
+          + config.saved()
+          + ", configError="
+          + none(config.error())
+          + ", reloadAttempted="
+          + reloadAttempted
+          + ", reloadSucceeded="
+          + reloadSucceeded
+          + ", reloadError="
+          + none(reloadError)
+          + ", runtimeAllowed="
+          + runtimeAllowed
+          + ", runtimeError="
+          + none(runtimeError);
+    }
+
+    private static String none(String value) {
+      return value == null || value.isBlank() ? "none" : value;
+    }
   }
 }

@@ -98,7 +98,7 @@ public class CustomItems {
       meta.itemName(lang.itemComponent(clientTranslations, "item.storage_core"));
       meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "storage_core");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.STORAGE_CORE.id());
       ItemModelUtil.applyItemModel(meta, storageItemModel);
       item.setItemMeta(meta);
     }
@@ -111,7 +111,7 @@ public class CustomItems {
     if (meta != null) {
       meta.itemName(lang.itemComponent(clientTranslations, "item.terminal"));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "terminal");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.TERMINAL.id());
       ItemModelUtil.applyItemModel(meta, terminalItemModel);
       item.setItemMeta(meta);
     }
@@ -124,7 +124,7 @@ public class CustomItems {
     if (meta != null) {
       meta.itemName(lang.itemComponent(clientTranslations, "item.crafting_terminal"));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "crafting_terminal");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.CRAFTING_TERMINAL.id());
       ItemModelUtil.applyItemModel(meta, craftingTerminalItemModel);
       item.setItemMeta(meta);
     }
@@ -138,7 +138,7 @@ public class CustomItems {
       meta.itemName(lang.itemComponent(clientTranslations, "item.wire"));
       ItemModelUtil.applyItemModel(meta, wireItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "wire");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.WIRE.id());
       item.setItemMeta(meta);
     }
     return item;
@@ -151,7 +151,7 @@ public class CustomItems {
       meta.itemName(lang.itemComponent(clientTranslations, "item.monitor"));
       ItemModelUtil.applyItemModel(meta, monitorItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "monitor");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.MONITOR.id());
       item.setItemMeta(meta);
     }
     return item;
@@ -164,7 +164,7 @@ public class CustomItems {
       meta.itemName(lang.itemComponent(clientTranslations, "item.import_bus"));
       ItemModelUtil.applyItemModel(meta, importBusItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "import_bus");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.IMPORT_BUS.id());
       item.setItemMeta(meta);
     }
     return item;
@@ -177,7 +177,7 @@ public class CustomItems {
       meta.itemName(lang.itemComponent(clientTranslations, "item.export_bus"));
       ItemModelUtil.applyItemModel(meta, exportBusItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "export_bus");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.EXPORT_BUS.id());
       item.setItemMeta(meta);
     }
     return item;
@@ -189,7 +189,7 @@ public class CustomItems {
     if (meta != null) {
       meta.itemName(lang.itemComponent(clientTranslations, "item.wireless_terminal"));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, "wireless_terminal");
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.WIRELESS_TERMINAL.id());
       if (owner != null) {
         pdc.set(keys.wirelessOwner(), PersistentDataType.STRING, owner);
       }

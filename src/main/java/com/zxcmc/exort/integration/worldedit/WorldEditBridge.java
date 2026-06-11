@@ -52,12 +52,14 @@ import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTier;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -68,9 +70,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -85,6 +85,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.enginehub.linbus.tree.LinByteArrayTag;
@@ -139,6 +140,9 @@ public final class WorldEditBridge implements Listener {
   private final WorldEditRefreshScheduler refreshScheduler;
   private final WorldEditClipboardPatcher clipboardPatcher;
   private final Queue<PendingUpdate> updates = new ConcurrentLinkedQueue<>();
+  private final WorldEditDeferredUpdates deferredUpdates = new WorldEditDeferredUpdates();
+  private final Set<ChunkKey> deferredSnapshotChunks = ConcurrentHashMap.newKeySet();
+  private final Set<ChunkKey> warnedDeferredUpdateChunks = ConcurrentHashMap.newKeySet();
   private final WorldEditMarkerHistory markerHistory = new WorldEditMarkerHistory();
   private final Map<UUID, PendingClipboardPatch> clipboardPatches = new ConcurrentHashMap<>();
   private final Map<UUID, PendingPasteCommand> pendingPasteCommands = new ConcurrentHashMap<>();
@@ -166,7 +170,13 @@ public final class WorldEditBridge implements Listener {
     if (worldEdit == null && fawe == null) return null;
     try {
       if (fawe != null) {
-        FaweExtentAccess.allowMarkerExtent(fawe, plugin.getLogger(), MarkerExtent.class.getName());
+        FaweExtentAccess.Result result =
+            FaweExtentAccess.allowMarkerExtent(fawe, MarkerExtent.class.getName());
+        if (FaweExtentAccess.shouldLogWarning(result)) {
+          plugin.getLogger().warning(result.logMessage(MarkerExtent.class.getName()));
+        } else if (!result.hasFailure()) {
+          plugin.getLogger().info(result.logMessage(MarkerExtent.class.getName()));
+        }
       }
       WorldEditBridge bridge = new WorldEditBridge(deps);
       WorldEdit.getInstance().getEventBus().register(bridge);
@@ -197,6 +207,9 @@ public final class WorldEditBridge implements Listener {
     }
     refreshScheduler.shutdown();
     clipboardPatcher.shutdown();
+    deferredUpdates.clear();
+    deferredSnapshotChunks.clear();
+    warnedDeferredUpdateChunks.clear();
     markerHistory.clear();
     clipboardPatches.clear();
     pendingPasteCommands.clear();
@@ -286,6 +299,37 @@ public final class WorldEditBridge implements Listener {
       pendingPasteCommands.remove(player.getUniqueId());
       pendingMovePatches.remove(player.getUniqueId());
     }
+  }
+
+  @EventHandler(priority = EventPriority.MONITOR)
+  public void onChunkLoad(ChunkLoadEvent event) {
+    if (event == null || event.getChunk() == null) {
+      return;
+    }
+    Chunk chunk = event.getChunk();
+    if (chunk.getWorld() == null) {
+      return;
+    }
+    ChunkKey key = new ChunkKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+    ChunkUpdateBatch batch = deferredUpdates.remove(key);
+    if (batch != null) {
+      int requeued = requeueDeferredBatch(batch);
+      if (requeued > 0) {
+        scheduleFlushIfNeeded();
+        WorldEditDebugService debug = deps.debugService();
+        if (debug != null && debug.isEnabled()) {
+          debug.recordEvent(
+              "we deferred marker retry chunk="
+                  + key.chunkX()
+                  + ","
+                  + key.chunkZ()
+                  + " updates="
+                  + requeued,
+              NamedTextColor.YELLOW);
+        }
+      }
+    }
+    reconcileDeferredSnapshotChunk(key, "chunk_load");
   }
 
   @Subscribe
@@ -898,7 +942,15 @@ public final class WorldEditBridge implements Listener {
     if (PerfStats.isEnabled()) {
       int markerDepth = updates.size();
       PerfStats.setGauge("worldedit.markerQueueDepth", markerDepth);
-      PerfStats.setGauge("worldedit.queueDepth", markerDepth + refreshScheduler.queuedTaskCount());
+      PerfStats.setGauge("worldedit.markerDeferredChunks", deferredUpdates.chunkCount());
+      PerfStats.setGauge("worldedit.markerDeferredUpdates", deferredUpdates.updateCount());
+      PerfStats.setGauge("worldedit.snapshotDeferredChunks", deferredSnapshotChunks.size());
+      PerfStats.setGauge(
+          "worldedit.queueDepth",
+          markerDepth
+              + deferredUpdates.updateCount()
+              + deferredSnapshotChunks.size()
+              + refreshScheduler.queuedTaskCount());
     }
   }
 
@@ -918,6 +970,7 @@ public final class WorldEditBridge implements Listener {
 
   private void requeueBatch(ChunkUpdateBatch batch) {
     WorldEditDebugService debug = deps.debugService();
+    List<PendingUpdate> deferred = new ArrayList<>();
     for (PendingUpdate pending : batch.updates) {
       if (pending.attempts < MAX_RETRIES) {
         pending.attempts++;
@@ -930,8 +983,47 @@ public final class WorldEditBridge implements Listener {
         if (debug != null && debug.isEnabled()) {
           debug.incUpdatesSkipped();
         }
+        deferred.add(pending);
       }
     }
+    if (!deferred.isEmpty()) {
+      int count = deferredUpdates.defer(batch.key, deferred);
+      logDeferredUpdates(batch.key, count);
+    }
+  }
+
+  private int requeueDeferredBatch(ChunkUpdateBatch batch) {
+    if (batch == null || batch.updates.isEmpty()) {
+      return 0;
+    }
+    int requeued = 0;
+    for (PendingUpdate pending : batch.updates) {
+      if (pending == null) {
+        continue;
+      }
+      pending.attempts = 0;
+      pending.nextTick = tickCounter;
+      updates.add(pending);
+      requeued++;
+    }
+    updateQueueDepthGauge();
+    return requeued;
+  }
+
+  private void logDeferredUpdates(ChunkKey key, int count) {
+    if (key == null || count <= 0 || !warnedDeferredUpdateChunks.add(key)) {
+      return;
+    }
+    plugin
+        .getLogger()
+        .warning(
+            "[WorldEdit] Delayed "
+                + count
+                + " marker update(s) for chunk "
+                + key.chunkX()
+                + ","
+                + key.chunkZ()
+                + " after retry budget; Exort will retry when the chunk loads.");
   }
 
   private boolean applyUpdate(World world, MarkerUpdate update) {
@@ -1086,16 +1178,8 @@ public final class WorldEditBridge implements Listener {
 
   private ChunkSnapshot loadSnapshot(World world, int chunkX, int chunkZ) {
     if (!Bukkit.isPrimaryThread()) {
-      try {
-        return Bukkit.getScheduler()
-            .callSyncMethod(plugin, () -> loadSnapshot(world, chunkX, chunkZ))
-            .get(5, TimeUnit.SECONDS);
-      } catch (InterruptedException ignored) {
-        Thread.currentThread().interrupt();
-        return ChunkSnapshot.empty();
-      } catch (ExecutionException | TimeoutException ignored) {
-        return ChunkSnapshot.empty();
-      }
+      deferSnapshotReconcile(world, chunkX, chunkZ);
+      return ChunkSnapshot.empty();
     }
     if (world == null || !world.isChunkLoaded(chunkX, chunkZ)) {
       return ChunkSnapshot.empty();
@@ -1121,6 +1205,41 @@ public final class WorldEditBridge implements Listener {
           NamedTextColor.BLUE);
     }
     return ChunkSnapshot.of(data);
+  }
+
+  private void deferSnapshotReconcile(World world, int chunkX, int chunkZ) {
+    if (world == null) {
+      return;
+    }
+    ChunkKey key = new ChunkKey(world.getUID(), chunkX, chunkZ);
+    if (!deferredSnapshotChunks.add(key)) {
+      return;
+    }
+    updateQueueDepthGauge();
+    try {
+      Bukkit.getScheduler()
+          .runTaskLater(plugin, () -> reconcileDeferredSnapshotChunk(key, "async_snapshot"), 2L);
+    } catch (RuntimeException ignored) {
+      // If the plugin is disabling, the chunk-load fallback is enough for any retained key.
+    }
+  }
+
+  private void reconcileDeferredSnapshotChunk(ChunkKey key, String reason) {
+    if (key == null) {
+      return;
+    }
+    World world = Bukkit.getWorld(key.worldId());
+    if (world == null || !world.isChunkLoaded(key.chunkX(), key.chunkZ())) {
+      updateQueueDepthGauge();
+      return;
+    }
+    if (!deferredSnapshotChunks.remove(key)) {
+      return;
+    }
+    Set<ChunkKey> chunks = Set.of(key);
+    refreshScheduler.refreshAffectedChunks(chunks, Set.of(), reason);
+    refreshScheduler.scheduleDeferredRefresh(chunks, Set.of());
+    updateQueueDepthGauge();
   }
 
   private LinCompoundTag buildExortTag(Block block) {

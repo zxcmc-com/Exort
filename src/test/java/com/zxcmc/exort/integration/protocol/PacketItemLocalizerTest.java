@@ -10,13 +10,12 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
-class ProtocolItemPacketLocalizerTest {
+class PacketItemLocalizerTest {
   @Test
   void localizeSlotReturnsOriginalWhenItemIsUnchanged() {
     ItemStack item = new TestItemStack(1);
 
-    ItemStack localized =
-        ProtocolItemPacketLocalizer.localizeSlot(null, item, (player, stack) -> stack);
+    ItemStack localized = PacketItemLocalizer.localizeSlot(null, item, (player, stack) -> stack);
 
     assertSame(item, localized);
   }
@@ -26,7 +25,7 @@ class ProtocolItemPacketLocalizerTest {
     List<ItemStack> items = List.of(new TestItemStack(1), new TestItemStack(2));
 
     List<ItemStack> localized =
-        ProtocolItemPacketLocalizer.localizeItems(null, items, (player, stack) -> stack);
+        PacketItemLocalizer.localizeItems(null, items, (player, stack) -> stack);
 
     assertSame(items, localized);
   }
@@ -38,7 +37,7 @@ class ProtocolItemPacketLocalizerTest {
     List<ItemStack> items = new ArrayList<>(List.of(first, second));
 
     List<ItemStack> localized =
-        ProtocolItemPacketLocalizer.localizeItems(
+        PacketItemLocalizer.localizeItems(
             null, items, (player, stack) -> stack == second ? new TestItemStack(20) : stack);
 
     assertNotSame(items, localized);

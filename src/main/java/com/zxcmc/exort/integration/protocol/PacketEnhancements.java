@@ -30,10 +30,10 @@ public interface PacketEnhancements {
       FeatureProbe localization) {}
 
   @FunctionalInterface
-  interface ItemLocalizer extends ProtocolItemPacketLocalizer.ItemLocalizer {}
+  interface ItemLocalizer extends PacketItemLocalizer.ItemLocalizer {}
 
   @FunctionalInterface
-  interface DisplayLocalizer extends ProtocolDisplayPacketLocalizer.DisplayLocalizer {}
+  interface DisplayLocalizer extends PacketDisplayLocalizer.DisplayLocalizer {}
 
   Diagnostics diagnostics();
 

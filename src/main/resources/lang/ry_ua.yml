@@ -28,6 +28,7 @@ message:
   usage_debug_player: "показати активне або останнє сховище гравця"
   usage_debug_storage: "відкрити сховище за id або останнє сховище гравця"
   usage_debug_cache: "перевірити cache сховища і завантажені зв’язки мережі"
+  usage_debug_protection: "показати статус інтеграцій захисту території"
   usage_debug_verbose: "перемкнути compact/normal/full діагностичні логи"
   usage_debug_culling_client: "керувати client-side culling bypass"
   usage_debug_benchmark: "запустити або зупинити тест навантаження"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Причина завантаження chunk: {0}"
   debug_cache_status_connections: "Завантажені вузли мережі: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Нема завантажених терміналів/моніторів/шин, прив’язаних до цього сховища."
+  debug_protection_status_header: "Стан захисту території:"
+  debug_protection_status_mode: "Режим: {0}"
+  debug_protection_status_policy: "Конфіґ: {0}; політика: {1}"
+  debug_protection_status_active: "Активні провайдери: {0}"
+  debug_protection_status_missing: "Очікувані, але не завантажені: {0}"
+  debug_protection_status_failed: "Помилки ініціалізації: {0}"
+  debug_protection_status_runtime: "Помилки перевірок під час роботи: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Налаштування мови:"
   usage_language_status: "показати активну мову і словники"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Індекс відсутній"
   lang_status_index_fetched: "Індекс завантажено у цьому запуску"
   lang_status_dict: "Словник {0}: {1} ({2} записів)"
+  lang_status_dict_compact: "Словники ({0}): {1}"
   lang_status_paths: "Шляхи: {0}, {1}"
   wire:
     hard_cap: "Ланцюг кабеля завеликий: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Не прив’язано"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Предмети Exort"
   prev_page: "Попер. сторінка"
   next_page: "Наст. сторінка"
   page_info: "Сторінка {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID сховища: {0}"
       storage_missing: "Сховище: не підключено"
       storage_multiple: "Сховище: підключено кілька"
+      exort_storage: "Сховище Exort"
       vanilla: "Інвентар: {0}"
       vanilla_missing: "Інвентар: не підключено"
   info:

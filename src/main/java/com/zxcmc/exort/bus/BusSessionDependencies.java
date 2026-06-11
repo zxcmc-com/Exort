@@ -3,6 +3,7 @@ package com.zxcmc.exort.bus;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.gui.GuiRuntimeConfig;
+import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.keys.StorageKeys;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
@@ -21,7 +22,8 @@ public record BusSessionDependencies(
     Material wireMaterial,
     Material storageCarrier,
     Supplier<GuiRuntimeConfig> runtimeConfig,
-    Supplier<GuiOverlayConfig> overlayConfig) {
+    Supplier<GuiOverlayConfig> overlayConfig,
+    ItemNameService itemNameService) {
   public BusSessionDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(keys, "keys");
@@ -30,5 +32,6 @@ public record BusSessionDependencies(
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(overlayConfig, "overlayConfig");
+    Objects.requireNonNull(itemNameService, "itemNameService");
   }
 }

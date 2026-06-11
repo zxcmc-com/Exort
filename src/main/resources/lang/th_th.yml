@@ -28,6 +28,7 @@ message:
   usage_debug_player: "แสดงคลังที่ใช้อยู่หรือล่าสุดของผู้เล่น"
   usage_debug_storage: "เปิดคลังตาม id หรือคลังล่าสุดของผู้เล่น"
   usage_debug_cache: "ตรวจ cache คลังและลิงก์เครือข่ายที่โหลดแล้ว"
+  usage_debug_protection: "แสดงสถานะการเชื่อมกับระบบป้องกันพื้นที่"
   usage_debug_verbose: "สลับ log วินิจฉัย compact/normal/full"
   usage_debug_culling_client: "จัดการ client-side culling bypass"
   usage_debug_benchmark: "เริ่มหรือหยุด benchmark โหลด"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "เหตุผลการโหลด chunk: {0}"
   debug_cache_status_connections: "โหนดเครือข่ายที่โหลดแล้ว: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "ไม่มี terminal/monitor/bus ที่โหลดแล้วและลิงก์กับคลังนี้"
+  debug_protection_status_header: "สถานะระบบป้องกันพื้นที่:"
+  debug_protection_status_mode: "โหมด: {0}"
+  debug_protection_status_policy: "การตั้งค่า: {0}; นโยบาย: {1}"
+  debug_protection_status_active: "ผู้ให้บริการที่ใช้งาน: {0}"
+  debug_protection_status_missing: "คาดว่าจะมีแต่ยังไม่ได้โหลด: {0}"
+  debug_protection_status_failed: "เริ่มต้นไม่สำเร็จ: {0}"
+  debug_protection_status_runtime: "ตรวจสอบขณะทำงานไม่สำเร็จ: {0}"
   version: "Exort Storage Network v{0} โดย phantomfighterxx"
   usage_language_header: "ตั้งค่าภาษา:"
   usage_language_status: "แสดงภาษาที่ใช้งานและพจนานุกรม"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index missing"
   lang_status_index_fetched: "ดึง index ในรันนี้แล้ว"
   lang_status_dict: "พจนานุกรม {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "พจนานุกรม ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "โซ่สายใหญ่เกินไป: {0}/{1}"
@@ -194,6 +203,8 @@ lore:
     not_linked: "ยังไม่ได้ลิงก์"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "ไอเท็ม Exort"
   prev_page: "หน้าก่อน"
   next_page: "หน้าถัดไป"
   page_info: "หน้า {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID คลัง: {0}"
       storage_missing: "คลัง: ไม่ได้เชื่อมต่อ"
       storage_multiple: "คลัง: เชื่อมต่อหลายอัน"
+      exort_storage: "คลัง Exort"
       vanilla: "อินเวนทอรี: {0}"
       vanilla_missing: "อินเวนทอรี: ไม่ได้เชื่อมต่อ"
   info:

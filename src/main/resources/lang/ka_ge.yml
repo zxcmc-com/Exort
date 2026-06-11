@@ -28,6 +28,7 @@ message:
   usage_debug_player: "მოთამაშის აქტიური ან ბოლო საცავის ჩვენება"
   usage_debug_storage: "საცავის გახსნა id-ით ან მოთამაშის ბოლო საცავით"
   usage_debug_cache: "საცავის ქეშისა და ჩატვირთული ქსელური ბმულების შემოწმება"
+  usage_debug_protection: "ტერიტორიის დაცვის ინტეგრაციის სტატუსის ჩვენება"
   usage_debug_verbose: "compact/normal/full დიაგნოსტიკური ლოგების გადართვა"
   usage_debug_culling_client: "client-side culling bypass-ის მართვა"
   usage_debug_benchmark: "დატვირთვის ბენჩმარკის დაწყება ან შეჩერება"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk-ის ჩატვირთვის მიზეზი: {0}"
   debug_cache_status_connections: "ჩატვირთული ქსელის კვანძები: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "ამ საცავთან ჩატვირთული terminal/monitor/bus არ არის დაკავშირებული."
+  debug_protection_status_header: "ტერიტორიის დაცვის სტატუსი:"
+  debug_protection_status_mode: "რეჟიმი: {0}"
+  debug_protection_status_policy: "კონფიგი: {0}; პოლიტიკა: {1}"
+  debug_protection_status_active: "აქტიური პროვაიდერები: {0}"
+  debug_protection_status_missing: "მოსალოდნელი, მაგრამ არ ჩაიტვირთა: {0}"
+  debug_protection_status_failed: "ინიციალიზაციის შეცდომები: {0}"
+  debug_protection_status_runtime: "Runtime შემოწმების შეცდომები: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "ენის პარამეტრები:"
   usage_language_status: "აქტიური ენისა და ლექსიკონების ჩვენება"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "ინდექსი არ არის"
   lang_status_index_fetched: "ინდექსი ამ გაშვებაზე ჩამოიტვირთა"
   lang_status_dict: "ლექსიკონი {0}: {1} ({2} ჩანაწერი)"
+  lang_status_dict_compact: "ლექსიკონები ({0}): {1}"
   lang_status_paths: "ბილიკები: {0}, {1}"
   wire:
     hard_cap: "კაბელის ჯაჭვი ძალიან დიდია: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "მიბმული არ არის"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort ნივთები"
   prev_page: "წინა გვერდი"
   next_page: "შემდეგი გვერდი"
   page_info: "გვერდი {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "საცავის ID: {0}"
       storage_missing: "საცავი: არ არის მიერთებული"
       storage_multiple: "საცავი: მიერთებულია რამდენიმე"
+      exort_storage: "Exort საცავი"
       vanilla: "ინვენტარი: {0}"
       vanilla_missing: "ინვენტარი: არ არის მიერთებული"
   info:

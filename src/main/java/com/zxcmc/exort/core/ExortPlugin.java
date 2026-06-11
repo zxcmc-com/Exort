@@ -37,7 +37,9 @@ import com.zxcmc.exort.infra.metrics.ExortMetrics;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
 import com.zxcmc.exort.infra.update.UpdateChecker;
 import com.zxcmc.exort.integration.protection.CompositeRegionProtection;
+import com.zxcmc.exort.integration.protection.MutableRegionProtection;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
+import com.zxcmc.exort.integration.protection.ProtectionStatus;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
@@ -134,7 +136,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private boolean resourceWireCarrierFallback;
   private String configuredMode = "RESOURCE";
   private volatile String defaultSortModeName = SortMode.AMOUNT.name();
-  private RegionProtection regionProtection = RegionProtection.allowAll();
+  private final MutableRegionProtection regionProtection =
+      new MutableRegionProtection(RegionProtection.allowAll());
+  private volatile ProtectionStatus protectionStatus =
+      ProtectionStatus.noProvider(false, List.of());
 
   @Override
   public void onEnable() {
@@ -578,9 +583,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   private void setupRegionProtection() {
-    regionProtection = RegionProtection.allowAll();
+    regionProtection.setDelegate(RegionProtection.allowAll());
     ProtectionRuntimeConfig protectionConfig = ProtectionRuntimeConfig.fromConfig(getConfig());
     if (!protectionConfig.enabled()) {
+      protectionStatus = ProtectionStatus.disabledByConfig();
       ExortLog.info(ProtectionStartupLog.disabledByConfig());
       return;
     }
@@ -588,11 +594,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     ProtectionRuntimeConfig.Adapters enabledAdapters = protectionConfig.adapters();
     List<CompositeRegionProtection.Adapter> adapters = new ArrayList<>();
     Set<String> missingPlugins = new LinkedHashSet<>();
+    Set<String> failedAdapters = new LinkedHashSet<>();
 
     if (enabledAdapters.worldGuard()
         && !addProtectionAdapter(
             adapters,
             missingPlugins,
+            failedAdapters,
             "WorldGuard",
             () ->
                 createProtectionAdapter(
@@ -604,6 +612,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         && !addProtectionAdapter(
             adapters,
             missingPlugins,
+            failedAdapters,
             "GriefPrevention",
             () ->
                 createProtectionAdapter(
@@ -615,6 +624,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         && !addProtectionAdapter(
             adapters,
             missingPlugins,
+            failedAdapters,
             "Towny",
             () -> createProtectionAdapter("com.zxcmc.exort.integration.protection.TownyProtection"),
             failClosed)) {
@@ -624,6 +634,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         && !addProtectionAdapter(
             adapters,
             missingPlugins,
+            failedAdapters,
             "Lands",
             () ->
                 createProtectionAdapter(
@@ -635,6 +646,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         && !addProtectionAdapter(
             adapters,
             missingPlugins,
+            failedAdapters,
             "Residence",
             () ->
                 createProtectionAdapter(
@@ -644,21 +656,29 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
 
     if (adapters.isEmpty()) {
+      protectionStatus =
+          failedAdapters.isEmpty()
+              ? ProtectionStatus.noProvider(failClosed, missingPlugins)
+              : ProtectionStatus.active(failClosed, List.of(), missingPlugins, failedAdapters);
       ExortLog.info(ProtectionStartupLog.noSupportedProvider());
-      registerProtectionEnableHook(missingPlugins);
+      registerProtectionEnableHook(retryableProtectionPlugins(missingPlugins, failedAdapters));
       return;
     }
 
     CompositeRegionProtection composite =
         new CompositeRegionProtection(adapters, getLogger(), failClosed);
-    regionProtection = composite;
+    regionProtection.setDelegate(composite);
+    protectionStatus =
+        ProtectionStatus.active(
+            failClosed, composite.adapterNames(), missingPlugins, failedAdapters);
     ExortLog.success(ProtectionStartupLog.enabled(composite.adapterNames()));
-    registerProtectionEnableHook(missingPlugins);
+    registerProtectionEnableHook(retryableProtectionPlugins(missingPlugins, failedAdapters));
   }
 
   private boolean addProtectionAdapter(
       List<CompositeRegionProtection.Adapter> adapters,
       Set<String> missingPlugins,
+      Set<String> failedAdapters,
       String pluginName,
       ProtectionFactory factory,
       boolean failClosed) {
@@ -671,6 +691,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       adapters.add(new CompositeRegionProtection.Adapter(pluginName, factory.create()));
       return true;
     } catch (RuntimeException | LinkageError error) {
+      failedAdapters.add(pluginName);
       getLogger()
           .log(
               Level.WARNING,
@@ -679,11 +700,38 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                   + (failClosed ? "denying Exort actions." : "allowing Exort actions."),
               error);
       if (failClosed) {
-        regionProtection = RegionProtection.denyAll();
+        regionProtection.setDelegate(RegionProtection.denyAll());
+        protectionStatus =
+            ProtectionStatus.degradedFailClosed(
+                true, adapterNames(adapters), missingPlugins, failedAdapters);
+        registerProtectionEnableHook(Set.of(pluginName));
         return false;
       }
       return true;
     }
+  }
+
+  private ProtectionStatus currentProtectionStatus() {
+    ProtectionStatus status = protectionStatus;
+    if (regionProtection.delegate() instanceof CompositeRegionProtection composite) {
+      status = status.withRuntimeFailures(composite.runtimeFailureKeys());
+    }
+    return status;
+  }
+
+  private static Set<String> retryableProtectionPlugins(
+      Set<String> missingPlugins, Set<String> failedAdapters) {
+    Set<String> retryable = new LinkedHashSet<>(missingPlugins);
+    retryable.addAll(failedAdapters);
+    return retryable;
+  }
+
+  private static List<String> adapterNames(List<CompositeRegionProtection.Adapter> adapters) {
+    List<String> names = new ArrayList<>(adapters.size());
+    for (CompositeRegionProtection.Adapter adapter : adapters) {
+      names.add(adapter.name());
+    }
+    return names;
   }
 
   private RegionProtection createProtectionAdapter(String className, Object... args) {
@@ -790,7 +838,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> wireLimit,
         () -> wireHardCap,
         () -> wireMaterial,
-        () -> storageCarrier);
+        () -> storageCarrier,
+        this::currentProtectionStatus);
   }
 
   @Override

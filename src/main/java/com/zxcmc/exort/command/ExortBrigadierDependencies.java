@@ -10,6 +10,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
+import com.zxcmc.exort.integration.protection.ProtectionStatus;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
@@ -55,7 +56,8 @@ public record ExortBrigadierDependencies(
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
     Supplier<Material> wireMaterial,
-    Supplier<Material> storageCarrier) {
+    Supplier<Material> storageCarrier,
+    Supplier<ProtectionStatus> protectionStatus) {
   public ExortBrigadierDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(lang, "lang");
@@ -87,5 +89,6 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(wireHardCap, "wireHardCap");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
+    Objects.requireNonNull(protectionStatus, "protectionStatus");
   }
 }

@@ -28,6 +28,7 @@ message:
   usage_debug_player: "வீரரின் செயலில் உள்ள அல்லது கடைசி சேமிப்பைக் காட்டு"
   usage_debug_storage: "id மூலம் அல்லது வீரரின் கடைசி சேமிப்பின் மூலம் சேமிப்பைத் திற"
   usage_debug_cache: "சேமிப்பு cache மற்றும் ஏற்றப்பட்ட நெட்வொர்க் இணைப்புகளை ஆய்வு செய்"
+  usage_debug_protection: "பகுதி பாதுகாப்பு இணைப்பின் நிலையை காட்டு"
   usage_debug_verbose: "compact/normal/full diagnostic logs மாற்று"
   usage_debug_culling_client: "client-side culling bypass நிர்வகி"
   usage_debug_benchmark: "load benchmark தொடங்கு அல்லது நிறுத்து"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk ஏற்றப்பட்ட காரணம்: {0}"
   debug_cache_status_connections: "ஏற்றப்பட்ட நெட்வொர்க் nodes: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "இந்த சேமிப்புடன் ஏற்றப்பட்ட terminal/monitor/bus எதுவும் இணைக்கப்படவில்லை."
+  debug_protection_status_header: "பகுதி பாதுகாப்பு நிலை:"
+  debug_protection_status_mode: "முறை: {0}"
+  debug_protection_status_policy: "அமைப்பு: {0}; கொள்கை: {1}"
+  debug_protection_status_active: "செயலில் உள்ள வழங்கிகள்: {0}"
+  debug_protection_status_missing: "எதிர்பார்க்கப்பட்டது, ஆனால் ஏற்றப்படவில்லை: {0}"
+  debug_protection_status_failed: "தொடக்கத் தோல்விகள்: {0}"
+  debug_protection_status_runtime: "இயக்கநேரச் சோதனைத் தோல்விகள்: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "மொழி அமைப்புகள்:"
   usage_language_status: "செயலில் உள்ள மொழி மற்றும் dictionaries காட்டு"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index இல்லை"
   lang_status_index_fetched: "இந்த run இல் index fetched"
   lang_status_dict: "Dictionary {0}: {1} ({2} entries)"
+  lang_status_dict_compact: "அகராதிகள் ({0}): {1}"
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "கம்பி சங்கிலி மிக பெரியது: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "இணைக்கப்படவில்லை"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort உருப்படிகள்"
   prev_page: "முந்தைய பக்கம்"
   next_page: "அடுத்த பக்கம்"
   page_info: "பக்கம் {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "சேமிப்பு ID: {0}"
       storage_missing: "சேமிப்பு: இணைக்கப்படவில்லை"
       storage_multiple: "சேமிப்பு: பல இணைக்கப்பட்டுள்ளன"
+      exort_storage: "Exort சேமிப்பு"
       vanilla: "இன்வெண்டரி: {0}"
       vanilla_missing: "இன்வெண்டரி: இணைக்கப்படவில்லை"
   info:

@@ -17,7 +17,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.junit.jupiter.api.Test;
 
-class ProtocolDisplayPacketLocalizerTest {
+class PacketDisplayLocalizerTest {
   private static final PlainTextComponentSerializer PLAIN =
       PlainTextComponentSerializer.plainText();
 
@@ -26,7 +26,7 @@ class ProtocolDisplayPacketLocalizerTest {
     List<Value> values = List.of(new Value(2, Optional.empty()));
 
     List<Value> localized =
-        ProtocolDisplayPacketLocalizer.localizeValues(
+        PacketDisplayLocalizer.localizeValues(
             null, 7, values, new ValueAdapter(), (player, entityId) -> null);
 
     assertSame(values, localized);
@@ -39,7 +39,7 @@ class ProtocolDisplayPacketLocalizerTest {
     List<Value> values = List.of(customName, other);
 
     List<Value> localized =
-        ProtocolDisplayPacketLocalizer.localizeValues(
+        PacketDisplayLocalizer.localizeValues(
             null, 42, values, new ValueAdapter(), (player, entityId) -> "Локальное имя");
 
     assertNotSame(values, localized);
@@ -55,7 +55,7 @@ class ProtocolDisplayPacketLocalizerTest {
     List<Value> values = List.of(new Value(23, item));
 
     List<Value> localized =
-        ProtocolDisplayPacketLocalizer.localizeValues(
+        PacketDisplayLocalizer.localizeValues(
             null, 42, values, new ValueAdapter(), (player, entityId) -> "Draht");
 
     assertNotSame(values, localized);
@@ -72,7 +72,7 @@ class ProtocolDisplayPacketLocalizerTest {
     List<Value> values = List.of(new Value(23, item));
 
     List<Value> localized =
-        ProtocolDisplayPacketLocalizer.localizeValues(
+        PacketDisplayLocalizer.localizeValues(
             null, 42, values, new ConvertingValueAdapter(), (player, entityId) -> "Draht");
 
     assertNotSame(values, localized);
@@ -88,7 +88,7 @@ class ProtocolDisplayPacketLocalizerTest {
     List<Value> values = List.of(new Value(23, item));
 
     List<Value> localized =
-        ProtocolDisplayPacketLocalizer.localizeValues(
+        PacketDisplayLocalizer.localizeValues(
             null, 42, values, new UnavailableItemValueAdapter(), (player, entityId) -> "Draht");
 
     assertSame(values, localized);
@@ -104,8 +104,7 @@ class ProtocolDisplayPacketLocalizerTest {
 
   private record RawStack(String displayName) {}
 
-  private static class ValueAdapter
-      implements ProtocolDisplayPacketLocalizer.MetadataValueAdapter<Value> {
+  private static class ValueAdapter implements PacketDisplayLocalizer.MetadataValueAdapter<Value> {
     @Override
     public int index(Value value) {
       return value.index();
@@ -187,7 +186,7 @@ class ProtocolDisplayPacketLocalizerTest {
     private ItemMeta proxy() {
       return (ItemMeta)
           Proxy.newProxyInstance(
-              ProtocolDisplayPacketLocalizerTest.class.getClassLoader(),
+              PacketDisplayLocalizerTest.class.getClassLoader(),
               new Class<?>[] {ItemMeta.class},
               this);
     }

@@ -28,6 +28,7 @@ message:
   usage_debug_player: "wys 'n speler se aktiewe of laaste berging"
   usage_debug_storage: "maak berging oop volgens id of speler se laaste berging"
   usage_debug_cache: "inspekteer bergingkas en gelaaide netwerkverbindings"
+  usage_debug_protection: "wys die status van gebiedbeskermingsintegrasie"
   usage_debug_verbose: "wissel compact/normal/full diagnostiese logs"
   usage_debug_culling_client: "bestuur client-side culling bypass"
   usage_debug_benchmark: "begin of stop die laaibenchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk-laairede: {0}"
   debug_cache_status_connections: "Gelaaide netwerk nodes: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Geen gelaaide terminale/monitors/busse is aan hierdie berging gekoppel nie."
+  debug_protection_status_header: "Status van gebiedbeskerming:"
+  debug_protection_status_mode: "Modus: {0}"
+  debug_protection_status_policy: "Konfigurasie: {0}; beleid: {1}"
+  debug_protection_status_active: "Aktiewe verskaffers: {0}"
+  debug_protection_status_missing: "Verwag maar nie gelaai nie: {0}"
+  debug_protection_status_failed: "Initialiseringsfoute: {0}"
+  debug_protection_status_runtime: "Runtime-kontrolefoute: {0}"
   version: "Exort Storage Network v{0} deur phantomfighterxx"
   usage_language_header: "Taalinstellings:"
   usage_language_status: "wys aktiewe taal en woordeboeke"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Indeks ontbreek"
   lang_status_index_fetched: "Indeks hierdie lopie gehaal"
   lang_status_dict: "Woordeboek {0}: {1} ({2} inskrywings)"
+  lang_status_dict_compact: "Woordeboeke ({0}): {1}"
   lang_status_paths: "Paaie: {0}, {1}"
   wire:
     hard_cap: "Kabelketting is te groot: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Nie gekoppel nie"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort-items"
   prev_page: "Vorige bladsy"
   next_page: "Volgende bladsy"
   page_info: "Bladsy {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Berging-ID: {0}"
       storage_missing: "Berging: nie gekoppel nie"
       storage_multiple: "Berging: verskeie gekoppel"
+      exort_storage: "Exort-berging"
       vanilla: "Inventaris: {0}"
       vanilla_missing: "Inventaris: nie gekoppel nie"
   info:

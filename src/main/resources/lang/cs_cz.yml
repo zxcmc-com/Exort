@@ -28,6 +28,7 @@ message:
   usage_debug_player: "zobrazí aktivní nebo poslední úložiště hráče"
   usage_debug_storage: "otevře úložiště podle id nebo poslední úložiště hráče"
   usage_debug_cache: "zkontroluje cache úložiště a načtené síťové vazby"
+  usage_debug_protection: "zobrazí stav integrací ochrany území"
   usage_debug_verbose: "přepne compact/normal/full diagnostické logy"
   usage_debug_culling_client: "spravuje client-side culling bypass"
   usage_debug_benchmark: "spustí nebo zastaví zátěžový benchmark"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Důvod načtení chunku: {0}"
   debug_cache_status_connections: "Načtené síťové uzly: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "K tomuto úložišti nejsou připojené žádné načtené terminály/monitory/sběrnice."
+  debug_protection_status_header: "Stav ochrany území:"
+  debug_protection_status_mode: "Režim: {0}"
+  debug_protection_status_policy: "Konfigurace: {0}; zásada: {1}"
+  debug_protection_status_active: "Aktivní poskytovatelé: {0}"
+  debug_protection_status_missing: "Očekávané, ale nenačtené: {0}"
+  debug_protection_status_failed: "Selhání inicializace: {0}"
+  debug_protection_status_runtime: "Selhání kontrol za běhu: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Nastavení jazyka:"
   usage_language_status: "zobrazí aktivní jazyk a slovníky"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index chybí"
   lang_status_index_fetched: "Index načten v tomto běhu"
   lang_status_dict: "Slovník {0}: {1} ({2} záznamů)"
+  lang_status_dict_compact: "Slovníky ({0}): {1}"
   lang_status_paths: "Cesty: {0}, {1}"
   wire:
     hard_cap: "Řetěz kabelů je příliš velký: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Nepropojen"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Předměty Exort"
   prev_page: "Předchozí stránka"
   next_page: "Další stránka"
   page_info: "Stránka {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID úložiště: {0}"
       storage_missing: "Úložiště: nepřipojeno"
       storage_multiple: "Úložiště: připojeno více"
+      exort_storage: "Úložiště Exort"
       vanilla: "Inventář: {0}"
       vanilla_missing: "Inventář: nepřipojen"
   info:

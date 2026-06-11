@@ -28,6 +28,7 @@ message:
   usage_debug_player: "de aktive odder letzte Spiescher vum Spiller zeije"
   usage_debug_storage: "Spiescher noh id odder letzte vum Spiller opmaache"
   usage_debug_cache: "Spiescher-Cache un jelade Netzverbindunge nohluure"
+  usage_debug_protection: "Status vun dä Jebietsschutz-Integration aanzeije"
   usage_debug_verbose: "kompakte/normale/volle Diagnos-Logs umschalte"
   usage_debug_culling_client: "client-side culling bypass verwalte"
   usage_debug_benchmark: "Last-Benchmark starte odder stoppe"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Chunk-Ladejrond: {0}"
   debug_cache_status_connections: "Jelade Netz-Knote: Terminals={0} Monitore={1} Busse={2} total={3}"
   debug_cache_status_connections_empty: "Kei jelade Terminals/Monitore/Busse sin met däm Spiescher verbunge."
+  debug_protection_status_header: "Jebietsschutz-Status:"
+  debug_protection_status_mode: "Modus: {0}"
+  debug_protection_status_policy: "Konfig: {0}; Rejel: {1}"
+  debug_protection_status_active: "Aktive Provider: {0}"
+  debug_protection_status_missing: "Erwaat, ävver nit jelade: {0}"
+  debug_protection_status_failed: "Initialiseerings-Fähler: {0}"
+  debug_protection_status_runtime: "Runtime-Pröövfähler: {0}"
   version: "Exort Storage Network v{0} vun phantomfighterxx"
   usage_language_header: "Sproch-Enschtällunge:"
   usage_language_status: "aktive Sproch un Wörterböcher zeije"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Index fählt"
   lang_status_index_fetched: "Index en dämm Lauf jeholt"
   lang_status_dict: "Wörterbooch {0}: {1} ({2} Enträä)"
+  lang_status_dict_compact: "Wörterböcher ({0}): {1}"
   lang_status_paths: "Pääd: {0}, {1}"
   wire:
     hard_cap: "Kabel-Kett es ze jroß: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Nit verlinkt"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Exort-Dinge"
   prev_page: "Vörje Sigg"
   next_page: "Nächste Sigg"
   page_info: "Sigg {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "Spiescher-ID: {0}"
       storage_missing: "Spiescher: nit verbunge"
       storage_multiple: "Spiescher: miehfach verbunge"
+      exort_storage: "Exort-Spiescher"
       vanilla: "Inventar: {0}"
       vanilla_missing: "Inventar: nit verbunge"
   info:

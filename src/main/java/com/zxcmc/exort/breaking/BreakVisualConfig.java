@@ -21,7 +21,7 @@ public record BreakVisualConfig(
     return new BreakVisualConfig(
         particleConfig(true),
         new ResourceOverlayConfig(true, "PAPER", "breaking/", 1.001),
-        new ResourceParticleConfig(true, defaultParticleSettings(), "NETHERITE_BLOCK"));
+        new ResourceParticleConfig(true, defaultParticleSettings()));
   }
 
   private static ParticleConfig particleConfig(boolean enabled) {
@@ -42,8 +42,7 @@ public record BreakVisualConfig(
   public record ResourceOverlayConfig(
       boolean enabled, String displayBaseMaterial, String modelRoot, double displayScale) {}
 
-  public record ResourceParticleConfig(
-      boolean enabled, BreakParticleSender.Settings settings, String materialName) {
+  public record ResourceParticleConfig(boolean enabled, BreakParticleSender.Settings settings) {
     public ResourceParticleConfig {
       Objects.requireNonNull(settings, "settings");
     }

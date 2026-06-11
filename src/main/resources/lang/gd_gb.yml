@@ -28,6 +28,7 @@ message:
   usage_debug_player: "seall stòras gnìomhach no mu dheireadh cluicheadair"
   usage_debug_storage: "fosgail stòras le id no stòras mu dheireadh cluicheadair"
   usage_debug_cache: "sgrùd tasgadan stòrais agus ceanglaichean lìonra luchdaichte"
+  usage_debug_protection: "seall staid amalachadh dìon-tìre"
   usage_debug_verbose: "toglaich logaichean diagnòis compact/normal/full"
   usage_debug_culling_client: "stiùir client-side culling bypass"
   usage_debug_benchmark: "tòisich no stad benchmark luchdaidh"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Adhbhar luchdadh chunk: {0}"
   debug_cache_status_connections: "Nòdan lìonra luchdaichte: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "Chan eil tèirminealan/monitors/buses luchdaichte ceangailte ris an stòras seo."
+  debug_protection_status_header: "Staid dìon-tìre:"
+  debug_protection_status_mode: "Modh: {0}"
+  debug_protection_status_policy: "Rèiteachadh: {0}; poileasaidh: {1}"
+  debug_protection_status_active: "Solaraichean gnìomhach: {0}"
+  debug_protection_status_missing: "An dùil ach gun luchdadh: {0}"
+  debug_protection_status_failed: "Fàilligidhean tòiseachaidh: {0}"
+  debug_protection_status_runtime: "Fàilligidhean sgrùdaidh runtime: {0}"
   version: "Exort Storage Network v{0} le phantomfighterxx"
   usage_language_header: "Roghainnean cànain:"
   usage_language_status: "seall cànan gnìomhach agus faclairean"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Clàr-amais a dhìth"
   lang_status_index_fetched: "Chaidh clàr-amais fhaighinn san ruith seo"
   lang_status_dict: "Faclair {0}: {1} ({2} inntrigeadh)"
+  lang_status_dict_compact: "Faclairean ({0}): {1}"
   lang_status_paths: "Slighean: {0}, {1}"
   wire:
     hard_cap: "Tha slabhraidh uèir ro mhòr: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Gun cheangal"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Nithean Exort"
   prev_page: "Duilleag roimhe"
   next_page: "Ath dhuilleag"
   page_info: "Duilleag {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID Stòrais: {0}"
       storage_missing: "Stòras: gun cheangal"
       storage_multiple: "Stòras: grunnan ceangailte"
+      exort_storage: "Stòras Exort"
       vanilla: "Clàr-stuth: {0}"
       vanilla_missing: "Clàr-stuth: gun cheangal"
   info:

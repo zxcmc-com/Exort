@@ -76,7 +76,10 @@ public final class ResourcePackProviderBridge {
   }
 
   public static void removeAll(JavaPlugin plugin) {
-    File pluginsDir = pluginsDir(plugin);
+    removeAll(pluginsDir(plugin));
+  }
+
+  static void removeAll(File pluginsDir) {
     removeNexoHandoff(pluginsDir);
     removeItemsAdderHandoff(pluginsDir);
   }

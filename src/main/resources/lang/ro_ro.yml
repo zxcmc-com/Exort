@@ -28,6 +28,7 @@ message:
   usage_debug_player: "mostrar el almacenamiento activo o último de un jugador"
   usage_debug_storage: "abrir un almacenamiento por id o el último de un jugador"
   usage_debug_cache: "inspeccionar la caché de almacenamiento y enlaces de red cargados"
+  usage_debug_protection: "arată starea integrării de protecție teritorială"
   usage_debug_verbose: "alternar logs diagnósticos compact/normal/full"
   usage_debug_culling_client: "gestionar bypass de culling del cliente"
   usage_debug_benchmark: "iniciar o detener el benchmark de carga"
@@ -95,6 +96,13 @@ message:
   debug_cache_status_chunk_reason: "Razón de carga del chunk: {0}"
   debug_cache_status_connections: "Nodos de red cargados: terminals={0} monitors={1} buses={2} total={3}"
   debug_cache_status_connections_empty: "No hay terminales/monitores/buses cargados enlazados a este almacenamiento."
+  debug_protection_status_header: "Starea protecției teritoriale:"
+  debug_protection_status_mode: "Mod: {0}"
+  debug_protection_status_policy: "Config: {0}; politică: {1}"
+  debug_protection_status_active: "Furnizori activi: {0}"
+  debug_protection_status_missing: "Așteptați, dar neîncărcați: {0}"
+  debug_protection_status_failed: "Eșecuri la inițializare: {0}"
+  debug_protection_status_runtime: "Eșecuri la verificarea în execuție: {0}"
   version: "Exort Storage Network v{0} by phantomfighterxx"
   usage_language_header: "Setări de limbă:"
   usage_language_status: "mostrar idioma activo y diccionarios"
@@ -154,6 +162,7 @@ message:
   lang_status_index_missing: "Índice ausente"
   lang_status_index_fetched: "Índice obtenido en esta ejecución"
   lang_status_dict: "Dicționar {0}: {1} ({2} intrări)"
+  lang_status_dict_compact: "Dicționare ({0}): {1}"
   lang_status_paths: "Căi: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
@@ -194,6 +203,8 @@ lore:
     not_linked: "Nelegat"
     storage_tail: "{0}"
 gui:
+  give:
+    title: "Obiecte Exort"
   prev_page: "Pagina anterioară"
   next_page: "Pagina următoare"
   page_info: "Pagina {0}/{1}"
@@ -261,6 +272,7 @@ gui:
       storage_id: "ID de almacenamiento: {0}"
       storage_missing: "Stocare: no conectado"
       storage_multiple: "Stocare: varios conectados"
+      exort_storage: "Stocare Exort"
       vanilla: "Inventar: {0}"
       vanilla_missing: "Inventar: no conectado"
   info:

@@ -5,6 +5,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.gui.GuiRuntimeConfig;
+import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -39,6 +40,7 @@ public class BusSessionManager {
   private final Supplier<GuiOverlayConfig> overlayConfigSource;
   private final BusService busService;
   private final Lang lang;
+  private final ItemNameService itemNameService;
   private final Map<UUID, BusSession> byPlayer = new HashMap<>();
   private final Map<BusPos, Set<BusSession>> byBus = new HashMap<>();
   private GuiRuntimeConfig runtimeConfig;
@@ -59,6 +61,7 @@ public class BusSessionManager {
     this.overlayConfigSource = dependencies.overlayConfig();
     this.busService = busService;
     this.lang = lang;
+    this.itemNameService = dependencies.itemNameService();
     this.runtimeConfig = runtimeConfigSource.get();
     this.overlayConfig = overlayConfigSource.get();
   }
@@ -211,7 +214,7 @@ public class BusSessionManager {
     busService.saveSettings(state, busBlock);
   }
 
-  public BusLinkStatus resolveStatus(BusState state) {
+  public BusLinkStatus resolveStatus(BusState state, Player viewer) {
     if (state == null) {
       return new BusLinkStatus(StorageState.NONE, null, null, null, false);
     }
@@ -237,13 +240,49 @@ public class BusSessionManager {
     if (targetOpt.isPresent()) {
       BusTargetResolver.BusTarget target = targetOpt.get();
       if (target instanceof BusTargetResolver.InventoryTarget inv) {
-        invName = inv.block().getType().name();
+        invName = inventoryDisplayName(inv.block().getType(), viewer);
       } else if (target instanceof BusTargetResolver.StorageTarget storageTarget) {
         StorageTier targetTier = storageTarget.tier();
-        invName = targetTier != null ? targetTier.displayName() : "Exort Storage";
+        invName =
+            targetTier != null
+                ? targetTier.displayName()
+                : lang.tr(viewer, "gui.bus.info.exort_storage");
       }
     }
     return new BusLinkStatus(StorageState.OK, storageId, storageName, invName, loop);
+  }
+
+  String inventoryDisplayName(Material material, Player viewer) {
+    if (material == null) {
+      return "";
+    }
+    String language =
+        itemNameService.dictionaryLanguage(
+            viewer == null ? null : viewer.locale().toString(),
+            itemNameService.getActiveLanguage());
+    String resolved = itemNameService.resolveDictionaryName(material.getKey().getKey(), language);
+    return resolved == null || resolved.isBlank() ? humanizeMaterial(material) : resolved;
+  }
+
+  static String humanizeMaterial(Material material) {
+    if (material == null) {
+      return "";
+    }
+    String[] parts = material.name().toLowerCase(Locale.ROOT).split("_+");
+    StringBuilder builder = new StringBuilder();
+    for (String part : parts) {
+      if (part.isBlank()) {
+        continue;
+      }
+      if (builder.length() > 0) {
+        builder.append(' ');
+      }
+      builder.append(Character.toUpperCase(part.charAt(0)));
+      if (part.length() > 1) {
+        builder.append(part.substring(1));
+      }
+    }
+    return builder.isEmpty() ? material.name() : builder.toString();
   }
 
   public enum StorageState {

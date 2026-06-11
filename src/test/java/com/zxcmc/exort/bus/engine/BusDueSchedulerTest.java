@@ -51,6 +51,31 @@ class BusDueSchedulerTest {
     assertNull(scheduler.pollDue(0L));
   }
 
+  @Test
+  void skipsRemovedBusAfterRegistrySync() {
+    BusDueScheduler scheduler = new BusDueScheduler();
+    BusState removed = state(1);
+    BusState live = state(2);
+
+    scheduler.sync(List.of(removed, live), 1L, 0L);
+    scheduler.sync(List.of(live), 2L, 0L);
+
+    assertSame(live, scheduler.pollDue(0L));
+    assertNull(scheduler.pollDue(0L));
+  }
+
+  @Test
+  void schedulesNewBusNoEarlierThanCurrentTick() {
+    BusDueScheduler scheduler = new BusDueScheduler();
+    BusState state = state(1);
+    state.setNextTick(5L);
+
+    scheduler.sync(List.of(state), 1L, 10L);
+
+    assertSame(state, scheduler.pollDue(10L));
+    assertNull(scheduler.pollDue(10L));
+  }
+
   private BusState state(int x) {
     return new BusState(
         new BusPos(UUID.fromString("00000000-0000-0000-0000-000000000001"), x, 64, 0),
