@@ -90,6 +90,9 @@ class PackExporterTest {
       assertEntry(zip, "assets/exort/models/breaking/bus/up/stage_9.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_0.json");
       assertEntry(zip, "assets/exort/models/breaking/wire/dnsew/stage_5.json");
+      assertEntry(zip, "assets/exort/textures/breaking/block.png");
+      assertEntry(zip, "assets/exort/textures/breaking/storage.png");
+      assertEntry(zip, "assets/exort/textures/breaking/wire.png");
       assertAllFaceUvsInsideDestroySprite(
           JsonParser.parseString(
                   readEntry(zip, "assets/exort/models/breaking/bus/south/stage_0.json"))
@@ -122,6 +125,9 @@ class PackExporterTest {
       assertFalse(zip.getEntry("assets/exort/models/breaking/stage_0.json") != null);
 
       String atlas = readEntry(zip, "assets/minecraft/atlases/blocks.json");
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/block\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/storage\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/wire\""));
       assertTrue(atlas.contains("\"resource\":\"exort:breaking/destroy_stage_0\""));
       assertTrue(atlas.contains("\"resource\":\"exort:breaking/destroy_stage_9\""));
 

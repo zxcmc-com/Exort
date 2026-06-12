@@ -29,12 +29,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 public record ExortBrigadierDependencies(
     JavaPlugin plugin,
     Lang lang,
-    CustomItems customItems,
+    CommandRuntimeAccess runtimeAccess,
     StorageKeys keys,
     StorageManager storageManager,
     Database database,
     SessionManager sessionManager,
-    WirelessTerminalService wirelessService,
     CacheDebugService cacheDebugService,
     WorldEditDebugService worldEditDebugService,
     PickDebugService pickDebugService,
@@ -61,12 +60,11 @@ public record ExortBrigadierDependencies(
   public ExortBrigadierDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(lang, "lang");
-    Objects.requireNonNull(customItems, "customItems");
+    Objects.requireNonNull(runtimeAccess, "runtimeAccess");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(sessionManager, "sessionManager");
-    Objects.requireNonNull(wirelessService, "wirelessService");
     Objects.requireNonNull(cacheDebugService, "cacheDebugService");
     Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
     Objects.requireNonNull(pickDebugService, "pickDebugService");
@@ -90,5 +88,13 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
     Objects.requireNonNull(protectionStatus, "protectionStatus");
+  }
+
+  public CustomItems customItems() {
+    return runtimeAccess.customItems();
+  }
+
+  public WirelessTerminalService wirelessService() {
+    return runtimeAccess.wirelessService();
   }
 }

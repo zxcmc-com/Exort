@@ -6,6 +6,7 @@ import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.carrier.WireCarrierMode;
+import com.zxcmc.exort.command.CommandRuntimeAccess;
 import com.zxcmc.exort.command.ExortBrigadier;
 import com.zxcmc.exort.command.ExortBrigadierDependencies;
 import com.zxcmc.exort.debug.CacheDebugService;
@@ -357,14 +358,19 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   public CompletableFuture<ItemNameService.Status> reloadRuntime() {
+    boolean wasResourceMode = resourceMode;
     ConfigUpdater.update(this, "config.yml");
     reloadConfig();
     closeRuntimeSessions();
     ensureStorageTiersFile();
     ensureRecipesFile();
     evaluateModePolicy();
+    boolean switchedToResourceMode = !wasResourceMode && resourceMode;
     CompletableFuture<ItemNameService.Status> future = registerRuntime(false);
     reloadResourcePackService();
+    if (switchedToResourceMode && resourcePackService != null) {
+      resourcePackService.requestSendOnlineWhenReady();
+    }
     return future;
   }
 
@@ -805,12 +811,11 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     return new ExortBrigadierDependencies(
         this,
         lang,
-        customItems,
+        new CommandRuntimeAccess(() -> customItems, () -> wirelessService),
         keys,
         storageManager,
         database,
         sessionManager,
-        wirelessService,
         cacheDebugService,
         worldEditDebugService,
         pickDebugService,

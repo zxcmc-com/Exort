@@ -1,5 +1,6 @@
 package com.zxcmc.exort.runtime;
 
+import com.zxcmc.exort.command.ExortGiveMenu;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.items.InventoryRefreshService;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
@@ -75,6 +76,9 @@ public final class RuntimePostRefreshScheduler {
     InventoryRefreshService inventoryRefreshService = deps.inventoryRefreshService();
     for (var player : Bukkit.getOnlinePlayers()) {
       inventoryRefreshService.refreshPlayerInventory(player);
+      if (player.getOpenInventory().getTopInventory().getHolder() instanceof ExortGiveMenu menu) {
+        menu.refreshCatalog();
+      }
     }
     inventoryRefreshService.bumpEpoch();
   }

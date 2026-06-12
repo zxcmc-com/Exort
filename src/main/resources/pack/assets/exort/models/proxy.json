@@ -3,7 +3,7 @@
   "credit": "phantomfighterxx",
   "textures": {
     "0": "exort:block/terminal",
-    "particle": "exort:block/terminal"
+    "particle": "exort:breaking/block"
   },
   "elements": [
     {

@@ -1,6 +1,7 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.carrier.ChorusPlantVisualState;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
@@ -28,9 +29,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -865,14 +864,7 @@ public final class ExortBlockProxyService implements Listener {
   }
 
   private static BlockData createProxyData(ProxyVisual visual) {
-    BlockData data = Material.CHORUS_PLANT.createBlockData();
-    if (!(data instanceof MultipleFacing facing)) {
-      throw new IllegalStateException("minecraft:chorus_plant must support multiple faces");
-    }
-    for (BlockFace face : ProxyVisual.CHORUS_FACES) {
-      facing.setFace(face, visual.hasFace(face));
-    }
-    return data;
+    return visual.createBlockData();
   }
 
   static double visualDistanceToBlock(
@@ -900,62 +892,25 @@ public final class ExortBlockProxyService implements Listener {
   }
 
   enum ProxyVisual {
-    TERMINAL_MONITOR_BUS("exort:proxy", true, true, false, true, true, true),
-    STORAGE("exort:storage/storage", true, true, true, false, true, true);
+    TERMINAL_MONITOR_BUS(ChorusPlantVisualState.TERMINAL_MONITOR_BUS_PROXY),
+    STORAGE(ChorusPlantVisualState.STORAGE_PROXY);
 
-    private static final List<BlockFace> CHORUS_FACES =
-        List.of(
-            BlockFace.DOWN,
-            BlockFace.EAST,
-            BlockFace.NORTH,
-            BlockFace.SOUTH,
-            BlockFace.UP,
-            BlockFace.WEST);
+    private final ChorusPlantVisualState state;
 
-    private final String modelId;
-    private final boolean down;
-    private final boolean east;
-    private final boolean north;
-    private final boolean south;
-    private final boolean up;
-    private final boolean west;
-
-    ProxyVisual(
-        String modelId,
-        boolean down,
-        boolean east,
-        boolean north,
-        boolean south,
-        boolean up,
-        boolean west) {
-      this.modelId = modelId;
-      this.down = down;
-      this.east = east;
-      this.north = north;
-      this.south = south;
-      this.up = up;
-      this.west = west;
+    ProxyVisual(ChorusPlantVisualState state) {
+      this.state = state;
     }
 
     String modelId() {
-      return modelId;
-    }
-
-    boolean hasFace(BlockFace face) {
-      return switch (face) {
-        case DOWN -> down;
-        case EAST -> east;
-        case NORTH -> north;
-        case SOUTH -> south;
-        case UP -> up;
-        case WEST -> west;
-        default -> false;
-      };
+      return state.modelId();
     }
 
     String stateKey() {
-      return "down=" + down + ",east=" + east + ",north=" + north + ",south=" + south + ",up=" + up
-          + ",west=" + west;
+      return state.stateKey();
+    }
+
+    BlockData createBlockData() {
+      return state.createBlockData();
     }
   }
 

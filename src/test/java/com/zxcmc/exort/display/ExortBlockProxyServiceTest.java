@@ -8,9 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.zxcmc.exort.carrier.ChorusPlantVisualState;
+import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 class ExortBlockProxyServiceTest {
@@ -163,10 +166,10 @@ class ExortBlockProxyServiceTest {
   @Test
   void usesDedicatedChorusStatesForProxyModels() {
     assertEquals(
-        "down=true,east=true,north=false,south=true,up=true,west=true",
+        ChorusPlantVisualState.TERMINAL_MONITOR_BUS_PROXY.stateKey(),
         ExortBlockProxyService.ProxyVisual.TERMINAL_MONITOR_BUS.stateKey());
     assertEquals(
-        "down=true,east=true,north=true,south=false,up=true,west=true",
+        ChorusPlantVisualState.STORAGE_PROXY.stateKey(),
         ExortBlockProxyService.ProxyVisual.STORAGE.stateKey());
   }
 
@@ -198,6 +201,14 @@ class ExortBlockProxyServiceTest {
   }
 
   @Test
+  void resourcePackDefinesWireParticleStateAsHiddenGlassModel() throws Exception {
+    JsonObject variants = chorusPlantVariants();
+
+    assertEquals(ALL_TRUE_CHORUS_STATE, ChorusPlantVisualState.NONE.stateKey());
+    assertEquals(ChorusPlantVisualState.NONE.modelId(), modelFor(variants, ALL_TRUE_CHORUS_STATE));
+  }
+
+  @Test
   void resourcePackHidesImpossibleChorusStatesExceptProxyVisuals() throws Exception {
     JsonObject variants = chorusPlantVariants();
 
@@ -223,6 +234,8 @@ class ExortBlockProxyServiceTest {
     JsonObject root = JsonParser.parseString(source).getAsJsonObject();
 
     assertEquals("exort:block/terminal", root.getAsJsonObject("textures").get("0").getAsString());
+    assertEquals(
+        "exort:breaking/block", root.getAsJsonObject("textures").get("particle").getAsString());
     JsonObject faces =
         root.getAsJsonArray("elements").get(0).getAsJsonObject().getAsJsonObject("faces");
     for (String face : List.of("north", "east", "south", "west", "up", "down")) {
@@ -235,6 +248,42 @@ class ExortBlockProxyServiceTest {
     }
   }
 
+  @Test
+  void proxyParticleModelsUseCroppedBreakingTextures() throws Exception {
+    assertModelParticle(
+        "src/main/resources/pack/assets/exort/models/proxy.json", "exort:breaking/block");
+    assertModelParticle(
+        "src/main/resources/pack/assets/exort/models/storage/storage.json",
+        "exort:breaking/storage");
+    assertModelParticle(
+        "src/main/resources/pack/assets/exort/models/none.json", "exort:breaking/wire");
+  }
+
+  @Test
+  void breakingParticleTexturesAreCroppedFromSourceTextures() throws Exception {
+    assertCroppedTexture(
+        "src/main/resources/pack/assets/exort/textures/block/terminal.png",
+        "src/main/resources/pack/assets/exort/textures/breaking/block.png",
+        0,
+        0,
+        16,
+        16);
+    assertCroppedTexture(
+        "src/main/resources/pack/assets/exort/textures/block/storage.png",
+        "src/main/resources/pack/assets/exort/textures/breaking/storage.png",
+        0,
+        0,
+        16,
+        16);
+    assertCroppedTexture(
+        "src/main/resources/pack/assets/exort/textures/wires/glass.png",
+        "src/main/resources/pack/assets/exort/textures/breaking/wire.png",
+        5,
+        5,
+        6,
+        6);
+  }
+
   private static JsonObject chorusPlantVariants() throws Exception {
     String source =
         Files.readString(
@@ -244,5 +293,31 @@ class ExortBlockProxyServiceTest {
 
   private static String modelFor(JsonObject variants, String state) {
     return variants.getAsJsonObject(state).get("model").getAsString();
+  }
+
+  private static void assertModelParticle(String modelPath, String expected) throws Exception {
+    JsonObject root =
+        JsonParser.parseString(Files.readString(Path.of(modelPath))).getAsJsonObject();
+
+    assertEquals(expected, root.getAsJsonObject("textures").get("particle").getAsString());
+  }
+
+  private static void assertCroppedTexture(
+      String sourcePath, String targetPath, int sourceX, int sourceY, int width, int height)
+      throws Exception {
+    BufferedImage source = ImageIO.read(Path.of(sourcePath).toFile());
+    BufferedImage target = ImageIO.read(Path.of(targetPath).toFile());
+    assertNotNull(source, sourcePath);
+    assertNotNull(target, targetPath);
+    assertEquals(width, target.getWidth(), targetPath);
+    assertEquals(height, target.getHeight(), targetPath);
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        assertEquals(
+            source.getRGB(sourceX + x, sourceY + y),
+            target.getRGB(x, y),
+            targetPath + " pixel " + x + "," + y);
+      }
+    }
   }
 }

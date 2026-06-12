@@ -36,7 +36,7 @@ final class InventoryCommand {
     }
     try {
       new ExortGiveMenu(
-              dependencies.customItems(),
+              dependencies::customItems,
               () -> dependencies.wirelessService().create(),
               ExortGiveMenu.title(dependencies.lang().tr(player, "gui.give.title")))
           .open(player);
