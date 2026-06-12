@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import java.util.function.Predicate;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -14,6 +15,7 @@ import org.bukkit.plugin.Plugin;
 
 public final class BreakParticleSender implements BreakAnimationSender {
   private static final double PARTICLE_SPEED = 0.004;
+  private static final Predicate<BreakType> ALL_STAGE_TYPES = ignored -> true;
 
   private final Plugin plugin;
   private final double range;
@@ -21,40 +23,69 @@ public final class BreakParticleSender implements BreakAnimationSender {
   private final int stageCount;
   private final int breakCount;
   private final double spread;
-  private final BlockData particleBlockData;
+  private final BlockDataResolver blockDataResolver;
+  private final boolean typeAwareParticleBlockData;
+  private final Predicate<BreakType> stageParticleFilter;
 
-  private BreakParticleSender(Plugin plugin, Settings settings, Material particleMaterial) {
+  private BreakParticleSender(
+      Plugin plugin,
+      Settings settings,
+      BlockDataResolver blockDataResolver,
+      boolean typeAwareParticleBlockData,
+      Predicate<BreakType> stageParticleFilter) {
     this.plugin = plugin;
     this.range = Math.max(0.0, settings.range());
     this.rangeSquared = this.range * this.range;
     this.stageCount = Math.max(0, settings.stageCount());
     this.breakCount = Math.max(0, settings.breakCount());
     this.spread = Math.max(0.0, settings.spread());
-    this.particleBlockData =
-        particleMaterial != null && particleMaterial.isBlock()
-            ? particleMaterial.createBlockData()
-            : null;
+    this.blockDataResolver = blockDataResolver == null ? this::visualBlockData : blockDataResolver;
+    this.typeAwareParticleBlockData = typeAwareParticleBlockData;
+    this.stageParticleFilter = stageParticleFilter == null ? ALL_STAGE_TYPES : stageParticleFilter;
   }
 
   public static BreakParticleSender vanilla(Plugin plugin, Settings settings) {
-    return new BreakParticleSender(plugin, settings, null);
+    return new BreakParticleSender(plugin, settings, null, true, ALL_STAGE_TYPES);
   }
 
   public static BreakParticleSender resource(
       Plugin plugin, Settings settings, Material particleMaterial) {
-    return new BreakParticleSender(plugin, settings, particleMaterial);
+    BlockData blockData =
+        particleMaterial != null && particleMaterial.isBlock()
+            ? particleMaterial.createBlockData()
+            : null;
+    return new BreakParticleSender(
+        plugin, settings, (block, type) -> blockData, false, ALL_STAGE_TYPES);
   }
 
-  public static BreakParticleSender resource(Plugin plugin, Settings settings) {
-    return new BreakParticleSender(plugin, settings, null);
+  public static BreakParticleSender resource(
+      Plugin plugin, Settings settings, BlockDataResolver blockDataResolver) {
+    return resource(plugin, settings, blockDataResolver, ALL_STAGE_TYPES);
+  }
+
+  public static BreakParticleSender resource(
+      Plugin plugin,
+      Settings settings,
+      BlockDataResolver blockDataResolver,
+      Predicate<BreakType> stageParticleFilter) {
+    BlockDataResolver resolver =
+        blockDataResolver == null ? (block, type) -> null : blockDataResolver;
+    return new BreakParticleSender(plugin, settings, resolver, false, stageParticleFilter);
   }
 
   boolean usesTypeAwareParticleBlockData() {
-    return particleBlockData == null;
+    return typeAwareParticleBlockData;
+  }
+
+  boolean showsStageParticlesFor(BreakType type) {
+    return stageParticleFilter.test(type);
   }
 
   @Override
   public void show(Block block, BreakType type, double progress) {
+    if (!showsStageParticlesFor(type)) {
+      return;
+    }
     spawn(block, type, stageCount);
   }
 
@@ -82,8 +113,10 @@ public final class BreakParticleSender implements BreakAnimationSender {
 
   private void spawnFor(
       Player viewer, Location loc, Block block, BreakType type, int particleCount) {
-    BlockData blockData =
-        particleBlockData != null ? particleBlockData : visualBlockData(block, type);
+    BlockData blockData = blockDataResolver.resolve(block, type);
+    if (blockData == null) {
+      return;
+    }
     viewer.spawnParticle(
         Particle.BLOCK,
         loc,
@@ -126,4 +159,9 @@ public final class BreakParticleSender implements BreakAnimationSender {
   }
 
   public record Settings(double range, int stageCount, int breakCount, double spread) {}
+
+  @FunctionalInterface
+  public interface BlockDataResolver {
+    BlockData resolve(Block block, BreakType type);
+  }
 }

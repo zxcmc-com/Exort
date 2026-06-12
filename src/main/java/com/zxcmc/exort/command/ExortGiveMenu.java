@@ -26,17 +26,29 @@ public final class ExortGiveMenu implements InventoryHolder {
   private static final List<String> FIXED_ITEM_IDS = CustomItemRegistry.fixedItemIds();
 
   private final Inventory inventory;
-  private final CustomItems customItems;
+  private final Supplier<CustomItems> customItems;
+  private final Supplier<ItemStack> wirelessTerminalFactory;
 
   public ExortGiveMenu(
       CustomItems customItems, Supplier<ItemStack> wirelessTerminalFactory, Component title) {
+    this(() -> customItems, wirelessTerminalFactory, title);
+  }
+
+  public ExortGiveMenu(
+      Supplier<CustomItems> customItems,
+      Supplier<ItemStack> wirelessTerminalFactory,
+      Component title) {
     this.customItems = Objects.requireNonNull(customItems, "customItems");
-    List<ItemStack> items =
-        catalogItems(
-            customItems,
-            Objects.requireNonNull(wirelessTerminalFactory, "wirelessTerminalFactory"));
-    validateCatalogSize(items.size());
+    this.wirelessTerminalFactory =
+        Objects.requireNonNull(wirelessTerminalFactory, "wirelessTerminalFactory");
     inventory = Bukkit.createInventory(this, SIZE, title == null ? Component.text(TITLE) : title);
+    refreshCatalog();
+  }
+
+  public void refreshCatalog() {
+    List<ItemStack> items = catalogItems(currentCustomItems(), wirelessTerminalFactory);
+    validateCatalogSize(items.size());
+    inventory.clear();
     for (int i = 0; i < items.size(); i++) {
       inventory.setItem(i, items.get(i));
     }
@@ -191,9 +203,14 @@ public final class ExortGiveMenu implements InventoryHolder {
   }
 
   private boolean canDestroy(ItemStack item) {
-    boolean customItem = customItems.isCustomItem(item);
-    boolean hasStorageId = customItem && customItems.storageId(item).isPresent();
+    CustomItems items = currentCustomItems();
+    boolean customItem = items.isCustomItem(item);
+    boolean hasStorageId = customItem && items.storageId(item).isPresent();
     return canDestroyCustomItem(customItem, hasStorageId);
+  }
+
+  private CustomItems currentCustomItems() {
+    return Objects.requireNonNull(customItems.get(), "customItems");
   }
 
   private static boolean isEmpty(ItemStack stack) {

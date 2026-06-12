@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.11 — 2026-06-12
+- RESOURCE break particles now use cropped Exort textures that match the broken block: terminals, monitors, buses, and storage blocks no longer emit vanilla fallback fragments, and chorus-carrier wires keep only the crack overlay during progress with a final centered wire-glass burst on completion.
+- Switching Exort from VANILLA to RESOURCE now automatically sends the Exort-managed resource pack to online players when direct delivery is available, preventing online clients from keeping missing textures after a runtime mode change.
+- `/exort inventory` and `/exort give` now resolve the active mode's Exort item models after RESOURCE/VANILLA switches; already open inventory menus refresh their catalog slots instead of keeping stale model references.
+
 ## 0.14.10 — 2026-06-11
 - Bus and crafting item flow is stricter under load: due bus attempts now consume the existing tick budget even when no items move, brewing stands reject invalid side inserts, and crafting-to-storage or crafting-to-inventory now preflights output, remainders, and overflow before reserving ingredients.
 - RESOURCE/display maintenance is safer on large scenes: oversized wire refreshes stop at the configured hard cap with diagnostics, wire display reuse now requires wire role tags, holograms refresh through a bounded dirty queue, and RESOURCE break particles follow the block type being broken.

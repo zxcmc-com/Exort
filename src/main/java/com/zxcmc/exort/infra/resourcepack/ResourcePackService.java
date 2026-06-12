@@ -52,6 +52,7 @@ public final class ResourcePackService implements Listener {
   private static final String OFFICIAL_PACK_METADATA_URL =
       "https://exort.zxcmc.com/resource-pack/exort/latest.json";
   private static final Duration OFFICIAL_PACK_METADATA_TIMEOUT = Duration.ofSeconds(10);
+  private static final long NO_GENERATION = -1L;
 
   private final JavaPlugin plugin;
   private final BooleanSupplier resourceMode;
@@ -62,6 +63,8 @@ public final class ResourcePackService implements Listener {
   private final ConcurrentMap<UUID, String> configurationAttempts = new ConcurrentHashMap<>();
   private final Object stateMonitor = new Object();
   private final AtomicReference<State> state;
+  private final AtomicLong onlineSendRequestGeneration = new AtomicLong(NO_GENERATION);
+  private final AtomicLong onlineSendScheduledGeneration = new AtomicLong(NO_GENERATION);
 
   public ResourcePackService(
       JavaPlugin plugin,
@@ -112,6 +115,8 @@ public final class ResourcePackService implements Listener {
   public synchronized void reload() {
     long currentGeneration = generation.incrementAndGet();
     configurationAttempts.clear();
+    onlineSendRequestGeneration.set(NO_GENERATION);
+    onlineSendScheduledGeneration.set(NO_GENERATION);
     selfHost.stop();
 
     ResourcePackHosting configured =
@@ -288,6 +293,8 @@ public final class ResourcePackService implements Listener {
   public synchronized void stop() {
     generation.incrementAndGet();
     configurationAttempts.clear();
+    onlineSendRequestGeneration.set(NO_GENERATION);
+    onlineSendScheduledGeneration.set(NO_GENERATION);
     selfHost.stop();
     setState(State.disabled("Stopped", ResourcePackHosting.AUTO, ResourcePackDelivery.AUTO));
   }
@@ -502,8 +509,9 @@ public final class ResourcePackService implements Listener {
             settings.sendOnlineOnReady());
     setState(ready);
     logReadyState(ready);
-    if (ready.dispatchReady() && ready.sendOnlineOnReady()) {
-      scheduleSendAll();
+    boolean requestedOnlineSend = consumeOnlineSendRequest(ready);
+    if (ready.dispatchReady() && (ready.sendOnlineOnReady() || requestedOnlineSend)) {
+      scheduleSendAllOnce(generation.get());
     }
   }
 
@@ -556,11 +564,71 @@ public final class ResourcePackService implements Listener {
     }
   }
 
-  private void scheduleSendAll() {
+  public void requestSendOnlineWhenReady() {
+    long currentGeneration = generation.get();
+    State current = state.get();
+    OnlineSendDecision decision = onlineTransitionSendDecision(current);
+    if (decision == OnlineSendDecision.SEND_NOW) {
+      scheduleSendAllOnce(currentGeneration);
+      return;
+    }
+    if (decision == OnlineSendDecision.WAIT_FOR_READY) {
+      onlineSendRequestGeneration.set(currentGeneration);
+    }
+  }
+
+  private boolean consumeOnlineSendRequest(State ready) {
+    long currentGeneration = generation.get();
+    if (onlineSendRequestGeneration.get() != currentGeneration) {
+      return false;
+    }
+    onlineSendRequestGeneration.compareAndSet(currentGeneration, NO_GENERATION);
+    return onlineTransitionSendDecision(ready) == OnlineSendDecision.SEND_NOW;
+  }
+
+  static OnlineSendDecision onlineTransitionSendDecision(State current) {
+    if (current == null || current.configuredDelivery() == ResourcePackDelivery.MANUAL) {
+      return OnlineSendDecision.SKIP;
+    }
+    if (!isDirectHosting(current.effective())) {
+      return OnlineSendDecision.SKIP;
+    }
+    if ("READY".equals(current.status())) {
+      return current.dispatchReady() ? OnlineSendDecision.SEND_NOW : OnlineSendDecision.SKIP;
+    }
+    return switch (current.status()) {
+      case "STARTING", "RESOLVING", "UPLOADING" -> OnlineSendDecision.WAIT_FOR_READY;
+      default -> OnlineSendDecision.SKIP;
+    };
+  }
+
+  private void scheduleSendAllOnce(long scheduledGeneration) {
+    if (!markOnlineSendScheduled(scheduledGeneration)) {
+      return;
+    }
+    scheduleSendAll(scheduledGeneration);
+  }
+
+  private boolean markOnlineSendScheduled(long scheduledGeneration) {
+    while (true) {
+      long existing = onlineSendScheduledGeneration.get();
+      if (existing == scheduledGeneration) {
+        return false;
+      }
+      if (onlineSendScheduledGeneration.compareAndSet(existing, scheduledGeneration)) {
+        return true;
+      }
+    }
+  }
+
+  private void scheduleSendAll(long scheduledGeneration) {
     Bukkit.getScheduler()
         .runTaskLater(
             plugin,
             () -> {
+              if (generation.get() != scheduledGeneration) {
+                return;
+              }
               int sent = sendAll();
               if (sent > 0) {
                 ExortLog.info("Sent Exort resource pack to " + sent + " online player(s).");
@@ -925,6 +993,12 @@ public final class ResourcePackService implements Listener {
     WAIT_FOR_READY,
     SEND_CONFIGURATION_PACK,
     DISCONNECT
+  }
+
+  enum OnlineSendDecision {
+    SKIP,
+    WAIT_FOR_READY,
+    SEND_NOW
   }
 
   record State(
