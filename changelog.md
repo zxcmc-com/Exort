@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.12 — 2026-06-13
+- RESOURCE Exort blocks no longer apply the airborne break-speed penalty while the player is grounded on a chorus-carrier wire.
+- RESOURCE breaking overlays are now more transparent on most Exort faces, less transparent on terminal and monitor screens, sit closer to thin and overhanging model faces.
+
 ## 0.14.11 — 2026-06-12
 - RESOURCE break particles now use cropped Exort textures that match the broken block: terminals, monitors, buses, and storage blocks no longer emit vanilla fallback fragments, and chorus-carrier wires keep only the crack overlay during progress with a final centered wire-glass burst on completion.
 - Switching Exort from VANILLA to RESOURCE now automatically sends the Exort-managed resource pack to online players when direct delivery is available, preventing online clients from keeping missing textures after a runtime mode change.

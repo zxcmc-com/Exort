@@ -15,7 +15,7 @@ class BreakVisualConfigTest {
     assertTrue(config.resourceOverlay().enabled());
     assertEquals("PAPER", config.resourceOverlay().displayBaseMaterial());
     assertEquals("breaking/", config.resourceOverlay().modelRoot());
-    assertEquals(1.001, config.resourceOverlay().displayScale());
+    assertEquals(1.0001, config.resourceOverlay().displayScale());
     assertTrue(config.resourceParticles().enabled());
     assertParticleSettings(config.resourceParticles().settings(), 16.0, 6, 30, 0.31);
   }

@@ -20,7 +20,7 @@ public record BreakVisualConfig(
   public static BreakVisualConfig defaults() {
     return new BreakVisualConfig(
         particleConfig(true),
-        new ResourceOverlayConfig(true, "PAPER", "breaking/", 1.001),
+        new ResourceOverlayConfig(true, "PAPER", "breaking/", 1.0001),
         new ResourceParticleConfig(true, defaultParticleSettings()));
   }
 

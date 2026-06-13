@@ -6,6 +6,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.util.VoxelShape;
 
 public final class BreakProgressCalculator {
   private BreakProgressCalculator() {}
@@ -69,23 +71,69 @@ public final class BreakProgressCalculator {
     }
   }
 
-  private static boolean isOnGround(Player player) {
+  static boolean isOnGround(Player player) {
     var world = player.getWorld();
     var box = player.getBoundingBox();
-    double y = box.getMinY() - 0.01;
-    int minX = (int) Math.floor(box.getMinX() + 1.0E-6);
-    int maxX = (int) Math.floor(box.getMaxX() - 1.0E-6);
-    int minZ = (int) Math.floor(box.getMinZ() + 1.0E-6);
-    int maxZ = (int) Math.floor(box.getMaxZ() - 1.0E-6);
-    int by = (int) Math.floor(y);
-    for (int x : new int[] {minX, maxX}) {
-      for (int z : new int[] {minZ, maxZ}) {
-        if (world.getBlockAt(x, by, z).getType().isSolid()) {
-          return true;
+    BoundingBox supportBox =
+        new BoundingBox(
+            box.getMinX() + 1.0E-6,
+            box.getMinY() - 0.02,
+            box.getMinZ() + 1.0E-6,
+            box.getMaxX() - 1.0E-6,
+            box.getMinY() + 1.0E-3,
+            box.getMaxZ() - 1.0E-6);
+    int minX = (int) Math.floor(supportBox.getMinX());
+    int maxX = (int) Math.floor(supportBox.getMaxX());
+    int minY = (int) Math.floor(supportBox.getMinY());
+    int maxY = (int) Math.floor(supportBox.getMaxY());
+    int minZ = (int) Math.floor(supportBox.getMinZ());
+    int maxZ = (int) Math.floor(supportBox.getMaxZ());
+    for (int x = minX; x <= maxX; x++) {
+      for (int y = minY; y <= maxY; y++) {
+        for (int z = minZ; z <= maxZ; z++) {
+          if (supportsPlayer(world.getBlockAt(x, y, z), supportBox)) {
+            return true;
+          }
         }
       }
     }
     return false;
+  }
+
+  private static boolean supportsPlayer(org.bukkit.block.Block block, BoundingBox supportBox) {
+    try {
+      VoxelShape collision = block.getCollisionShape();
+      if (collision.overlaps(supportBox)) {
+        return true;
+      }
+      BoundingBox localSupportBox =
+          new BoundingBox(
+              supportBox.getMinX(),
+              supportBox.getMinY(),
+              supportBox.getMinZ(),
+              supportBox.getMaxX(),
+              supportBox.getMaxY(),
+              supportBox.getMaxZ());
+      localSupportBox.shift(-block.getX(), -block.getY(), -block.getZ());
+      if (collision.overlaps(localSupportBox)) {
+        return true;
+      }
+      return false;
+    } catch (NoSuchMethodError ignored) {
+      // Older Bukkit-compatible APIs may not expose detailed collision shapes.
+    }
+    try {
+      if (block.getBoundingBox().overlaps(supportBox)) {
+        return true;
+      }
+    } catch (NoSuchMethodError ignored) {
+      // Fall through to the original solid-material check.
+    }
+    try {
+      return block.isSolid();
+    } catch (NoSuchMethodError ignored) {
+      return block.getType().isSolid();
+    }
   }
 
   private static boolean hasAquaAffinity(Player player) {
