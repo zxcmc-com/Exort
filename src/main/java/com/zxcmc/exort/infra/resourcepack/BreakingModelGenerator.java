@@ -7,8 +7,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zxcmc.exort.display.DisplayRotation;
+import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -28,11 +30,19 @@ import org.joml.Vector3f;
 final class BreakingModelGenerator {
   static final int STAGE_COUNT = 10;
   static final int TINT_COLOR = -6841698; // 0xFF979A9E
+  static final int SCREEN_DESTROY_VISIBLE_ALPHA = 220;
 
   private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
   private static final String MODELS_ROOT = "assets/exort/models/";
   private static final String ITEMS_ROOT = "assets/exort/items/";
   private static final String BREAKING_ROOT = "breaking/";
+  private static final String GENERATED_BREAKING_ROOT = BREAKING_ROOT + "generated/";
+  private static final String SCREEN_TEXTURE_ROOT = "exort:display/";
+  private static final int BASE_DESTROY_TEXTURE_SIZE = 16;
+  private static final int BREAKING_TEXTURE_SUPERSAMPLE = 2;
+  private static final int PRESERVE_DESTROY_VISIBLE_ALPHA = -1;
+  private static final int MAX_DESTROY_TEXTURE_SIZE =
+      BASE_DESTROY_TEXTURE_SIZE * BREAKING_TEXTURE_SUPERSAMPLE;
   private static final double BLOCK_CENTER = 8.0;
   private static final double COORDINATE_EPSILON = 0.000001;
 
@@ -43,7 +53,9 @@ final class BreakingModelGenerator {
       logger.log(Level.FINE, "No Exort source models found; breaking overlay generation skipped.");
       return 0;
     }
-    TextureAlphaIndex textureAlphaIndex = new TextureAlphaIndex(entries);
+    TextureImageIndex textureImageIndex = new TextureImageIndex(entries);
+    BreakingTextureRegistry breakingTextures =
+        new BreakingTextureRegistry(entries, textureImageIndex, true);
     List<VariantSource> variants = new ArrayList<>();
     addStorageVariants(entries, variants);
     addTerminalVariants(entries, variants);
@@ -68,10 +80,11 @@ final class BreakingModelGenerator {
             modelPath,
             GSON.toJson(
                     generateModel(
-                        variant.sourceModel(), stage, variant.transform(), textureAlphaIndex))
+                        variant.sourceModel(), stage, variant.transform(), breakingTextures))
                 .getBytes(StandardCharsets.UTF_8));
       }
     }
+    added += breakingTextures.addedCount();
     if (variants.isEmpty()) {
       logger.warning("No Exort breaking overlay models were generated.");
     } else {
@@ -90,33 +103,38 @@ final class BreakingModelGenerator {
   }
 
   static JsonObject generateModel(JsonObject sourceModel, int stage, Transform transform) {
-    return generateModel(sourceModel, stage, transform, TextureAlphaIndex.empty());
+    return generateModel(sourceModel, stage, transform, BreakingTextureRegistry.empty());
   }
 
   static JsonObject generateModel(
       JsonObject sourceModel, int stage, Transform transform, Map<String, byte[]> entries) {
-    return generateModel(sourceModel, stage, transform, new TextureAlphaIndex(entries));
+    TextureImageIndex textureImageIndex = new TextureImageIndex(entries);
+    return generateModel(
+        sourceModel,
+        stage,
+        transform,
+        new BreakingTextureRegistry(entries, textureImageIndex, false));
   }
 
   private static JsonObject generateModel(
-      JsonObject sourceModel, int stage, Transform transform, TextureAlphaIndex textureAlphaIndex) {
+      JsonObject sourceModel,
+      int stage,
+      Transform transform,
+      BreakingTextureRegistry breakingTextures) {
     if (stage < 0 || stage >= STAGE_COUNT) {
       throw new IllegalArgumentException("Unsupported breaking stage: " + stage);
     }
     Objects.requireNonNull(sourceModel, "sourceModel");
     Objects.requireNonNull(transform, "transform");
-    Objects.requireNonNull(textureAlphaIndex, "textureAlphaIndex");
+    Objects.requireNonNull(breakingTextures, "breakingTextures");
 
-    String texture = "exort:breaking/destroy_stage_" + stage;
     JsonObject root = new JsonObject();
     root.addProperty("format_version", "1.21.6");
     root.addProperty("credit", "phantomfighterxx");
     root.addProperty("ambientocclusion", false);
 
-    JsonObject textures = new JsonObject();
-    textures.addProperty("0", texture);
-    textures.addProperty("particle", texture);
-    root.add("textures", textures);
+    ModelGenerationContext context = new ModelGenerationContext(stage, breakingTextures);
+    root.add("textures", context.textures());
 
     JsonArray elements = new JsonArray();
     JsonArray sourceElements = sourceModel.getAsJsonArray("elements");
@@ -129,8 +147,7 @@ final class BreakingModelGenerator {
         continue;
       }
       for (JsonObject element :
-          transformElement(
-              sourceElement.getAsJsonObject(), sourceTextures, transform, textureAlphaIndex)) {
+          transformElement(sourceElement.getAsJsonObject(), sourceTextures, transform, context)) {
         elements.add(element);
       }
     }
@@ -204,7 +221,7 @@ final class BreakingModelGenerator {
       JsonObject source,
       JsonObject sourceTextures,
       Transform transform,
-      TextureAlphaIndex textureAlphaIndex) {
+      ModelGenerationContext context) {
     validateUnsupportedElementRotation(source);
     double[] sourceFrom = readVector(source, "from");
     double[] sourceTo = readVector(source, "to");
@@ -220,24 +237,25 @@ final class BreakingModelGenerator {
         String targetFace = rotateFace(entry.getKey(), transform.rotation());
         JsonObject sourceFace =
             entry.getValue().isJsonObject() ? entry.getValue().getAsJsonObject() : new JsonObject();
-        FaceCoverage coverage = faceCoverage(sourceFace, sourceTextures, textureAlphaIndex);
+        FaceAnalysis analysis =
+            faceAnalysis(entry.getKey(), sourceFace, sourceTextures, sourceFrom, sourceTo, context);
+        FaceCoverage coverage = analysis.coverage();
+        String textureRef =
+            context.textureReference(
+                analysis.textureSize(),
+                analysis.screen() ? SCREEN_DESTROY_VISIBLE_ALPHA : PRESERVE_DESTROY_VISIBLE_ALPHA);
         if (coverage.transparent()) {
           continue;
         }
         if (coverage.opaque()) {
-          double[][] clipped = clipProjectedFaceBounds(targetFace, from, to);
-          if (clipped == null) {
+          JsonArray uv =
+              analysis.densityAligned()
+                  ? densityAlignedUv(analysis)
+                  : uvForFace(targetFace, from, to);
+          if (uv == null) {
             continue;
           }
-          if (sameBounds(from, to, clipped[0], clipped[1])) {
-            baseFaces.add(targetFace, faceJson(targetFace, from, to));
-          } else {
-            JsonObject faces = new JsonObject();
-            faces.add(targetFace, faceJson(targetFace, clipped[0], clipped[1]));
-            targetElements.add(
-                targetElement(
-                    source, clipped[0], clipped[1], faces, " " + targetFace + " clipped"));
-          }
+          baseFaces.add(targetFace, faceJson(uv, textureRef));
           continue;
         }
         int rectIndex = 0;
@@ -245,18 +263,20 @@ final class BreakingModelGenerator {
           double[][] sourceSubBounds = subBoundsForFace(entry.getKey(), sourceFrom, sourceTo, rect);
           double[][] transformedSubBounds =
               transformBounds(sourceSubBounds[0], sourceSubBounds[1], transform.rotation());
-          double[][] clipped =
-              clipProjectedFaceBounds(targetFace, transformedSubBounds[0], transformedSubBounds[1]);
-          if (clipped == null) {
+          JsonArray uv =
+              analysis.densityAligned()
+                  ? densityAlignedUv(analysis, rect)
+                  : uvForFace(targetFace, transformedSubBounds[0], transformedSubBounds[1]);
+          if (uv == null) {
             continue;
           }
           JsonObject faces = new JsonObject();
-          faces.add(targetFace, faceJson(targetFace, clipped[0], clipped[1]));
+          faces.add(targetFace, faceJson(uv, textureRef));
           targetElements.add(
               targetElement(
                   source,
-                  clipped[0],
-                  clipped[1],
+                  transformedSubBounds[0],
+                  transformedSubBounds[1],
                   faces,
                   " " + targetFace + " alpha " + rectIndex++));
         }
@@ -266,49 +286,6 @@ final class BreakingModelGenerator {
       targetElements.add(0, targetElement(source, from, to, baseFaces, ""));
     }
     return targetElements;
-  }
-
-  private static double[][] clipProjectedFaceBounds(String face, double[] from, double[] to) {
-    double[] clippedFrom = from.clone();
-    double[] clippedTo = to.clone();
-    // Item model UVs sample atlas sprites directly. Clipping projected crack UVs keeps
-    // overhanging geometry from reading neighbouring or missing atlas regions.
-    switch (face) {
-      case "north", "south" -> {
-        if (!clipAxis(clippedFrom, clippedTo, 0) || !clipAxis(clippedFrom, clippedTo, 1)) {
-          return null;
-        }
-      }
-      case "east", "west" -> {
-        if (!clipAxis(clippedFrom, clippedTo, 2) || !clipAxis(clippedFrom, clippedTo, 1)) {
-          return null;
-        }
-      }
-      case "up", "down" -> {
-        if (!clipAxis(clippedFrom, clippedTo, 0) || !clipAxis(clippedFrom, clippedTo, 2)) {
-          return null;
-        }
-      }
-      default -> throw new IllegalArgumentException("Unsupported model face: " + face);
-    }
-    return new double[][] {clippedFrom, clippedTo};
-  }
-
-  private static boolean clipAxis(double[] from, double[] to, int axis) {
-    from[axis] = Math.max(0.0, from[axis]);
-    to[axis] = Math.min(16.0, to[axis]);
-    return to[axis] - from[axis] > COORDINATE_EPSILON;
-  }
-
-  private static boolean sameBounds(
-      double[] from, double[] to, double[] otherFrom, double[] otherTo) {
-    for (int axis = 0; axis < 3; axis++) {
-      if (Math.abs(from[axis] - otherFrom[axis]) > COORDINATE_EPSILON
-          || Math.abs(to[axis] - otherTo[axis]) > COORDINATE_EPSILON) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private static JsonObject readModel(Map<String, byte[]> entries, String path) {
@@ -343,19 +320,38 @@ final class BreakingModelGenerator {
     }
   }
 
-  private static FaceCoverage faceCoverage(
-      JsonObject sourceFace, JsonObject sourceTextures, TextureAlphaIndex textureAlphaIndex) {
+  private static FaceAnalysis faceAnalysis(
+      String face,
+      JsonObject sourceFace,
+      JsonObject sourceTextures,
+      double[] from,
+      double[] to,
+      ModelGenerationContext context) {
     int rotation = faceTextureRotation(sourceFace);
     if (!sourceFace.has("texture") || !sourceFace.has("uv")) {
-      return FaceCoverage.allOpaque();
+      return new FaceAnalysis(
+          FaceCoverage.allOpaque(), TextureSize.base(), null, rotation, false, false);
     }
     String texture = resolveTexture(sourceFace.get("texture").getAsString(), sourceTextures);
-    AlphaImage alpha = textureAlphaIndex.image(texture);
-    if (alpha == null) {
-      return FaceCoverage.allOpaque();
+    TextureImage image = context.textureImage(texture);
+    if (image == null) {
+      return new FaceAnalysis(
+          FaceCoverage.allOpaque(), TextureSize.base(), null, rotation, false, false);
     }
     double[] uv = readUv(sourceFace);
-    return FaceCoverage.fromAlpha(alpha, uv, rotation);
+    boolean screen = isScreenTexture(texture);
+    double[] sourcePixels = sourcePixelSize(image.width(), image.height(), uv, rotation);
+    return new FaceAnalysis(
+        FaceCoverage.fromAlpha(image, uv, rotation),
+        densityTextureSize(face, from, to, image.width(), image.height(), uv, rotation),
+        sourcePixels,
+        rotation,
+        screen,
+        screen);
+  }
+
+  private static boolean isScreenTexture(String texture) {
+    return texture != null && texture.startsWith(SCREEN_TEXTURE_ROOT);
   }
 
   private static int faceTextureRotation(JsonObject sourceFace) {
@@ -400,12 +396,90 @@ final class BreakingModelGenerator {
     };
   }
 
-  private static JsonObject faceJson(String targetFace, double[] from, double[] to) {
+  private static JsonObject faceJson(JsonArray uv, String textureRef) {
     JsonObject face = new JsonObject();
-    face.add("uv", uvForFace(targetFace, from, to));
-    face.addProperty("texture", "#0");
+    face.add("uv", uv);
+    face.addProperty("texture", textureRef);
     face.addProperty("tintindex", 0);
     return face;
+  }
+
+  private static JsonArray densityAlignedUv(FaceAnalysis analysis) {
+    double[] uv = densityAlignedUvBounds(analysis.sourcePixels());
+    if (uv == null) {
+      return null;
+    }
+    return clampedNumberArray(uv[0], uv[1], uv[2], uv[3]);
+  }
+
+  private static JsonArray densityAlignedUv(FaceAnalysis analysis, FaceRect rect) {
+    double[] uv = densityAlignedUvBounds(analysis.sourcePixels());
+    if (uv == null) {
+      return null;
+    }
+    double[][] points =
+        new double[][] {
+          faceLocalToUv(rect.sMin(), rect.tMin(), uv, analysis.rotation()),
+          faceLocalToUv(rect.sMax(), rect.tMin(), uv, analysis.rotation()),
+          faceLocalToUv(rect.sMin(), rect.tMax(), uv, analysis.rotation()),
+          faceLocalToUv(rect.sMax(), rect.tMax(), uv, analysis.rotation())
+        };
+    double minU = Double.POSITIVE_INFINITY;
+    double minV = Double.POSITIVE_INFINITY;
+    double maxU = Double.NEGATIVE_INFINITY;
+    double maxV = Double.NEGATIVE_INFINITY;
+    for (double[] point : points) {
+      minU = Math.min(minU, point[0]);
+      minV = Math.min(minV, point[1]);
+      maxU = Math.max(maxU, point[0]);
+      maxV = Math.max(maxV, point[1]);
+    }
+    return clampedNumberArray(minU, minV, maxU, maxV);
+  }
+
+  private static double[] densityAlignedUvBounds(double[] sourcePixels) {
+    if (sourcePixels == null || sourcePixels.length != 2) {
+      return null;
+    }
+    double width = densityAlignedUvSpan(sourcePixels[0]);
+    double height = densityAlignedUvSpan(sourcePixels[1]);
+    return new double[] {
+      8.0 - width / 2.0, 8.0 - height / 2.0, 8.0 + width / 2.0, 8.0 + height / 2.0
+    };
+  }
+
+  private static double densityAlignedUvSpan(double sourcePixels) {
+    if (sourcePixels <= COORDINATE_EPSILON) {
+      throw new IllegalArgumentException("Model face uv has zero width or height.");
+    }
+    return Math.min(
+        BASE_DESTROY_TEXTURE_SIZE, Math.max(1.0, sourcePixels / BREAKING_TEXTURE_SUPERSAMPLE));
+  }
+
+  private static double[] faceLocalToUv(double s, double t, double[] uv, int rotation) {
+    double a;
+    double b;
+    switch (rotation) {
+      case 0 -> {
+        a = s;
+        b = t;
+      }
+      case 90 -> {
+        a = t;
+        b = 1.0 - s;
+      }
+      case 180 -> {
+        a = 1.0 - s;
+        b = 1.0 - t;
+      }
+      case 270 -> {
+        a = 1.0 - t;
+        b = s;
+      }
+      default ->
+          throw new IllegalArgumentException("Unsupported face texture rotation: " + rotation);
+    }
+    return new double[] {lerp(uv[0], uv[2], a), lerp(uv[1], uv[3], b)};
   }
 
   private static JsonObject targetElement(
@@ -598,12 +672,131 @@ final class BreakingModelGenerator {
   }
 
   private static JsonArray uvForFace(String face, double[] from, double[] to) {
+    // Preserve overhanging model geometry while shifting projected destroy UVs into the sprite.
+    // This keeps thin connector sides covered without compressing the crack pixel scale.
     return switch (face) {
-      case "north", "south" -> numberArray(from[0], 16.0 - to[1], to[0], 16.0 - from[1]);
-      case "east", "west" ->
-          numberArray(16.0 - from[2], 16.0 - to[1], 16.0 - to[2], 16.0 - from[1]);
-      case "up", "down" -> numberArray(16.0 - from[0], 16.0 - from[2], 16.0 - to[0], 16.0 - to[2]);
+      case "north", "south" -> {
+        if (!intersectsDestroySprite(from[0], to[0]) || !intersectsDestroySprite(from[1], to[1])) {
+          yield null;
+        }
+        yield fittedNumberArray(from[0], 16.0 - to[1], to[0], 16.0 - from[1]);
+      }
+      case "east", "west" -> {
+        if (!intersectsDestroySprite(from[2], to[2]) || !intersectsDestroySprite(from[1], to[1])) {
+          yield null;
+        }
+        yield fittedNumberArray(16.0 - from[2], 16.0 - to[1], 16.0 - to[2], 16.0 - from[1]);
+      }
+      case "up", "down" -> {
+        if (!intersectsDestroySprite(from[0], to[0]) || !intersectsDestroySprite(from[2], to[2])) {
+          yield null;
+        }
+        yield fittedNumberArray(16.0 - from[0], 16.0 - from[2], 16.0 - to[0], 16.0 - to[2]);
+      }
       default -> throw new IllegalArgumentException("Unsupported model face: " + face);
+    };
+  }
+
+  private static JsonArray fittedNumberArray(double u1, double v1, double u2, double v2) {
+    double[] u = fittedDestroyUvInterval(u1, u2);
+    double[] v = fittedDestroyUvInterval(v1, v2);
+    return numberArray(u[0], v[0], u[1], v[1]);
+  }
+
+  private static double[] fittedDestroyUvInterval(double first, double second) {
+    double min = Math.min(first, second);
+    double max = Math.max(first, second);
+    if (max - min > BASE_DESTROY_TEXTURE_SIZE + COORDINATE_EPSILON) {
+      return new double[] {
+        Math.max(0.0, Math.min(BASE_DESTROY_TEXTURE_SIZE, first)),
+        Math.max(0.0, Math.min(BASE_DESTROY_TEXTURE_SIZE, second))
+      };
+    }
+    double offset = 0.0;
+    if (min < 0.0) {
+      offset = -min;
+    } else if (max > BASE_DESTROY_TEXTURE_SIZE) {
+      offset = BASE_DESTROY_TEXTURE_SIZE - max;
+    }
+    return new double[] {first + offset, second + offset};
+  }
+
+  private static boolean intersectsDestroySprite(double first, double second) {
+    double min = Math.min(first, second);
+    double max = Math.max(first, second);
+    return Math.min(max, 16.0) - Math.max(min, 0.0) > COORDINATE_EPSILON;
+  }
+
+  private static JsonArray clampedNumberArray(double... values) {
+    double[] clamped = new double[values.length];
+    for (int i = 0; i < values.length; i++) {
+      clamped[i] = Math.max(0.0, Math.min(16.0, values[i]));
+    }
+    return numberArray(clamped);
+  }
+
+  static TextureSize densityTextureSize(
+      String face, double[] from, double[] to, int textureWidth, int textureHeight, double[] uv) {
+    return densityTextureSize(face, from, to, textureWidth, textureHeight, uv, 0);
+  }
+
+  static TextureSize densityTextureSize(
+      String face,
+      double[] from,
+      double[] to,
+      int textureWidth,
+      int textureHeight,
+      double[] uv,
+      int rotation) {
+    double[] modelSize = faceModelSize(face, from, to);
+    double[] sourcePixels = sourcePixelSize(textureWidth, textureHeight, uv, rotation);
+    return new TextureSize(
+        densityDimension(sourcePixels[0], modelSize[0]),
+        densityDimension(sourcePixels[1], modelSize[1]));
+  }
+
+  private static int densityDimension(double sourcePixels, double modelUnits) {
+    if (modelUnits <= COORDINATE_EPSILON) {
+      throw new IllegalArgumentException("Model face has zero projected size.");
+    }
+    if (sourcePixels <= COORDINATE_EPSILON) {
+      throw new IllegalArgumentException("Model face uv has zero width or height.");
+    }
+    int density =
+        (int)
+            Math.ceil(
+                sourcePixels * BREAKING_TEXTURE_SUPERSAMPLE * BASE_DESTROY_TEXTURE_SIZE / modelUnits
+                    - COORDINATE_EPSILON);
+    return destroyTextureDimension(density, MAX_DESTROY_TEXTURE_SIZE);
+  }
+
+  private static int destroyTextureDimension(int required, int maximum) {
+    int clamped = Math.min(maximum, Math.max(BASE_DESTROY_TEXTURE_SIZE, required));
+    int dimension = BASE_DESTROY_TEXTURE_SIZE;
+    while (dimension < clamped) {
+      dimension *= BREAKING_TEXTURE_SUPERSAMPLE;
+    }
+    return Math.min(maximum, dimension);
+  }
+
+  private static double[] faceModelSize(String face, double[] from, double[] to) {
+    return switch (face) {
+      case "north", "south" -> new double[] {Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1])};
+      case "east", "west" -> new double[] {Math.abs(to[2] - from[2]), Math.abs(to[1] - from[1])};
+      case "up", "down" -> new double[] {Math.abs(to[0] - from[0]), Math.abs(to[2] - from[2])};
+      default -> throw new IllegalArgumentException("Unsupported model face: " + face);
+    };
+  }
+
+  private static double[] sourcePixelSize(
+      int textureWidth, int textureHeight, double[] uv, int rotation) {
+    double width = Math.abs(uv[2] - uv[0]) / BASE_DESTROY_TEXTURE_SIZE * textureWidth;
+    double height = Math.abs(uv[3] - uv[1]) / BASE_DESTROY_TEXTURE_SIZE * textureHeight;
+    return switch (rotation) {
+      case 0, 180 -> new double[] {width, height};
+      case 90, 270 -> new double[] {height, width};
+      default ->
+          throw new IllegalArgumentException("Unsupported face texture rotation: " + rotation);
     };
   }
 
@@ -643,6 +836,14 @@ final class BreakingModelGenerator {
     return face.name().toLowerCase(Locale.ROOT);
   }
 
+  private record FaceAnalysis(
+      FaceCoverage coverage,
+      TextureSize textureSize,
+      double[] sourcePixels,
+      int rotation,
+      boolean densityAligned,
+      boolean screen) {}
+
   private record FaceCoverage(boolean opaque, boolean transparent, List<FaceRect> rects) {
     static FaceCoverage allOpaque() {
       return new FaceCoverage(true, false, List.of());
@@ -652,7 +853,7 @@ final class BreakingModelGenerator {
       return new FaceCoverage(false, true, List.of());
     }
 
-    static FaceCoverage fromAlpha(AlphaImage alpha, double[] uv, int rotation) {
+    static FaceCoverage fromAlpha(TextureImage alpha, double[] uv, int rotation) {
       double minU = Math.min(uv[0], uv[2]);
       double maxU = Math.max(uv[0], uv[2]);
       double minV = Math.min(uv[1], uv[3]);
@@ -772,7 +973,19 @@ final class BreakingModelGenerator {
     }
   }
 
-  private record AlphaImage(BufferedImage image) {
+  record TextureSize(int width, int height) {
+    TextureSize {
+      if (width <= 0 || height <= 0) {
+        throw new IllegalArgumentException("Breaking texture size must be positive.");
+      }
+    }
+
+    static TextureSize base() {
+      return new TextureSize(BASE_DESTROY_TEXTURE_SIZE, BASE_DESTROY_TEXTURE_SIZE);
+    }
+  }
+
+  private record TextureImage(BufferedImage image) {
     int width() {
       return image.getWidth();
     }
@@ -784,23 +997,39 @@ final class BreakingModelGenerator {
     int alphaAt(int x, int y) {
       return (image.getRGB(x, y) >>> 24) & 0xFF;
     }
+
+    int argbAt(int x, int y) {
+      if (isGrayAlpha()) {
+        int[] pixel = image.getRaster().getPixel(x, y, (int[]) null);
+        int gray = pixel[0] & 0xFF;
+        int alpha = pixel[1] & 0xFF;
+        return (alpha << 24) | (gray << 16) | (gray << 8) | gray;
+      }
+      return image.getRGB(x, y);
+    }
+
+    private boolean isGrayAlpha() {
+      return image.getRaster().getNumBands() == 2
+          && image.getColorModel().hasAlpha()
+          && image.getColorModel().getColorSpace().getType() == ColorSpace.TYPE_GRAY;
+    }
   }
 
-  private static final class TextureAlphaIndex {
-    private static final TextureAlphaIndex EMPTY = new TextureAlphaIndex(Map.of());
+  private static final class TextureImageIndex {
+    private static final TextureImageIndex EMPTY = new TextureImageIndex(Map.of());
 
     private final Map<String, byte[]> entries;
-    private final Map<String, AlphaImage> cache = new HashMap<>();
+    private final Map<String, TextureImage> cache = new HashMap<>();
 
-    private TextureAlphaIndex(Map<String, byte[]> entries) {
+    private TextureImageIndex(Map<String, byte[]> entries) {
       this.entries = Objects.requireNonNull(entries, "entries");
     }
 
-    private static TextureAlphaIndex empty() {
+    private static TextureImageIndex empty() {
       return EMPTY;
     }
 
-    private AlphaImage image(String texture) {
+    private TextureImage image(String texture) {
       TextureAssetRef ref = TextureAssetRef.parse(texture);
       if (ref == null) {
         return null;
@@ -812,17 +1041,199 @@ final class BreakingModelGenerator {
       return cache.computeIfAbsent(entry, this::readImage);
     }
 
-    private AlphaImage readImage(String entry) {
+    private TextureImage readImage(String entry) {
       try {
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(entries.get(entry)));
         if (image == null) {
           throw new IllegalArgumentException("Unsupported PNG texture: " + entry);
         }
-        return new AlphaImage(image);
+        return new TextureImage(image);
       } catch (IOException e) {
         throw new IllegalArgumentException("Failed to read PNG texture: " + entry, e);
       }
     }
+  }
+
+  private static final class ModelGenerationContext {
+    private final int stage;
+    private final BreakingTextureRegistry breakingTextures;
+    private final JsonObject textures = new JsonObject();
+    private final Map<String, String> textureSlots = new HashMap<>();
+    private int nextTextureSlot = 1;
+
+    private ModelGenerationContext(int stage, BreakingTextureRegistry breakingTextures) {
+      this.stage = stage;
+      this.breakingTextures = Objects.requireNonNull(breakingTextures, "breakingTextures");
+      String baseTexture =
+          breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA);
+      textures.addProperty("0", baseTexture);
+      textures.addProperty("particle", baseTexture);
+    }
+
+    private JsonObject textures() {
+      return textures;
+    }
+
+    private TextureImage textureImage(String texture) {
+      return breakingTextures.textureImage(texture);
+    }
+
+    private String textureReference(TextureSize size, int visibleAlphaOverride) {
+      String texture = breakingTextures.textureFor(stage, size, visibleAlphaOverride);
+      if (texture.equals(
+          breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA))) {
+        return "#0";
+      }
+      return "#" + textureSlots.computeIfAbsent(texture, this::addTextureSlot);
+    }
+
+    private String addTextureSlot(String texture) {
+      String slot = Integer.toString(nextTextureSlot++);
+      textures.addProperty(slot, texture);
+      return slot;
+    }
+  }
+
+  private static final class BreakingTextureRegistry {
+    private static final BreakingTextureRegistry EMPTY =
+        new BreakingTextureRegistry(Map.of(), TextureImageIndex.empty(), false);
+
+    private final Map<String, byte[]> entries;
+    private final TextureImageIndex textureImageIndex;
+    private final boolean writeGeneratedTextures;
+    private int addedCount;
+
+    private BreakingTextureRegistry(
+        Map<String, byte[]> entries,
+        TextureImageIndex textureImageIndex,
+        boolean writeGeneratedTextures) {
+      this.entries = Objects.requireNonNull(entries, "entries");
+      this.textureImageIndex = Objects.requireNonNull(textureImageIndex, "textureImageIndex");
+      this.writeGeneratedTextures = writeGeneratedTextures;
+    }
+
+    private static BreakingTextureRegistry empty() {
+      return EMPTY;
+    }
+
+    private int addedCount() {
+      return addedCount;
+    }
+
+    private TextureImage textureImage(String texture) {
+      return textureImageIndex.image(texture);
+    }
+
+    private String textureFor(int stage, TextureSize size, int visibleAlphaOverride) {
+      String texture = breakingTexture(stage, size, visibleAlphaOverride);
+      if (writeGeneratedTextures
+          && (!size.equals(TextureSize.base())
+              || visibleAlphaOverride != PRESERVE_DESTROY_VISIBLE_ALPHA)) {
+        addGeneratedTexture(stage, size, visibleAlphaOverride);
+      }
+      return texture;
+    }
+
+    private void addGeneratedTexture(int stage, TextureSize size, int visibleAlphaOverride) {
+      String entry = breakingTextureEntry(stage, size, visibleAlphaOverride);
+      if (entries.containsKey(entry)) {
+        return;
+      }
+      TextureImage source =
+          textureImageIndex.image(
+              breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA));
+      if (source == null) {
+        throw new IllegalArgumentException(
+            "Missing breaking destroy stage texture: "
+                + breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA));
+      }
+      entries.put(entry, densityPng(source, size, visibleAlphaOverride));
+      addedCount++;
+    }
+
+    private static byte[] densityPng(
+        TextureImage source, TextureSize size, int visibleAlphaOverride) {
+      BufferedImage target =
+          new BufferedImage(size.width(), size.height(), BufferedImage.TYPE_INT_ARGB);
+      int background = backgroundPixel(source);
+      for (int y = 0; y < target.getHeight(); y++) {
+        for (int x = 0; x < target.getWidth(); x++) {
+          target.setRGB(x, y, background);
+        }
+      }
+      for (int y = 0; y < target.getHeight(); y++) {
+        int sourceY = y * source.height() / target.getHeight();
+        for (int x = 0; x < target.getWidth(); x++) {
+          int sourceX = x * source.width() / target.getWidth();
+          int argb = source.argbAt(sourceX, sourceY);
+          if (((argb >>> 24) & 0xFF) <= 1) {
+            continue;
+          }
+          if (visibleAlphaOverride != PRESERVE_DESTROY_VISIBLE_ALPHA) {
+            argb = (argb & 0x00FFFFFF) | (visibleAlphaOverride << 24);
+          }
+          target.setRGB(x, y, argb);
+        }
+      }
+      try {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(target, "png", out);
+        return out.toByteArray();
+      } catch (IOException e) {
+        throw new IllegalStateException("Failed to encode generated breaking texture.", e);
+      }
+    }
+
+    private static int backgroundPixel(TextureImage source) {
+      int best = source.argbAt(0, 0);
+      int bestAlpha = (best >>> 24) & 0xFF;
+      for (int y = 0; y < source.height(); y++) {
+        for (int x = 0; x < source.width(); x++) {
+          int argb = source.argbAt(x, y);
+          int alpha = (argb >>> 24) & 0xFF;
+          if (alpha < bestAlpha) {
+            best = argb;
+            bestAlpha = alpha;
+          }
+        }
+      }
+      return best;
+    }
+  }
+
+  private static String breakingTexture(int stage, TextureSize size, int visibleAlphaOverride) {
+    if (size.equals(TextureSize.base()) && visibleAlphaOverride == PRESERVE_DESTROY_VISIBLE_ALPHA) {
+      return "exort:" + BREAKING_ROOT + "destroy_stage_" + stage;
+    }
+    return "exort:"
+        + GENERATED_BREAKING_ROOT
+        + "destroy_stage_"
+        + stage
+        + "_"
+        + size.width()
+        + "x"
+        + size.height()
+        + alphaSuffix(visibleAlphaOverride);
+  }
+
+  private static String breakingTextureEntry(
+      int stage, TextureSize size, int visibleAlphaOverride) {
+    return "assets/exort/textures/"
+        + GENERATED_BREAKING_ROOT
+        + "destroy_stage_"
+        + stage
+        + "_"
+        + size.width()
+        + "x"
+        + size.height()
+        + alphaSuffix(visibleAlphaOverride)
+        + ".png";
+  }
+
+  private static String alphaSuffix(int visibleAlphaOverride) {
+    return visibleAlphaOverride == PRESERVE_DESTROY_VISIBLE_ALPHA
+        ? ""
+        : "_a" + visibleAlphaOverride;
   }
 
   private record TextureAssetRef(String namespace, String path) {

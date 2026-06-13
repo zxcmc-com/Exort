@@ -21,6 +21,37 @@ import org.junit.jupiter.api.Test;
 
 class BreakingModelGeneratorTest {
   @Test
+  void densityTextureSizeCapsDetailedFacesAtTwoTimesDestroyDensity() {
+    assertEquals(
+        new BreakingModelGenerator.TextureSize(32, 32),
+        BreakingModelGenerator.densityTextureSize(
+            "north",
+            new double[] {3, 3, 1},
+            new double[] {13, 13, 2},
+            64,
+            64,
+            new double[] {0, 0, 5, 5}));
+    assertEquals(
+        new BreakingModelGenerator.TextureSize(32, 32),
+        BreakingModelGenerator.densityTextureSize(
+            "north",
+            new double[] {0, 0, 0},
+            new double[] {16, 16, 16},
+            16,
+            16,
+            new double[] {0, 0, 16, 16}));
+    assertEquals(
+        new BreakingModelGenerator.TextureSize(32, 16),
+        BreakingModelGenerator.densityTextureSize(
+            "north",
+            new double[] {13, 2, 0},
+            new double[] {14, 14, 2},
+            32,
+            16,
+            new double[] {0, 0, 0.5, 0.5}));
+  }
+
+  @Test
   void fullCubeKeepsPreviousFullFaceUvPattern() {
     JsonObject generated =
         BreakingModelGenerator.generateModel(
@@ -120,13 +151,14 @@ class BreakingModelGeneratorTest {
   }
 
   @Test
-  void overhangingGeometryClipsProjectedDestroyUvsWithoutStretching() {
+  void overhangingGeometryKeepsFullBoundsAndFitsProjectedDestroyUvsWithoutScaleLoss() {
     JsonObject generated =
         BreakingModelGenerator.generateModel(
             sourceModel(3, 3, -1, 13, 13, 2, "north", "south", "east", "west", "up", "down"),
             0,
             BreakingModelGenerator.identityTransform());
 
+    assertEquals(1, elements(generated).size());
     assertAllFaceUvsInsideDestroySprite(generated);
     assertTrue(
         hasFaceBoundsAndUv(
@@ -139,16 +171,16 @@ class BreakingModelGeneratorTest {
         hasFaceBoundsAndUv(
             generated,
             "east",
-            new double[] {3, 3, 0},
+            new double[] {3, 3, -1},
             new double[] {13, 13, 2},
-            new double[] {16, 3, 14, 13}));
+            new double[] {16, 3, 13, 13}));
     assertTrue(
         hasFaceBoundsAndUv(
             generated,
             "up",
-            new double[] {3, 3, 0},
+            new double[] {3, 3, -1},
             new double[] {13, 13, 2},
-            new double[] {13, 16, 3, 14}));
+            new double[] {13, 16, 3, 13}));
   }
 
   @Test
