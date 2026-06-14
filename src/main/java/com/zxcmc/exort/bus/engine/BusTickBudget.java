@@ -32,7 +32,8 @@ final class BusTickBudget {
     if (maxAttemptsPerChunk <= 0) {
       return;
     }
-    chunkAttempts.merge(ChunkKey.from(pos), 1, Integer::sum);
+    ChunkKey key = ChunkKey.from(pos);
+    chunkAttempts.put(key, chunkAttempts.getOrDefault(key, 0) + 1);
   }
 
   private record ChunkKey(java.util.UUID world, int x, int z) {

@@ -544,7 +544,6 @@ public class CraftingSession extends AbstractStorageSession {
 
   private boolean craftToTarget(CraftPlan plan, CraftingState.ConfirmTarget target, int crafts) {
     if (crafts <= 0) return false;
-    long outputAmount = outputAmount(plan, crafts);
     if (target == CraftingState.ConfirmTarget.STORAGE) {
       List<OutputStack> output = targetAdditions(plan, crafts);
       if (!canStoreAdditions(output)) {

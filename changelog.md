@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.14 — 2026-06-14
+- Cleaned up bus tick-budget accounting and crafting terminal target-crafting code.
+
 ## 0.14.13 — 2026-06-14
 - `/exort reload` no longer removes storage monitor base displays while rebuilding runtime services, so online players do not see a monitor-block blink.
 - Terminal and monitor RESOURCE breaking overlays no longer draw duplicate cracks over the transparent front cutout; late stages use a masked front-frame atlas to keep screen cracks readable.
