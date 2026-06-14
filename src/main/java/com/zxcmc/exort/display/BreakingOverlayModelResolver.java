@@ -1,6 +1,7 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.breaking.BreakType;
+import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
@@ -39,14 +40,17 @@ public final class BreakingOverlayModelResolver {
           "terminal/" + key(horizontalOrSouth(TerminalMarker.facing(plugin, block).orElse(null)));
       case MONITOR ->
           "terminal/" + key(horizontalOrSouth(MonitorMarker.facing(plugin, block).orElse(null)));
-      case BUS ->
-          "bus/"
-              + key(
-                  fullOrNorth(
-                      BusMarker.get(plugin, block).map(BusMarker.Data::facing).orElse(null)));
+      case BUS -> busKey(block);
       case WIRE -> "wire/center";
       case NONE -> null;
     };
+  }
+
+  private String busKey(Block block) {
+    BusMarker.Data data = BusMarker.get(plugin, block).orElse(null);
+    String type = data != null && data.type() == BusType.EXPORT ? "export" : "import";
+    BlockFace face = fullOrNorth(data == null ? null : data.facing());
+    return "bus/" + type + "/" + key(face);
   }
 
   private static BlockFace horizontalOrSouth(BlockFace face) {
