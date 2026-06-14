@@ -453,7 +453,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       hologramManager.stop();
     }
     if (monitorDisplayManager != null) {
-      monitorDisplayManager.stop();
+      monitorDisplayManager.stopForReload();
     }
     monitorDisplayManager = null;
   }

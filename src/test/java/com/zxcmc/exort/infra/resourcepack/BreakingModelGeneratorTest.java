@@ -9,10 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.zxcmc.exort.display.DisplayRotation;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
 import org.bukkit.block.BlockFace;
@@ -21,38 +26,7 @@ import org.junit.jupiter.api.Test;
 
 class BreakingModelGeneratorTest {
   @Test
-  void densityTextureSizeCapsDetailedFacesAtTwoTimesDestroyDensity() {
-    assertEquals(
-        new BreakingModelGenerator.TextureSize(32, 32),
-        BreakingModelGenerator.densityTextureSize(
-            "north",
-            new double[] {3, 3, 1},
-            new double[] {13, 13, 2},
-            64,
-            64,
-            new double[] {0, 0, 5, 5}));
-    assertEquals(
-        new BreakingModelGenerator.TextureSize(32, 32),
-        BreakingModelGenerator.densityTextureSize(
-            "north",
-            new double[] {0, 0, 0},
-            new double[] {16, 16, 16},
-            16,
-            16,
-            new double[] {0, 0, 16, 16}));
-    assertEquals(
-        new BreakingModelGenerator.TextureSize(32, 16),
-        BreakingModelGenerator.densityTextureSize(
-            "north",
-            new double[] {13, 2, 0},
-            new double[] {14, 14, 2},
-            32,
-            16,
-            new double[] {0, 0, 0.5, 0.5}));
-  }
-
-  @Test
-  void fullCubeKeepsPreviousFullFaceUvPattern() {
+  void fullCubeKeepsProjectedDestroyUvPattern() {
     JsonObject generated =
         BreakingModelGenerator.generateModel(
             sourceModel(0, 0, 0, 16, 16, 16, "north", "east", "south", "west", "up", "down"),
@@ -65,93 +39,45 @@ class BreakingModelGeneratorTest {
     assertArrayEquals(new double[] {16, 0, 0, 16}, uv(generated, "west"));
     assertArrayEquals(new double[] {16, 16, 0, 0}, uv(generated, "up"));
     assertArrayEquals(new double[] {16, 16, 0, 0}, uv(generated, "down"));
+    assertUsesOnlyOverlayStageTexture(generated, 0);
   }
 
   @Test
-  void smallCuboidsUseBlockSpaceUvs() {
+  void centeredCuboidsKeepAllOuterFaces() {
     JsonObject generated =
         BreakingModelGenerator.generateModel(
-            sourceModel(6, 6, 6, 10, 10, 10, "north", "east", "up"),
-            0,
+            sourceModel(6, 6, 6, 10, 10, 10, "north", "east", "south", "west", "up", "down"),
+            5,
             BreakingModelGenerator.identityTransform());
 
+    assertEquals(1, elements(generated).size());
+    assertEquals(6, faces(generated).size());
     assertArrayEquals(new double[] {6, 6, 10, 10}, uv(generated, "north"));
     assertArrayEquals(new double[] {10, 6, 6, 10}, uv(generated, "east"));
     assertArrayEquals(new double[] {10, 10, 6, 6}, uv(generated, "up"));
+    assertUsesOnlyOverlayStageTexture(generated, 5);
   }
 
   @Test
-  void opaqueAlphaKeepsSingleFullFace() throws IOException {
+  void inwardFacesAreDroppedWithoutSplittingByTextureAlpha() {
     JsonObject generated =
         BreakingModelGenerator.generateModel(
-            texturedSourceModel(0, 0, 0, 16, 16, 16, "north", 0),
+            texturedSourceModel(6, 6, 0, 10, 10, 1, "north", "east", "south", "west", "up", "down"),
             0,
             BreakingModelGenerator.identityTransform(),
-            textureEntries(alphaImage(2, 2, (x, y) -> 255)));
+            Map.of("assets/exort/textures/test/alpha.png", new byte[] {0}));
 
     assertEquals(1, elements(generated).size());
-    assertArrayEquals(new double[] {0, 0, 16, 16}, uv(generated, "north"));
+    assertTrue(faces(generated).has("north"));
+    assertTrue(faces(generated).has("east"));
+    assertTrue(faces(generated).has("west"));
+    assertTrue(faces(generated).has("up"));
+    assertTrue(faces(generated).has("down"));
+    assertFalse(faces(generated).has("south"));
   }
 
   @Test
-  void fullyTransparentAlphaSkipsFace() throws IOException {
-    JsonObject generated =
-        BreakingModelGenerator.generateModel(
-            texturedSourceModel(0, 0, 0, 16, 16, 16, "north", 0),
-            0,
-            BreakingModelGenerator.identityTransform(),
-            textureEntries(alphaImage(2, 2, (x, y) -> 0)));
-
-    assertEquals(0, elements(generated).size());
-  }
-
-  @Test
-  void mixedAlphaSplitsFrameAndDoesNotCoverTransparentCenter() throws IOException {
-    JsonObject generated =
-        BreakingModelGenerator.generateModel(
-            texturedSourceModel(0, 0, 0, 16, 16, 16, "north", 0),
-            0,
-            BreakingModelGenerator.identityTransform(),
-            textureEntries(
-                alphaImage(4, 4, (x, y) -> x == 0 || x == 3 || y == 0 || y == 3 ? 255 : 0)));
-
-    assertEquals(4, elements(generated).size());
-    assertFalse(coversNorthFacePoint(generated, 8, 8, 0));
-    assertTrue(coversNorthFacePoint(generated, 1, 15, 0));
-    assertTrue(coversNorthFacePoint(generated, 1, 8, 0));
-    assertTrue(coversNorthFacePoint(generated, 15, 8, 0));
-    assertTrue(coversNorthFacePoint(generated, 8, 1, 0));
-  }
-
-  @Test
-  void nonZeroAlphaCountsAsVisible() throws IOException {
-    JsonObject generated =
-        BreakingModelGenerator.generateModel(
-            texturedSourceModel(0, 0, 0, 16, 16, 16, "north", 0),
-            0,
-            BreakingModelGenerator.identityTransform(),
-            textureEntries(alphaImage(1, 1, (x, y) -> 1)));
-
-    assertEquals(1, elements(generated).size());
-  }
-
-  @Test
-  void splitFacesKeepBlockSpaceDestroyUvs() throws IOException {
-    JsonObject generated =
-        BreakingModelGenerator.generateModel(
-            texturedSourceModel(4, 4, 0, 12, 12, 2, "north", 0),
-            0,
-            BreakingModelGenerator.identityTransform(),
-            textureEntries(alphaImage(2, 1, (x, y) -> x == 0 ? 255 : 0)));
-
-    assertEquals(1, elements(generated).size());
-    assertArrayEquals(new double[] {4, 4, 0}, vector(generated, "from"));
-    assertArrayEquals(new double[] {8, 12, 2}, vector(generated, "to"));
-    assertArrayEquals(new double[] {4, 4, 8, 12}, uv(generated, "north"));
-  }
-
-  @Test
-  void overhangingGeometryKeepsFullBoundsAndFitsProjectedDestroyUvsWithoutScaleLoss() {
+  void overhangingGeometryKeepsBoundsAndFitsProjectedDestroyUvs() {
     JsonObject generated =
         BreakingModelGenerator.generateModel(
             sourceModel(3, 3, -1, 13, 13, 2, "north", "south", "east", "west", "up", "down"),
@@ -184,7 +110,7 @@ class BreakingModelGeneratorTest {
   }
 
   @Test
-  void displayRotationsRemapBoundsAndFaces() {
+  void displayRotationsRemapBoundsAndKeepOnlyExternalFaces() {
     JsonObject source = sourceModel(0, 0, 0, 2, 4, 6, "north", "east", "up");
 
     JsonObject storageNorth =
@@ -196,8 +122,8 @@ class BreakingModelGeneratorTest {
     assertArrayEquals(new double[] {14, 0, 10}, vector(storageNorth, "from"));
     assertArrayEquals(new double[] {16, 4, 16}, vector(storageNorth, "to"));
     assertTrue(faces(storageNorth).has("south"));
-    assertTrue(faces(storageNorth).has("west"));
-    assertTrue(faces(storageNorth).has("up"));
+    assertFalse(faces(storageNorth).has("west"));
+    assertFalse(faces(storageNorth).has("up"));
 
     JsonObject busUp =
         BreakingModelGenerator.generateModel(
@@ -206,8 +132,9 @@ class BreakingModelGeneratorTest {
             new BreakingModelGenerator.Transform(
                 DisplayRotation.rotationForFacingFull(BlockFace.UP)));
     assertTrue(faces(busUp).has("down"));
-    assertTrue(faces(busUp).has("east"));
-    assertTrue(faces(busUp).has("north"));
+    assertFalse(faces(busUp).has("east"));
+    assertFalse(faces(busUp).has("north"));
+    assertEquals(1, faces(busUp).size());
 
     JsonObject wireMirror =
         BreakingModelGenerator.generateModel(
@@ -215,8 +142,89 @@ class BreakingModelGeneratorTest {
             0,
             new BreakingModelGenerator.Transform(new Quaternionf().rotateY((float) Math.PI)));
     assertTrue(faces(wireMirror).has("south"));
-    assertTrue(faces(wireMirror).has("west"));
-    assertTrue(faces(wireMirror).has("up"));
+    assertFalse(faces(wireMirror).has("west"));
+    assertFalse(faces(wireMirror).has("up"));
+  }
+
+  @Test
+  void storageModelGeneratesOneCheapOverlayElementPerSourceCuboid() throws IOException {
+    JsonObject source =
+        JsonParser.parseString(
+                Files.readString(
+                    Path.of("src/main/resources/pack/assets/exort/models/storage/storage.json")))
+            .getAsJsonObject();
+
+    JsonObject generated =
+        BreakingModelGenerator.generateModel(source, 9, BreakingModelGenerator.identityTransform());
+
+    assertEquals(17, elements(generated).size());
+    assertEquals(45, faceCount(generated));
+    assertAllFaceUvsInsideDestroySprite(generated);
+    assertUsesOnlyOverlayStageTexture(generated, 9);
+  }
+
+  @Test
+  void terminalPolicyDropsOpaqueFrontFacesButKeepsDisplayScreen() {
+    JsonObject generated =
+        BreakingModelGenerator.generateTerminalModel(
+            terminalSourceModel(), 5, BreakingModelGenerator.identityTransform());
+
+    assertFalse(coversNorthFacePoint(generated, 8, 8, 0));
+    assertTrue(coversNorthFacePoint(generated, 8, 8, 1));
+    assertTrue(hasFaceBounds(generated, "east", new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertUsesOnlyOverlayStageTexture(generated, 5);
+  }
+
+  @Test
+  void terminalPolicyAddsMaskedFrontFrameAtlasOnlyForLateStages() {
+    JsonObject generated =
+        BreakingModelGenerator.generateTerminalModel(
+            terminalSourceModel(), 7, BreakingModelGenerator.identityTransform());
+
+    JsonObject textures = generated.getAsJsonObject("textures");
+    assertEquals("exort:breaking/overlay/7", textures.get("0").getAsString());
+    assertEquals("exort:breaking/overlay/terminal", textures.get("1").getAsString());
+    assertEquals("exort:breaking/overlay/7", textures.get("particle").getAsString());
+    assertEquals(3, textures.size());
+
+    JsonObject screenFace =
+        faceWithBounds(generated, "north", new double[] {3, 3, 1}, new double[] {13, 13, 2});
+    assertEquals("#0", screenFace.get("texture").getAsString());
+    assertArrayEquals(new double[] {3, 3, 13, 13}, doubleArray(screenFace.getAsJsonArray("uv")));
+
+    JsonObject frameFace =
+        faceWithBounds(generated, "north", new double[] {0, 0, 0}, new double[] {16, 16, 16});
+    assertEquals("#1", frameFace.get("texture").getAsString());
+    assertArrayEquals(new double[] {8, 0, 16, 8}, doubleArray(frameFace.getAsJsonArray("uv")));
+  }
+
+  @Test
+  void terminalAtlasPacksLastStagesWithTransparentCenter() throws IOException {
+    Map<String, byte[]> entries = new HashMap<>();
+    Map<Integer, BufferedImage> sources = new HashMap<>();
+    for (int stage = 6; stage <= 9; stage++) {
+      BufferedImage source = filledDestroyStageTexture(stage);
+      sources.put(stage, source);
+      entries.put("assets/exort/textures/breaking/overlay/" + stage + ".png", pngBytes(source));
+    }
+
+    BufferedImage atlas =
+        ImageIO.read(
+            new ByteArrayInputStream(BreakingModelGenerator.terminalBreakingAtlas(entries)));
+
+    assertEquals(32, atlas.getWidth());
+    assertEquals(32, atlas.getHeight());
+    for (int stage = 6; stage <= 9; stage++) {
+      int tileX = ((stage - 6) % 2) * 16;
+      int tileY = ((stage - 6) / 2) * 16;
+      BufferedImage source = sources.get(stage);
+      for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++) {
+          int expected = x >= 2 && x < 14 && y >= 2 && y < 14 ? 0 : source.getRGB(x, y);
+          assertEquals(expected, atlas.getRGB(tileX + x, tileY + y));
+        }
+      }
+    }
   }
 
   @Test
@@ -232,18 +240,6 @@ class BreakingModelGeneratorTest {
         () ->
             BreakingModelGenerator.generateModel(
                 source, 0, BreakingModelGenerator.identityTransform()));
-  }
-
-  @Test
-  void unsupportedFaceTextureRotationsFailClearly() throws IOException {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            BreakingModelGenerator.generateModel(
-                texturedSourceModel(0, 0, 0, 16, 16, 16, "north", 45),
-                0,
-                BreakingModelGenerator.identityTransform(),
-                textureEntries(alphaImage(1, 1, (x, y) -> 255))));
   }
 
   private static JsonObject sourceModel(
@@ -264,14 +260,7 @@ class BreakingModelGeneratorTest {
   }
 
   private static JsonObject texturedSourceModel(
-      double x1,
-      double y1,
-      double z1,
-      double x2,
-      double y2,
-      double z2,
-      String faceName,
-      int rotation) {
+      double x1, double y1, double z1, double x2, double y2, double z2, String... faceNames) {
     JsonObject root = new JsonObject();
     JsonObject textures = new JsonObject();
     textures.addProperty("0", "exort:test/alpha");
@@ -281,18 +270,58 @@ class BreakingModelGeneratorTest {
     JsonObject element = new JsonObject();
     element.add("from", array(x1, y1, z1));
     element.add("to", array(x2, y2, z2));
-    JsonObject face = new JsonObject();
-    face.add("uv", array(0, 0, 16, 16));
-    face.addProperty("texture", "#0");
-    if (rotation != 0) {
-      face.addProperty("rotation", rotation);
-    }
     JsonObject faces = new JsonObject();
-    faces.add(faceName, face);
+    for (String faceName : faceNames) {
+      JsonObject face = new JsonObject();
+      face.add("uv", array(0, 0, 16, 16));
+      face.addProperty("texture", "#0");
+      faces.add(faceName, face);
+    }
     element.add("faces", faces);
     elements.add(element);
     root.add("elements", elements);
     return root;
+  }
+
+  private static JsonObject terminalSourceModel() {
+    JsonObject root = new JsonObject();
+    JsonObject textures = new JsonObject();
+    textures.addProperty("display", "exort:display/inventory");
+    textures.addProperty("body", "exort:block/terminal");
+    root.add("textures", textures);
+
+    JsonArray elements = new JsonArray();
+    elements.add(
+        terminalElement(
+            new double[] {0, 0, 0},
+            new double[] {16, 16, 16},
+            Map.of("north", "#body", "east", "#body")));
+    elements.add(
+        terminalElement(
+            new double[] {3, 3, 1}, new double[] {13, 13, 2}, Map.of("north", "#display")));
+    elements.add(
+        terminalElement(
+            new double[] {3, 13, 0},
+            new double[] {13, 14, 2},
+            Map.of("north", "#body", "down", "#body")));
+    root.add("elements", elements);
+    return root;
+  }
+
+  private static JsonObject terminalElement(
+      double[] from, double[] to, Map<String, String> faceTextures) {
+    JsonObject element = new JsonObject();
+    element.add("from", array(from[0], from[1], from[2]));
+    element.add("to", array(to[0], to[1], to[2]));
+    JsonObject faces = new JsonObject();
+    for (Map.Entry<String, String> entry : faceTextures.entrySet()) {
+      JsonObject face = new JsonObject();
+      face.add("uv", array(0, 0, 16, 16));
+      face.addProperty("texture", entry.getValue());
+      faces.add(entry.getKey(), face);
+    }
+    element.add("faces", faces);
+    return element;
   }
 
   private static JsonObject element(JsonObject model) {
@@ -305,6 +334,37 @@ class BreakingModelGeneratorTest {
 
   private static JsonObject faces(JsonObject model) {
     return element(model).getAsJsonObject("faces");
+  }
+
+  private static int faceCount(JsonObject model) {
+    int count = 0;
+    for (JsonElement element : elements(model)) {
+      JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
+      if (faces != null) {
+        count += faces.size();
+      }
+    }
+    return count;
+  }
+
+  private static boolean coversNorthFacePoint(JsonObject model, double x, double y, double z) {
+    for (JsonElement element : elements(model)) {
+      JsonObject object = element.getAsJsonObject();
+      JsonObject faces = object.getAsJsonObject("faces");
+      if (faces == null || !faces.has("north")) {
+        continue;
+      }
+      double[] from = doubleArray(object.getAsJsonArray("from"));
+      double[] to = doubleArray(object.getAsJsonArray("to"));
+      if (Math.abs(from[2] - z) < 0.000001
+          && x >= from[0]
+          && x <= to[0]
+          && y >= from[1]
+          && y <= to[1]) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static double[] uv(JsonObject model, String face) {
@@ -331,26 +391,6 @@ class BreakingModelGeneratorTest {
     return array;
   }
 
-  private static boolean coversNorthFacePoint(JsonObject model, double x, double y, double z) {
-    for (JsonElement element : elements(model)) {
-      JsonObject object = element.getAsJsonObject();
-      JsonObject faces = object.getAsJsonObject("faces");
-      if (faces == null || !faces.has("north")) {
-        continue;
-      }
-      double[] from = doubleArray(object.getAsJsonArray("from"));
-      double[] to = doubleArray(object.getAsJsonArray("to"));
-      if (Math.abs(from[2] - z) < 0.000001
-          && x >= from[0]
-          && x <= to[0]
-          && y >= from[1]
-          && y <= to[1]) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   private static void assertAllFaceUvsInsideDestroySprite(JsonObject model) {
     for (JsonElement element : elements(model)) {
       JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
@@ -364,6 +404,23 @@ class BreakingModelGeneratorTest {
               value >= 0.0 && value <= 16.0,
               () -> entry.getKey() + " face has out-of-sprite UV " + value);
         }
+      }
+    }
+  }
+
+  private static void assertUsesOnlyOverlayStageTexture(JsonObject model, int stage) {
+    JsonObject textures = model.getAsJsonObject("textures");
+    assertEquals("exort:breaking/overlay/" + stage, textures.get("0").getAsString());
+    assertEquals("exort:breaking/overlay/" + stage, textures.get("particle").getAsString());
+    assertEquals(2, textures.size());
+    for (JsonElement element : elements(model)) {
+      JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
+      if (faces == null) {
+        continue;
+      }
+      for (Map.Entry<String, JsonElement> entry : faces.entrySet()) {
+        assertEquals("#0", entry.getValue().getAsJsonObject().get("texture").getAsString());
+        assertEquals(0, entry.getValue().getAsJsonObject().get("tintindex").getAsInt());
       }
     }
   }
@@ -390,6 +447,38 @@ class BreakingModelGeneratorTest {
     return false;
   }
 
+  private static JsonObject faceWithBounds(
+      JsonObject model, String face, double[] expectedFrom, double[] expectedTo) {
+    for (JsonElement element : elements(model)) {
+      JsonObject object = element.getAsJsonObject();
+      JsonObject faces = object.getAsJsonObject("faces");
+      if (faces == null || !faces.has(face)) {
+        continue;
+      }
+      if (arraysEqual(expectedFrom, doubleArray(object.getAsJsonArray("from")))
+          && arraysEqual(expectedTo, doubleArray(object.getAsJsonArray("to")))) {
+        return faces.getAsJsonObject(face);
+      }
+    }
+    throw new AssertionError("missing " + face + " face for expected bounds");
+  }
+
+  private static boolean hasFaceBounds(
+      JsonObject model, String face, double[] expectedFrom, double[] expectedTo) {
+    for (JsonElement element : elements(model)) {
+      JsonObject object = element.getAsJsonObject();
+      JsonObject faces = object.getAsJsonObject("faces");
+      if (faces == null || !faces.has(face)) {
+        continue;
+      }
+      if (arraysEqual(expectedFrom, doubleArray(object.getAsJsonArray("from")))
+          && arraysEqual(expectedTo, doubleArray(object.getAsJsonArray("to")))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private static boolean arraysEqual(double[] expected, double[] actual) {
     if (expected.length != actual.length) {
       return false;
@@ -402,24 +491,23 @@ class BreakingModelGeneratorTest {
     return true;
   }
 
-  private static Map<String, byte[]> textureEntries(BufferedImage image) throws IOException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ImageIO.write(image, "png", out);
-    return Map.of("assets/exort/textures/test/alpha.png", out.toByteArray());
-  }
-
-  private static BufferedImage alphaImage(int width, int height, AlphaSource alphaSource) {
-    BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        int alpha = alphaSource.alpha(x, y) & 0xFF;
-        image.setRGB(x, y, (alpha << 24) | 0xFFFFFF);
+  private static BufferedImage filledDestroyStageTexture(int stage) {
+    BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+    for (int y = 0; y < 16; y++) {
+      for (int x = 0; x < 16; x++) {
+        int alpha = 0x40 + stage;
+        int red = stage * 10;
+        int green = x * 8;
+        int blue = y * 8;
+        image.setRGB(x, y, alpha << 24 | red << 16 | green << 8 | blue);
       }
     }
     return image;
   }
 
-  private interface AlphaSource {
-    int alpha(int x, int y);
+  private static byte[] pngBytes(BufferedImage image) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    assertTrue(ImageIO.write(image, "png", out));
+    return out.toByteArray();
   }
 }

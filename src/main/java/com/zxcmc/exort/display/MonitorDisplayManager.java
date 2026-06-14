@@ -160,6 +160,17 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   }
 
   public void stop() {
+    cancelTasks();
+    removeAllManagedDisplays();
+    clearRuntimeState();
+  }
+
+  public void stopForReload() {
+    cancelTasks();
+    clearRuntimeState();
+  }
+
+  private void cancelTasks() {
     if (taskId != -1) {
       Bukkit.getScheduler().cancelTask(taskId);
       taskId = -1;
@@ -168,10 +179,9 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       Bukkit.getScheduler().cancelTask(refreshTaskId);
       refreshTaskId = -1;
     }
-    clearAll();
   }
 
-  private void clearAll() {
+  protected void removeAllManagedDisplays() {
     for (MonitorPos pos : new HashMap<>(monitors).keySet()) {
       World world = Bukkit.getWorld(pos.world());
       if (world == null) continue;
@@ -179,9 +189,14 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       removeContent(block);
       removeDisplay(block);
     }
+  }
+
+  private void clearRuntimeState() {
     monitors.clear();
     monitorsByStorage.clear();
     queuedMonitorRefreshes.clear();
+    loadAttempts.clear();
+    sanityCursor = 0;
     PerfStats.setGauge("monitor.queueDepth", 0L);
   }
 

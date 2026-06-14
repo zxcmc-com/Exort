@@ -235,7 +235,8 @@ class ExortBlockProxyServiceTest {
 
     assertEquals("exort:block/terminal", root.getAsJsonObject("textures").get("0").getAsString());
     assertEquals(
-        "exort:breaking/block", root.getAsJsonObject("textures").get("particle").getAsString());
+        "exort:breaking/particles/block",
+        root.getAsJsonObject("textures").get("particle").getAsString());
     JsonObject faces =
         root.getAsJsonArray("elements").get(0).getAsJsonObject().getAsJsonObject("faces");
     for (String face : List.of("north", "east", "south", "west", "up", "down")) {
@@ -251,33 +252,33 @@ class ExortBlockProxyServiceTest {
   @Test
   void proxyParticleModelsUseCroppedBreakingTextures() throws Exception {
     assertModelParticle(
-        "src/main/resources/pack/assets/exort/models/proxy.json", "exort:breaking/block");
+        "src/main/resources/pack/assets/exort/models/proxy.json", "exort:breaking/particles/block");
     assertModelParticle(
         "src/main/resources/pack/assets/exort/models/storage/storage.json",
-        "exort:breaking/storage");
+        "exort:breaking/particles/storage");
     assertModelParticle(
-        "src/main/resources/pack/assets/exort/models/none.json", "exort:breaking/wire");
+        "src/main/resources/pack/assets/exort/models/none.json", "exort:breaking/particles/wire");
   }
 
   @Test
   void breakingParticleTexturesAreCroppedFromSourceTextures() throws Exception {
     assertCroppedTexture(
         "src/main/resources/pack/assets/exort/textures/block/terminal.png",
-        "src/main/resources/pack/assets/exort/textures/breaking/block.png",
+        "src/main/resources/pack/assets/exort/textures/breaking/particles/block.png",
         0,
         0,
         16,
         16);
     assertCroppedTexture(
         "src/main/resources/pack/assets/exort/textures/block/storage.png",
-        "src/main/resources/pack/assets/exort/textures/breaking/storage.png",
+        "src/main/resources/pack/assets/exort/textures/breaking/particles/storage.png",
         0,
         0,
         16,
         16);
     assertCroppedTexture(
-        "src/main/resources/pack/assets/exort/textures/wires/glass.png",
-        "src/main/resources/pack/assets/exort/textures/breaking/wire.png",
+        "src/main/resources/pack/assets/exort/textures/block/wire.png",
+        "src/main/resources/pack/assets/exort/textures/breaking/particles/wire.png",
         5,
         5,
         6,

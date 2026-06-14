@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.13 — 2026-06-14
+- `/exort reload` no longer removes storage monitor base displays while rebuilding runtime services, so online players do not see a monitor-block blink.
+- Terminal and monitor RESOURCE breaking overlays no longer draw duplicate cracks over the transparent front cutout; late stages use a masked front-frame atlas to keep screen cracks readable.
+- RESOURCE breaking overlays now generate fewer bundled pack entries: storage uses one shared core overlay, wires use one shared center overlay, and wire break progress renders through three generated stages instead of ten.
+- RESOURCE breaking overlay models now keep only external model faces and use bundled overlay textures directly, removing generated density and alpha-variant crack textures.
+- RESOURCE crack textures now separate overlay stages from break-particle textures, and the wire texture now lives under `block/wire` instead of the old `wires/glass` path.
+- Bundled RESOURCE crack textures now make dark crack pixels nearly opaque while keeping light crack pixels more transparent, improving readability.
+
 ## 0.14.12 — 2026-06-13
 - RESOURCE Exort blocks no longer apply the airborne break-speed penalty while the player is grounded on a chorus-carrier wire.
 - RESOURCE breaking overlays are now more transparent on most Exort faces, less transparent on terminal and monitor screens, sit closer to thin and overhanging model faces.

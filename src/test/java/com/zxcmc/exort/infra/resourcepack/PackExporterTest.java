@@ -7,11 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -89,14 +89,82 @@ class PackExporterTest {
     assertTrue(result.available());
     try (ZipFile zip = new ZipFile(result.outputFile())) {
       assertEntry(zip, "assets/exort/items/breaking/storage/core/stage_0.json");
-      assertEntry(zip, "assets/exort/models/breaking/storage/south/stage_0.json");
+      assertEntry(zip, "assets/exort/models/breaking/storage/core/stage_9.json");
       assertEntry(zip, "assets/exort/items/breaking/terminal/north/stage_3.json");
       assertEntry(zip, "assets/exort/models/breaking/bus/up/stage_9.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_0.json");
-      assertEntry(zip, "assets/exort/models/breaking/wire/dnsew/stage_5.json");
-      assertEntry(zip, "assets/exort/textures/breaking/block.png");
-      assertEntry(zip, "assets/exort/textures/breaking/storage.png");
-      assertEntry(zip, "assets/exort/textures/breaking/wire.png");
+      assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_1.json");
+      assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_2.json");
+      assertEntry(zip, "assets/exort/models/breaking/wire/center/stage_0.json");
+      assertEntry(zip, "assets/exort/models/breaking/wire/center/stage_1.json");
+      assertEntry(zip, "assets/exort/models/breaking/wire/center/stage_2.json");
+      assertEntry(zip, "assets/exort/textures/block/wire.png");
+      assertEntry(zip, "assets/exort/textures/breaking/overlay/0.png");
+      assertEntry(zip, "assets/exort/textures/breaking/overlay/9.png");
+      assertEntry(zip, "assets/exort/textures/breaking/overlay/terminal.png");
+      assertEntry(zip, "assets/exort/textures/breaking/particles/block.png");
+      assertEntry(zip, "assets/exort/textures/breaking/particles/storage.png");
+      assertEntry(zip, "assets/exort/textures/breaking/particles/wire.png");
+      assertEquals(
+          113,
+          zip.stream()
+              .filter(
+                  entry ->
+                      entry.getName().startsWith("assets/exort/models/breaking/")
+                          && entry.getName().endsWith(".json"))
+              .count());
+      assertEquals(
+          113,
+          zip.stream()
+              .filter(
+                  entry ->
+                      entry.getName().startsWith("assets/exort/items/breaking/")
+                          && entry.getName().endsWith(".json"))
+              .count());
+      assertFalse(zip.getEntry("assets/exort/models/breaking/storage/south/stage_0.json") != null);
+      assertFalse(zip.getEntry("assets/exort/items/breaking/storage/east/stage_0.json") != null);
+      assertFalse(zip.getEntry("assets/exort/models/breaking/wire/dnsew/stage_5.json") != null);
+      assertFalse(zip.getEntry("assets/exort/items/breaking/wire/center/stage_3.json") != null);
+      assertFalse(zip.getEntry("assets/exort/items/breaking/wire/center/stage_9.json") != null);
+      assertFalse(zip.getEntry("assets/exort/models/breaking/wire/center/stage_3.json") != null);
+      assertFalse(zip.getEntry("assets/exort/models/breaking/wire/center/stage_9.json") != null);
+      assertFalse(zip.getEntry("assets/exort/textures/breaking/" + "block.png") != null);
+      assertFalse(zip.getEntry("assets/exort/textures/breaking/" + "storage.png") != null);
+      assertFalse(zip.getEntry("assets/exort/textures/breaking/" + "wire.png") != null);
+      assertFalse(zip.getEntry("assets/exort/textures/breaking/" + "terminal.png") != null);
+      assertFalse(zip.getEntry("assets/exort/textures/" + "wires/glass.png") != null);
+      assertFalse(
+          zip.stream()
+              .anyMatch(
+                  entry ->
+                      entry
+                          .getName()
+                          .startsWith("assets/exort/textures/breaking/" + "destroy_" + "stage_")));
+      assertFalse(
+          zip.stream()
+              .anyMatch(
+                  entry ->
+                      entry.getName().startsWith("assets/exort/textures/breaking/generated/")));
+      assertTerminalAtlas(zip);
+
+      JsonObject storageBreakingModel =
+          JsonParser.parseString(
+                  readEntry(zip, "assets/exort/models/breaking/storage/core/stage_9.json"))
+              .getAsJsonObject();
+      assertEquals(17, storageBreakingModel.getAsJsonArray("elements").size());
+      assertEquals(45, faceCount(storageBreakingModel));
+      assertAllFaceUvsInsideDestroySprite(storageBreakingModel);
+      assertEquals(
+          "exort:breaking/overlay/9",
+          storageBreakingModel.getAsJsonObject("textures").get("0").getAsString());
+      JsonObject wireStage2BreakingModel =
+          JsonParser.parseString(
+                  readEntry(zip, "assets/exort/models/breaking/wire/center/stage_2.json"))
+              .getAsJsonObject();
+      assertEquals(
+          "exort:breaking/overlay/2",
+          wireStage2BreakingModel.getAsJsonObject("textures").get("0").getAsString());
+
       assertAllFaceUvsInsideDestroySprite(
           JsonParser.parseString(
                   readEntry(zip, "assets/exort/models/breaking/bus/south/stage_0.json"))
@@ -126,41 +194,36 @@ class PackExporterTest {
       assertTrue(
           arraysEqual(
               new double[] {13, 13, 3, 3}, doubleArray(busUpConnectorTop.getAsJsonArray("uv"))),
-          "bus/up large connector face must keep projected UV to avoid compressed cracks");
+          "bus/up large connector face must keep projected UVs");
       assertEquals(
-          "exort:breaking/generated/destroy_stage_0_32x32",
+          "exort:breaking/overlay/0",
           texturePath(busUpBreakingModel.getAsJsonObject("textures"), busUpConnectorTop),
-          "bus/up large connector face must keep normal projected density");
+          "bus/up large connector face must use the original destroy stage texture");
       assertTrue(
           arraysEqual(
               new double[] {3, 0, 13, 3}, doubleArray(busUpConnectorSide.getAsJsonArray("uv"))),
           "bus/up connector side overlay must keep projected UVs instead of stretching source UVs");
       assertEquals(
-          "exort:breaking/generated/destroy_stage_0_32x32",
+          "exort:breaking/overlay/0",
           texturePath(busUpBreakingModel.getAsJsonObject("textures"), busUpConnectorSide),
-          "bus breaking overlay must keep normal projected density without 64x64 texture bloat");
+          "bus breaking overlay must not use generated density textures");
       assertTrue(
           hasElementBounds(busDownBreakingModel, new double[] {3, -1, 3}, new double[] {13, 2, 13}),
           "bus/down breaking overlay must keep the connector overhang on the bottom side");
-      for (int mask = 1; mask < 64; mask++) {
-        String key = wireSuffix(mask);
-        assertEntry(zip, "assets/exort/items/breaking/wire/" + key + "/stage_0.json");
-        assertEntry(zip, "assets/exort/models/breaking/wire/" + key + "/stage_0.json");
-      }
       assertFalse(zip.getEntry("assets/exort/items/breaking/stage_0.json") != null);
       assertFalse(zip.getEntry("assets/exort/models/breaking/stage_0.json") != null);
 
       String atlas = readEntry(zip, "assets/minecraft/atlases/blocks.json");
-      assertTrue(atlas.contains("\"resource\":\"exort:breaking/block\""));
-      assertTrue(atlas.contains("\"resource\":\"exort:breaking/storage\""));
-      assertTrue(atlas.contains("\"resource\":\"exort:breaking/wire\""));
-      assertTrue(atlas.contains("\"resource\":\"exort:breaking/destroy_stage_0\""));
-      assertTrue(atlas.contains("\"resource\":\"exort:breaking/destroy_stage_9\""));
-      assertTrue(atlas.contains("\"resource\":\"exort:breaking/generated/destroy_stage_0_32x32\""));
-      assertTrue(
-          atlas.contains("\"resource\":\"exort:breaking/generated/destroy_stage_0_32x32_a220\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:block/wire\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/particles/block\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/particles/storage\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/overlay/terminal\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/particles/wire\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/overlay/0\""));
+      assertTrue(atlas.contains("\"resource\":\"exort:breaking/overlay/9\""));
       assertFalse(
-          atlas.contains("\"resource\":\"exort:breaking/generated/destroy_stage_0_64x64\""));
+          atlas.contains("\"resource\":\"exort:breaking/generated/\""),
+          "breaking atlas must not reference generated destroy-stage textures");
 
       var terminalBreakingModel =
           JsonParser.parseString(
@@ -169,7 +232,7 @@ class PackExporterTest {
       assertAllFaceUvsInsideDestroySprite(terminalBreakingModel);
       assertFalse(
           coversNorthFacePoint(terminalBreakingModel, 8, 8, 0),
-          "terminal base transparent screen cutout must not receive cracks");
+          "terminal body transparent front cutout must not receive cracks");
       assertTrue(
           coversNorthFacePoint(terminalBreakingModel, 8, 8, 1),
           "terminal screen display face must still receive cracks");
@@ -178,47 +241,44 @@ class PackExporterTest {
           faceWithBounds(
               terminalBreakingModel, "north", new double[] {3, 3, 1}, new double[] {13, 13, 2});
       assertEquals(
-          "exort:breaking/generated/destroy_stage_0_32x32_a220",
+          "exort:breaking/overlay/0",
           texturePath(terminalTextures, screenFace),
-          "terminal display face must use the less transparent screen crack texture");
+          "terminal display face must use the original destroy stage texture");
       assertTrue(
           arraysEqual(new double[] {3, 3, 13, 13}, doubleArray(screenFace.getAsJsonArray("uv"))),
           "terminal display face must keep world-aligned projected UVs");
 
       JsonObject bodyFace = firstFace(terminalBreakingModel, "south");
       assertEquals(
-          "exort:breaking/generated/destroy_stage_0_32x32",
+          "exort:breaking/overlay/0",
           texturePath(terminalTextures, bodyFace),
-          "normal 16-pixel terminal body faces must use 2x density instead of screen density");
-      assertImageSize(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32.png", 32, 32);
-      assertImageAlphaCount(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32.png", 180, 16);
-      assertImageColorCount(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32.png", 0xB43D3D3D, 8);
-      assertImageColorCount(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32.png", 0xB49B9B9B, 8);
-      assertImageSize(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32_a220.png", 32, 32);
-      assertImageAlphaCount(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32_a220.png", 220, 16);
-      assertImageAlphaCount(
-          zip, "assets/exort/textures/breaking/generated/destroy_stage_0_32x32_a220.png", 180, 0);
-      assertImageColorCount(
-          zip,
-          "assets/exort/textures/breaking/generated/destroy_stage_0_32x32_a220.png",
-          0xDC3D3D3D,
-          8);
-      assertImageColorCount(
-          zip,
-          "assets/exort/textures/breaking/generated/destroy_stage_0_32x32_a220.png",
-          0xDC9B9B9B,
-          8);
+          "terminal body faces must use the original destroy stage texture");
+
+      var terminalLateBreakingModel =
+          JsonParser.parseString(
+                  readEntry(zip, "assets/exort/models/breaking/terminal/south/stage_9.json"))
+              .getAsJsonObject();
+      JsonObject terminalLateTextures = terminalLateBreakingModel.getAsJsonObject("textures");
+      JsonObject lateScreenFace =
+          faceWithBounds(
+              terminalLateBreakingModel, "north", new double[] {3, 3, 1}, new double[] {13, 13, 2});
+      assertEquals(
+          "exort:breaking/overlay/9",
+          texturePath(terminalLateTextures, lateScreenFace),
+          "terminal display face must keep using the full destroy stage texture on late stages");
+      JsonObject lateFrameFace =
+          faceWithBounds(
+              terminalLateBreakingModel,
+              "north",
+              new double[] {0, 0, 0},
+              new double[] {16, 16, 16});
+      assertEquals(
+          "exort:breaking/overlay/terminal",
+          texturePath(terminalLateTextures, lateFrameFace),
+          "late terminal front frame must use the masked terminal atlas");
       assertTrue(
-          zip.getEntry("assets/exort/textures/breaking/generated/destroy_stage_0_64x64.png")
-              == null,
-          "breaking overlay export must not generate 64x64 density textures for current models");
-      assertGeneratedBreakingTexturesAreNotDownscaled(zip);
+          arraysEqual(new double[] {8, 8, 16, 16}, doubleArray(lateFrameFace.getAsJsonArray("uv"))),
+          "stage 9 terminal frame must use the bottom-right terminal atlas tile");
     }
   }
 
@@ -242,83 +302,40 @@ class PackExporterTest {
     assertTrue(zip.getEntry(name) != null, "missing pack entry " + name);
   }
 
-  private static void assertImageSize(ZipFile zip, String name, int width, int height)
-      throws IOException {
-    var entry = zip.getEntry(name);
-    assertTrue(entry != null, "missing pack image " + name);
-    BufferedImage image = ImageIO.read(zip.getInputStream(entry));
-    assertEquals(width, image.getWidth(), name + " width");
-    assertEquals(height, image.getHeight(), name + " height");
-  }
-
-  private static void assertImageAlphaCount(ZipFile zip, String name, int alpha, int count)
-      throws IOException {
-    var entry = zip.getEntry(name);
-    assertTrue(entry != null, "missing pack image " + name);
-    BufferedImage image = ImageIO.read(zip.getInputStream(entry));
-    int actual = 0;
-    for (int y = 0; y < image.getHeight(); y++) {
-      for (int x = 0; x < image.getWidth(); x++) {
-        if (((image.getRGB(x, y) >>> 24) & 0xFF) == alpha) {
-          actual++;
-        }
-      }
-    }
-    assertEquals(count, actual, name + " alpha " + alpha + " pixel count");
-  }
-
-  private static void assertImageColorCount(ZipFile zip, String name, int argb, int count)
-      throws IOException {
-    var entry = zip.getEntry(name);
-    assertTrue(entry != null, "missing pack image " + name);
-    BufferedImage image = ImageIO.read(zip.getInputStream(entry));
-    int actual = 0;
-    for (int y = 0; y < image.getHeight(); y++) {
-      for (int x = 0; x < image.getWidth(); x++) {
-        if (image.getRGB(x, y) == argb) {
-          actual++;
-        }
-      }
-    }
-    assertEquals(count, actual, name + " color 0x" + Integer.toHexString(argb) + " count");
-  }
-
-  private static void assertGeneratedBreakingTexturesAreNotDownscaled(ZipFile zip) {
-    Enumeration<? extends java.util.zip.ZipEntry> entries = zip.entries();
-    while (entries.hasMoreElements()) {
-      String name = entries.nextElement().getName();
-      if (!name.startsWith("assets/exort/textures/breaking/generated/destroy_stage_")
-          || !name.endsWith(".png")) {
-        continue;
-      }
-      String stem = name.substring(name.lastIndexOf('/') + 1, name.length() - ".png".length());
-      int sizeSeparator = stem.lastIndexOf('_');
-      if (stem.substring(sizeSeparator + 1).startsWith("a")) {
-        stem = stem.substring(0, sizeSeparator);
-        sizeSeparator = stem.lastIndexOf('_');
-      }
-      String[] dimensions = stem.substring(sizeSeparator + 1).split("x", 2);
-      int width = Integer.parseInt(dimensions[0]);
-      int height = Integer.parseInt(dimensions[1]);
-      assertTrue(width >= 16 && height >= 16, name + " must not downscale destroy pattern");
-    }
-  }
-
   private static String readEntry(ZipFile zip, String name) throws IOException {
     var entry = zip.getEntry(name);
     assertTrue(entry != null, "missing pack entry " + name);
     return new String(zip.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8);
   }
 
-  private static String wireSuffix(int mask) {
-    StringBuilder sb = new StringBuilder(6);
-    if ((mask & 1) != 0) sb.append('u');
-    if ((mask & 2) != 0) sb.append('d');
-    if ((mask & 4) != 0) sb.append('n');
-    if ((mask & 8) != 0) sb.append('s');
-    if ((mask & 16) != 0) sb.append('e');
-    if ((mask & 32) != 0) sb.append('w');
-    return sb.toString();
+  private static BufferedImage readPng(ZipFile zip, String name) throws IOException {
+    var entry = zip.getEntry(name);
+    assertTrue(entry != null, "missing pack entry " + name);
+    BufferedImage image =
+        ImageIO.read(new ByteArrayInputStream(zip.getInputStream(entry).readAllBytes()));
+    assertTrue(image != null, "invalid PNG pack entry " + name);
+    return image;
+  }
+
+  private static void assertTerminalAtlas(ZipFile zip) throws IOException {
+    BufferedImage atlas = readPng(zip, "assets/exort/textures/breaking/overlay/terminal.png");
+    assertEquals(32, atlas.getWidth());
+    assertEquals(32, atlas.getHeight());
+    for (int stage = 6; stage <= 9; stage++) {
+      BufferedImage source =
+          readPng(zip, "assets/exort/textures/breaking/overlay/" + stage + ".png");
+      int tileX = ((stage - 6) % 2) * 16;
+      int tileY = ((stage - 6) / 2) * 16;
+      for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++) {
+          int expected = x >= 2 && x < 14 && y >= 2 && y < 14 ? 0 : source.getRGB(x, y);
+          assertEquals(
+              expected,
+              atlas.getRGB(tileX + x, tileY + y),
+              "terminal atlas mismatch at stage " + stage + " x=" + x + " y=" + y);
+        }
+      }
+    }
   }
 
   private static boolean coversNorthFacePoint(
@@ -352,6 +369,17 @@ class PackExporterTest {
       }
     }
     return false;
+  }
+
+  private static int faceCount(JsonObject model) {
+    int count = 0;
+    for (var element : model.getAsJsonArray("elements")) {
+      var faces = element.getAsJsonObject().getAsJsonObject("faces");
+      if (faces != null) {
+        count += faces.size();
+      }
+    }
+    return count;
   }
 
   private static JsonObject faceWithBounds(

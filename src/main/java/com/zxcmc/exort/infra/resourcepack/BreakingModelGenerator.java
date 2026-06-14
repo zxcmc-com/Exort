@@ -7,15 +7,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zxcmc.exort.display.DisplayRotation;
-import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,19 +27,21 @@ import org.joml.Vector3f;
 final class BreakingModelGenerator {
   static final int STAGE_COUNT = 10;
   static final int TINT_COLOR = -6841698; // 0xFF979A9E
-  static final int SCREEN_DESTROY_VISIBLE_ALPHA = 220;
 
+  private static final int WIRE_STAGE_COUNT = 3;
   private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
   private static final String MODELS_ROOT = "assets/exort/models/";
   private static final String ITEMS_ROOT = "assets/exort/items/";
+  private static final String TEXTURES_ROOT = "assets/exort/textures/";
   private static final String BREAKING_ROOT = "breaking/";
-  private static final String GENERATED_BREAKING_ROOT = BREAKING_ROOT + "generated/";
+  private static final String BREAKING_OVERLAY_TEXTURE_ROOT = BREAKING_ROOT + "overlay/";
   private static final String SCREEN_TEXTURE_ROOT = "exort:display/";
   private static final int BASE_DESTROY_TEXTURE_SIZE = 16;
-  private static final int BREAKING_TEXTURE_SUPERSAMPLE = 2;
-  private static final int PRESERVE_DESTROY_VISIBLE_ALPHA = -1;
-  private static final int MAX_DESTROY_TEXTURE_SIZE =
-      BASE_DESTROY_TEXTURE_SIZE * BREAKING_TEXTURE_SUPERSAMPLE;
+  private static final int TERMINAL_FRAME_FIRST_STAGE = 6;
+  private static final int TERMINAL_FRAME_ATLAS_SIZE = 32;
+  private static final int TERMINAL_FRAME_TILE_SIZE = 16;
+  private static final int TERMINAL_FRAME_CUTOUT_MIN = 2;
+  private static final int TERMINAL_FRAME_CUTOUT_MAX = 14;
   private static final double BLOCK_CENTER = 8.0;
   private static final double COORDINATE_EPSILON = 0.000001;
 
@@ -53,18 +52,16 @@ final class BreakingModelGenerator {
       logger.log(Level.FINE, "No Exort source models found; breaking overlay generation skipped.");
       return 0;
     }
-    TextureImageIndex textureImageIndex = new TextureImageIndex(entries);
-    BreakingTextureRegistry breakingTextures =
-        new BreakingTextureRegistry(entries, textureImageIndex, true);
+
     List<VariantSource> variants = new ArrayList<>();
     addStorageVariants(entries, variants);
     addTerminalVariants(entries, variants);
     addBusVariants(entries, variants);
     addWireVariants(entries, variants);
 
-    int added = 0;
+    int added = addTerminalBreakingAtlas(entries);
     for (VariantSource variant : variants) {
-      for (int stage = 0; stage < STAGE_COUNT; stage++) {
+      for (int stage = 0; stage < variant.stageCount(); stage++) {
         String itemPath =
             ITEMS_ROOT + BREAKING_ROOT + variant.modelKey() + "/stage_" + stage + ".json";
         String modelPath =
@@ -80,11 +77,10 @@ final class BreakingModelGenerator {
             modelPath,
             GSON.toJson(
                     generateModel(
-                        variant.sourceModel(), stage, variant.transform(), breakingTextures))
+                        variant.sourceModel(), stage, variant.transform(), variant.facePolicy()))
                 .getBytes(StandardCharsets.UTF_8));
       }
     }
-    added += breakingTextures.addedCount();
     if (variants.isEmpty()) {
       logger.warning("No Exort breaking overlay models were generated.");
     } else {
@@ -98,43 +94,43 @@ final class BreakingModelGenerator {
     return entries.containsKey(MODELS_ROOT + "storage/storage.json")
         || entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
         || entries.containsKey(MODELS_ROOT + "bus/import.json")
-        || entries.keySet().stream()
-            .anyMatch(path -> path.startsWith(MODELS_ROOT + "wire/") && path.endsWith(".json"));
+        || entries.containsKey(MODELS_ROOT + "wire/center.json");
   }
 
   static JsonObject generateModel(JsonObject sourceModel, int stage, Transform transform) {
-    return generateModel(sourceModel, stage, transform, BreakingTextureRegistry.empty());
+    return generateModel(sourceModel, stage, transform, FacePolicy.DEFAULT);
   }
 
   static JsonObject generateModel(
       JsonObject sourceModel, int stage, Transform transform, Map<String, byte[]> entries) {
-    TextureImageIndex textureImageIndex = new TextureImageIndex(entries);
-    return generateModel(
-        sourceModel,
-        stage,
-        transform,
-        new BreakingTextureRegistry(entries, textureImageIndex, false));
+    return generateModel(sourceModel, stage, transform);
+  }
+
+  static JsonObject generateTerminalModel(JsonObject sourceModel, int stage, Transform transform) {
+    return generateModel(sourceModel, stage, transform, FacePolicy.TERMINAL_SCREEN_FRONT);
   }
 
   private static JsonObject generateModel(
-      JsonObject sourceModel,
-      int stage,
-      Transform transform,
-      BreakingTextureRegistry breakingTextures) {
+      JsonObject sourceModel, int stage, Transform transform, FacePolicy facePolicy) {
     if (stage < 0 || stage >= STAGE_COUNT) {
       throw new IllegalArgumentException("Unsupported breaking stage: " + stage);
     }
     Objects.requireNonNull(sourceModel, "sourceModel");
     Objects.requireNonNull(transform, "transform");
-    Objects.requireNonNull(breakingTextures, "breakingTextures");
+    Objects.requireNonNull(facePolicy, "facePolicy");
 
     JsonObject root = new JsonObject();
     root.addProperty("format_version", "1.21.6");
     root.addProperty("credit", "phantomfighterxx");
     root.addProperty("ambientocclusion", false);
 
-    ModelGenerationContext context = new ModelGenerationContext(stage, breakingTextures);
-    root.add("textures", context.textures());
+    JsonObject textures = new JsonObject();
+    textures.addProperty("0", overlayTexture(stage));
+    if (usesTerminalFrameAtlas(stage, facePolicy)) {
+      textures.addProperty("1", terminalFrameOverlayTexture());
+    }
+    textures.addProperty("particle", overlayTexture(stage));
+    root.add("textures", textures);
 
     JsonArray elements = new JsonArray();
     JsonArray sourceElements = sourceModel.getAsJsonArray("elements");
@@ -146,13 +142,29 @@ final class BreakingModelGenerator {
       if (!sourceElement.isJsonObject()) {
         continue;
       }
-      for (JsonObject element :
-          transformElement(sourceElement.getAsJsonObject(), sourceTextures, transform, context)) {
+      JsonObject element =
+          transformElement(sourceElement.getAsJsonObject(), sourceTextures, transform, facePolicy);
+      if (element != null) {
+        elements.add(element);
+      }
+    }
+    if (usesTerminalFrameAtlas(stage, facePolicy)) {
+      JsonObject element = terminalFrameElement(stage, transform);
+      if (element != null) {
         elements.add(element);
       }
     }
     root.add("elements", elements);
     return root;
+  }
+
+  private static int addTerminalBreakingAtlas(Map<String, byte[]> entries) {
+    if (!entries.containsKey(MODELS_ROOT + "terminal/inventory.json")) {
+      return 0;
+    }
+    boolean added = !entries.containsKey(terminalFrameOverlayTexturePath());
+    entries.put(terminalFrameOverlayTexturePath(), terminalBreakingAtlas(entries));
+    return added ? 1 : 0;
   }
 
   static Transform identityTransform() {
@@ -161,15 +173,13 @@ final class BreakingModelGenerator {
 
   private static void addStorageVariants(
       Map<String, byte[]> entries, List<VariantSource> variants) {
-    JsonObject source = readModel(entries, "storage/storage.json");
-    variants.add(new VariantSource("storage/core", source, identityTransform()));
-    for (BlockFace face : horizontalFaces()) {
-      variants.add(
-          new VariantSource(
-              "storage/" + key(face),
-              source,
-              new Transform(DisplayRotation.rotationForFacing(face))));
-    }
+    variants.add(
+        new VariantSource(
+            "storage/core",
+            readModel(entries, "storage/storage.json"),
+            identityTransform(),
+            FacePolicy.DEFAULT,
+            STAGE_COUNT));
   }
 
   private static void addTerminalVariants(
@@ -180,7 +190,9 @@ final class BreakingModelGenerator {
           new VariantSource(
               "terminal/" + key(face),
               source,
-              new Transform(DisplayRotation.rotationForFacing(face))));
+              new Transform(DisplayRotation.rotationForFacing(face)),
+              FacePolicy.TERMINAL_SCREEN_FRONT,
+              STAGE_COUNT));
     }
   }
 
@@ -189,7 +201,11 @@ final class BreakingModelGenerator {
     for (BlockFace face : fullFaces()) {
       variants.add(
           new VariantSource(
-              "bus/" + key(face), source, new Transform(busBreakingRotationForFacing(face))));
+              "bus/" + key(face),
+              source,
+              new Transform(busBreakingRotationForFacing(face)),
+              FacePolicy.DEFAULT,
+              STAGE_COUNT));
     }
   }
 
@@ -202,26 +218,17 @@ final class BreakingModelGenerator {
   }
 
   private static void addWireVariants(Map<String, byte[]> entries, List<VariantSource> variants) {
-    Transform mirrorY180 = new Transform(new Quaternionf().rotateY((float) Math.PI));
-    entries.keySet().stream()
-        .filter(path -> path.startsWith(MODELS_ROOT + "wire/"))
-        .filter(path -> path.endsWith(".json"))
-        .sorted(Comparator.naturalOrder())
-        .forEach(
-            path -> {
-              String fileName = path.substring((MODELS_ROOT + "wire/").length());
-              String key = fileName.substring(0, fileName.length() - ".json".length());
-              variants.add(
-                  new VariantSource(
-                      "wire/" + key, readModel(entries, "wire/" + fileName), mirrorY180));
-            });
+    variants.add(
+        new VariantSource(
+            "wire/center",
+            readModel(entries, "wire/center.json"),
+            identityTransform(),
+            FacePolicy.DEFAULT,
+            WIRE_STAGE_COUNT));
   }
 
-  private static List<JsonObject> transformElement(
-      JsonObject source,
-      JsonObject sourceTextures,
-      Transform transform,
-      ModelGenerationContext context) {
+  private static JsonObject transformElement(
+      JsonObject source, JsonObject sourceTextures, Transform transform, FacePolicy facePolicy) {
     validateUnsupportedElementRotation(source);
     double[] sourceFrom = readVector(source, "from");
     double[] sourceTo = readVector(source, "to");
@@ -229,63 +236,56 @@ final class BreakingModelGenerator {
     double[] from = bounds[0];
     double[] to = bounds[1];
 
-    List<JsonObject> targetElements = new ArrayList<>();
-    JsonObject baseFaces = new JsonObject();
+    JsonObject faces = new JsonObject();
     JsonObject sourceFaces = source.getAsJsonObject("faces");
     if (sourceFaces != null) {
       for (Map.Entry<String, JsonElement> entry : sourceFaces.entrySet()) {
-        String targetFace = rotateFace(entry.getKey(), transform.rotation());
         JsonObject sourceFace =
             entry.getValue().isJsonObject() ? entry.getValue().getAsJsonObject() : new JsonObject();
-        FaceAnalysis analysis =
-            faceAnalysis(entry.getKey(), sourceFace, sourceTextures, sourceFrom, sourceTo, context);
-        FaceCoverage coverage = analysis.coverage();
-        String textureRef =
-            context.textureReference(
-                analysis.textureSize(),
-                analysis.screen() ? SCREEN_DESTROY_VISIBLE_ALPHA : PRESERVE_DESTROY_VISIBLE_ALPHA);
-        if (coverage.transparent()) {
+        if (shouldSkipSourceFace(entry.getKey(), sourceFace, sourceTextures, facePolicy)) {
           continue;
         }
-        if (coverage.opaque()) {
-          JsonArray uv =
-              analysis.densityAligned()
-                  ? densityAlignedUv(analysis)
-                  : uvForFace(targetFace, from, to);
-          if (uv == null) {
-            continue;
-          }
-          baseFaces.add(targetFace, faceJson(uv, textureRef));
+        String targetFace = rotateFace(entry.getKey(), transform.rotation());
+        if (!isExternalFace(targetFace, from, to)) {
           continue;
         }
-        int rectIndex = 0;
-        for (FaceRect rect : coverage.rects()) {
-          double[][] sourceSubBounds = subBoundsForFace(entry.getKey(), sourceFrom, sourceTo, rect);
-          double[][] transformedSubBounds =
-              transformBounds(sourceSubBounds[0], sourceSubBounds[1], transform.rotation());
-          JsonArray uv =
-              analysis.densityAligned()
-                  ? densityAlignedUv(analysis, rect)
-                  : uvForFace(targetFace, transformedSubBounds[0], transformedSubBounds[1]);
-          if (uv == null) {
-            continue;
-          }
-          JsonObject faces = new JsonObject();
-          faces.add(targetFace, faceJson(uv, textureRef));
-          targetElements.add(
-              targetElement(
-                  source,
-                  transformedSubBounds[0],
-                  transformedSubBounds[1],
-                  faces,
-                  " " + targetFace + " alpha " + rectIndex++));
+        JsonArray uv = uvForFace(targetFace, from, to);
+        if (uv != null) {
+          faces.add(targetFace, faceJson(uv));
         }
       }
     }
-    if (baseFaces.size() > 0) {
-      targetElements.add(0, targetElement(source, from, to, baseFaces, ""));
+    if (faces.size() == 0) {
+      return null;
     }
-    return targetElements;
+    return targetElement(source, from, to, faces);
+  }
+
+  private static boolean shouldSkipSourceFace(
+      String sourceFace,
+      JsonObject sourceFaceObject,
+      JsonObject sourceTextures,
+      FacePolicy policy) {
+    if (policy != FacePolicy.TERMINAL_SCREEN_FRONT || !"north".equals(sourceFace)) {
+      return false;
+    }
+    return !resolveTexture(sourceFaceObject, sourceTextures).startsWith(SCREEN_TEXTURE_ROOT);
+  }
+
+  private static String resolveTexture(JsonObject sourceFace, JsonObject sourceTextures) {
+    if (!sourceFace.has("texture") || !sourceFace.get("texture").isJsonPrimitive()) {
+      return "";
+    }
+    String current = sourceFace.get("texture").getAsString();
+    int guard = 0;
+    while (current.startsWith("#") && sourceTextures != null && guard++ < 16) {
+      JsonElement resolved = sourceTextures.get(current.substring(1));
+      if (resolved == null || !resolved.isJsonPrimitive()) {
+        return current;
+      }
+      current = resolved.getAsString();
+    }
+    return current;
   }
 
   private static JsonObject readModel(Map<String, byte[]> entries, String path) {
@@ -320,283 +320,126 @@ final class BreakingModelGenerator {
     }
   }
 
-  private static FaceAnalysis faceAnalysis(
-      String face,
-      JsonObject sourceFace,
-      JsonObject sourceTextures,
-      double[] from,
-      double[] to,
-      ModelGenerationContext context) {
-    int rotation = faceTextureRotation(sourceFace);
-    if (!sourceFace.has("texture") || !sourceFace.has("uv")) {
-      return new FaceAnalysis(
-          FaceCoverage.allOpaque(), TextureSize.base(), null, rotation, false, false);
-    }
-    String texture = resolveTexture(sourceFace.get("texture").getAsString(), sourceTextures);
-    TextureImage image = context.textureImage(texture);
-    if (image == null) {
-      return new FaceAnalysis(
-          FaceCoverage.allOpaque(), TextureSize.base(), null, rotation, false, false);
-    }
-    double[] uv = readUv(sourceFace);
-    boolean screen = isScreenTexture(texture);
-    double[] sourcePixels = sourcePixelSize(image.width(), image.height(), uv, rotation);
-    return new FaceAnalysis(
-        FaceCoverage.fromAlpha(image, uv, rotation),
-        densityTextureSize(face, from, to, image.width(), image.height(), uv, rotation),
-        sourcePixels,
-        rotation,
-        screen,
-        screen);
+  private static JsonObject faceJson(JsonArray uv) {
+    return faceJson(uv, "#0");
   }
 
-  private static boolean isScreenTexture(String texture) {
-    return texture != null && texture.startsWith(SCREEN_TEXTURE_ROOT);
-  }
-
-  private static int faceTextureRotation(JsonObject sourceFace) {
-    if (!sourceFace.has("rotation")) {
-      return 0;
-    }
-    int rotation = sourceFace.get("rotation").getAsInt();
-    return switch (rotation) {
-      case 0, 90, 180, 270 -> rotation;
-      default ->
-          throw new IllegalArgumentException("Unsupported face texture rotation: " + rotation);
-    };
-  }
-
-  private static String resolveTexture(String texture, JsonObject sourceTextures) {
-    if (texture == null || texture.isBlank()) {
-      return "";
-    }
-    String current = texture.trim();
-    int guard = 0;
-    while (current.startsWith("#") && sourceTextures != null && guard++ < 16) {
-      String key = current.substring(1);
-      JsonElement resolved = sourceTextures.get(key);
-      if (resolved == null || !resolved.isJsonPrimitive()) {
-        return current;
-      }
-      current = resolved.getAsString();
-    }
-    return current;
-  }
-
-  private static double[] readUv(JsonObject sourceFace) {
-    JsonArray uv = sourceFace.getAsJsonArray("uv");
-    if (uv == null || uv.size() != 4) {
-      throw new IllegalArgumentException("Model face has invalid uv vector.");
-    }
-    return new double[] {
-      uv.get(0).getAsDouble(),
-      uv.get(1).getAsDouble(),
-      uv.get(2).getAsDouble(),
-      uv.get(3).getAsDouble()
-    };
-  }
-
-  private static JsonObject faceJson(JsonArray uv, String textureRef) {
+  private static JsonObject faceJson(JsonArray uv, String texture) {
     JsonObject face = new JsonObject();
     face.add("uv", uv);
-    face.addProperty("texture", textureRef);
+    face.addProperty("texture", texture);
     face.addProperty("tintindex", 0);
     return face;
   }
 
-  private static JsonArray densityAlignedUv(FaceAnalysis analysis) {
-    double[] uv = densityAlignedUvBounds(analysis.sourcePixels());
-    if (uv == null) {
+  private static boolean usesTerminalFrameAtlas(int stage, FacePolicy facePolicy) {
+    return facePolicy == FacePolicy.TERMINAL_SCREEN_FRONT && stage >= TERMINAL_FRAME_FIRST_STAGE;
+  }
+
+  private static JsonObject terminalFrameElement(int stage, Transform transform) {
+    double[] sourceFrom = new double[] {0.0, 0.0, 0.0};
+    double[] sourceTo = new double[] {16.0, 16.0, 16.0};
+    double[][] bounds = transformBounds(sourceFrom, sourceTo, transform.rotation());
+    double[] from = bounds[0];
+    double[] to = bounds[1];
+    String targetFace = rotateFace("north", transform.rotation());
+    if (!isExternalFace(targetFace, from, to)) {
       return null;
     }
-    return clampedNumberArray(uv[0], uv[1], uv[2], uv[3]);
+
+    JsonObject source = new JsonObject();
+    source.addProperty("name", "terminal front frame");
+    JsonObject faces = new JsonObject();
+    faces.add(targetFace, faceJson(terminalFrameUv(stage), "#1"));
+    return targetElement(source, from, to, faces);
   }
 
-  private static JsonArray densityAlignedUv(FaceAnalysis analysis, FaceRect rect) {
-    double[] uv = densityAlignedUvBounds(analysis.sourcePixels());
-    if (uv == null) {
-      return null;
-    }
-    double[][] points =
-        new double[][] {
-          faceLocalToUv(rect.sMin(), rect.tMin(), uv, analysis.rotation()),
-          faceLocalToUv(rect.sMax(), rect.tMin(), uv, analysis.rotation()),
-          faceLocalToUv(rect.sMin(), rect.tMax(), uv, analysis.rotation()),
-          faceLocalToUv(rect.sMax(), rect.tMax(), uv, analysis.rotation())
-        };
-    double minU = Double.POSITIVE_INFINITY;
-    double minV = Double.POSITIVE_INFINITY;
-    double maxU = Double.NEGATIVE_INFINITY;
-    double maxV = Double.NEGATIVE_INFINITY;
-    for (double[] point : points) {
-      minU = Math.min(minU, point[0]);
-      minV = Math.min(minV, point[1]);
-      maxU = Math.max(maxU, point[0]);
-      maxV = Math.max(maxV, point[1]);
-    }
-    return clampedNumberArray(minU, minV, maxU, maxV);
+  private static JsonArray terminalFrameUv(int stage) {
+    int atlasStage = stage - TERMINAL_FRAME_FIRST_STAGE;
+    double uvScale = (double) BASE_DESTROY_TEXTURE_SIZE / TERMINAL_FRAME_ATLAS_SIZE;
+    double tileX = (atlasStage % 2) * TERMINAL_FRAME_TILE_SIZE * uvScale;
+    double tileY = (atlasStage / 2) * TERMINAL_FRAME_TILE_SIZE * uvScale;
+    double tileSize = TERMINAL_FRAME_TILE_SIZE * uvScale;
+    return numberArray(tileX, tileY, tileX + tileSize, tileY + tileSize);
   }
 
-  private static double[] densityAlignedUvBounds(double[] sourcePixels) {
-    if (sourcePixels == null || sourcePixels.length != 2) {
-      return null;
+  static byte[] terminalBreakingAtlas(Map<String, byte[]> entries) {
+    BufferedImage atlas =
+        new BufferedImage(
+            TERMINAL_FRAME_ATLAS_SIZE, TERMINAL_FRAME_ATLAS_SIZE, BufferedImage.TYPE_INT_ARGB);
+    for (int stage = TERMINAL_FRAME_FIRST_STAGE; stage < STAGE_COUNT; stage++) {
+      BufferedImage source = readPng(entries, overlayStageTexturePath(stage));
+      if (source.getWidth() != BASE_DESTROY_TEXTURE_SIZE
+          || source.getHeight() != BASE_DESTROY_TEXTURE_SIZE) {
+        throw new IllegalArgumentException(
+            "Expected "
+                + overlayStageTexturePath(stage)
+                + " to be "
+                + BASE_DESTROY_TEXTURE_SIZE
+                + "x"
+                + BASE_DESTROY_TEXTURE_SIZE
+                + ", got "
+                + source.getWidth()
+                + "x"
+                + source.getHeight());
+      }
+      int atlasStage = stage - TERMINAL_FRAME_FIRST_STAGE;
+      int tileX = (atlasStage % 2) * TERMINAL_FRAME_TILE_SIZE;
+      int tileY = (atlasStage / 2) * TERMINAL_FRAME_TILE_SIZE;
+      for (int y = 0; y < BASE_DESTROY_TEXTURE_SIZE; y++) {
+        for (int x = 0; x < BASE_DESTROY_TEXTURE_SIZE; x++) {
+          int argb =
+              x >= TERMINAL_FRAME_CUTOUT_MIN
+                      && x < TERMINAL_FRAME_CUTOUT_MAX
+                      && y >= TERMINAL_FRAME_CUTOUT_MIN
+                      && y < TERMINAL_FRAME_CUTOUT_MAX
+                  ? 0
+                  : source.getRGB(x, y);
+          atlas.setRGB(tileX + x, tileY + y, argb);
+        }
+      }
     }
-    double width = densityAlignedUvSpan(sourcePixels[0]);
-    double height = densityAlignedUvSpan(sourcePixels[1]);
-    return new double[] {
-      8.0 - width / 2.0, 8.0 - height / 2.0, 8.0 + width / 2.0, 8.0 + height / 2.0
-    };
+    return writePng(atlas, terminalFrameOverlayTexturePath());
   }
 
-  private static double densityAlignedUvSpan(double sourcePixels) {
-    if (sourcePixels <= COORDINATE_EPSILON) {
-      throw new IllegalArgumentException("Model face uv has zero width or height.");
+  private static BufferedImage readPng(Map<String, byte[]> entries, String path) {
+    byte[] raw = entries.get(path);
+    if (raw == null) {
+      throw new IllegalArgumentException("Missing breaking texture source: " + path);
     }
-    return Math.min(
-        BASE_DESTROY_TEXTURE_SIZE, Math.max(1.0, sourcePixels / BREAKING_TEXTURE_SUPERSAMPLE));
+    try {
+      BufferedImage image = ImageIO.read(new ByteArrayInputStream(raw));
+      if (image == null) {
+        throw new IllegalArgumentException("Invalid PNG breaking texture: " + path);
+      }
+      return image;
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Failed to read PNG breaking texture: " + path, e);
+    }
   }
 
-  private static double[] faceLocalToUv(double s, double t, double[] uv, int rotation) {
-    double a;
-    double b;
-    switch (rotation) {
-      case 0 -> {
-        a = s;
-        b = t;
+  private static byte[] writePng(BufferedImage image, String path) {
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+      if (!ImageIO.write(image, "png", out)) {
+        throw new IllegalStateException("PNG writer is not available for " + path);
       }
-      case 90 -> {
-        a = t;
-        b = 1.0 - s;
-      }
-      case 180 -> {
-        a = 1.0 - s;
-        b = 1.0 - t;
-      }
-      case 270 -> {
-        a = 1.0 - t;
-        b = s;
-      }
-      default ->
-          throw new IllegalArgumentException("Unsupported face texture rotation: " + rotation);
+      return out.toByteArray();
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to write PNG breaking texture: " + path, e);
     }
-    return new double[] {lerp(uv[0], uv[2], a), lerp(uv[1], uv[3], b)};
   }
 
   private static JsonObject targetElement(
-      JsonObject source, double[] from, double[] to, JsonObject faces, String nameSuffix) {
+      JsonObject source, double[] from, double[] to, JsonObject faces) {
     JsonObject target = new JsonObject();
     if (source.has("name") && source.get("name").isJsonPrimitive()) {
-      target.addProperty("name", source.get("name").getAsString() + nameSuffix);
+      target.addProperty("name", source.get("name").getAsString());
     }
     target.add("from", numberArray(from[0], from[1], from[2]));
     target.add("to", numberArray(to[0], to[1], to[2]));
     target.addProperty("shade", false);
     target.add("faces", faces);
     return target;
-  }
-
-  private static double[][] subBoundsForFace(
-      String face, double[] from, double[] to, FaceRect rect) {
-    double[] subFrom = from.clone();
-    double[] subTo = to.clone();
-    switch (face) {
-      case "north" -> {
-        setInterval(
-            subFrom,
-            subTo,
-            0,
-            lerp(from[0], to[0], rect.sMin()),
-            lerp(from[0], to[0], rect.sMax()));
-        setInterval(
-            subFrom,
-            subTo,
-            1,
-            lerp(to[1], from[1], rect.tMin()),
-            lerp(to[1], from[1], rect.tMax()));
-      }
-      case "south" -> {
-        setInterval(
-            subFrom,
-            subTo,
-            0,
-            lerp(to[0], from[0], rect.sMin()),
-            lerp(to[0], from[0], rect.sMax()));
-        setInterval(
-            subFrom,
-            subTo,
-            1,
-            lerp(to[1], from[1], rect.tMin()),
-            lerp(to[1], from[1], rect.tMax()));
-      }
-      case "east" -> {
-        setInterval(
-            subFrom,
-            subTo,
-            2,
-            lerp(from[2], to[2], rect.sMin()),
-            lerp(from[2], to[2], rect.sMax()));
-        setInterval(
-            subFrom,
-            subTo,
-            1,
-            lerp(to[1], from[1], rect.tMin()),
-            lerp(to[1], from[1], rect.tMax()));
-      }
-      case "west" -> {
-        setInterval(
-            subFrom,
-            subTo,
-            2,
-            lerp(to[2], from[2], rect.sMin()),
-            lerp(to[2], from[2], rect.sMax()));
-        setInterval(
-            subFrom,
-            subTo,
-            1,
-            lerp(to[1], from[1], rect.tMin()),
-            lerp(to[1], from[1], rect.tMax()));
-      }
-      case "up" -> {
-        setInterval(
-            subFrom,
-            subTo,
-            0,
-            lerp(from[0], to[0], rect.sMin()),
-            lerp(from[0], to[0], rect.sMax()));
-        setInterval(
-            subFrom,
-            subTo,
-            2,
-            lerp(from[2], to[2], rect.tMin()),
-            lerp(from[2], to[2], rect.tMax()));
-      }
-      case "down" -> {
-        setInterval(
-            subFrom,
-            subTo,
-            0,
-            lerp(from[0], to[0], rect.sMin()),
-            lerp(from[0], to[0], rect.sMax()));
-        setInterval(
-            subFrom,
-            subTo,
-            2,
-            lerp(to[2], from[2], rect.tMin()),
-            lerp(to[2], from[2], rect.tMax()));
-      }
-      default -> throw new IllegalArgumentException("Unsupported model face: " + face);
-    }
-    return new double[][] {subFrom, subTo};
-  }
-
-  private static void setInterval(
-      double[] from, double[] to, int axis, double first, double second) {
-    from[axis] = Math.min(first, second);
-    to[axis] = Math.max(first, second);
-  }
-
-  private static double lerp(double from, double to, double progress) {
-    return from + (to - from) * progress;
   }
 
   private static double[] readVector(JsonObject object, String key) {
@@ -671,9 +514,23 @@ final class BreakingModelGenerator {
     return normal.z >= 0f ? "south" : "north";
   }
 
+  private static boolean isExternalFace(String face, double[] from, double[] to) {
+    return switch (face) {
+      case "north" -> outwardDistance(from[2], -1.0) >= -COORDINATE_EPSILON;
+      case "south" -> outwardDistance(to[2], 1.0) >= -COORDINATE_EPSILON;
+      case "west" -> outwardDistance(from[0], -1.0) >= -COORDINATE_EPSILON;
+      case "east" -> outwardDistance(to[0], 1.0) >= -COORDINATE_EPSILON;
+      case "down" -> outwardDistance(from[1], -1.0) >= -COORDINATE_EPSILON;
+      case "up" -> outwardDistance(to[1], 1.0) >= -COORDINATE_EPSILON;
+      default -> throw new IllegalArgumentException("Unsupported model face: " + face);
+    };
+  }
+
+  private static double outwardDistance(double coordinate, double normalSign) {
+    return (coordinate - BLOCK_CENTER) * normalSign;
+  }
+
   private static JsonArray uvForFace(String face, double[] from, double[] to) {
-    // Preserve overhanging model geometry while shifting projected destroy UVs into the sprite.
-    // This keeps thin connector sides covered without compressing the crack pixel scale.
     return switch (face) {
       case "north", "south" -> {
         if (!intersectsDestroySprite(from[0], to[0]) || !intersectsDestroySprite(from[1], to[1])) {
@@ -727,79 +584,6 @@ final class BreakingModelGenerator {
     return Math.min(max, 16.0) - Math.max(min, 0.0) > COORDINATE_EPSILON;
   }
 
-  private static JsonArray clampedNumberArray(double... values) {
-    double[] clamped = new double[values.length];
-    for (int i = 0; i < values.length; i++) {
-      clamped[i] = Math.max(0.0, Math.min(16.0, values[i]));
-    }
-    return numberArray(clamped);
-  }
-
-  static TextureSize densityTextureSize(
-      String face, double[] from, double[] to, int textureWidth, int textureHeight, double[] uv) {
-    return densityTextureSize(face, from, to, textureWidth, textureHeight, uv, 0);
-  }
-
-  static TextureSize densityTextureSize(
-      String face,
-      double[] from,
-      double[] to,
-      int textureWidth,
-      int textureHeight,
-      double[] uv,
-      int rotation) {
-    double[] modelSize = faceModelSize(face, from, to);
-    double[] sourcePixels = sourcePixelSize(textureWidth, textureHeight, uv, rotation);
-    return new TextureSize(
-        densityDimension(sourcePixels[0], modelSize[0]),
-        densityDimension(sourcePixels[1], modelSize[1]));
-  }
-
-  private static int densityDimension(double sourcePixels, double modelUnits) {
-    if (modelUnits <= COORDINATE_EPSILON) {
-      throw new IllegalArgumentException("Model face has zero projected size.");
-    }
-    if (sourcePixels <= COORDINATE_EPSILON) {
-      throw new IllegalArgumentException("Model face uv has zero width or height.");
-    }
-    int density =
-        (int)
-            Math.ceil(
-                sourcePixels * BREAKING_TEXTURE_SUPERSAMPLE * BASE_DESTROY_TEXTURE_SIZE / modelUnits
-                    - COORDINATE_EPSILON);
-    return destroyTextureDimension(density, MAX_DESTROY_TEXTURE_SIZE);
-  }
-
-  private static int destroyTextureDimension(int required, int maximum) {
-    int clamped = Math.min(maximum, Math.max(BASE_DESTROY_TEXTURE_SIZE, required));
-    int dimension = BASE_DESTROY_TEXTURE_SIZE;
-    while (dimension < clamped) {
-      dimension *= BREAKING_TEXTURE_SUPERSAMPLE;
-    }
-    return Math.min(maximum, dimension);
-  }
-
-  private static double[] faceModelSize(String face, double[] from, double[] to) {
-    return switch (face) {
-      case "north", "south" -> new double[] {Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1])};
-      case "east", "west" -> new double[] {Math.abs(to[2] - from[2]), Math.abs(to[1] - from[1])};
-      case "up", "down" -> new double[] {Math.abs(to[0] - from[0]), Math.abs(to[2] - from[2])};
-      default -> throw new IllegalArgumentException("Unsupported model face: " + face);
-    };
-  }
-
-  private static double[] sourcePixelSize(
-      int textureWidth, int textureHeight, double[] uv, int rotation) {
-    double width = Math.abs(uv[2] - uv[0]) / BASE_DESTROY_TEXTURE_SIZE * textureWidth;
-    double height = Math.abs(uv[3] - uv[1]) / BASE_DESTROY_TEXTURE_SIZE * textureHeight;
-    return switch (rotation) {
-      case 0, 180 -> new double[] {width, height};
-      case 90, 270 -> new double[] {height, width};
-      default ->
-          throw new IllegalArgumentException("Unsupported face texture rotation: " + rotation);
-    };
-  }
-
   private static JsonArray numberArray(double... values) {
     JsonArray array = new JsonArray();
     for (double value : values) {
@@ -836,437 +620,20 @@ final class BreakingModelGenerator {
     return face.name().toLowerCase(Locale.ROOT);
   }
 
-  private record FaceAnalysis(
-      FaceCoverage coverage,
-      TextureSize textureSize,
-      double[] sourcePixels,
-      int rotation,
-      boolean densityAligned,
-      boolean screen) {}
-
-  private record FaceCoverage(boolean opaque, boolean transparent, List<FaceRect> rects) {
-    static FaceCoverage allOpaque() {
-      return new FaceCoverage(true, false, List.of());
-    }
-
-    static FaceCoverage allTransparent() {
-      return new FaceCoverage(false, true, List.of());
-    }
-
-    static FaceCoverage fromAlpha(TextureImage alpha, double[] uv, int rotation) {
-      double minU = Math.min(uv[0], uv[2]);
-      double maxU = Math.max(uv[0], uv[2]);
-      double minV = Math.min(uv[1], uv[3]);
-      double maxV = Math.max(uv[1], uv[3]);
-      int xStart = clamp((int) Math.floor(minU / 16.0 * alpha.width()), 0, alpha.width());
-      int xEnd = clamp((int) Math.ceil(maxU / 16.0 * alpha.width()), 0, alpha.width());
-      int yStart = clamp((int) Math.floor(minV / 16.0 * alpha.height()), 0, alpha.height());
-      int yEnd = clamp((int) Math.ceil(maxV / 16.0 * alpha.height()), 0, alpha.height());
-      if (xStart >= xEnd || yStart >= yEnd) {
-        return allOpaque();
-      }
-
-      int width = xEnd - xStart;
-      int height = yEnd - yStart;
-      boolean[][] visible = new boolean[height][width];
-      int visibleCount = 0;
-      for (int y = yStart; y < yEnd; y++) {
-        for (int x = xStart; x < xEnd; x++) {
-          boolean isVisible = alpha.alphaAt(x, y) > 0;
-          visible[y - yStart][x - xStart] = isVisible;
-          if (isVisible) {
-            visibleCount++;
-          }
-        }
-      }
-
-      int total = width * height;
-      if (visibleCount == 0) {
-        return allTransparent();
-      }
-      if (visibleCount == total) {
-        return allOpaque();
-      }
-
-      boolean[][] used = new boolean[height][width];
-      List<FaceRect> rects = new ArrayList<>();
-      for (int row = 0; row < height; row++) {
-        for (int col = 0; col < width; col++) {
-          if (!visible[row][col] || used[row][col]) {
-            continue;
-          }
-          int rectWidth = 1;
-          while (col + rectWidth < width
-              && visible[row][col + rectWidth]
-              && !used[row][col + rectWidth]) {
-            rectWidth++;
-          }
-          int rectHeight = 1;
-          boolean canGrow = true;
-          while (row + rectHeight < height && canGrow) {
-            for (int x = col; x < col + rectWidth; x++) {
-              if (!visible[row + rectHeight][x] || used[row + rectHeight][x]) {
-                canGrow = false;
-                break;
-              }
-            }
-            if (canGrow) {
-              rectHeight++;
-            }
-          }
-          for (int y = row; y < row + rectHeight; y++) {
-            for (int x = col; x < col + rectWidth; x++) {
-              used[y][x] = true;
-            }
-          }
-
-          double rectMinU = Math.max(minU, (xStart + col) * 16.0 / alpha.width());
-          double rectMaxU = Math.min(maxU, (xStart + col + rectWidth) * 16.0 / alpha.width());
-          double rectMinV = Math.max(minV, (yStart + row) * 16.0 / alpha.height());
-          double rectMaxV = Math.min(maxV, (yStart + row + rectHeight) * 16.0 / alpha.height());
-          rects.add(FaceRect.fromUv(rectMinU, rectMinV, rectMaxU, rectMaxV, uv, rotation));
-        }
-      }
-      return new FaceCoverage(false, false, rects);
-    }
+  private static String overlayTexture(int stage) {
+    return "exort:" + BREAKING_OVERLAY_TEXTURE_ROOT + stage;
   }
 
-  private record FaceRect(double sMin, double sMax, double tMin, double tMax) {
-    static FaceRect fromUv(
-        double minU, double minV, double maxU, double maxV, double[] uv, int rotation) {
-      double[][] points =
-          new double[][] {
-            uvToFaceLocal(minU, minV, uv, rotation),
-            uvToFaceLocal(maxU, minV, uv, rotation),
-            uvToFaceLocal(minU, maxV, uv, rotation),
-            uvToFaceLocal(maxU, maxV, uv, rotation)
-          };
-      double sMin = Double.POSITIVE_INFINITY;
-      double sMax = Double.NEGATIVE_INFINITY;
-      double tMin = Double.POSITIVE_INFINITY;
-      double tMax = Double.NEGATIVE_INFINITY;
-      for (double[] point : points) {
-        sMin = Math.min(sMin, point[0]);
-        sMax = Math.max(sMax, point[0]);
-        tMin = Math.min(tMin, point[1]);
-        tMax = Math.max(tMax, point[1]);
-      }
-      return new FaceRect(clampUnit(sMin), clampUnit(sMax), clampUnit(tMin), clampUnit(tMax));
-    }
-
-    private static double[] uvToFaceLocal(double u, double v, double[] uv, int rotation) {
-      double width = uv[2] - uv[0];
-      double height = uv[3] - uv[1];
-      if (Math.abs(width) < COORDINATE_EPSILON || Math.abs(height) < COORDINATE_EPSILON) {
-        throw new IllegalArgumentException("Model face uv has zero width or height.");
-      }
-      double a = (u - uv[0]) / width;
-      double b = (v - uv[1]) / height;
-      return switch (rotation) {
-        case 0 -> new double[] {a, b};
-        case 90 -> new double[] {1.0 - b, a};
-        case 180 -> new double[] {1.0 - a, 1.0 - b};
-        case 270 -> new double[] {b, 1.0 - a};
-        default ->
-            throw new IllegalArgumentException("Unsupported face texture rotation: " + rotation);
-      };
-    }
+  private static String terminalFrameOverlayTexture() {
+    return "exort:" + BREAKING_OVERLAY_TEXTURE_ROOT + "terminal";
   }
 
-  record TextureSize(int width, int height) {
-    TextureSize {
-      if (width <= 0 || height <= 0) {
-        throw new IllegalArgumentException("Breaking texture size must be positive.");
-      }
-    }
-
-    static TextureSize base() {
-      return new TextureSize(BASE_DESTROY_TEXTURE_SIZE, BASE_DESTROY_TEXTURE_SIZE);
-    }
+  private static String terminalFrameOverlayTexturePath() {
+    return TEXTURES_ROOT + BREAKING_OVERLAY_TEXTURE_ROOT + "terminal.png";
   }
 
-  private record TextureImage(BufferedImage image) {
-    int width() {
-      return image.getWidth();
-    }
-
-    int height() {
-      return image.getHeight();
-    }
-
-    int alphaAt(int x, int y) {
-      return (image.getRGB(x, y) >>> 24) & 0xFF;
-    }
-
-    int argbAt(int x, int y) {
-      if (isGrayAlpha()) {
-        int[] pixel = image.getRaster().getPixel(x, y, (int[]) null);
-        int gray = pixel[0] & 0xFF;
-        int alpha = pixel[1] & 0xFF;
-        return (alpha << 24) | (gray << 16) | (gray << 8) | gray;
-      }
-      return image.getRGB(x, y);
-    }
-
-    private boolean isGrayAlpha() {
-      return image.getRaster().getNumBands() == 2
-          && image.getColorModel().hasAlpha()
-          && image.getColorModel().getColorSpace().getType() == ColorSpace.TYPE_GRAY;
-    }
-  }
-
-  private static final class TextureImageIndex {
-    private static final TextureImageIndex EMPTY = new TextureImageIndex(Map.of());
-
-    private final Map<String, byte[]> entries;
-    private final Map<String, TextureImage> cache = new HashMap<>();
-
-    private TextureImageIndex(Map<String, byte[]> entries) {
-      this.entries = Objects.requireNonNull(entries, "entries");
-    }
-
-    private static TextureImageIndex empty() {
-      return EMPTY;
-    }
-
-    private TextureImage image(String texture) {
-      TextureAssetRef ref = TextureAssetRef.parse(texture);
-      if (ref == null) {
-        return null;
-      }
-      String entry = "assets/" + ref.namespace() + "/textures/" + ref.path() + ".png";
-      if (!entries.containsKey(entry)) {
-        return null;
-      }
-      return cache.computeIfAbsent(entry, this::readImage);
-    }
-
-    private TextureImage readImage(String entry) {
-      try {
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(entries.get(entry)));
-        if (image == null) {
-          throw new IllegalArgumentException("Unsupported PNG texture: " + entry);
-        }
-        return new TextureImage(image);
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Failed to read PNG texture: " + entry, e);
-      }
-    }
-  }
-
-  private static final class ModelGenerationContext {
-    private final int stage;
-    private final BreakingTextureRegistry breakingTextures;
-    private final JsonObject textures = new JsonObject();
-    private final Map<String, String> textureSlots = new HashMap<>();
-    private int nextTextureSlot = 1;
-
-    private ModelGenerationContext(int stage, BreakingTextureRegistry breakingTextures) {
-      this.stage = stage;
-      this.breakingTextures = Objects.requireNonNull(breakingTextures, "breakingTextures");
-      String baseTexture =
-          breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA);
-      textures.addProperty("0", baseTexture);
-      textures.addProperty("particle", baseTexture);
-    }
-
-    private JsonObject textures() {
-      return textures;
-    }
-
-    private TextureImage textureImage(String texture) {
-      return breakingTextures.textureImage(texture);
-    }
-
-    private String textureReference(TextureSize size, int visibleAlphaOverride) {
-      String texture = breakingTextures.textureFor(stage, size, visibleAlphaOverride);
-      if (texture.equals(
-          breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA))) {
-        return "#0";
-      }
-      return "#" + textureSlots.computeIfAbsent(texture, this::addTextureSlot);
-    }
-
-    private String addTextureSlot(String texture) {
-      String slot = Integer.toString(nextTextureSlot++);
-      textures.addProperty(slot, texture);
-      return slot;
-    }
-  }
-
-  private static final class BreakingTextureRegistry {
-    private static final BreakingTextureRegistry EMPTY =
-        new BreakingTextureRegistry(Map.of(), TextureImageIndex.empty(), false);
-
-    private final Map<String, byte[]> entries;
-    private final TextureImageIndex textureImageIndex;
-    private final boolean writeGeneratedTextures;
-    private int addedCount;
-
-    private BreakingTextureRegistry(
-        Map<String, byte[]> entries,
-        TextureImageIndex textureImageIndex,
-        boolean writeGeneratedTextures) {
-      this.entries = Objects.requireNonNull(entries, "entries");
-      this.textureImageIndex = Objects.requireNonNull(textureImageIndex, "textureImageIndex");
-      this.writeGeneratedTextures = writeGeneratedTextures;
-    }
-
-    private static BreakingTextureRegistry empty() {
-      return EMPTY;
-    }
-
-    private int addedCount() {
-      return addedCount;
-    }
-
-    private TextureImage textureImage(String texture) {
-      return textureImageIndex.image(texture);
-    }
-
-    private String textureFor(int stage, TextureSize size, int visibleAlphaOverride) {
-      String texture = breakingTexture(stage, size, visibleAlphaOverride);
-      if (writeGeneratedTextures
-          && (!size.equals(TextureSize.base())
-              || visibleAlphaOverride != PRESERVE_DESTROY_VISIBLE_ALPHA)) {
-        addGeneratedTexture(stage, size, visibleAlphaOverride);
-      }
-      return texture;
-    }
-
-    private void addGeneratedTexture(int stage, TextureSize size, int visibleAlphaOverride) {
-      String entry = breakingTextureEntry(stage, size, visibleAlphaOverride);
-      if (entries.containsKey(entry)) {
-        return;
-      }
-      TextureImage source =
-          textureImageIndex.image(
-              breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA));
-      if (source == null) {
-        throw new IllegalArgumentException(
-            "Missing breaking destroy stage texture: "
-                + breakingTexture(stage, TextureSize.base(), PRESERVE_DESTROY_VISIBLE_ALPHA));
-      }
-      entries.put(entry, densityPng(source, size, visibleAlphaOverride));
-      addedCount++;
-    }
-
-    private static byte[] densityPng(
-        TextureImage source, TextureSize size, int visibleAlphaOverride) {
-      BufferedImage target =
-          new BufferedImage(size.width(), size.height(), BufferedImage.TYPE_INT_ARGB);
-      int background = backgroundPixel(source);
-      for (int y = 0; y < target.getHeight(); y++) {
-        for (int x = 0; x < target.getWidth(); x++) {
-          target.setRGB(x, y, background);
-        }
-      }
-      for (int y = 0; y < target.getHeight(); y++) {
-        int sourceY = y * source.height() / target.getHeight();
-        for (int x = 0; x < target.getWidth(); x++) {
-          int sourceX = x * source.width() / target.getWidth();
-          int argb = source.argbAt(sourceX, sourceY);
-          if (((argb >>> 24) & 0xFF) <= 1) {
-            continue;
-          }
-          if (visibleAlphaOverride != PRESERVE_DESTROY_VISIBLE_ALPHA) {
-            argb = (argb & 0x00FFFFFF) | (visibleAlphaOverride << 24);
-          }
-          target.setRGB(x, y, argb);
-        }
-      }
-      try {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ImageIO.write(target, "png", out);
-        return out.toByteArray();
-      } catch (IOException e) {
-        throw new IllegalStateException("Failed to encode generated breaking texture.", e);
-      }
-    }
-
-    private static int backgroundPixel(TextureImage source) {
-      int best = source.argbAt(0, 0);
-      int bestAlpha = (best >>> 24) & 0xFF;
-      for (int y = 0; y < source.height(); y++) {
-        for (int x = 0; x < source.width(); x++) {
-          int argb = source.argbAt(x, y);
-          int alpha = (argb >>> 24) & 0xFF;
-          if (alpha < bestAlpha) {
-            best = argb;
-            bestAlpha = alpha;
-          }
-        }
-      }
-      return best;
-    }
-  }
-
-  private static String breakingTexture(int stage, TextureSize size, int visibleAlphaOverride) {
-    if (size.equals(TextureSize.base()) && visibleAlphaOverride == PRESERVE_DESTROY_VISIBLE_ALPHA) {
-      return "exort:" + BREAKING_ROOT + "destroy_stage_" + stage;
-    }
-    return "exort:"
-        + GENERATED_BREAKING_ROOT
-        + "destroy_stage_"
-        + stage
-        + "_"
-        + size.width()
-        + "x"
-        + size.height()
-        + alphaSuffix(visibleAlphaOverride);
-  }
-
-  private static String breakingTextureEntry(
-      int stage, TextureSize size, int visibleAlphaOverride) {
-    return "assets/exort/textures/"
-        + GENERATED_BREAKING_ROOT
-        + "destroy_stage_"
-        + stage
-        + "_"
-        + size.width()
-        + "x"
-        + size.height()
-        + alphaSuffix(visibleAlphaOverride)
-        + ".png";
-  }
-
-  private static String alphaSuffix(int visibleAlphaOverride) {
-    return visibleAlphaOverride == PRESERVE_DESTROY_VISIBLE_ALPHA
-        ? ""
-        : "_a" + visibleAlphaOverride;
-  }
-
-  private record TextureAssetRef(String namespace, String path) {
-    static TextureAssetRef parse(String texture) {
-      if (texture == null || texture.isBlank() || texture.startsWith("#")) {
-        return null;
-      }
-      String normalized = texture.trim();
-      int separator = normalized.indexOf(':');
-      if (separator < 0) {
-        return new TextureAssetRef("minecraft", normalized);
-      }
-      String namespace = normalized.substring(0, separator);
-      String path = normalized.substring(separator + 1);
-      if (namespace.isBlank() || path.isBlank()) {
-        return null;
-      }
-      return new TextureAssetRef(namespace, path);
-    }
-  }
-
-  private static int clamp(int value, int min, int max) {
-    return Math.max(min, Math.min(max, value));
-  }
-
-  private static double clampUnit(double value) {
-    if (value < 0.0 && value > -COORDINATE_EPSILON) {
-      return 0.0;
-    }
-    if (value > 1.0 && value < 1.0 + COORDINATE_EPSILON) {
-      return 1.0;
-    }
-    return Math.max(0.0, Math.min(1.0, value));
+  private static String overlayStageTexturePath(int stage) {
+    return TEXTURES_ROOT + BREAKING_OVERLAY_TEXTURE_ROOT + stage + ".png";
   }
 
   record Transform(Quaternionf rotation) {
@@ -1275,5 +642,15 @@ final class BreakingModelGenerator {
     }
   }
 
-  private record VariantSource(String modelKey, JsonObject sourceModel, Transform transform) {}
+  private enum FacePolicy {
+    DEFAULT,
+    TERMINAL_SCREEN_FRONT
+  }
+
+  private record VariantSource(
+      String modelKey,
+      JsonObject sourceModel,
+      Transform transform,
+      FacePolicy facePolicy,
+      int stageCount) {}
 }
