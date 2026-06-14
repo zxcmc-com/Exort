@@ -80,7 +80,7 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
       overlays.put(key, display.getUniqueId());
     }
     display.teleport(target(block));
-    apply(display, modelKey, BreakAnimationStages.stageForProgress(progress));
+    apply(display, modelKey, type, BreakAnimationStages.stageForProgress(progress));
   }
 
   @Override
@@ -136,10 +136,10 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
             });
   }
 
-  private void apply(ItemDisplay display, String modelKey, int stage) {
+  private void apply(ItemDisplay display, String modelKey, BreakType type, int stage) {
     ItemStack stack = new ItemStack(displayBaseMaterial);
     var meta = stack.getItemMeta();
-    String modelId = modelRoot + modelKey + "/stage_" + stage;
+    String modelId = modelRoot + modelKey + "/stage_" + modelStageFor(type, stage);
     ItemModelUtil.ApplyResult result = ItemModelUtil.applyItemModelDetailed(meta, modelId);
     if (meta != null) {
       stack.setItemMeta(meta);
@@ -157,6 +157,19 @@ public final class DisplayBreakAnimationSender implements BreakAnimationSender {
     t.getScale().set(new Vector3f(displayScale, displayScale, displayScale));
     display.setTransformation(t);
     display.setRotation(0f, 0f);
+  }
+
+  static int modelStageFor(BreakType type, int stage) {
+    if (type != BreakType.WIRE) {
+      return stage;
+    }
+    if (stage <= 4) {
+      return 0;
+    }
+    if (stage <= 7) {
+      return 1;
+    }
+    return 2;
   }
 
   private void cleanupNearby(Block block) {

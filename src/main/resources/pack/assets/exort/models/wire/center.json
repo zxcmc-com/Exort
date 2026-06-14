@@ -2,7 +2,7 @@
 	"format_version": "1.21.6",
 	"credit": "phantomfighterxx",
 	"textures": {
-		"base": "exort:wires/glass"
+		"base": "exort:block/wire"
 	},
 	"elements": [
 		{

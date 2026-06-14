@@ -55,7 +55,7 @@ class BreakingOverlayModelResolverTest {
   }
 
   @Test
-  void storageTerminalAndMonitorFacingsUsePreBakedHorizontalKeys() {
+  void storageUsesSharedModelWhileTerminalAndMonitorFacingsUsePreBakedHorizontalKeys() {
     Plugin plugin = plugin();
     BlockProbe storage = block(1, 64, 0);
     BlockProbe terminal = block(2, 64, 0);
@@ -71,7 +71,7 @@ class BreakingOverlayModelResolverTest {
     MonitorMarker.set(plugin, monitor.block, BlockFace.NORTH);
 
     BreakingOverlayModelResolver resolver = resolver(plugin);
-    assertEquals("storage/east", resolver.modelKey(storage.block, BreakType.STORAGE));
+    assertEquals("storage/core", resolver.modelKey(storage.block, BreakType.STORAGE));
     assertEquals("terminal/west", resolver.modelKey(terminal.block, BreakType.TERMINAL));
     assertEquals("terminal/north", resolver.modelKey(monitor.block, BreakType.MONITOR));
   }
@@ -86,7 +86,7 @@ class BreakingOverlayModelResolverTest {
   }
 
   @Test
-  void wireMaskUsesSharedWireSuffixes() {
+  void wireMasksUseSharedCenterModel() {
     Plugin plugin = plugin();
     BlockProbe wire = block(5, 64, 0);
     WireMarker.setWire(plugin, wire.block);
@@ -98,7 +98,7 @@ class BreakingOverlayModelResolverTest {
     WireMarker.setWire(plugin, northWire.block);
     wire.relative(BlockFace.NORTH, northWire);
 
-    assertEquals("wire/n", resolver.modelKey(wire.block, BreakType.WIRE));
+    assertEquals("wire/center", resolver.modelKey(wire.block, BreakType.WIRE));
   }
 
   private static BreakingOverlayModelResolver resolver(Plugin plugin) {

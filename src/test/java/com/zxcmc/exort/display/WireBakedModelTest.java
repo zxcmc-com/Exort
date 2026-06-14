@@ -110,7 +110,7 @@ class WireBakedModelTest {
         new StringBuilder()
             .append("{\n")
             .append("  \"format_version\": \"1.21.6\",\n")
-            .append("  \"textures\": {\"base\": \"exort:wires/glass\"},\n")
+            .append("  \"textures\": {\"base\": \"exort:block/wire\"},\n")
             .append("  \"elements\": [\n")
             .append("    ")
             .append(elementJson(CENTER));

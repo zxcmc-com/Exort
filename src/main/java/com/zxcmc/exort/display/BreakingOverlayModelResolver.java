@@ -3,8 +3,6 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.breaking.BreakType;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
-import com.zxcmc.exort.marker.StorageCoreMarker;
-import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import java.util.Locale;
 import java.util.Objects;
@@ -15,11 +13,6 @@ import org.bukkit.plugin.Plugin;
 
 public final class BreakingOverlayModelResolver {
   private final Plugin plugin;
-  private final Material wireCarrierMaterial;
-  private final Material terminalMaterial;
-  private final Material storageCarrier;
-  private final Material monitorCarrier;
-  private final Material busCarrier;
 
   public BreakingOverlayModelResolver(
       Plugin plugin,
@@ -29,11 +22,11 @@ public final class BreakingOverlayModelResolver {
       Material monitorCarrier,
       Material busCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
-    this.wireCarrierMaterial = Objects.requireNonNull(wireCarrierMaterial, "wireCarrierMaterial");
-    this.terminalMaterial = Objects.requireNonNull(terminalMaterial, "terminalMaterial");
-    this.storageCarrier = Objects.requireNonNull(storageCarrier, "storageCarrier");
-    this.monitorCarrier = Objects.requireNonNull(monitorCarrier, "monitorCarrier");
-    this.busCarrier = Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(wireCarrierMaterial, "wireCarrierMaterial");
+    Objects.requireNonNull(terminalMaterial, "terminalMaterial");
+    Objects.requireNonNull(storageCarrier, "storageCarrier");
+    Objects.requireNonNull(monitorCarrier, "monitorCarrier");
+    Objects.requireNonNull(busCarrier, "busCarrier");
   }
 
   public String modelKey(Block block, BreakType type) {
@@ -41,7 +34,7 @@ public final class BreakingOverlayModelResolver {
       return null;
     }
     return switch (type) {
-      case STORAGE -> storageModelKey(block);
+      case STORAGE -> "storage/core";
       case TERMINAL ->
           "terminal/" + key(horizontalOrSouth(TerminalMarker.facing(plugin, block).orElse(null)));
       case MONITOR ->
@@ -51,31 +44,9 @@ public final class BreakingOverlayModelResolver {
               + key(
                   fullOrNorth(
                       BusMarker.get(plugin, block).map(BusMarker.Data::facing).orElse(null)));
-      case WIRE -> wireModelKey(block);
+      case WIRE -> "wire/center";
       case NONE -> null;
     };
-  }
-
-  private String storageModelKey(Block block) {
-    if (StorageCoreMarker.isCore(plugin, block)) {
-      return "storage/core";
-    }
-    BlockFace facing =
-        StorageMarker.get(plugin, block).map(StorageMarker.Data::facing).orElse(null);
-    return "storage/" + key(horizontalOrSouth(facing));
-  }
-
-  private String wireModelKey(Block block) {
-    int mask =
-        WireConnectionModelResolver.connectionsMask(
-            plugin,
-            block,
-            wireCarrierMaterial,
-            terminalMaterial,
-            storageCarrier,
-            monitorCarrier,
-            busCarrier);
-    return "wire/" + WireModelKeys.compactModelKeyForMask(mask);
   }
 
   private static BlockFace horizontalOrSouth(BlockFace face) {
