@@ -110,6 +110,47 @@ class BreakingModelGeneratorTest {
   }
 
   @Test
+  void busPolicyAlignsProtrusionAndCentersBodyDestroyUvs() throws IOException {
+    JsonObject generated =
+        BreakingModelGenerator.generateBusModel(
+            busSourceModel(),
+            0,
+            BreakingModelGenerator.identityTransform(),
+            Map.of("assets/exort/textures/block/bus.png", pngBytes(blankTexture(32, 32))));
+
+    JsonObject protrusionNorth =
+        faceWithBounds(generated, "north", new double[] {3, 3, -1}, new double[] {13, 13, 2});
+    assertArrayEquals(
+        new double[] {2, 2, 14, 14}, doubleArray(protrusionNorth.getAsJsonArray("uv")));
+    assertFalse(
+        hasFaceBounds(generated, "east", new double[] {3, 3, -1}, new double[] {13, 13, 2}));
+    assertFalse(hasFaceBounds(generated, "up", new double[] {3, 3, -1}, new double[] {13, 13, 2}));
+    assertFalse(hasFaceBounds(generated, "east", new double[] {1, 1, 2}, new double[] {15, 15, 4}));
+    assertFalse(hasFaceBounds(generated, "up", new double[] {1, 1, 2}, new double[] {15, 15, 4}));
+
+    JsonObject bodyEast =
+        faceWithBounds(generated, "east", new double[] {0, 0, 4}, new double[] {16, 16, 16});
+    assertArrayEquals(new double[] {14, 0, 2, 16}, doubleArray(bodyEast.getAsJsonArray("uv")));
+
+    JsonObject bodyUp =
+        faceWithBounds(generated, "up", new double[] {0, 0, 4}, new double[] {16, 16, 16});
+    assertArrayEquals(new double[] {16, 14, 0, 2}, doubleArray(bodyUp.getAsJsonArray("uv")));
+  }
+
+  @Test
+  void busPolicyCentersBodyUvWhenTextureCannotBeResolved() {
+    JsonObject generated =
+        BreakingModelGenerator.generateBusModel(
+            sourceModel(0, 0, 4, 16, 16, 16, "east", "up"),
+            0,
+            BreakingModelGenerator.identityTransform(),
+            Map.of());
+
+    assertArrayEquals(new double[] {14, 0, 2, 16}, uv(generated, "east"));
+    assertArrayEquals(new double[] {16, 14, 0, 2}, uv(generated, "up"));
+  }
+
+  @Test
   void displayRotationsRemapBoundsAndKeepOnlyExternalFaces() {
     JsonObject source = sourceModel(0, 0, 0, 2, 4, 6, "north", "east", "up");
 
@@ -308,6 +349,55 @@ class BreakingModelGeneratorTest {
     return root;
   }
 
+  private static JsonObject busSourceModel() {
+    JsonObject root = new JsonObject();
+    JsonObject textures = new JsonObject();
+    textures.addProperty("0", "exort:block/bus");
+    root.add("textures", textures);
+
+    JsonArray elements = new JsonArray();
+    JsonObject transition = new JsonObject();
+    transition.add("from", array(1, 1, 2));
+    transition.add("to", array(15, 15, 4));
+    JsonObject transitionFaces = new JsonObject();
+    transitionFaces.add("east", face(7.5, 0, 8.5, 8, 0));
+    transitionFaces.add("up", face(7.5, 0, 8.5, 8, 270));
+    transition.add("faces", transitionFaces);
+    elements.add(transition);
+
+    JsonObject protrusion = new JsonObject();
+    protrusion.add("from", array(3, 3, -1));
+    protrusion.add("to", array(13, 13, 2));
+    JsonObject protrusionFaces = new JsonObject();
+    protrusionFaces.add("north", face(9, 1, 15, 7, 0));
+    protrusionFaces.add("east", face(13.5, 2, 15, 6, 0));
+    protrusionFaces.add("up", face(10, 1, 14, 2.5, 0));
+    protrusion.add("faces", protrusionFaces);
+    elements.add(protrusion);
+
+    JsonObject body = new JsonObject();
+    body.add("from", array(0, 0, 4));
+    body.add("to", array(16, 16, 16));
+    JsonObject bodyFaces = new JsonObject();
+    bodyFaces.add("east", face(6, 16, 0, 8, 0));
+    bodyFaces.add("up", face(6, 8, 0, 16, 270));
+    body.add("faces", bodyFaces);
+    elements.add(body);
+
+    root.add("elements", elements);
+    return root;
+  }
+
+  private static JsonObject face(double u1, double v1, double u2, double v2, int rotation) {
+    JsonObject face = new JsonObject();
+    face.add("uv", array(u1, v1, u2, v2));
+    face.addProperty("texture", "#0");
+    if (rotation != 0) {
+      face.addProperty("rotation", rotation);
+    }
+    return face;
+  }
+
   private static JsonObject terminalElement(
       double[] from, double[] to, Map<String, String> faceTextures) {
     JsonObject element = new JsonObject();
@@ -503,6 +593,10 @@ class BreakingModelGeneratorTest {
       }
     }
     return image;
+  }
+
+  private static BufferedImage blankTexture(int width, int height) {
+    return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
   }
 
   private static byte[] pngBytes(BufferedImage image) throws IOException {

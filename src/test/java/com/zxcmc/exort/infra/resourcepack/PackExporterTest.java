@@ -91,7 +91,10 @@ class PackExporterTest {
       assertEntry(zip, "assets/exort/items/breaking/storage/core/stage_0.json");
       assertEntry(zip, "assets/exort/models/breaking/storage/core/stage_9.json");
       assertEntry(zip, "assets/exort/items/breaking/terminal/north/stage_3.json");
-      assertEntry(zip, "assets/exort/models/breaking/bus/up/stage_9.json");
+      assertEntry(zip, "assets/exort/models/breaking/bus/import/up/stage_9.json");
+      assertEntry(zip, "assets/exort/models/breaking/bus/export/up/stage_9.json");
+      assertEntry(zip, "assets/exort/items/breaking/bus/import/down/stage_0.json");
+      assertEntry(zip, "assets/exort/items/breaking/bus/export/down/stage_0.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_0.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_1.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_2.json");
@@ -106,7 +109,7 @@ class PackExporterTest {
       assertEntry(zip, "assets/exort/textures/breaking/particles/storage.png");
       assertEntry(zip, "assets/exort/textures/breaking/particles/wire.png");
       assertEquals(
-          113,
+          173,
           zip.stream()
               .filter(
                   entry ->
@@ -114,7 +117,7 @@ class PackExporterTest {
                           && entry.getName().endsWith(".json"))
               .count());
       assertEquals(
-          113,
+          173,
           zip.stream()
               .filter(
                   entry ->
@@ -123,6 +126,8 @@ class PackExporterTest {
               .count());
       assertFalse(zip.getEntry("assets/exort/models/breaking/storage/south/stage_0.json") != null);
       assertFalse(zip.getEntry("assets/exort/items/breaking/storage/east/stage_0.json") != null);
+      assertFalse(zip.getEntry("assets/exort/models/breaking/bus/up/stage_9.json") != null);
+      assertFalse(zip.getEntry("assets/exort/items/breaking/bus/down/stage_0.json") != null);
       assertFalse(zip.getEntry("assets/exort/models/breaking/wire/dnsew/stage_5.json") != null);
       assertFalse(zip.getEntry("assets/exort/items/breaking/wire/center/stage_3.json") != null);
       assertFalse(zip.getEntry("assets/exort/items/breaking/wire/center/stage_9.json") != null);
@@ -167,46 +172,84 @@ class PackExporterTest {
 
       assertAllFaceUvsInsideDestroySprite(
           JsonParser.parseString(
-                  readEntry(zip, "assets/exort/models/breaking/bus/south/stage_0.json"))
+                  readEntry(zip, "assets/exort/models/breaking/bus/import/south/stage_0.json"))
               .getAsJsonObject());
       assertAllFaceUvsInsideDestroySprite(
           JsonParser.parseString(
-                  readEntry(zip, "assets/exort/models/breaking/bus/north/stage_0.json"))
+                  readEntry(zip, "assets/exort/models/breaking/bus/export/north/stage_0.json"))
               .getAsJsonObject());
+      var busImportSouthBreakingModel =
+          JsonParser.parseString(
+                  readEntry(zip, "assets/exort/models/breaking/bus/import/south/stage_0.json"))
+              .getAsJsonObject();
+      assertFalse(
+          hasElementBounds(
+              busImportSouthBreakingModel, new double[] {1, 1, 2}, new double[] {15, 15, 4}),
+          "bus transition shelf must not receive breaking overlay cracks");
+      JsonObject busImportProtrusion =
+          faceWithBounds(
+              busImportSouthBreakingModel,
+              "north",
+              new double[] {3, 3, -1},
+              new double[] {13, 13, 2});
+      assertTrue(
+          arraysEqual(
+              new double[] {2, 2, 14, 14}, doubleArray(busImportProtrusion.getAsJsonArray("uv"))),
+          "bus protrusion face must use its 12px source texture span centered in the destroy"
+              + " sprite");
+      JsonObject busImportBodySide =
+          faceWithBounds(
+              busImportSouthBreakingModel,
+              "east",
+              new double[] {0, 0, 4},
+              new double[] {16, 16, 16});
+      assertTrue(
+          arraysEqual(
+              new double[] {14, 0, 2, 16}, doubleArray(busImportBodySide.getAsJsonArray("uv"))),
+          "bus body side must center the destroy sprite on the 12px body depth instead of"
+              + " compressing 16 crack pixels into that span");
+      JsonObject busImportBodyTop =
+          faceWithBounds(
+              busImportSouthBreakingModel, "up", new double[] {0, 0, 4}, new double[] {16, 16, 16});
+      assertTrue(
+          arraysEqual(
+              new double[] {16, 14, 0, 2}, doubleArray(busImportBodyTop.getAsJsonArray("uv"))),
+          "bus body top must center the destroy sprite on the 12px body depth after rotation");
+      assertEquals(
+          "exort:breaking/overlay/0",
+          texturePath(busImportSouthBreakingModel.getAsJsonObject("textures"), busImportBodySide),
+          "bus breaking overlay must not use generated density textures");
       var busUpBreakingModel =
-          JsonParser.parseString(readEntry(zip, "assets/exort/models/breaking/bus/up/stage_0.json"))
+          JsonParser.parseString(
+                  readEntry(zip, "assets/exort/models/breaking/bus/import/up/stage_0.json"))
               .getAsJsonObject();
       var busDownBreakingModel =
           JsonParser.parseString(
-                  readEntry(zip, "assets/exort/models/breaking/bus/down/stage_0.json"))
+                  readEntry(zip, "assets/exort/models/breaking/bus/export/down/stage_0.json"))
               .getAsJsonObject();
       assertAllFaceUvsInsideDestroySprite(busUpBreakingModel);
       assertAllFaceUvsInsideDestroySprite(busDownBreakingModel);
       assertTrue(
           hasElementBounds(busUpBreakingModel, new double[] {3, 14, 3}, new double[] {13, 17, 13}),
           "bus/up breaking overlay must keep the connector overhang on the top side");
-      JsonObject busUpConnectorSide =
-          faceWithBounds(
-              busUpBreakingModel, "south", new double[] {3, 14, 3}, new double[] {13, 17, 13});
+      assertFalse(
+          hasElementBounds(busUpBreakingModel, new double[] {1, 12, 1}, new double[] {15, 14, 15}),
+          "bus/up transition shelf must not receive breaking overlay cracks");
       JsonObject busUpConnectorTop =
           faceWithBounds(
               busUpBreakingModel, "up", new double[] {3, 14, 3}, new double[] {13, 17, 13});
+      assertFalse(
+          hasFaceBounds(
+              busUpBreakingModel, "south", new double[] {3, 14, 3}, new double[] {13, 17, 13}),
+          "bus/up connector side neck faces should not receive breaking overlay cracks");
       assertTrue(
           arraysEqual(
-              new double[] {13, 13, 3, 3}, doubleArray(busUpConnectorTop.getAsJsonArray("uv"))),
-          "bus/up large connector face must keep projected UVs");
+              new double[] {2, 2, 14, 14}, doubleArray(busUpConnectorTop.getAsJsonArray("uv"))),
+          "bus/up connector top must use centered source-texture UVs");
       assertEquals(
           "exort:breaking/overlay/0",
           texturePath(busUpBreakingModel.getAsJsonObject("textures"), busUpConnectorTop),
           "bus/up large connector face must use the original destroy stage texture");
-      assertTrue(
-          arraysEqual(
-              new double[] {3, 0, 13, 3}, doubleArray(busUpConnectorSide.getAsJsonArray("uv"))),
-          "bus/up connector side overlay must keep projected UVs instead of stretching source UVs");
-      assertEquals(
-          "exort:breaking/overlay/0",
-          texturePath(busUpBreakingModel.getAsJsonObject("textures"), busUpConnectorSide),
-          "bus breaking overlay must not use generated density textures");
       assertTrue(
           hasElementBounds(busDownBreakingModel, new double[] {3, -1, 3}, new double[] {13, 2, 13}),
           "bus/down breaking overlay must keep the connector overhang on the bottom side");
@@ -396,6 +439,22 @@ class PackExporterTest {
       }
     }
     throw new AssertionError("missing " + face + " face for expected bounds");
+  }
+
+  private static boolean hasFaceBounds(
+      JsonObject model, String face, double[] expectedFrom, double[] expectedTo) {
+    for (var element : model.getAsJsonArray("elements")) {
+      var object = element.getAsJsonObject();
+      var faces = object.getAsJsonObject("faces");
+      if (faces == null || !faces.has(face)) {
+        continue;
+      }
+      if (arraysEqual(expectedFrom, doubleArray(object.getAsJsonArray("from")))
+          && arraysEqual(expectedTo, doubleArray(object.getAsJsonArray("to")))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static JsonObject firstFace(JsonObject model, String face) {

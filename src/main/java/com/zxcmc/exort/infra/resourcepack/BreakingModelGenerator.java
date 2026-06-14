@@ -13,6 +13,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +46,7 @@ final class BreakingModelGenerator {
   private static final int TERMINAL_FRAME_CUTOUT_MAX = 14;
   private static final double BLOCK_CENTER = 8.0;
   private static final double COORDINATE_EPSILON = 0.000001;
+  private static final TextureSizeResolver NO_TEXTURE_SIZES = texture -> null;
 
   private BreakingModelGenerator() {}
 
@@ -77,7 +80,11 @@ final class BreakingModelGenerator {
             modelPath,
             GSON.toJson(
                     generateModel(
-                        variant.sourceModel(), stage, variant.transform(), variant.facePolicy()))
+                        variant.sourceModel(),
+                        stage,
+                        variant.transform(),
+                        variant.facePolicy(),
+                        variant.textureSizes()))
                 .getBytes(StandardCharsets.UTF_8));
       }
     }
@@ -110,14 +117,30 @@ final class BreakingModelGenerator {
     return generateModel(sourceModel, stage, transform, FacePolicy.TERMINAL_SCREEN_FRONT);
   }
 
+  static JsonObject generateBusModel(
+      JsonObject sourceModel, int stage, Transform transform, Map<String, byte[]> entries) {
+    return generateModel(
+        sourceModel, stage, transform, FacePolicy.BUS, textureSizeResolver(entries));
+  }
+
   private static JsonObject generateModel(
       JsonObject sourceModel, int stage, Transform transform, FacePolicy facePolicy) {
+    return generateModel(sourceModel, stage, transform, facePolicy, NO_TEXTURE_SIZES);
+  }
+
+  private static JsonObject generateModel(
+      JsonObject sourceModel,
+      int stage,
+      Transform transform,
+      FacePolicy facePolicy,
+      TextureSizeResolver textureSizes) {
     if (stage < 0 || stage >= STAGE_COUNT) {
       throw new IllegalArgumentException("Unsupported breaking stage: " + stage);
     }
     Objects.requireNonNull(sourceModel, "sourceModel");
     Objects.requireNonNull(transform, "transform");
     Objects.requireNonNull(facePolicy, "facePolicy");
+    Objects.requireNonNull(textureSizes, "textureSizes");
 
     JsonObject root = new JsonObject();
     root.addProperty("format_version", "1.21.6");
@@ -143,7 +166,8 @@ final class BreakingModelGenerator {
         continue;
       }
       JsonObject element =
-          transformElement(sourceElement.getAsJsonObject(), sourceTextures, transform, facePolicy);
+          transformElement(
+              sourceElement.getAsJsonObject(), sourceTextures, transform, facePolicy, textureSizes);
       if (element != null) {
         elements.add(element);
       }
@@ -179,6 +203,7 @@ final class BreakingModelGenerator {
             readModel(entries, "storage/storage.json"),
             identityTransform(),
             FacePolicy.DEFAULT,
+            NO_TEXTURE_SIZES,
             STAGE_COUNT));
   }
 
@@ -192,19 +217,30 @@ final class BreakingModelGenerator {
               source,
               new Transform(DisplayRotation.rotationForFacing(face)),
               FacePolicy.TERMINAL_SCREEN_FRONT,
+              NO_TEXTURE_SIZES,
               STAGE_COUNT));
     }
   }
 
   private static void addBusVariants(Map<String, byte[]> entries, List<VariantSource> variants) {
-    JsonObject source = readModel(entries, "bus/import.json");
+    TextureSizeResolver textureSizes = textureSizeResolver(entries);
+    addBusVariants("import", readModel(entries, "bus/import.json"), textureSizes, variants);
+    addBusVariants("export", readModel(entries, "bus/export.json"), textureSizes, variants);
+  }
+
+  private static void addBusVariants(
+      String type,
+      JsonObject source,
+      TextureSizeResolver textureSizes,
+      List<VariantSource> variants) {
     for (BlockFace face : fullFaces()) {
       variants.add(
           new VariantSource(
-              "bus/" + key(face),
+              "bus/" + type + "/" + key(face),
               source,
               new Transform(busBreakingRotationForFacing(face)),
-              FacePolicy.DEFAULT,
+              FacePolicy.BUS,
+              textureSizes,
               STAGE_COUNT));
     }
   }
@@ -224,11 +260,16 @@ final class BreakingModelGenerator {
             readModel(entries, "wire/center.json"),
             identityTransform(),
             FacePolicy.DEFAULT,
+            NO_TEXTURE_SIZES,
             WIRE_STAGE_COUNT));
   }
 
   private static JsonObject transformElement(
-      JsonObject source, JsonObject sourceTextures, Transform transform, FacePolicy facePolicy) {
+      JsonObject source,
+      JsonObject sourceTextures,
+      Transform transform,
+      FacePolicy facePolicy,
+      TextureSizeResolver textureSizes) {
     validateUnsupportedElementRotation(source);
     double[] sourceFrom = readVector(source, "from");
     double[] sourceTo = readVector(source, "to");
@@ -245,11 +286,15 @@ final class BreakingModelGenerator {
         if (shouldSkipSourceFace(entry.getKey(), sourceFace, sourceTextures, facePolicy)) {
           continue;
         }
+        if (shouldSkipBusOverlayFace(entry.getKey(), sourceFrom, sourceTo, facePolicy)) {
+          continue;
+        }
         String targetFace = rotateFace(entry.getKey(), transform.rotation());
         if (!isExternalFace(targetFace, from, to)) {
           continue;
         }
-        JsonArray uv = uvForFace(targetFace, from, to);
+        JsonArray uv =
+            uvForFace(targetFace, from, to, sourceFace, sourceTextures, facePolicy, textureSizes);
         if (uv != null) {
           faces.add(targetFace, faceJson(uv));
         }
@@ -261,6 +306,50 @@ final class BreakingModelGenerator {
     return targetElement(source, from, to, faces);
   }
 
+  private static TextureSizeResolver textureSizeResolver(Map<String, byte[]> entries) {
+    Objects.requireNonNull(entries, "entries");
+    Map<String, TextureSize> cache = new HashMap<>();
+    return texture -> {
+      String path = texturePath(texture);
+      if (path == null) {
+        return null;
+      }
+      if (cache.containsKey(path)) {
+        return cache.get(path);
+      }
+      byte[] raw = entries.get(path);
+      if (raw == null) {
+        return null;
+      }
+      try {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(raw));
+        if (image == null) {
+          throw new IllegalArgumentException("Invalid PNG breaking texture source: " + path);
+        }
+        TextureSize size = new TextureSize(image.getWidth(), image.getHeight());
+        cache.put(path, size);
+        return size;
+      } catch (IOException e) {
+        throw new IllegalArgumentException(
+            "Failed to read PNG breaking texture source: " + path, e);
+      }
+    };
+  }
+
+  private static String texturePath(String texture) {
+    if (texture == null || texture.isBlank() || texture.startsWith("#")) {
+      return null;
+    }
+    String value = texture.trim();
+    int separator = value.indexOf(':');
+    String namespace = separator >= 0 ? value.substring(0, separator) : "minecraft";
+    String path = separator >= 0 ? value.substring(separator + 1) : value;
+    if (namespace.isBlank() || path.isBlank()) {
+      return null;
+    }
+    return "assets/" + namespace + "/textures/" + path + ".png";
+  }
+
   private static boolean shouldSkipSourceFace(
       String sourceFace,
       JsonObject sourceFaceObject,
@@ -270,6 +359,41 @@ final class BreakingModelGenerator {
       return false;
     }
     return !resolveTexture(sourceFaceObject, sourceTextures).startsWith(SCREEN_TEXTURE_ROOT);
+  }
+
+  private static boolean shouldSkipBusOverlayFace(
+      String sourceFace, double[] sourceFrom, double[] sourceTo, FacePolicy policy) {
+    if (policy != FacePolicy.BUS) {
+      return false;
+    }
+    if (isBusTransitionElement(sourceFrom, sourceTo)) {
+      return true;
+    }
+    return isBusNeckElement(sourceFrom, sourceTo) && !"north".equals(sourceFace);
+  }
+
+  private static boolean isBusTransitionElement(double[] from, double[] to) {
+    return hasSortedDimensions(from, to, 2.0, 14.0, 14.0);
+  }
+
+  private static boolean isBusNeckElement(double[] from, double[] to) {
+    return hasSortedDimensions(from, to, 3.0, 10.0, 10.0);
+  }
+
+  private static boolean isBusBodyElement(double[] from, double[] to) {
+    return hasSortedDimensions(from, to, 12.0, 16.0, 16.0);
+  }
+
+  private static boolean hasSortedDimensions(
+      double[] from, double[] to, double first, double second, double third) {
+    double[] dimensions =
+        new double[] {
+          Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]), Math.abs(to[2] - from[2])
+        };
+    Arrays.sort(dimensions);
+    return Math.abs(dimensions[0] - first) < COORDINATE_EPSILON
+        && Math.abs(dimensions[1] - second) < COORDINATE_EPSILON
+        && Math.abs(dimensions[2] - third) < COORDINATE_EPSILON;
   }
 
   private static String resolveTexture(JsonObject sourceFace, JsonObject sourceTextures) {
@@ -530,7 +654,25 @@ final class BreakingModelGenerator {
     return (coordinate - BLOCK_CENTER) * normalSign;
   }
 
-  private static JsonArray uvForFace(String face, double[] from, double[] to) {
+  private static JsonArray uvForFace(
+      String face,
+      double[] from,
+      double[] to,
+      JsonObject sourceFace,
+      JsonObject sourceTextures,
+      FacePolicy facePolicy,
+      TextureSizeResolver textureSizes) {
+    if (facePolicy == FacePolicy.BUS) {
+      if (isBusBodyElement(from, to)) {
+        return centeredUvForFace(face, from, to);
+      }
+      JsonArray uv = busUvForSourceFace(sourceFace, sourceTextures, textureSizes);
+      return uv == null ? centeredUvForFace(face, from, to) : uv;
+    }
+    return projectedUvForFace(face, from, to);
+  }
+
+  private static JsonArray projectedUvForFace(String face, double[] from, double[] to) {
     return switch (face) {
       case "north", "south" -> {
         if (!intersectsDestroySprite(from[0], to[0]) || !intersectsDestroySprite(from[1], to[1])) {
@@ -552,6 +694,77 @@ final class BreakingModelGenerator {
       }
       default -> throw new IllegalArgumentException("Unsupported model face: " + face);
     };
+  }
+
+  private static JsonArray busUvForSourceFace(
+      JsonObject sourceFace, JsonObject sourceTextures, TextureSizeResolver textureSizes) {
+    if (sourceFace == null || !sourceFace.has("uv")) {
+      return null;
+    }
+    JsonArray sourceUv = sourceFace.getAsJsonArray("uv");
+    if (sourceUv == null || sourceUv.size() != 4) {
+      return null;
+    }
+    TextureSize textureSize = textureSizes.resolve(resolveTexture(sourceFace, sourceTextures));
+    if (textureSize == null) {
+      return null;
+    }
+
+    double u1 = sourceUv.get(0).getAsDouble();
+    double v1 = sourceUv.get(1).getAsDouble();
+    double u2 = sourceUv.get(2).getAsDouble();
+    double v2 = sourceUv.get(3).getAsDouble();
+    double width = Math.abs(u2 - u1) * textureSize.width() / BASE_DESTROY_TEXTURE_SIZE;
+    double height = Math.abs(v2 - v1) * textureSize.height() / BASE_DESTROY_TEXTURE_SIZE;
+    boolean reverseU = u2 < u1;
+    boolean reverseV = v2 < v1;
+
+    int rotation = sourceFaceRotation(sourceFace);
+    if (rotation == 90 || rotation == 270) {
+      double tmpSize = width;
+      width = height;
+      height = tmpSize;
+      boolean tmpReverse = reverseU;
+      reverseU = reverseV;
+      reverseV = tmpReverse;
+    }
+    if (width <= COORDINATE_EPSILON || height <= COORDINATE_EPSILON) {
+      return null;
+    }
+    double[] u = centeredDestroyUvInterval(width, reverseU);
+    double[] v = centeredDestroyUvInterval(height, reverseV);
+    return numberArray(u[0], v[0], u[1], v[1]);
+  }
+
+  private static int sourceFaceRotation(JsonObject sourceFace) {
+    if (!sourceFace.has("rotation") || !sourceFace.get("rotation").isJsonPrimitive()) {
+      return 0;
+    }
+    int rotation = Math.floorMod(sourceFace.get("rotation").getAsInt(), 360);
+    return rotation == 90 || rotation == 180 || rotation == 270 ? rotation : 0;
+  }
+
+  private static JsonArray centeredUvForFace(String face, double[] from, double[] to) {
+    return switch (face) {
+      case "north", "south" -> centeredNumberArray(to[0] - from[0], to[1] - from[1], false, false);
+      case "east", "west" -> centeredNumberArray(to[2] - from[2], to[1] - from[1], true, false);
+      case "up", "down" -> centeredNumberArray(to[0] - from[0], to[2] - from[2], true, true);
+      default -> throw new IllegalArgumentException("Unsupported model face: " + face);
+    };
+  }
+
+  private static JsonArray centeredNumberArray(
+      double width, double height, boolean reverseU, boolean reverseV) {
+    double[] u = centeredDestroyUvInterval(width, reverseU);
+    double[] v = centeredDestroyUvInterval(height, reverseV);
+    return numberArray(u[0], v[0], u[1], v[1]);
+  }
+
+  private static double[] centeredDestroyUvInterval(double size, boolean reverse) {
+    double length = Math.max(0.0, Math.min(BASE_DESTROY_TEXTURE_SIZE, size));
+    double start = (BASE_DESTROY_TEXTURE_SIZE - length) / 2.0;
+    double end = start + length;
+    return reverse ? new double[] {end, start} : new double[] {start, end};
   }
 
   private static JsonArray fittedNumberArray(double u1, double v1, double u2, double v2) {
@@ -644,13 +857,22 @@ final class BreakingModelGenerator {
 
   private enum FacePolicy {
     DEFAULT,
-    TERMINAL_SCREEN_FRONT
+    TERMINAL_SCREEN_FRONT,
+    BUS
   }
+
+  @FunctionalInterface
+  private interface TextureSizeResolver {
+    TextureSize resolve(String texture);
+  }
+
+  private record TextureSize(int width, int height) {}
 
   private record VariantSource(
       String modelKey,
       JsonObject sourceModel,
       Transform transform,
       FacePolicy facePolicy,
+      TextureSizeResolver textureSizes,
       int stageCount) {}
 }

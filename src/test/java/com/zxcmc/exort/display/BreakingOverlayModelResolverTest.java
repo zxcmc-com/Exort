@@ -77,12 +77,20 @@ class BreakingOverlayModelResolverTest {
   }
 
   @Test
-  void busFullFacingUsesPreBakedFullDirectionKey() {
+  void busFullFacingUsesPreBakedTypeAndDirectionKey() {
     Plugin plugin = plugin();
     BlockProbe bus = block(4, 64, 0);
     BusMarker.set(plugin, bus.block, BusType.EXPORT, BlockFace.UP, BusMode.ALL);
 
-    assertEquals("bus/up", resolver(plugin).modelKey(bus.block, BreakType.BUS));
+    assertEquals("bus/export/up", resolver(plugin).modelKey(bus.block, BreakType.BUS));
+  }
+
+  @Test
+  void busMissingMarkerFallsBackToImportNorthKey() {
+    Plugin plugin = plugin();
+    BlockProbe bus = block(4, 64, 0);
+
+    assertEquals("bus/import/north", resolver(plugin).modelKey(bus.block, BreakType.BUS));
   }
 
   @Test

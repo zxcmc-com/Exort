@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.15 — 2026-06-14
+- RESOURCE breaking overlays on import and export buses now keep cracks centered on the main bus body, keep the protrusion face aligned to its texture span, and skip the protruding neck side faces plus transition shelf where cracks cannot align cleanly to the bus texture grid.
+
 ## 0.14.14 — 2026-06-14
 - Cleaned up bus tick-budget accounting and crafting terminal target-crafting code.
 
