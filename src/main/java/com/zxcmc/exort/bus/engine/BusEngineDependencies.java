@@ -16,14 +16,17 @@ public record BusEngineDependencies(
     StorageKeys keys,
     int wireLimit,
     int wireHardCap,
+    int bridgeRangeChunks,
     Material wireMaterial,
     Material storageCarrier,
+    Material bridgeCarrier,
     Consumer<String> storageRenderer) {
   public BusEngineDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
     Objects.requireNonNull(storageRenderer, "storageRenderer");
   }
 
@@ -37,7 +40,15 @@ public record BusEngineDependencies(
 
   TerminalLinkFinder.StorageSearchResult findLinkedStorage(Block busBlock) {
     return TerminalLinkFinder.find(
-        busBlock, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+        busBlock,
+        keys,
+        plugin,
+        wireLimit,
+        wireHardCap,
+        wireMaterial,
+        storageCarrier,
+        bridgeCarrier,
+        bridgeRangeChunks);
   }
 
   long topologyVersion() {

@@ -8,6 +8,7 @@ public record RuntimeNetworkConfig(
     long wirePeekTicks,
     int wireLimit,
     int wireHardCap,
+    int bridgeRangeChunks,
     boolean wireHardCapAdjusted) {
   private static final long TICKS_PER_SECOND = 20L;
 
@@ -22,8 +23,14 @@ public record RuntimeNetworkConfig(
     int hardCapRaw = config.getInt("wire.hardCap", Math.max(wireLimit * 2, wireLimit));
     boolean hardCapAdjusted = hardCapRaw < wireLimit;
     int wireHardCap = Math.max(wireLimit, hardCapRaw);
+    int bridgeRangeChunks = Math.max(0, config.getInt("bridge.rangeChunks", 3));
 
     return new RuntimeNetworkConfig(
-        storagePeekTicks, wirePeekTicks, wireLimit, wireHardCap, hardCapAdjusted);
+        storagePeekTicks,
+        wirePeekTicks,
+        wireLimit,
+        wireHardCap,
+        bridgeRangeChunks,
+        hardCapAdjusted);
   }
 }

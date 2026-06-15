@@ -20,7 +20,8 @@ public record LoadTestRuntimeDependencies(
     ItemHologramManager hologramManager,
     MonitorDisplayManager monitorDisplayManager,
     int wireLimit,
-    int wireHardCap) {
+    int wireHardCap,
+    int bridgeRangeChunks) {
   public LoadTestRuntimeDependencies {
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(storageManager, "storageManager");

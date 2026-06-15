@@ -72,8 +72,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private final StorageManager storageManager;
   private final int wireLimit;
   private final int wireHardCap;
+  private final int bridgeRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
+  private final Material bridgeCarrier;
   private final Component monitorName;
   private final String enabledModel;
   private final String disabledModel;
@@ -112,8 +114,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       Component monitorName,
       int wireLimit,
       int wireHardCap,
+      int bridgeRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
+      Material bridgeCarrier,
       ScreenConfig itemConfig,
       ScreenConfig blockConfig,
       ScreenConfig thinBlockConfig,
@@ -137,8 +141,10 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     this.storageManager = storageManager;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
+    this.bridgeRangeChunks = bridgeRangeChunks;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
+    this.bridgeCarrier = bridgeCarrier;
     this.monitorName = monitorName;
     this.enabledModel = enabledModel == null ? "" : enabledModel;
     this.disabledModel = disabledModel == null ? this.enabledModel : disabledModel;
@@ -362,7 +368,15 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
 
   private TerminalLinkFinder.StorageSearchResult resolveLink(Block block) {
     return TerminalLinkFinder.find(
-        block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+        block,
+        keys,
+        plugin,
+        wireLimit,
+        wireHardCap,
+        wireMaterial,
+        storageCarrier,
+        bridgeCarrier,
+        bridgeRangeChunks);
   }
 
   private boolean needsBaseRefresh(Block block, String modelId, MonitorState prev) {

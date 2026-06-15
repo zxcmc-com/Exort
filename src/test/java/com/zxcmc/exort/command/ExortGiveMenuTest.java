@@ -34,6 +34,7 @@ class ExortGiveMenuTest {
             "monitor",
             "import_bus",
             "export_bus",
+            "bridge",
             "wire",
             "wireless_terminal"),
         ExortGiveMenu.catalogIds());

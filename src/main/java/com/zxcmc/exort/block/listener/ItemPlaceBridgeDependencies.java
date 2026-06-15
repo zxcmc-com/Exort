@@ -32,6 +32,7 @@ public record ItemPlaceBridgeDependencies(
     Material terminalCarrier,
     Material monitorCarrier,
     Material busCarrier,
+    Material bridgeCarrier,
     RegionProtection regionProtection,
     PlayerFeedback playerFeedback,
     Supplier<DisplayRefreshService> displayRefreshService,
@@ -54,6 +55,7 @@ public record ItemPlaceBridgeDependencies(
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");

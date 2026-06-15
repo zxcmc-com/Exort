@@ -1,5 +1,6 @@
 package com.zxcmc.exort.runtime;
 
+import com.zxcmc.exort.display.BridgeDisplayManager;
 import com.zxcmc.exort.display.BusDisplayManager;
 import com.zxcmc.exort.display.DisplayCullingService;
 import com.zxcmc.exort.display.DisplayRefreshService;
@@ -17,6 +18,7 @@ public record RuntimeDisplayServices(
     TerminalDisplayManager terminalDisplayManager,
     MonitorDisplayManager monitorDisplayManager,
     BusDisplayManager busDisplayManager,
+    BridgeDisplayManager bridgeDisplayManager,
     ExortBlockProxyService blockProxyService,
     DisplayCullingService displayCullingService,
     DisplayRefreshService displayRefreshService) {}

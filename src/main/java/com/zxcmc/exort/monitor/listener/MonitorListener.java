@@ -37,8 +37,10 @@ public class MonitorListener implements Listener {
   private final Material monitorCarrier;
   private final Material wireMaterial;
   private final Material storageCarrier;
+  private final Material bridgeCarrier;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
+  private final IntSupplier bridgeRangeChunks;
   private final LongSupplier storagePeekTicks;
   private final Predicate<Block> monitorRecentlyPlaced;
   private final Consumer<Block> monitorDisplayRefresh;
@@ -54,8 +56,10 @@ public class MonitorListener implements Listener {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
+    this.bridgeCarrier = dependencies.bridgeCarrier();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
+    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
     this.storagePeekTicks = dependencies.storagePeekTicks();
     this.monitorRecentlyPlaced = dependencies.monitorRecentlyPlaced();
     this.monitorDisplayRefresh = dependencies.monitorDisplayRefresh();
@@ -100,7 +104,9 @@ public class MonitorListener implements Listener {
               wireLimit.getAsInt(),
               wireHardCap.getAsInt(),
               wireMaterial,
-              storageCarrier);
+              storageCarrier,
+              bridgeCarrier,
+              bridgeRangeChunks.getAsInt());
       if (link.count() == 1 && link.data() != null) {
         String itemKey = MonitorMarker.itemKey(plugin, block).orElse(null);
         String itemName = itemKey;
@@ -140,7 +146,9 @@ public class MonitorListener implements Listener {
               wireLimit.getAsInt(),
               wireHardCap.getAsInt(),
               wireMaterial,
-              storageCarrier);
+              storageCarrier,
+              bridgeCarrier,
+              bridgeRangeChunks.getAsInt());
       if (link.count() == 1 && link.data() != null) {
         bossBarManager.showPeek(
             link.data().storageId(),

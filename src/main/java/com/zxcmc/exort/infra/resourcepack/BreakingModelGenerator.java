@@ -60,6 +60,7 @@ final class BreakingModelGenerator {
     addStorageVariants(entries, variants);
     addTerminalVariants(entries, variants);
     addBusVariants(entries, variants);
+    addBridgeVariants(entries, variants);
     addWireVariants(entries, variants);
 
     int added = addTerminalBreakingAtlas(entries);
@@ -101,6 +102,7 @@ final class BreakingModelGenerator {
     return entries.containsKey(MODELS_ROOT + "storage/storage.json")
         || entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
         || entries.containsKey(MODELS_ROOT + "bus/import.json")
+        || entries.containsKey(MODELS_ROOT + "bridge/bridge.json")
         || entries.containsKey(MODELS_ROOT + "wire/center.json");
   }
 
@@ -262,6 +264,17 @@ final class BreakingModelGenerator {
             FacePolicy.DEFAULT,
             NO_TEXTURE_SIZES,
             WIRE_STAGE_COUNT));
+  }
+
+  private static void addBridgeVariants(Map<String, byte[]> entries, List<VariantSource> variants) {
+    variants.add(
+        new VariantSource(
+            "bridge/bridge",
+            readModel(entries, "bridge/bridge.json"),
+            identityTransform(),
+            FacePolicy.DEFAULT,
+            NO_TEXTURE_SIZES,
+            STAGE_COUNT));
   }
 
   private static JsonObject transformElement(

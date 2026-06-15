@@ -119,6 +119,11 @@ wire:
   # Hard traversal cap. If exceeded, the network is ignored.
   hardCap: 64
 
+# Bridge settings.
+bridge:
+  # Maximum chunk Manhattan distance between two linked bridge blocks.
+  rangeChunks: 3
+
 # Wireless terminal settings.
 wireless:
   enabled: true
@@ -144,6 +149,11 @@ break:
       - pickaxe
       - axe
   bus:
+    hardness: 12.0
+    tools:
+      - pickaxe
+      - axe
+  bridge:
     hardness: 12.0
     tools:
       - pickaxe

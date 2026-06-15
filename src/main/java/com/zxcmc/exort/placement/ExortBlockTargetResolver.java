@@ -1,6 +1,7 @@
 package com.zxcmc.exort.placement;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -18,6 +19,7 @@ public final class ExortBlockTargetResolver {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
 
   public ExortBlockTargetResolver(
       Plugin plugin,
@@ -25,13 +27,15 @@ public final class ExortBlockTargetResolver {
       Material storageCarrier,
       Material terminalCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     this.plugin = plugin;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.bridgeCarrier = bridgeCarrier;
   }
 
   public boolean isExortBlock(Block block) {
@@ -47,6 +51,9 @@ public final class ExortBlockTargetResolver {
       return true;
     }
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
+      return true;
+    }
+    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
       return true;
     }
     if (Carriers.matchesCarrier(block, storageCarrier)

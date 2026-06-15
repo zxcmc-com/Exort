@@ -1,6 +1,7 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageMarker;
@@ -21,7 +22,8 @@ final class WireConnectionModelResolver {
       Material terminalMaterial,
       Material storageCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     int mask = 0;
     for (BlockFace face : WireModelKeys.CONNECTION_FACES) {
       if (isConnected(
@@ -32,7 +34,8 @@ final class WireConnectionModelResolver {
           terminalMaterial,
           storageCarrier,
           monitorCarrier,
-          busCarrier)) {
+          busCarrier,
+          bridgeCarrier)) {
         mask |= WireModelKeys.bit(face);
       }
     }
@@ -47,7 +50,8 @@ final class WireConnectionModelResolver {
       Material terminalMaterial,
       Material storageCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     Block neighbor = wire.getRelative(face);
     if (neighbor == null) return false;
     if (Carriers.matchesCarrier(neighbor, wireCarrierMaterial)
@@ -65,6 +69,7 @@ final class WireConnectionModelResolver {
       return !isFrontFace(
           plugin, neighbor, face.getOppositeFace(), terminalMaterial, monitorCarrier, busCarrier);
     }
+    if (isBridge(plugin, neighbor, bridgeCarrier)) return true;
     return false;
   }
 
@@ -84,6 +89,10 @@ final class WireConnectionModelResolver {
 
   private static boolean isBus(Plugin plugin, Block block, Material busCarrier) {
     return Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
+  }
+
+  private static boolean isBridge(Plugin plugin, Block block, Material bridgeCarrier) {
+    return Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
   }
 
   private static boolean isFrontFace(

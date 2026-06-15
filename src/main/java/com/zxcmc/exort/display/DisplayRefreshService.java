@@ -2,6 +2,7 @@ package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -36,16 +37,19 @@ public final class DisplayRefreshService {
 
   private final Plugin plugin;
   private final int wireHardCap;
+  private final int bridgeRangeChunks;
   private final Material wireMaterial;
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
   private final Material storageCarrier;
   private final WireDisplayManager wireDisplayManager;
   private final StorageDisplayManager storageDisplayManager;
   private final TerminalDisplayManager terminalDisplayManager;
   private final MonitorDisplayManager monitorDisplayManager;
   private final BusDisplayManager busDisplayManager;
+  private final BridgeDisplayManager bridgeDisplayManager;
   private final ExortBlockProxyService blockProxyService;
   private final Set<BlockKey> queuedBlocks = new HashSet<>();
   private final Set<ChunkKey> queuedChunks = new HashSet<>();
@@ -55,29 +59,35 @@ public final class DisplayRefreshService {
   public DisplayRefreshService(
       Plugin plugin,
       int wireHardCap,
+      int bridgeRangeChunks,
       Material wireMaterial,
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
+      Material bridgeCarrier,
       Material storageCarrier,
       WireDisplayManager wireDisplayManager,
       StorageDisplayManager storageDisplayManager,
       TerminalDisplayManager terminalDisplayManager,
       MonitorDisplayManager monitorDisplayManager,
       BusDisplayManager busDisplayManager,
+      BridgeDisplayManager bridgeDisplayManager,
       ExortBlockProxyService blockProxyService) {
     this.plugin = plugin;
     this.wireHardCap = wireHardCap;
+    this.bridgeRangeChunks = bridgeRangeChunks;
     this.wireMaterial = wireMaterial;
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.bridgeCarrier = bridgeCarrier;
     this.storageCarrier = storageCarrier;
     this.wireDisplayManager = wireDisplayManager;
     this.storageDisplayManager = storageDisplayManager;
     this.terminalDisplayManager = terminalDisplayManager;
     this.monitorDisplayManager = monitorDisplayManager;
     this.busDisplayManager = busDisplayManager;
+    this.bridgeDisplayManager = bridgeDisplayManager;
     this.blockProxyService = blockProxyService;
   }
 
@@ -105,7 +115,7 @@ public final class DisplayRefreshService {
   }
 
   private void refreshChunkNow(Chunk chunk) {
-    boolean[] flags = new boolean[5];
+    boolean[] flags = new boolean[6];
     if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
     ChunkMarkerStore.forEachBlock(
         plugin,
@@ -116,12 +126,14 @@ public final class DisplayRefreshService {
           if (!flags[2] && TerminalMarker.isTerminal(plugin, block)) flags[2] = true;
           if (!flags[3] && MonitorMarker.isMonitor(plugin, block)) flags[3] = true;
           if (!flags[4] && BusMarker.isBus(plugin, block)) flags[4] = true;
+          if (!flags[5] && BridgeMarker.isBridge(plugin, block)) flags[5] = true;
         });
     boolean hasWire = flags[0];
     boolean hasStorage = flags[1];
     boolean hasTerminal = flags[2];
     boolean hasMonitor = flags[3];
     boolean hasBus = flags[4];
+    boolean hasBridge = flags[5];
     if (hasWire && wireDisplayManager != null) {
       wireDisplayManager.refreshChunk(chunk);
     }
@@ -136,6 +148,9 @@ public final class DisplayRefreshService {
     }
     if (hasBus && busDisplayManager != null) {
       busDisplayManager.refreshChunk(chunk);
+    }
+    if (hasBridge && bridgeDisplayManager != null) {
+      bridgeDisplayManager.refreshChunk(chunk);
     }
     if (blockProxyService != null) {
       blockProxyService.refreshChunk(chunk);
@@ -155,6 +170,7 @@ public final class DisplayRefreshService {
     removeTerminalDisplay(block);
     removeMonitorDisplay(block);
     removeBusDisplay(block);
+    removeBridgeDisplay(block);
   }
 
   public void removeWireDisplay(Block block) {
@@ -191,6 +207,9 @@ public final class DisplayRefreshService {
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       refreshBus(block);
     }
+    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
+      refreshBridge(block);
+    }
     if (blockProxyService != null) {
       blockProxyService.refreshBlock(block);
     }
@@ -203,15 +222,20 @@ public final class DisplayRefreshService {
     if (hardCap == 0) return;
     boolean isWire =
         Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
-    if (isWire) {
-      refreshFromWire(block, hardCap, wireMaterial);
+    boolean isBridge =
+        Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
+    if (isWire || isBridge) {
+      refreshFromNetworkNode(block, hardCap, wireMaterial);
       return;
     }
     for (var face : FACES) {
       Block neighbor = block.getRelative(face);
       if (!isChunkLoaded(neighbor)) continue;
       if (Carriers.matchesCarrier(neighbor, wireMaterial) && WireMarker.isWire(plugin, neighbor)) {
-        refreshFromWire(neighbor, hardCap, wireMaterial);
+        refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
+      } else if (Carriers.matchesCarrier(neighbor, bridgeCarrier)
+          && BridgeMarker.isBridge(plugin, neighbor)) {
+        refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
       }
     }
   }
@@ -292,27 +316,54 @@ public final class DisplayRefreshService {
 
   private record BlockKey(UUID world, int x, int y, int z) {}
 
-  private void refreshFromWire(Block start, int hardCap, Material wireMaterial) {
+  private void refreshFromNetworkNode(Block start, int hardCap, Material wireMaterial) {
     Queue<Block> queue = new ArrayDeque<>();
     Set<Block> visited = new HashSet<>();
     Set<Block> terminals = new HashSet<>();
     Set<Block> monitors = new HashSet<>();
     Set<Block> buses = new HashSet<>();
-    WireRefreshBudget budget = new WireRefreshBudget(hardCap);
+    Set<Block> bridges = new HashSet<>();
+    NetworkRefreshBudget budget = new NetworkRefreshBudget(hardCap);
     queue.add(start);
     visited.add(start);
-    budget.recordStartWire();
+    if (Carriers.matchesCarrier(start, wireMaterial) && WireMarker.isWire(plugin, start)) {
+      budget.recordStartNode();
+    } else if (Carriers.matchesCarrier(start, bridgeCarrier)
+        && BridgeMarker.isBridge(plugin, start)) {
+      bridges.add(start);
+    }
     while (!queue.isEmpty()) {
       Block current = queue.poll();
+      if (Carriers.matchesCarrier(current, bridgeCarrier)
+          && BridgeMarker.isBridge(plugin, current)) {
+        Block peer = validBridgePeer(current);
+        if (peer != null && !visited.contains(peer)) {
+          if (!budget.tryVisitNextNode()) {
+            continue;
+          }
+          visited.add(peer);
+          bridges.add(peer);
+          queue.add(peer);
+        }
+      }
       for (var face : FACES) {
         Block next = current.getRelative(face);
         if (visited.contains(next)) continue;
         if (!isChunkLoaded(next)) continue;
         if (Carriers.matchesCarrier(next, wireMaterial) && WireMarker.isWire(plugin, next)) {
-          if (!budget.tryVisitNextWire()) {
+          if (!budget.tryVisitNextNode()) {
             continue;
           }
           visited.add(next);
+          queue.add(next);
+          continue;
+        }
+        if (Carriers.matchesCarrier(next, bridgeCarrier) && BridgeMarker.isBridge(plugin, next)) {
+          if (!budget.tryVisitNextNode()) {
+            continue;
+          }
+          visited.add(next);
+          bridges.add(next);
           queue.add(next);
           continue;
         }
@@ -334,8 +385,13 @@ public final class DisplayRefreshService {
     }
     if (wireDisplayManager != null) {
       for (Block wire : visited) {
-        wireDisplayManager.updateWireAndNeighbors(wire);
+        if (Carriers.matchesCarrier(wire, wireMaterial) && WireMarker.isWire(plugin, wire)) {
+          wireDisplayManager.updateWireAndNeighbors(wire);
+        }
       }
+    }
+    for (Block bridge : bridges) {
+      refreshBridge(bridge);
     }
     PerfStats.addCounter("wire.networkRefreshVisited", visited.size());
     if (budget.skipped() > 0) {
@@ -386,6 +442,13 @@ public final class DisplayRefreshService {
     refreshProxyBlock(block);
   }
 
+  public void refreshBridge(Block block) {
+    if (bridgeDisplayManager != null) {
+      bridgeDisplayManager.refresh(block);
+    }
+    refreshProxyBlock(block);
+  }
+
   public void removeStorageDisplay(Block block) {
     if (storageDisplayManager != null) {
       storageDisplayManager.removeDisplay(block);
@@ -412,6 +475,27 @@ public final class DisplayRefreshService {
       busDisplayManager.removeDisplay(block);
     }
     restoreProxyBlock(block);
+  }
+
+  public void removeBridgeDisplay(Block block) {
+    if (bridgeDisplayManager != null) {
+      bridgeDisplayManager.removeDisplay(block);
+    }
+    restoreProxyBlock(block);
+  }
+
+  private Block validBridgePeer(Block bridge) {
+    Block peer = BridgeMarker.link(plugin, bridge).map(BridgeMarker.Link::loadedBlock).orElse(null);
+    if (peer == null || !isChunkLoaded(peer)) return null;
+    if (!Carriers.matchesCarrier(peer, bridgeCarrier) || !BridgeMarker.isBridge(plugin, peer)) {
+      return null;
+    }
+    if (BridgeMarker.link(plugin, peer).filter(link -> link.sameBlock(bridge)).isEmpty()) {
+      return null;
+    }
+    return com.zxcmc.exort.network.NetworkGraphCache.inBridgeRange(bridge, peer, bridgeRangeChunks)
+        ? peer
+        : null;
   }
 
   private void refreshProxyBlock(Block block) {

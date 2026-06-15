@@ -35,6 +35,7 @@ public record BlockListenerDependencies(
     Material terminalCarrier,
     Material monitorCarrier,
     Material busCarrier,
+    Material bridgeCarrier,
     BlockBreakHandler breakHandler,
     RegionProtection regionProtection,
     PlayerFeedback playerFeedback,
@@ -57,6 +58,7 @@ public record BlockListenerDependencies(
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
     Objects.requireNonNull(breakHandler, "breakHandler");
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(playerFeedback, "playerFeedback");

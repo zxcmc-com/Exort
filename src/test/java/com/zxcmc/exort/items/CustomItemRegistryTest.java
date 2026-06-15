@@ -17,10 +17,12 @@ class CustomItemRegistryTest {
             "monitor",
             "import_bus",
             "export_bus",
+            "bridge",
             "wire",
             "wireless_terminal"),
         CustomItemRegistry.fixedItemIds());
     assertEquals("item.storage_core", CustomItemRegistry.STORAGE_CORE.translationKey());
+    assertEquals("item.bridge", CustomItemRegistry.BRIDGE.translationKey());
     assertEquals("exort:wire", CustomItemRegistry.WIRE.namespacedId());
     assertTrue(CustomItemRegistry.fixedItem("WIRE").isPresent());
   }

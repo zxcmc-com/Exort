@@ -20,6 +20,7 @@ public final class CustomItemRegistry {
       new CustomItemIdentity("import_bus", "item.import_bus");
   public static final CustomItemIdentity EXPORT_BUS =
       new CustomItemIdentity("export_bus", "item.export_bus");
+  public static final CustomItemIdentity BRIDGE = new CustomItemIdentity("bridge", "item.bridge");
   public static final CustomItemIdentity WIRE = new CustomItemIdentity("wire", "item.wire");
   public static final CustomItemIdentity WIRELESS_TERMINAL =
       new CustomItemIdentity("wireless_terminal", "item.wireless_terminal");
@@ -32,6 +33,7 @@ public final class CustomItemRegistry {
           MONITOR,
           IMPORT_BUS,
           EXPORT_BUS,
+          BRIDGE,
           WIRE,
           WIRELESS_TERMINAL);
   private static final Map<String, CustomItemIdentity> BY_ID =

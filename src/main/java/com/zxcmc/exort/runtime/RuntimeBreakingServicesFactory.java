@@ -23,6 +23,7 @@ public final class RuntimeBreakingServicesFactory {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
+                materials.bridgeCarrier(),
                 deps.hologramManager(),
                 deps.wireDisplayManager(),
                 deps.displayRefreshService(),
@@ -50,7 +51,8 @@ public final class RuntimeBreakingServicesFactory {
             materials.storageCarrier(),
             materials.terminalCarrier(),
             materials.monitorCarrier(),
-            materials.busCarrier());
+            materials.busCarrier(),
+            materials.bridgeCarrier());
     registerCustomBreakingPackets(deps, customBlockBreaker);
     return new RuntimeBreakingServices(breakHandler, breakSoundConfig, customBlockBreaker);
   }

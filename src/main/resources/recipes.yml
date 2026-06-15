@@ -115,6 +115,20 @@ shaped:
       B: minecraft:dropper
       C: exort:wire
 
+  bridge:
+    result:
+      item: exort:bridge
+      amount: 2
+    shape:
+      - "ABA"
+      - "CDC"
+      - "ABA"
+    ingredients:
+      A: exort:wire
+      B: minecraft:echo_shard
+      C: minecraft:ender_pearl
+      D: minecraft:lodestone
+
 shapeless:
   wire:
     result:

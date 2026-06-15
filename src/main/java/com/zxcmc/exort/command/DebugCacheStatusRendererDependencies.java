@@ -18,8 +18,10 @@ record DebugCacheStatusRendererDependencies(
     LongSupplier cacheIdleUnloadSeconds,
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
+    IntSupplier bridgeRangeChunks,
     Supplier<Material> wireMaterial,
-    Supplier<Material> storageCarrier) {
+    Supplier<Material> storageCarrier,
+    Supplier<Material> bridgeCarrier) {
   DebugCacheStatusRendererDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(lang, "lang");
@@ -28,7 +30,9 @@ record DebugCacheStatusRendererDependencies(
     Objects.requireNonNull(cacheIdleUnloadSeconds, "cacheIdleUnloadSeconds");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");
+    Objects.requireNonNull(bridgeRangeChunks, "bridgeRangeChunks");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
   }
 }

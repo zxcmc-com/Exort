@@ -8,12 +8,14 @@ public record RuntimeMaterials(
     Material storageCarrier,
     Material terminalCarrier,
     Material monitorCarrier,
-    Material busCarrier) {
+    Material busCarrier,
+    Material bridgeCarrier) {
   public RuntimeMaterials {
     Objects.requireNonNull(wire, "wire");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
   }
 }

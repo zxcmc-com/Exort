@@ -17,6 +17,7 @@ import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -65,6 +66,7 @@ public class BlockListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
   private final BlockBreakHandler breakHandler;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
@@ -91,6 +93,7 @@ public class BlockListener implements Listener {
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
+    this.bridgeCarrier = dependencies.bridgeCarrier();
     this.breakHandler = dependencies.breakHandler();
     this.regionProtection = dependencies.regionProtection();
     this.displayRefreshService = dependencies.displayRefreshService();
@@ -295,6 +298,42 @@ public class BlockListener implements Listener {
       return;
     }
 
+    if (customItems.isBridge(event.getItemInHand())
+        && Carriers.matchesCarrier(block, bridgeCarrier)) {
+      if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
+        event.setCancelled(true);
+        return;
+      }
+      BridgeMarker.set(plugin, block);
+      consumeIfInitialized(event);
+      invalidateNetwork(block);
+      var refresh = displayRefreshService.get();
+      if (refresh != null) {
+        refresh.refreshBridge(block);
+        refresh.refreshBlockAndNeighbors(block);
+        refresh.refreshNetworkFrom(block);
+      }
+      playPlaceSound(block, BreakType.BRIDGE);
+      if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
+        for (var dir :
+            new BlockFace[] {
+              BlockFace.UP,
+              BlockFace.DOWN,
+              BlockFace.NORTH,
+              BlockFace.SOUTH,
+              BlockFace.EAST,
+              BlockFace.WEST
+            }) {
+          Block neighbor = block.getRelative(dir);
+          if (Carriers.matchesCarrier(neighbor, wireMaterial)
+              && WireMarker.isWire(plugin, neighbor)) {
+            wireDisplayManager.updateWireAndNeighbors(neighbor);
+          }
+        }
+      }
+      return;
+    }
+
     Optional<StorageTier> tierOpt = customItems.tierFromItem(event.getItemInHand());
     if (tierOpt.isEmpty()) {
       if (customItems.isStorageCore(event.getItemInHand())) {
@@ -427,6 +466,9 @@ public class BlockListener implements Listener {
         return true;
       }
       if (BusMarker.isBus(plugin, b)) {
+        return true;
+      }
+      if (BridgeMarker.isBridge(plugin, b)) {
         return true;
       }
     }

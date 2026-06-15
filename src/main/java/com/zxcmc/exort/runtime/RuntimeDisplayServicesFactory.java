@@ -1,5 +1,6 @@
 package com.zxcmc.exort.runtime;
 
+import com.zxcmc.exort.display.BridgeDisplayManager;
 import com.zxcmc.exort.display.BusDisplayManager;
 import com.zxcmc.exort.display.DisplayCullingConfig;
 import com.zxcmc.exort.display.DisplayCullingService;
@@ -53,8 +54,10 @@ public final class RuntimeDisplayServicesFactory {
             deps.keys(),
             deps.wireLimit(),
             deps.wireHardCap(),
+            deps.bridgeRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
+            materials.bridgeCarrier(),
             materials.terminalCarrier(),
             deps.hologramConfig().terminal(),
             deps.hologramConfig().storage(),
@@ -82,6 +85,10 @@ public final class RuntimeDisplayServicesFactory {
     BusDisplayManager busDisplayManager =
         createBusDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), busDisplayManager::scanLoadedChunks);
+
+    BridgeDisplayManager bridgeDisplayManager =
+        createBridgeDisplayManager(deps, displayModels, metadataService);
+    Bukkit.getScheduler().runTask(deps.plugin(), bridgeDisplayManager::scanLoadedChunks);
     Bukkit.getScheduler().runTask(deps.plugin(), metadataService::rebuildLoadedDisplays);
 
     ExortBlockProxyService blockProxyService =
@@ -92,7 +99,8 @@ public final class RuntimeDisplayServicesFactory {
             materials.storageCarrier(),
             materials.terminalCarrier(),
             materials.monitorCarrier(),
-            materials.busCarrier());
+            materials.busCarrier(),
+            materials.bridgeCarrier());
     blockProxyService.start();
 
     DisplayCullingService displayCullingService =
@@ -110,16 +118,19 @@ public final class RuntimeDisplayServicesFactory {
         new DisplayRefreshService(
             deps.plugin(),
             deps.wireHardCap(),
+            deps.bridgeRangeChunks(),
             materials.wire(),
             materials.terminalCarrier(),
             materials.monitorCarrier(),
             materials.busCarrier(),
+            materials.bridgeCarrier(),
             materials.storageCarrier(),
             wireDisplayManager,
             storageDisplayManager,
             terminalDisplayManager,
             monitorDisplayManager,
             busDisplayManager,
+            bridgeDisplayManager,
             blockProxyService);
     registerSanityServices(deps, hologramManager, displayRefreshService);
 
@@ -130,6 +141,7 @@ public final class RuntimeDisplayServicesFactory {
         terminalDisplayManager,
         monitorDisplayManager,
         busDisplayManager,
+        bridgeDisplayManager,
         blockProxyService,
         displayCullingService,
         displayRefreshService);
@@ -147,6 +159,7 @@ public final class RuntimeDisplayServicesFactory {
         materials.storageCarrier(),
         materials.monitorCarrier(),
         materials.busCarrier(),
+        materials.bridgeCarrier(),
         deps.itemModels().displayNamespace(),
         deps.itemModels().wireItemModel(),
         deps.resourceMode(),
@@ -217,8 +230,10 @@ public final class RuntimeDisplayServicesFactory {
         deps.keys(),
         deps.wireLimit(),
         deps.wireHardCap(),
+        deps.bridgeRangeChunks(),
         materials.wire(),
         materials.storageCarrier(),
+        materials.bridgeCarrier(),
         deps.resourceMode());
   }
 
@@ -246,8 +261,10 @@ public final class RuntimeDisplayServicesFactory {
         deps.lang().clientComponent(deps.resourceMode(), "item.monitor"),
         deps.wireLimit(),
         deps.wireHardCap(),
+        deps.bridgeRangeChunks(),
         materials.wire(),
         materials.storageCarrier(),
+        materials.bridgeCarrier(),
         monitorScreens.item(),
         monitorScreens.block(),
         monitorScreens.thinBlock(),
@@ -278,6 +295,24 @@ public final class RuntimeDisplayServicesFactory {
         deps.lang().clientComponent(deps.resourceMode(), "item.export_bus"));
   }
 
+  private static BridgeDisplayManager createBridgeDisplayManager(
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
+    RuntimeDisplayConfig bridgeDisplay = RuntimeDisplayConfig.defaults();
+    return new BridgeDisplayManager(
+        deps.plugin(),
+        deps.materials().bridgeCarrier(),
+        displayModels.bridge(),
+        bridgeDisplay.displayBaseMaterial(),
+        bridgeDisplay.displayScale(),
+        bridgeDisplay.offsetX(),
+        bridgeDisplay.offsetY(),
+        bridgeDisplay.offsetZ(),
+        metadataService,
+        deps.lang().clientComponent(deps.resourceMode(), "item.bridge"));
+  }
+
   private static void registerSanityServices(
       RuntimeDisplayServicesDependencies deps,
       ItemHologramManager hologramManager,
@@ -292,7 +327,8 @@ public final class RuntimeDisplayServicesFactory {
                 materials.storageCarrier(),
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
-                materials.busCarrier()),
+                materials.busCarrier(),
+                materials.bridgeCarrier()),
             new MarkerSanityService(
                 new MarkerSanityDependencies(
                     deps.plugin(),
@@ -305,7 +341,8 @@ public final class RuntimeDisplayServicesFactory {
                     materials.storageCarrier(),
                     materials.terminalCarrier(),
                     materials.monitorCarrier(),
-                    materials.busCarrier())),
+                    materials.busCarrier(),
+                    materials.bridgeCarrier())),
             displayRefreshService,
             deps.worldEditDebugService(),
             deps.invalidateNetwork());

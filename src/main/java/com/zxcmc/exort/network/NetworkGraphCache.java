@@ -3,6 +3,7 @@ package com.zxcmc.exort.network;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageMarker;
@@ -40,7 +41,9 @@ public final class NetworkGraphCache {
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
-      Material storageCarrier) {}
+      Material storageCarrier,
+      Material bridgeCarrier,
+      int bridgeRangeChunks) {}
 
   private record BlockKey(UUID world, int x, int y, int z) {}
 
@@ -129,7 +132,9 @@ public final class NetworkGraphCache {
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
-      Material storageCarrier) {
+      Material storageCarrier,
+      Material bridgeCarrier,
+      int bridgeRangeChunks) {
     if (terminal == null) {
       return new TerminalLinkFinder.StorageSearchResult(0, null);
     }
@@ -142,7 +147,9 @@ public final class NetworkGraphCache {
             wireLimit,
             wireHardCap,
             wireMaterial,
-            storageCarrier);
+            storageCarrier,
+            bridgeCarrier,
+            bridgeRangeChunks);
     CacheEntry entry = cache.get(key);
     if (entry != null) {
       if (isValid(entry.result, storageCarrier)) {
@@ -157,7 +164,15 @@ public final class NetworkGraphCache {
             "network.scan",
             () ->
                 scanWithTrace(
-                    terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier));
+                    terminal,
+                    keys,
+                    plugin,
+                    wireLimit,
+                    wireHardCap,
+                    wireMaterial,
+                    storageCarrier,
+                    bridgeCarrier,
+                    bridgeRangeChunks));
     cache.put(
         key,
         new CacheEntry(
@@ -203,12 +218,22 @@ public final class NetworkGraphCache {
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
-      Material storageCarrier) {
+      Material storageCarrier,
+      Material bridgeCarrier,
+      int bridgeRangeChunks) {
     if (terminal == null) {
       return new TerminalLinkFinder.StorageSearchResult(0, null);
     }
     return scanWithTrace(
-            terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier)
+            terminal,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            bridgeCarrier,
+            bridgeRangeChunks)
         .result();
   }
 
@@ -219,7 +244,9 @@ public final class NetworkGraphCache {
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
-      Material storageCarrier) {
+      Material storageCarrier,
+      Material bridgeCarrier,
+      int bridgeRangeChunks) {
     Set<BlockKey> touchedBlocks = new HashSet<>();
     Set<ChunkKey> touchedChunks = new HashSet<>();
     if (terminal == null) {
@@ -229,44 +256,60 @@ public final class NetworkGraphCache {
     touch(terminal, touchedBlocks, touchedChunks);
     int found = 0;
     TerminalLinkFinder.StorageBlockInfo data = null;
-    BlockFace blockedFace = frontFace(terminal, plugin);
-    for (BlockFace face : FACES) {
-      if (blockedFace != null && face == blockedFace) continue;
-      Block neighbor = terminal.getRelative(face);
-      touch(neighbor, touchedBlocks, touchedChunks);
-      if (!isChunkLoaded(neighbor)) continue;
-      Optional<TerminalLinkFinder.StorageBlockInfo> info =
-          readStorageInfo(plugin, neighbor, storageCarrier);
-      if (info.isPresent()) {
-        found++;
-        data = info.get();
-        if (found > 1) {
-          return new ScanTraceResult(
-              new TerminalLinkFinder.StorageSearchResult(found, data),
-              touchedBlocks,
-              touchedChunks);
-        }
-      }
-    }
-    if (found > 0) {
-      return new ScanTraceResult(
-          new TerminalLinkFinder.StorageSearchResult(found, data), touchedBlocks, touchedChunks);
-    }
     Queue<Block> queue = new ArrayDeque<>();
     Set<Block> visited = new HashSet<>();
-    for (BlockFace face : FACES) {
-      if (blockedFace != null && face == blockedFace) continue;
-      Block neighbor = terminal.getRelative(face);
-      touch(neighbor, touchedBlocks, touchedChunks);
-      if (!isChunkLoaded(neighbor)) continue;
-      if (isWire(neighbor, keys, plugin, wireMaterial)) {
-        queue.add(neighbor);
-        visited.add(neighbor);
+
+    if (isTraversable(terminal, keys, plugin, wireMaterial, bridgeCarrier)) {
+      visited.add(terminal);
+      queue.add(terminal);
+    } else {
+      BlockFace blockedFace = frontFace(terminal, plugin);
+      for (BlockFace face : FACES) {
+        if (blockedFace != null && face == blockedFace) continue;
+        Block neighbor = terminal.getRelative(face);
+        touch(neighbor, touchedBlocks, touchedChunks);
+        if (!isChunkLoaded(neighbor)) continue;
+        Optional<TerminalLinkFinder.StorageBlockInfo> info =
+            readStorageInfo(plugin, neighbor, storageCarrier);
+        if (info.isPresent()) {
+          found++;
+          data = info.get();
+          if (found > 1) {
+            return new ScanTraceResult(
+                new TerminalLinkFinder.StorageSearchResult(found, data),
+                touchedBlocks,
+                touchedChunks);
+          }
+        } else if (isTraversable(neighbor, keys, plugin, wireMaterial, bridgeCarrier)) {
+          visited.add(neighbor);
+          queue.add(neighbor);
+        }
+      }
+      if (found > 0) {
+        return new ScanTraceResult(
+            new TerminalLinkFinder.StorageSearchResult(found, data), touchedBlocks, touchedChunks);
       }
     }
-    int wiresUsed = visited.size();
-    while (!queue.isEmpty() && wiresUsed <= wireLimit && wiresUsed <= wireHardCap) {
+    int wiresUsed = countWires(visited, keys, plugin, wireMaterial);
+    int nodesUsed = visited.size();
+    while (!queue.isEmpty() && wiresUsed <= wireLimit && nodesUsed <= wireHardCap) {
       Block current = queue.poll();
+      if (isBridge(current, plugin, bridgeCarrier)) {
+        Block peer = validBridgePeer(current, plugin, bridgeCarrier, bridgeRangeChunks);
+        BridgeMarker.link(plugin, current).ifPresent(link -> touch(link, touchedChunks));
+        if (peer != null && !visited.contains(peer)) {
+          touch(peer, touchedBlocks, touchedChunks);
+          visited.add(peer);
+          queue.add(peer);
+          nodesUsed++;
+          if (nodesUsed > wireHardCap) {
+            return new ScanTraceResult(
+                new TerminalLinkFinder.StorageSearchResult(found, data),
+                touchedBlocks,
+                touchedChunks);
+          }
+        }
+      }
       for (BlockFace face : FACES) {
         Block next = current.getRelative(face);
         touch(next, touchedBlocks, touchedChunks);
@@ -283,11 +326,14 @@ public final class NetworkGraphCache {
                 touchedBlocks,
                 touchedChunks);
           }
-        } else if (isWire(next, keys, plugin, wireMaterial)) {
+        } else if (isTraversable(next, keys, plugin, wireMaterial, bridgeCarrier)) {
           visited.add(next);
           queue.add(next);
-          wiresUsed++;
-          if (wiresUsed > wireHardCap) {
+          nodesUsed++;
+          if (isWire(next, keys, plugin, wireMaterial)) {
+            wiresUsed++;
+          }
+          if (nodesUsed > wireHardCap) {
             return new ScanTraceResult(
                 new TerminalLinkFinder.StorageSearchResult(found, data),
                 touchedBlocks,
@@ -298,6 +344,13 @@ public final class NetworkGraphCache {
     }
     return new ScanTraceResult(
         new TerminalLinkFinder.StorageSearchResult(found, data), touchedBlocks, touchedChunks);
+  }
+
+  private static void touch(BridgeMarker.Link link, Set<ChunkKey> chunks) {
+    if (link == null || chunks == null) {
+      return;
+    }
+    chunks.add(new ChunkKey(link.worldId(), link.x() >> 4, link.z() >> 4));
   }
 
   private static void touch(Block block, Set<BlockKey> blocks, Set<ChunkKey> chunks) {
@@ -312,6 +365,65 @@ public final class NetworkGraphCache {
   private static boolean isWire(
       Block block, StorageKeys keys, Plugin plugin, Material wireMaterial) {
     return Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
+  }
+
+  private static boolean isBridge(Block block, Plugin plugin, Material bridgeCarrier) {
+    return bridgeCarrier != null
+        && Carriers.matchesCarrier(block, bridgeCarrier)
+        && BridgeMarker.isBridge(plugin, block);
+  }
+
+  private static boolean isTraversable(
+      Block block, StorageKeys keys, Plugin plugin, Material wireMaterial, Material bridgeCarrier) {
+    return isWire(block, keys, plugin, wireMaterial) || isBridge(block, plugin, bridgeCarrier);
+  }
+
+  private static int countWires(
+      Set<Block> blocks, StorageKeys keys, Plugin plugin, Material wireMaterial) {
+    int count = 0;
+    for (Block block : blocks) {
+      if (isWire(block, keys, plugin, wireMaterial)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private static Block validBridgePeer(
+      Block bridge, Plugin plugin, Material bridgeCarrier, int bridgeRangeChunks) {
+    if (bridge == null || bridge.getWorld() == null) {
+      return null;
+    }
+    Optional<BridgeMarker.Link> link = BridgeMarker.link(plugin, bridge);
+    if (link.isEmpty()) {
+      return null;
+    }
+    Block peer = link.get().loadedBlock();
+    if (peer == null || peer.getWorld() == null) {
+      return null;
+    }
+    if (!bridge.getWorld().getUID().equals(peer.getWorld().getUID())) {
+      return null;
+    }
+    if (!isBridge(peer, plugin, bridgeCarrier)) {
+      return null;
+    }
+    if (BridgeMarker.link(plugin, peer).filter(back -> back.sameBlock(bridge)).isEmpty()) {
+      return null;
+    }
+    return inBridgeRange(bridge, peer, bridgeRangeChunks) ? peer : null;
+  }
+
+  public static boolean inBridgeRange(Block first, Block second, int bridgeRangeChunks) {
+    if (first == null || second == null || first.getWorld() == null || second.getWorld() == null) {
+      return false;
+    }
+    if (!first.getWorld().getUID().equals(second.getWorld().getUID())) {
+      return false;
+    }
+    int dx = Math.abs((first.getX() >> 4) - (second.getX() >> 4));
+    int dz = Math.abs((first.getZ() >> 4) - (second.getZ() >> 4));
+    return dx + dz <= Math.max(0, bridgeRangeChunks);
   }
 
   private static boolean isChunkLoaded(Block block) {

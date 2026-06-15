@@ -19,6 +19,14 @@ record BusData(String type, String facing, String mode, byte[] filters) implemen
 
 record MonitorData(String facing, String itemKey, byte[] itemBlob) implements FacingOwner {}
 
+record BridgeLinkData(UUID worldId, int x, int y, int z) {
+  BridgeLinkData {
+    java.util.Objects.requireNonNull(worldId, "worldId");
+  }
+}
+
+record BridgeData(BridgeLinkData link) {}
+
 interface FacingOwner {
   String facing();
 }
@@ -38,10 +46,17 @@ record MarkerSnapshot(
     TerminalData terminal,
     BusData bus,
     MonitorData monitor,
+    BridgeData bridge,
     boolean wire,
     boolean storageCore) {}
 
-record PendingClipboardPatch(Map<BlockVector3, LinCompoundTag> markers) {
+record CapturedMarkers(UUID sourceWorldId, Map<BlockVector3, LinCompoundTag> markers) {
+  CapturedMarkers {
+    markers = markers == null ? Map.of() : Map.copyOf(markers);
+  }
+}
+
+record PendingClipboardPatch(UUID sourceWorldId, Map<BlockVector3, LinCompoundTag> markers) {
   PendingClipboardPatch {
     markers = markers == null ? Map.of() : Map.copyOf(markers);
   }

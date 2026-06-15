@@ -95,6 +95,8 @@ class PackExporterTest {
       assertEntry(zip, "assets/exort/models/breaking/bus/export/up/stage_9.json");
       assertEntry(zip, "assets/exort/items/breaking/bus/import/down/stage_0.json");
       assertEntry(zip, "assets/exort/items/breaking/bus/export/down/stage_0.json");
+      assertEntry(zip, "assets/exort/items/breaking/bridge/bridge/stage_0.json");
+      assertEntry(zip, "assets/exort/models/breaking/bridge/bridge/stage_9.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_0.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_1.json");
       assertEntry(zip, "assets/exort/items/breaking/wire/center/stage_2.json");
@@ -109,7 +111,7 @@ class PackExporterTest {
       assertEntry(zip, "assets/exort/textures/breaking/particles/storage.png");
       assertEntry(zip, "assets/exort/textures/breaking/particles/wire.png");
       assertEquals(
-          173,
+          183,
           zip.stream()
               .filter(
                   entry ->
@@ -117,7 +119,7 @@ class PackExporterTest {
                           && entry.getName().endsWith(".json"))
               .count());
       assertEquals(
-          173,
+          183,
           zip.stream()
               .filter(
                   entry ->

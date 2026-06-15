@@ -21,13 +21,15 @@ public final class BreakingOverlayModelResolver {
       Material terminalMaterial,
       Material storageCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(wireCarrierMaterial, "wireCarrierMaterial");
     Objects.requireNonNull(terminalMaterial, "terminalMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
   }
 
   public String modelKey(Block block, BreakType type) {
@@ -41,6 +43,7 @@ public final class BreakingOverlayModelResolver {
       case MONITOR ->
           "terminal/" + key(horizontalOrSouth(MonitorMarker.facing(plugin, block).orElse(null)));
       case BUS -> busKey(block);
+      case BRIDGE -> "bridge/bridge";
       case WIRE -> "wire/center";
       case NONE -> null;
     };

@@ -85,6 +85,14 @@ public class BossBarManager {
     showCustom(player, title, progress, color, durationTicks, gen);
   }
 
+  public void showBridgeStatus(
+      String peerCoords, String storageStatus, Player player, long durationTicks) {
+    int gen = generations.compute(player.getUniqueId(), (id, val) -> val == null ? 1 : val + 1);
+    cancelRemoval(player.getUniqueId());
+    String title = lang.tr(player, "bridge.status", peerCoords, storageStatus);
+    showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
+  }
+
   public void showMonitorItem(
       String storageId, String itemKey, String itemName, Player player, long durationTicks) {
     int gen = generations.compute(player.getUniqueId(), (id, val) -> val == null ? 1 : val + 1);

@@ -21,12 +21,34 @@ public final class TerminalLinkFinder {
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
-      Material storageCarrier) {
+      Material storageCarrier,
+      Material bridgeCarrier,
+      int bridgeRangeChunks) {
     return PerfStats.measure(
         PerfStats.Area.NETWORK,
         () ->
             findInternal(
-                terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier));
+                terminal,
+                keys,
+                plugin,
+                wireLimit,
+                wireHardCap,
+                wireMaterial,
+                storageCarrier,
+                bridgeCarrier,
+                bridgeRangeChunks));
+  }
+
+  public static StorageSearchResult find(
+      Block terminal,
+      StorageKeys keys,
+      Plugin plugin,
+      int wireLimit,
+      int wireHardCap,
+      Material wireMaterial,
+      Material storageCarrier) {
+    return find(
+        terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier, null, 0);
   }
 
   private static StorageSearchResult findInternal(
@@ -36,15 +58,33 @@ public final class TerminalLinkFinder {
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
-      Material storageCarrier) {
+      Material storageCarrier,
+      Material bridgeCarrier,
+      int bridgeRangeChunks) {
     if (plugin instanceof NetworkGraphCacheProvider provider) {
       var cache = provider.getNetworkGraphCache();
       if (cache != null) {
         return cache.find(
-            terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+            terminal,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            bridgeCarrier,
+            bridgeRangeChunks);
       }
     }
     return NetworkGraphCache.scan(
-        terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+        terminal,
+        keys,
+        plugin,
+        wireLimit,
+        wireHardCap,
+        wireMaterial,
+        storageCarrier,
+        bridgeCarrier,
+        bridgeRangeChunks);
   }
 }
