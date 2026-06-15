@@ -110,7 +110,8 @@ class BreakingOverlayModelResolverTest {
   }
 
   private static BreakingOverlayModelResolver resolver(Plugin plugin) {
-    return new BreakingOverlayModelResolver(plugin, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER);
+    return new BreakingOverlayModelResolver(
+        plugin, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER);
   }
 
   private static BlockProbe block(int x, int y, int z) {

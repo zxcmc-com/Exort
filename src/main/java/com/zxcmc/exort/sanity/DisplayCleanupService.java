@@ -2,6 +2,7 @@ package com.zxcmc.exort.sanity;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.display.DisplayTags;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
@@ -26,6 +27,7 @@ public final class DisplayCleanupService {
   private static final String TYPE_TERMINAL = "terminal";
   private static final String TYPE_MONITOR = "monitor";
   private static final String TYPE_BUS = "bus";
+  private static final String TYPE_BRIDGE = "bridge";
   private static final String TYPE_MONITOR_ITEM = "monitor_item";
   private static final String TYPE_MONITOR_TEXT = "monitor_text";
   private static final String[] DISPLAY_TYPES =
@@ -35,17 +37,19 @@ public final class DisplayCleanupService {
         TYPE_TERMINAL,
         TYPE_MONITOR,
         TYPE_BUS,
+        TYPE_BRIDGE,
         TYPE_MONITOR_ITEM,
         TYPE_MONITOR_TEXT
       };
   private static final Set<String> MARKER_BACKED_DISPLAY_TYPES =
-      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS);
+      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS, TYPE_BRIDGE);
   private final Plugin plugin;
   private final Material wireCarrier;
   private final Material storageCarrier;
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
 
   public DisplayCleanupService(
       Plugin plugin,
@@ -53,13 +57,15 @@ public final class DisplayCleanupService {
       Material storageCarrier,
       Material terminalCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     this.plugin = plugin;
     this.wireCarrier = wireCarrier;
     this.storageCarrier = storageCarrier;
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.bridgeCarrier = bridgeCarrier;
   }
 
   public void cleanupDisplays(Chunk chunk) {
@@ -160,6 +166,8 @@ public final class DisplayCleanupService {
       case TYPE_MONITOR ->
           Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block);
       case TYPE_BUS -> Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
+      case TYPE_BRIDGE ->
+          Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
       default -> false;
     };
   }
@@ -169,7 +177,8 @@ public final class DisplayCleanupService {
         || isValidMarkerBackedBlock(block, TYPE_STORAGE)
         || isValidMarkerBackedBlock(block, TYPE_TERMINAL)
         || isValidMarkerBackedBlock(block, TYPE_MONITOR)
-        || isValidMarkerBackedBlock(block, TYPE_BUS);
+        || isValidMarkerBackedBlock(block, TYPE_BUS)
+        || isValidMarkerBackedBlock(block, TYPE_BRIDGE);
   }
 
   private void loadMonitorDisplayIds(Chunk chunk, Set<UUID> monitorItems, Set<UUID> monitorTexts) {

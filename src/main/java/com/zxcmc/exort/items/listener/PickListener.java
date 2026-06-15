@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -49,6 +50,7 @@ public final class PickListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
   private final Map<UUID, RecentPick> recentPicks = new HashMap<>();
 
   public PickListener(
@@ -60,7 +62,8 @@ public final class PickListener implements Listener {
       Material storageCarrier,
       Material terminalCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.keys = Objects.requireNonNull(keys, "keys");
@@ -70,6 +73,7 @@ public final class PickListener implements Listener {
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.bridgeCarrier = bridgeCarrier;
   }
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
@@ -174,6 +178,9 @@ public final class PickListener implements Listener {
         desired = customItems.importBusItem();
         type = "import_bus";
       }
+    } else if (isBridge(target)) {
+      desired = customItems.bridgeItem();
+      type = "bridge";
     } else if (isStorage(target)) {
       var tierOpt = readTier(target);
       if (tierOpt.isEmpty()) return null;
@@ -327,6 +334,10 @@ public final class PickListener implements Listener {
 
   private boolean isBus(Block block) {
     return Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
+  }
+
+  private boolean isBridge(Block block) {
+    return Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
   }
 
   private Optional<StorageTier> readTier(Block block) {

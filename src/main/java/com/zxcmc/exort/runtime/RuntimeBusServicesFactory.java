@@ -17,8 +17,10 @@ public final class RuntimeBusServicesFactory {
             deps.keys(),
             deps.wireLimit(),
             deps.wireHardCap(),
+            deps.bridgeRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
+            materials.bridgeCarrier(),
             deps.renderStorage());
     BusService busService =
         new BusService(
@@ -40,8 +42,10 @@ public final class RuntimeBusServicesFactory {
             materials::busCarrier,
             deps.wireLimit(),
             deps.wireHardCap(),
+            deps.bridgeRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
+            materials.bridgeCarrier(),
             deps.guiRuntimeConfig(),
             deps.guiOverlayConfig(),
             deps.itemNameService());

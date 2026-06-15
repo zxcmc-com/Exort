@@ -14,8 +14,10 @@ class RuntimeItemModelConfigTest {
     assertEquals("exort", config.displayNamespace());
     assertEquals(Carriers.CHORUS_MATERIAL, config.wireMaterial());
     assertEquals(Carriers.CARRIER_BARRIER, config.storageCarrier());
+    assertEquals(Carriers.CARRIER_BARRIER, config.bridgeCarrier());
     assertEquals("exort:wire/center", config.wireItemModel());
     assertEquals("exort:storage/storage", config.storageItemModel());
+    assertEquals("exort:bridge/bridge", config.bridgeItemModel());
     assertEquals("exort:terminal/wireless_disabled", config.wirelessDisabledModel());
   }
 
@@ -39,6 +41,7 @@ class RuntimeItemModelConfigTest {
     assertEquals(Material.BARRIER, config.terminalCarrier());
     assertEquals("minecraft:black_stained_glass", config.wireItemModel());
     assertEquals("minecraft:barrel", config.terminalItemModel());
+    assertEquals("minecraft:lodestone", config.bridgeItemModel());
     assertEquals("minecraft:target", config.wirelessDisabledModel());
   }
 

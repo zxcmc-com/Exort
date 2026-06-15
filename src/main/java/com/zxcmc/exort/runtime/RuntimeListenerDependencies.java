@@ -17,6 +17,7 @@ import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SearchDialogService;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -51,11 +52,13 @@ public record RuntimeListenerDependencies(
     PlayerFeedback playerFeedback,
     BossBarManager bossBarManager,
     SearchDialogService searchDialogService,
+    Lang lang,
     ItemNameService itemNameService,
     InventoryRefreshService inventoryRefreshService,
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,
+    int bridgeRangeChunks,
     ItemHologramManager hologramManager,
     Supplier<ItemHologramManager> hologramManagerSource,
     WireDisplayManager wireDisplayManager,
@@ -92,6 +95,7 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(searchDialogService, "searchDialogService");
+    Objects.requireNonNull(lang, "lang");
     Objects.requireNonNull(itemNameService, "itemNameService");
     Objects.requireNonNull(inventoryRefreshService, "inventoryRefreshService");
     Objects.requireNonNull(materials, "materials");

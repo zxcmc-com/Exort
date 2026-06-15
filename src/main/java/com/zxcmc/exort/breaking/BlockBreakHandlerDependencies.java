@@ -25,6 +25,7 @@ public record BlockBreakHandlerDependencies(
     Material terminalCarrier,
     Material monitorCarrier,
     Material busCarrier,
+    Material bridgeCarrier,
     ItemHologramManager hologramManager,
     WireDisplayManager wireDisplayManager,
     DisplayRefreshService displayRefreshService,
@@ -45,6 +46,7 @@ public record BlockBreakHandlerDependencies(
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(sessionManager, "sessionManager");
     Objects.requireNonNull(monitorDisplayManager, "monitorDisplayManager");

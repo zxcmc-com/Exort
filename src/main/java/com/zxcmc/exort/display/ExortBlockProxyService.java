@@ -3,6 +3,7 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.carrier.ChorusPlantVisualState;
 import com.zxcmc.exort.debug.PerfStats;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
@@ -44,7 +45,13 @@ public final class ExortBlockProxyService implements Listener {
   private static final double MIN_VIEW_RANGE_MULTIPLIER = 0.05;
   private static final List<String> BLOCK_DISPLAY_MARKER_TYPES =
       List.of(
-          "storage", "terminal", "monitor", "monitor_item", "monitor_text", DisplayTags.BUS_TAG);
+          "storage",
+          "terminal",
+          "monitor",
+          "monitor_item",
+          "monitor_text",
+          DisplayTags.BUS_TAG,
+          "bridge");
 
   private final JavaPlugin plugin;
   private final DisplayCullingConfig.BlockProxyConfig config;
@@ -53,6 +60,7 @@ public final class ExortBlockProxyService implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
   private final BlockData terminalMonitorBusProxyData;
   private final BlockData storageProxyData;
   private final Map<UUID, PlayerState> playerStates = new HashMap<>();
@@ -72,7 +80,8 @@ public final class ExortBlockProxyService implements Listener {
       Material storageCarrier,
       Material terminalCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     this.plugin = plugin;
     this.config =
         config == null ? DisplayCullingConfig.BlockProxyConfig.defaults() : config.normalized();
@@ -81,6 +90,7 @@ public final class ExortBlockProxyService implements Listener {
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.bridgeCarrier = bridgeCarrier;
     this.terminalMonitorBusProxyData = createProxyData(ProxyVisual.TERMINAL_MONITOR_BUS);
     this.storageProxyData = createProxyData(ProxyVisual.STORAGE);
   }
@@ -587,6 +597,9 @@ public final class ExortBlockProxyService implements Listener {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
+      return ProxyVisual.TERMINAL_MONITOR_BUS;
+    }
+    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     return null;

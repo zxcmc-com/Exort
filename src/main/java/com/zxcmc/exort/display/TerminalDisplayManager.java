@@ -23,8 +23,10 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
   private final StorageKeys keys;
   private final int wireLimit;
   private final int wireHardCap;
+  private final int bridgeRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
+  private final Material bridgeCarrier;
   private final boolean dynamicState;
   private final String terminalEnabledModel;
   private final String terminalDisabledModel;
@@ -49,8 +51,10 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
       StorageKeys keys,
       int wireLimit,
       int wireHardCap,
+      int bridgeRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
+      Material bridgeCarrier,
       boolean dynamicState) {
     super(
         plugin,
@@ -68,8 +72,10 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
     this.keys = keys;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
+    this.bridgeRangeChunks = bridgeRangeChunks;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
+    this.bridgeCarrier = bridgeCarrier;
     this.dynamicState = dynamicState;
     this.terminalEnabledModel = terminalEnabledModel == null ? "" : terminalEnabledModel;
     this.terminalDisabledModel =
@@ -142,7 +148,15 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
     if (keys == null) return false;
     var result =
         TerminalLinkFinder.find(
-            block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+            block,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            bridgeCarrier,
+            bridgeRangeChunks);
     return result.count() == 1 && result.data() != null;
   }
 }

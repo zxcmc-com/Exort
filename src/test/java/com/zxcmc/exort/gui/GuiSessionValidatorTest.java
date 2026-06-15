@@ -89,6 +89,8 @@ class GuiSessionValidatorTest {
         null,
         () -> 0,
         () -> 0,
+        () -> 0,
+        () -> Material.BARRIER,
         () -> Material.BARRIER,
         () -> Material.BARRIER,
         () -> Material.BARRIER);

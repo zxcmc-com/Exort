@@ -1,19 +1,19 @@
 package com.zxcmc.exort.display;
 
-final class WireRefreshBudget {
+final class NetworkRefreshBudget {
   private final int limit;
   private int visited;
   private int skipped;
 
-  WireRefreshBudget(int hardCap) {
+  NetworkRefreshBudget(int hardCap) {
     this.limit = Math.max(1, hardCap);
   }
 
-  void recordStartWire() {
+  void recordStartNode() {
     visited = Math.min(limit, 1);
   }
 
-  boolean tryVisitNextWire() {
+  boolean tryVisitNextNode() {
     if (visited >= limit) {
       skipped++;
       return false;

@@ -41,8 +41,10 @@ public class TerminalListener implements Listener {
   private final StorageKeys keys;
   private final int wireLimit;
   private final int wireHardCap;
+  private final int bridgeRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
+  private final Material bridgeCarrier;
   private final Material terminalCarrier;
 
   public TerminalListener(
@@ -57,8 +59,10 @@ public class TerminalListener implements Listener {
       StorageKeys keys,
       int wireLimit,
       int wireHardCap,
+      int bridgeRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
+      Material bridgeCarrier,
       Material terminalCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
@@ -71,8 +75,10 @@ public class TerminalListener implements Listener {
     this.keys = keys;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
+    this.bridgeRangeChunks = bridgeRangeChunks;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
+    this.bridgeCarrier = bridgeCarrier;
     this.terminalCarrier = terminalCarrier;
   }
 
@@ -99,7 +105,15 @@ public class TerminalListener implements Listener {
 
     var storageData =
         TerminalLinkFinder.find(
-            block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+            block,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            bridgeCarrier,
+            bridgeRangeChunks);
     if (storageData.count() == 0) {
       feedbackError(event.getPlayer(), "message.no_storage_adjacent");
       event.setCancelled(true);
@@ -150,7 +164,15 @@ public class TerminalListener implements Listener {
     }
     var storageData =
         TerminalLinkFinder.find(
-            block, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier);
+            block,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            bridgeCarrier,
+            bridgeRangeChunks);
     if (storageData.count() == 0) {
       feedbackError(player, "message.no_storage_adjacent");
       return;

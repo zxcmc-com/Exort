@@ -334,7 +334,9 @@ final class LoadTestWorldWorkload {
               dependencies.wireLimit(),
               dependencies.wireHardCap(),
               dependencies.materials().wire(),
-              dependencies.materials().storageCarrier());
+              dependencies.materials().storageCarrier(),
+              dependencies.materials().bridgeCarrier(),
+              dependencies.bridgeRangeChunks());
       operations++;
     }
     if (lane.monitorBlock != null) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0 — 2026-06-15
+- Added Bridge blocks for connecting distant loaded parts of one Exort storage network without increasing cable length limits. Terminals, crafting terminals, monitors, buses, wireless access checks, and storage lookups can traverse a valid bridge pair as part of the same network.
+- Bridge links are deliberately constrained for server safety: each bridge has one reciprocal peer, links work only inside the same world, `bridge.rangeChunks` uses chunk Manhattan distance, and unloaded peer chunks are not force-loaded or treated as active links.
+- Players can link bridges by right-clicking the first bridge and then the second bridge, inspect an existing link through a bossbar with peer coordinates and storage status, and remove a link with shift-right-click while holding an empty hand. Breaking or cleaning up a bridge clears the loaded reciprocal peer.
+- Bridge blocks are available through the normal Exort item surface: recipe output, `/exort give`, `/exort inventory`, placement, pick-block, custom breaking, localized names/messages, VANILLA fallback visuals, and RESOURCE models including breaking overlays.
+- WorldEdit/FAWE operations now preserve Bridge markers safely: copy/paste keeps a bridge link only when both linked endpoints are part of the same operation, single-endpoint copies clear the link, moves rewrite links to transformed coordinates, and replacing an existing bridge unlinks its old loaded peer.
+
 ## 0.14.15 — 2026-06-14
 - RESOURCE breaking overlays on import and export buses now keep cracks centered on the main bus body, keep the protrusion face aligned to its texture span, and skip the protruding neck side faces plus transition shelf where cracks cannot align cleanly to the bus texture grid.
 

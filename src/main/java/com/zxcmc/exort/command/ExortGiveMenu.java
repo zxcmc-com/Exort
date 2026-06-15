@@ -164,6 +164,7 @@ public final class ExortGiveMenu implements InventoryHolder {
     items.add(oneItemCopy(customItems.importBusItem()));
     items.add(oneItemCopy(customItems.exportBusItem()));
     items.add(oneItemCopy(customItems.wireItem()));
+    items.add(oneItemCopy(customItems.bridgeItem()));
     items.add(oneItemCopy(wirelessTerminalFactory.get()));
     return List.copyOf(items);
   }

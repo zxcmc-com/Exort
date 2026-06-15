@@ -59,8 +59,10 @@ final class DebugCommand {
                 dependencies.cacheIdleUnloadSeconds(),
                 dependencies.wireLimit(),
                 dependencies.wireHardCap(),
+                dependencies.bridgeRangeChunks(),
                 dependencies.wireMaterial(),
-                dependencies.storageCarrier()));
+                dependencies.storageCarrier(),
+                dependencies.bridgeCarrier()));
   }
 
   LiteralArgumentBuilder<CommandSourceStack> build() {

@@ -25,6 +25,7 @@ public record RuntimeDisplayServicesDependencies(
     boolean resourceMode,
     int wireLimit,
     int wireHardCap,
+    int bridgeRangeChunks,
     PacketEnhancements packetEnhancements,
     Supplier<WorldEditDebugService> worldEditDebugService,
     Supplier<BusService> busService,

@@ -4,6 +4,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -54,6 +55,7 @@ public final class CustomBlockBreaker
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
   private final BreakSessionManager sessionManager = new BreakSessionManager();
   private final Map<UUID, DamageIntent> vanillaDamageIntents = new HashMap<>();
   private final Map<UUID, Long> rightClickTicks = new HashMap<>();
@@ -73,7 +75,8 @@ public final class CustomBlockBreaker
       Material storageCarrier,
       Material terminalCarrier,
       Material monitorCarrier,
-      Material busCarrier) {
+      Material busCarrier,
+      Material bridgeCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
     this.worldEditWandGuard = worldEditWandGuard;
@@ -88,6 +91,7 @@ public final class CustomBlockBreaker
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
+    this.bridgeCarrier = bridgeCarrier;
   }
 
   public void start() {
@@ -579,6 +583,9 @@ public final class CustomBlockBreaker
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       return BreakType.BUS;
     }
+    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
+      return BreakType.BRIDGE;
+    }
     if (Carriers.matchesCarrier(block, storageCarrier)
         && StorageMarker.get(plugin, block).isPresent()) {
       return BreakType.STORAGE;
@@ -598,6 +605,7 @@ public final class CustomBlockBreaker
       case TERMINAL -> breakConfig.terminal();
       case MONITOR -> breakConfig.monitor();
       case BUS -> breakConfig.bus();
+      case BRIDGE -> breakConfig.bridge();
       case WIRE -> breakConfig.wire();
       default -> breakConfig.storage();
     };

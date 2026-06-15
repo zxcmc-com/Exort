@@ -79,6 +79,8 @@ class MonitorDisplayManagerLifecycleTest {
           null,
           0,
           0,
+          0,
+          Material.BARRIER,
           Material.BARRIER,
           Material.BARRIER,
           null,

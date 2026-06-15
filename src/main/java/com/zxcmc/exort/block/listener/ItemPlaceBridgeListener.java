@@ -15,6 +15,7 @@ import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -69,6 +70,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
+  private final Material bridgeCarrier;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
   private final Supplier<DisplayRefreshService> displayRefreshService;
@@ -95,6 +97,7 @@ public class ItemPlaceBridgeListener implements Listener {
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
+    this.bridgeCarrier = dependencies.bridgeCarrier();
     this.regionProtection = dependencies.regionProtection();
     this.displayRefreshService = dependencies.displayRefreshService();
     this.hologramManager = dependencies.hologramManager();
@@ -231,6 +234,17 @@ public class ItemPlaceBridgeListener implements Listener {
       placeBus(event, target, customItems.isExportBus(stack));
       finishPlacement(event, target, BreakType.BUS);
       refreshBusPlacement(target);
+      return;
+    }
+
+    // Bridge
+    if (customItems.isBridge(stack)) {
+      event.setCancelled(true);
+      if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), bridgeCarrier))
+        return;
+      placeBridge(target);
+      finishPlacement(event, target, BreakType.BRIDGE);
+      refreshBridgePlacement(target);
     }
   }
 
@@ -361,6 +375,21 @@ public class ItemPlaceBridgeListener implements Listener {
       buses.getOrCreateState(BusPos.of(target), BusMarker.get(plugin, target).orElse(null), target);
     }
     if (refresh != null) {
+      refresh.refreshNetworkFrom(target);
+    }
+  }
+
+  private void placeBridge(Block target) {
+    Carriers.applyCarrier(target, bridgeCarrier);
+    BridgeMarker.set(plugin, target);
+  }
+
+  private void refreshBridgePlacement(Block target) {
+    invalidateNetwork(target);
+    var refresh = displayRefreshService.get();
+    if (refresh != null) {
+      refresh.refreshBridge(target);
+      refresh.refreshBlockAndNeighbors(target);
       refresh.refreshNetworkFrom(target);
     }
   }

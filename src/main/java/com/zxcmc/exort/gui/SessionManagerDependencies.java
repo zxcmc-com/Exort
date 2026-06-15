@@ -35,8 +35,10 @@ public record SessionManagerDependencies(
     BooleanSupplier dialogSupported,
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
+    IntSupplier bridgeRangeChunks,
     Supplier<Material> wireMaterial,
     Supplier<Material> storageCarrier,
+    Supplier<Material> bridgeCarrier,
     Supplier<Material> terminalCarrier,
     Supplier<GuiRuntimeConfig> runtimeConfig,
     Supplier<GuiOverlayConfig> overlayConfig,
@@ -58,8 +60,10 @@ public record SessionManagerDependencies(
     Objects.requireNonNull(dialogSupported, "dialogSupported");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");
+    Objects.requireNonNull(bridgeRangeChunks, "bridgeRangeChunks");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(overlayConfig, "overlayConfig");

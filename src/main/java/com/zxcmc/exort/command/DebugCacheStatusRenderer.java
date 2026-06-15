@@ -35,8 +35,10 @@ final class DebugCacheStatusRenderer {
   private final LongSupplier cacheIdleUnloadSeconds;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
+  private final IntSupplier bridgeRangeChunks;
   private final Supplier<Material> wireMaterial;
   private final Supplier<Material> storageCarrier;
+  private final Supplier<Material> bridgeCarrier;
 
   DebugCacheStatusRenderer(DebugCacheStatusRendererDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -46,8 +48,10 @@ final class DebugCacheStatusRenderer {
     this.cacheIdleUnloadSeconds = dependencies.cacheIdleUnloadSeconds();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
+    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
+    this.bridgeCarrier = dependencies.bridgeCarrier();
   }
 
   void send(CommandSender sender, String storageId) {
@@ -262,7 +266,9 @@ final class DebugCacheStatusRenderer {
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),
-            storageCarrier.get());
+            storageCarrier.get(),
+            bridgeCarrier.get(),
+            bridgeRangeChunks.getAsInt());
     return result.count() == 1
         && result.data() != null
         && storageId.equals(result.data().storageId());
@@ -278,7 +284,9 @@ final class DebugCacheStatusRenderer {
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),
-            storageCarrier.get());
+            storageCarrier.get(),
+            bridgeCarrier.get(),
+            bridgeRangeChunks.getAsInt());
     return result.count() == 1
         && result.data() != null
         && storageId.equals(result.data().storageId());
@@ -294,7 +302,9 @@ final class DebugCacheStatusRenderer {
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),
-            storageCarrier.get());
+            storageCarrier.get(),
+            bridgeCarrier.get(),
+            bridgeRangeChunks.getAsInt());
     return result.count() == 1
         && result.data() != null
         && storageId.equals(result.data().storageId());

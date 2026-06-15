@@ -4,6 +4,7 @@ import com.zxcmc.exort.block.listener.BlockListener;
 import com.zxcmc.exort.block.listener.BlockListenerDependencies;
 import com.zxcmc.exort.block.listener.ItemPlaceBridgeDependencies;
 import com.zxcmc.exort.block.listener.ItemPlaceBridgeListener;
+import com.zxcmc.exort.bridge.BridgeListener;
 import com.zxcmc.exort.bus.listener.BusListener;
 import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
@@ -71,6 +72,7 @@ public final class RuntimeListenerRegistrar {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
+                materials.bridgeCarrier(),
                 deps.breakHandler(),
                 deps.regionProtection(),
                 deps.playerFeedback(),
@@ -104,8 +106,10 @@ public final class RuntimeListenerRegistrar {
             deps.keys(),
             deps.wireLimit(),
             deps.wireHardCap(),
+            deps.bridgeRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
+            materials.bridgeCarrier(),
             materials.terminalCarrier()));
     register(
         deps,
@@ -154,6 +158,25 @@ public final class RuntimeListenerRegistrar {
                 materials.wire(),
                 deps.wirePeekTicks(),
                 materials.storageCarrier())));
+    register(
+        deps,
+        new BridgeListener(
+            deps.plugin(),
+            deps.regionProtection(),
+            deps.worldEditWandGuard(),
+            deps.playerFeedback(),
+            deps.bossBarManager(),
+            deps.lang(),
+            deps.keys(),
+            deps.displayRefreshServiceSource(),
+            deps.networkGraphCacheSource(),
+            deps.revalidateSessions(),
+            deps.wireLimit(),
+            deps.wireHardCap(),
+            deps.bridgeRangeChunks(),
+            materials.wire(),
+            materials.storageCarrier(),
+            materials.bridgeCarrier()));
   }
 
   private static void registerPickListener(RuntimeListenerDependencies deps) {
@@ -168,7 +191,8 @@ public final class RuntimeListenerRegistrar {
             materials.storageCarrier(),
             materials.terminalCarrier(),
             materials.monitorCarrier(),
-            materials.busCarrier());
+            materials.busCarrier(),
+            materials.bridgeCarrier());
     register(deps, pickListener);
     if (deps.packetEnhancements() != null) {
       deps.packetEnhancements().registerPickBridge(pickListener);
@@ -191,6 +215,7 @@ public final class RuntimeListenerRegistrar {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
+                materials.bridgeCarrier(),
                 deps.regionProtection(),
                 deps.playerFeedback(),
                 deps.displayRefreshServiceSource(),
@@ -221,8 +246,10 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.wire(),
                 materials.storageCarrier(),
+                materials.bridgeCarrier(),
                 deps::wireLimit,
                 deps::wireHardCap,
+                deps::bridgeRangeChunks,
                 deps::storagePeekTicks,
                 deps.monitorRecentlyPlaced(),
                 block -> {
@@ -255,7 +282,8 @@ public final class RuntimeListenerRegistrar {
                 materials.storageCarrier(),
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
-                materials.busCarrier()),
+                materials.busCarrier(),
+                materials.bridgeCarrier()),
             placementGuardBackend,
             placementConfig.pollIntervalTicks(),
             placementConfig.targetRangeBlocks(),
@@ -342,8 +370,10 @@ public final class RuntimeListenerRegistrar {
                 deps.keys(),
                 deps.wireLimit(),
                 deps.wireHardCap(),
+                deps.bridgeRangeChunks(),
                 materials.wire(),
-                materials.storageCarrier())));
+                materials.storageCarrier(),
+                materials.bridgeCarrier())));
     register(deps, new WirelessCraftListener(deps.wirelessService()));
   }
 

@@ -21,7 +21,8 @@ public record MarkerSanityDependencies(
     Material storageCarrier,
     Material terminalCarrier,
     Material monitorCarrier,
-    Material busCarrier) {
+    Material busCarrier,
+    Material bridgeCarrier) {
   public MarkerSanityDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");
@@ -34,5 +35,6 @@ public record MarkerSanityDependencies(
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
   }
 }

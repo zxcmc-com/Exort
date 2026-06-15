@@ -5,6 +5,7 @@ public enum BreakType {
   TERMINAL,
   MONITOR,
   BUS,
+  BRIDGE,
   WIRE,
   NONE
 }
