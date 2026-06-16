@@ -1,9 +1,9 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
@@ -23,7 +23,7 @@ final class WireConnectionModelResolver {
       Material storageCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier) {
+      Material relayCarrier) {
     int mask = 0;
     for (BlockFace face : WireModelKeys.CONNECTION_FACES) {
       if (isConnected(
@@ -35,7 +35,7 @@ final class WireConnectionModelResolver {
           storageCarrier,
           monitorCarrier,
           busCarrier,
-          bridgeCarrier)) {
+          relayCarrier)) {
         mask |= WireModelKeys.bit(face);
       }
     }
@@ -51,7 +51,7 @@ final class WireConnectionModelResolver {
       Material storageCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier) {
+      Material relayCarrier) {
     Block neighbor = wire.getRelative(face);
     if (neighbor == null) return false;
     if (Carriers.matchesCarrier(neighbor, wireCarrierMaterial)
@@ -69,7 +69,7 @@ final class WireConnectionModelResolver {
       return !isFrontFace(
           plugin, neighbor, face.getOppositeFace(), terminalMaterial, monitorCarrier, busCarrier);
     }
-    if (isBridge(plugin, neighbor, bridgeCarrier)) return true;
+    if (isRelay(plugin, neighbor, relayCarrier)) return true;
     return false;
   }
 
@@ -91,8 +91,8 @@ final class WireConnectionModelResolver {
     return Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
   }
 
-  private static boolean isBridge(Plugin plugin, Block block, Material bridgeCarrier) {
-    return Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
+  private static boolean isRelay(Plugin plugin, Block block, Material relayCarrier) {
+    return Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
   }
 
   private static boolean isFrontFace(

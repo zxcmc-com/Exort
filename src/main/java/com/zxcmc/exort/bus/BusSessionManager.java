@@ -34,10 +34,10 @@ public class BusSessionManager {
   private final Supplier<Material> busCarrier;
   private final int wireLimit;
   private final int wireHardCap;
-  private final int bridgeRangeChunks;
+  private final int relayRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
   private final Supplier<GuiOverlayConfig> overlayConfigSource;
   private final BusService busService;
@@ -57,10 +57,10 @@ public class BusSessionManager {
     this.busCarrier = dependencies.busCarrier();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
-    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
+    this.relayRangeChunks = dependencies.relayRangeChunks();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();
     this.busService = busService;
@@ -235,8 +235,8 @@ public class BusSessionManager {
             wireHardCap,
             wireMaterial,
             storageCarrier,
-            bridgeCarrier,
-            bridgeRangeChunks);
+            relayCarrier,
+            relayRangeChunks);
     boolean loop = busService.isLoopDisabled(state.pos());
     if (link.count() == 0 || link.data() == null) {
       return new BusLinkStatus(StorageState.NONE, null, null, null, loop);

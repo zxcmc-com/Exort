@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.storage.StorageTier;
@@ -30,7 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class NetworkGraphCacheBridgeTest {
+class NetworkGraphCacheRelayTest {
   private static final Material CARRIER = Material.BARRIER;
   private static final Material WIRE = Material.CHORUS_PLANT;
 
@@ -53,14 +53,14 @@ class NetworkGraphCacheBridgeTest {
   }
 
   @Test
-  void linkedReciprocalBridgesConnectStorageWithoutIncreasingWireLength() {
-    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("bridge-graph-link", uuid(10));
+  void linkedReciprocalRelaysConnectStorageWithoutIncreasingWireLength() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-graph-link", uuid(10));
     Block terminal = world.block(0, 64, 0, CARRIER);
-    Block firstBridge = world.block(1, 64, 0, CARRIER);
-    Block secondBridge = world.block(64, 64, 0, CARRIER);
+    Block firstRelay = world.block(1, 64, 0, CARRIER);
+    Block secondRelay = world.block(64, 64, 0, CARRIER);
     Block storage = world.block(65, 64, 0, CARRIER);
     TerminalMarker.set(plugin, terminal);
-    BridgeMarker.link(plugin, firstBridge, secondBridge);
+    RelayMarker.link(plugin, firstRelay, secondRelay);
     StorageMarker.set(plugin, storage, "storage-a", tier);
 
     TerminalLinkFinder.StorageSearchResult result = scan(terminal, 0, 16, 4);
@@ -70,21 +70,20 @@ class NetworkGraphCacheBridgeTest {
   }
 
   @Test
-  void linkedReciprocalBridgesConnectMonitorAndBusStartsToStorage() {
-    BukkitTestDoubles.TestWorld world =
-        BukkitTestDoubles.world("bridge-graph-components", uuid(15));
+  void linkedReciprocalRelaysConnectMonitorAndBusStartsToStorage() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-graph-components", uuid(15));
     Block monitor = world.block(0, 64, 0, CARRIER);
-    Block monitorBridge = world.block(1, 64, 0, CARRIER);
+    Block monitorRelay = world.block(1, 64, 0, CARRIER);
     Block bus = world.block(0, 70, 0, CARRIER);
-    Block busBridge = world.block(1, 70, 0, CARRIER);
-    Block farMonitorBridge = world.block(64, 64, 0, CARRIER);
+    Block busRelay = world.block(1, 70, 0, CARRIER);
+    Block farMonitorRelay = world.block(64, 64, 0, CARRIER);
     Block monitorStorage = world.block(65, 64, 0, CARRIER);
-    Block farBusBridge = world.block(64, 70, 0, CARRIER);
+    Block farBusRelay = world.block(64, 70, 0, CARRIER);
     Block busStorage = world.block(65, 70, 0, CARRIER);
     MonitorMarker.set(plugin, monitor, BlockFace.WEST);
     BusMarker.set(plugin, bus, BusType.IMPORT, BlockFace.WEST, BusMode.DISABLED);
-    BridgeMarker.link(plugin, monitorBridge, farMonitorBridge);
-    BridgeMarker.link(plugin, busBridge, farBusBridge);
+    RelayMarker.link(plugin, monitorRelay, farMonitorRelay);
+    RelayMarker.link(plugin, busRelay, farBusRelay);
     StorageMarker.set(plugin, monitorStorage, "storage-a", tier);
     StorageMarker.set(plugin, busStorage, "storage-b", tier);
 
@@ -93,25 +92,25 @@ class NetworkGraphCacheBridgeTest {
   }
 
   @Test
-  void bridgeRangeUsesChunkManhattanDistance() {
-    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("bridge-graph-range", uuid(11));
+  void relayRangeUsesChunkManhattanDistance() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-graph-range", uuid(11));
     Block origin = world.block(0, 64, 0, CARRIER);
     Block diagonalInside = world.block(32, 64, 16, CARRIER);
     Block diagonalOutside = world.block(32, 64, 32, CARRIER);
 
-    assertTrue(NetworkGraphCache.inBridgeRange(origin, diagonalInside, 3));
-    assertFalse(NetworkGraphCache.inBridgeRange(origin, diagonalOutside, 3));
+    assertTrue(NetworkGraphCache.inRelayRange(origin, diagonalInside, 3));
+    assertFalse(NetworkGraphCache.inRelayRange(origin, diagonalOutside, 3));
   }
 
   @Test
   void unloadedPeerChunkIsNotLoadedAndDoesNotActAsLink() {
-    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("bridge-graph-unloaded", uuid(12));
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-graph-unloaded", uuid(12));
     Block terminal = world.block(0, 64, 0, CARRIER);
-    Block firstBridge = world.block(1, 64, 0, CARRIER);
-    Block secondBridge = world.block(64, 64, 0, CARRIER);
+    Block firstRelay = world.block(1, 64, 0, CARRIER);
+    Block secondRelay = world.block(64, 64, 0, CARRIER);
     Block storage = world.block(65, 64, 0, CARRIER);
     TerminalMarker.set(plugin, terminal);
-    BridgeMarker.link(plugin, firstBridge, secondBridge);
+    RelayMarker.link(plugin, firstRelay, secondRelay);
     StorageMarker.set(plugin, storage, "storage-a", tier);
     world.unloadChunk(4, 0);
 
@@ -122,17 +121,17 @@ class NetworkGraphCacheBridgeTest {
   }
 
   @Test
-  void crossWorldBridgeLinkDoesNotConnectStorage() {
+  void crossWorldRelayLinkDoesNotConnectStorage() {
     BukkitTestDoubles.TestWorld firstWorld =
-        BukkitTestDoubles.world("bridge-graph-world-a", uuid(13));
+        BukkitTestDoubles.world("relay-graph-world-a", uuid(13));
     BukkitTestDoubles.TestWorld secondWorld =
-        BukkitTestDoubles.world("bridge-graph-world-b", uuid(14));
+        BukkitTestDoubles.world("relay-graph-world-b", uuid(14));
     Block terminal = firstWorld.block(0, 64, 0, CARRIER);
-    Block firstBridge = firstWorld.block(1, 64, 0, CARRIER);
-    Block secondBridge = secondWorld.block(64, 64, 0, CARRIER);
+    Block firstRelay = firstWorld.block(1, 64, 0, CARRIER);
+    Block secondRelay = secondWorld.block(64, 64, 0, CARRIER);
     Block storage = secondWorld.block(65, 64, 0, CARRIER);
     TerminalMarker.set(plugin, terminal);
-    BridgeMarker.link(plugin, firstBridge, secondBridge);
+    RelayMarker.link(plugin, firstRelay, secondRelay);
     StorageMarker.set(plugin, storage, "storage-a", tier);
 
     TerminalLinkFinder.StorageSearchResult result = scan(terminal, 0, 16, 8);
@@ -141,9 +140,9 @@ class NetworkGraphCacheBridgeTest {
   }
 
   private TerminalLinkFinder.StorageSearchResult scan(
-      Block start, int wireLimit, int hardCap, int bridgeRangeChunks) {
+      Block start, int wireLimit, int hardCap, int relayRangeChunks) {
     return NetworkGraphCache.scan(
-        start, keys, plugin, wireLimit, hardCap, WIRE, CARRIER, CARRIER, bridgeRangeChunks);
+        start, keys, plugin, wireLimit, hardCap, WIRE, CARRIER, CARRIER, relayRangeChunks);
   }
 
   private static StorageTier loadTier() {

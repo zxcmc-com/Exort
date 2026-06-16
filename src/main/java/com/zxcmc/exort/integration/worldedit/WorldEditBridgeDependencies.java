@@ -76,7 +76,7 @@ public record WorldEditBridgeDependencies(
     return materials.busCarrier();
   }
 
-  public Material bridgeCarrier() {
-    return materials.bridgeCarrier();
+  public Material relayCarrier() {
+    return materials.relayCarrier();
   }
 }

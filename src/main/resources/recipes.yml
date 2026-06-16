@@ -115,9 +115,9 @@ shaped:
       B: minecraft:dropper
       C: exort:wire
 
-  bridge:
+  relay:
     result:
-      item: exort:bridge
+      item: exort:relay
       amount: 2
     shape:
       - "ABA"

@@ -37,10 +37,10 @@ public class MonitorListener implements Listener {
   private final Material monitorCarrier;
   private final Material wireMaterial;
   private final Material storageCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
-  private final IntSupplier bridgeRangeChunks;
+  private final IntSupplier relayRangeChunks;
   private final LongSupplier storagePeekTicks;
   private final Predicate<Block> monitorRecentlyPlaced;
   private final Consumer<Block> monitorDisplayRefresh;
@@ -56,10 +56,10 @@ public class MonitorListener implements Listener {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
-    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
+    this.relayRangeChunks = dependencies.relayRangeChunks();
     this.storagePeekTicks = dependencies.storagePeekTicks();
     this.monitorRecentlyPlaced = dependencies.monitorRecentlyPlaced();
     this.monitorDisplayRefresh = dependencies.monitorDisplayRefresh();
@@ -105,8 +105,8 @@ public class MonitorListener implements Listener {
               wireHardCap.getAsInt(),
               wireMaterial,
               storageCarrier,
-              bridgeCarrier,
-              bridgeRangeChunks.getAsInt());
+              relayCarrier,
+              relayRangeChunks.getAsInt());
       if (link.count() == 1 && link.data() != null) {
         String itemKey = MonitorMarker.itemKey(plugin, block).orElse(null);
         String itemName = itemKey;
@@ -147,8 +147,8 @@ public class MonitorListener implements Listener {
               wireHardCap.getAsInt(),
               wireMaterial,
               storageCarrier,
-              bridgeCarrier,
-              bridgeRangeChunks.getAsInt());
+              relayCarrier,
+              relayRangeChunks.getAsInt());
       if (link.count() == 1 && link.data() != null) {
         bossBarManager.showPeek(
             link.data().storageId(),

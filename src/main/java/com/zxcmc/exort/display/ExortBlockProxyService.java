@@ -3,11 +3,11 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.carrier.ChorusPlantVisualState;
 import com.zxcmc.exort.debug.PerfStats;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
@@ -51,7 +51,7 @@ public final class ExortBlockProxyService implements Listener {
           "monitor_item",
           "monitor_text",
           DisplayTags.BUS_TAG,
-          "bridge");
+          "relay");
 
   private final JavaPlugin plugin;
   private final DisplayCullingConfig.BlockProxyConfig config;
@@ -60,7 +60,7 @@ public final class ExortBlockProxyService implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final BlockData terminalMonitorBusProxyData;
   private final BlockData storageProxyData;
   private final Map<UUID, PlayerState> playerStates = new HashMap<>();
@@ -81,7 +81,7 @@ public final class ExortBlockProxyService implements Listener {
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier) {
+      Material relayCarrier) {
     this.plugin = plugin;
     this.config =
         config == null ? DisplayCullingConfig.BlockProxyConfig.defaults() : config.normalized();
@@ -90,7 +90,7 @@ public final class ExortBlockProxyService implements Listener {
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
     this.terminalMonitorBusProxyData = createProxyData(ProxyVisual.TERMINAL_MONITOR_BUS);
     this.storageProxyData = createProxyData(ProxyVisual.STORAGE);
   }
@@ -599,7 +599,7 @@ public final class ExortBlockProxyService implements Listener {
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
-    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
+    if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     return null;

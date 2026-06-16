@@ -2,11 +2,11 @@ package com.zxcmc.exort.sanity;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.display.DisplayTags;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
@@ -27,7 +27,7 @@ public final class DisplayCleanupService {
   private static final String TYPE_TERMINAL = "terminal";
   private static final String TYPE_MONITOR = "monitor";
   private static final String TYPE_BUS = "bus";
-  private static final String TYPE_BRIDGE = "bridge";
+  private static final String TYPE_RELAY = "relay";
   private static final String TYPE_MONITOR_ITEM = "monitor_item";
   private static final String TYPE_MONITOR_TEXT = "monitor_text";
   private static final String[] DISPLAY_TYPES =
@@ -37,19 +37,19 @@ public final class DisplayCleanupService {
         TYPE_TERMINAL,
         TYPE_MONITOR,
         TYPE_BUS,
-        TYPE_BRIDGE,
+        TYPE_RELAY,
         TYPE_MONITOR_ITEM,
         TYPE_MONITOR_TEXT
       };
   private static final Set<String> MARKER_BACKED_DISPLAY_TYPES =
-      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS, TYPE_BRIDGE);
+      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS, TYPE_RELAY);
   private final Plugin plugin;
   private final Material wireCarrier;
   private final Material storageCarrier;
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
 
   public DisplayCleanupService(
       Plugin plugin,
@@ -58,14 +58,14 @@ public final class DisplayCleanupService {
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier) {
+      Material relayCarrier) {
     this.plugin = plugin;
     this.wireCarrier = wireCarrier;
     this.storageCarrier = storageCarrier;
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
   }
 
   public void cleanupDisplays(Chunk chunk) {
@@ -166,8 +166,8 @@ public final class DisplayCleanupService {
       case TYPE_MONITOR ->
           Carriers.matchesCarrier(block, monitorCarrier) && MonitorMarker.isMonitor(plugin, block);
       case TYPE_BUS -> Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
-      case TYPE_BRIDGE ->
-          Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
+      case TYPE_RELAY ->
+          Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
       default -> false;
     };
   }
@@ -178,7 +178,7 @@ public final class DisplayCleanupService {
         || isValidMarkerBackedBlock(block, TYPE_TERMINAL)
         || isValidMarkerBackedBlock(block, TYPE_MONITOR)
         || isValidMarkerBackedBlock(block, TYPE_BUS)
-        || isValidMarkerBackedBlock(block, TYPE_BRIDGE);
+        || isValidMarkerBackedBlock(block, TYPE_RELAY);
   }
 
   private void loadMonitorDisplayIds(Chunk chunk, Set<UUID> monitorItems, Set<UUID> monitorTexts) {

@@ -28,7 +28,7 @@ public record RuntimeBusServicesDependencies(
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks,
+    int relayRangeChunks,
     BusRuntimeConfig busRuntime,
     BooleanSupplier resourceMode,
     Supplier<GuiRuntimeConfig> guiRuntimeConfig,

@@ -423,7 +423,7 @@ public final class RecipeService {
       case "monitor" -> customItems.monitorItem();
       case "import_bus" -> customItems.importBusItem();
       case "export_bus" -> customItems.exportBusItem();
-      case "bridge" -> customItems.bridgeItem();
+      case "relay" -> customItems.relayItem();
       case "wireless_terminal" ->
           wirelessService != null
               ? wirelessService.create()

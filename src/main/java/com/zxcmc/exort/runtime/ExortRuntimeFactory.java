@@ -49,7 +49,7 @@ public final class ExortRuntimeFactory {
             itemModels.terminalCarrier(),
             itemModels.monitorCarrier(),
             itemModels.busCarrier(),
-            itemModels.bridgeCarrier());
+            itemModels.relayCarrier());
 
     loadStorageTiersConfig(deps);
     RuntimeNetworkConfig networkConfig = RuntimeNetworkConfig.fromConfig(deps.config());
@@ -94,7 +94,7 @@ public final class ExortRuntimeFactory {
                 deps.resourceMode(),
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
-                networkConfig.bridgeRangeChunks(),
+                networkConfig.relayRangeChunks(),
                 packetEnhancements,
                 deps.worldEditDebugService(),
                 () -> state.busService,
@@ -119,7 +119,7 @@ public final class ExortRuntimeFactory {
                 materials,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
-                networkConfig.bridgeRangeChunks(),
+                networkConfig.relayRangeChunks(),
                 busRuntime,
                 () -> deps.resourceMode(),
                 deps.guiRuntimeConfig(),
@@ -173,7 +173,7 @@ public final class ExortRuntimeFactory {
                 materials,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
-                networkConfig.bridgeRangeChunks(),
+                networkConfig.relayRangeChunks(),
                 displayServices.hologramManager(),
                 () -> displayServices.hologramManager(),
                 displayServices.wireDisplayManager(),
@@ -221,7 +221,7 @@ public final class ExortRuntimeFactory {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
-                materials.bridgeCarrier()),
+                materials.relayCarrier()),
             WorldEditBulkConfig.fromConfig(deps.config()));
     WorldEditIntegration worldEditIntegration =
         WorldEditRuntimeBootstrap.register(
@@ -237,7 +237,7 @@ public final class ExortRuntimeFactory {
         materials,
         networkConfig.wireLimit(),
         networkConfig.wireHardCap(),
-        networkConfig.bridgeRangeChunks(),
+        networkConfig.relayRangeChunks(),
         networkConfig.storagePeekTicks(),
         networkConfig.wirePeekTicks(),
         displayServices.hologramManager(),
@@ -303,7 +303,7 @@ public final class ExortRuntimeFactory {
         itemModels.monitorItemModel(),
         itemModels.importBusItemModel(),
         itemModels.exportBusItemModel(),
-        itemModels.bridgeItemModel(),
+        itemModels.relayItemModel(),
         itemModels.wirelessItemModel(),
         itemModels.wirelessDisabledModel(),
         VANILLA_NAMESPACE + ":target",

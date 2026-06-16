@@ -12,7 +12,7 @@ public record RuntimeDisplayModelConfig(
     String monitorDisabled,
     String importBus,
     String exportBus,
-    String bridge) {
+    String relay) {
   public static RuntimeDisplayModelConfig forMode(boolean resourceMode, String namespace) {
     return resourceMode ? resourceConfig(namespace) : vanillaConfig(namespace);
   }
@@ -28,7 +28,7 @@ public record RuntimeDisplayModelConfig(
         normalizeModelId("terminal/monitor_disabled", namespace),
         normalizeModelId("bus/import", namespace),
         normalizeModelId("bus/export", namespace),
-        normalizeModelId("bridge/bridge", namespace));
+        normalizeModelId("relay/relay", namespace));
   }
 
   private static RuntimeDisplayModelConfig vanillaConfig(String namespace) {

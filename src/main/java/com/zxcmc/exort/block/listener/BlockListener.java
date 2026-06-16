@@ -17,9 +17,9 @@ import com.zxcmc.exort.display.WireDisplayManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
@@ -66,7 +66,7 @@ public class BlockListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final BlockBreakHandler breakHandler;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
@@ -93,7 +93,7 @@ public class BlockListener implements Listener {
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
     this.breakHandler = dependencies.breakHandler();
     this.regionProtection = dependencies.regionProtection();
     this.displayRefreshService = dependencies.displayRefreshService();
@@ -298,22 +298,22 @@ public class BlockListener implements Listener {
       return;
     }
 
-    if (customItems.isBridge(event.getItemInHand())
-        && Carriers.matchesCarrier(block, bridgeCarrier)) {
+    if (customItems.isRelay(event.getItemInHand())
+        && Carriers.matchesCarrier(block, relayCarrier)) {
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
         event.setCancelled(true);
         return;
       }
-      BridgeMarker.set(plugin, block);
+      RelayMarker.set(plugin, block);
       consumeIfInitialized(event);
       invalidateNetwork(block);
       var refresh = displayRefreshService.get();
       if (refresh != null) {
-        refresh.refreshBridge(block);
+        refresh.refreshRelay(block);
         refresh.refreshBlockAndNeighbors(block);
         refresh.refreshNetworkFrom(block);
       }
-      playPlaceSound(block, BreakType.BRIDGE);
+      playPlaceSound(block, BreakType.RELAY);
       if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
         for (var dir :
             new BlockFace[] {
@@ -468,7 +468,7 @@ public class BlockListener implements Listener {
       if (BusMarker.isBus(plugin, b)) {
         return true;
       }
-      if (BridgeMarker.isBridge(plugin, b)) {
+      if (RelayMarker.isRelay(plugin, b)) {
         return true;
       }
     }

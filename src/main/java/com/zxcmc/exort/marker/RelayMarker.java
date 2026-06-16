@@ -8,10 +8,10 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
 
-public final class BridgeMarker {
-  private BridgeMarker() {}
+public final class RelayMarker {
+  private RelayMarker() {}
 
-  private static final String SECTION = "bridge";
+  private static final String SECTION = "relay";
   private static final String FIELD_PRESENT = "present";
   private static final String FIELD_LINK_WORLD = "link_world";
   private static final String FIELD_LINK_X = "link_x";
@@ -50,7 +50,7 @@ public final class BridgeMarker {
     ChunkMarkerStore.setByte(plugin, block, SECTION, FIELD_PRESENT, (byte) 1);
   }
 
-  public static boolean isBridge(Plugin plugin, Block block) {
+  public static boolean isRelay(Plugin plugin, Block block) {
     return ChunkMarkerStore.getByte(plugin, block, SECTION, FIELD_PRESENT)
         .map(val -> val == (byte) 1)
         .orElse(false);
@@ -116,7 +116,7 @@ public final class BridgeMarker {
     Optional<Link> peerLink = link(plugin, block);
     clearLink(plugin, block);
     Block peer = peerLink.map(Link::loadedBlock).orElse(null);
-    if (peer == null || !isBridge(plugin, peer)) {
+    if (peer == null || !isRelay(plugin, peer)) {
       return;
     }
     link(plugin, peer)

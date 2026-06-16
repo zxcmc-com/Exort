@@ -51,10 +51,10 @@ public class WirelessListener implements Listener {
   private final StorageKeys keys;
   private final int wireLimit;
   private final int wireHardCap;
-  private final int bridgeRangeChunks;
+  private final int relayRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
 
   public WirelessListener(WirelessListenerDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -70,10 +70,10 @@ public class WirelessListener implements Listener {
     this.keys = dependencies.keys();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
-    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
+    this.relayRangeChunks = dependencies.relayRangeChunks();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
   }
 
   @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
@@ -144,8 +144,8 @@ public class WirelessListener implements Listener {
               wireHardCap,
               wireMaterial,
               storageCarrier,
-              bridgeCarrier,
-              bridgeRangeChunks);
+              relayCarrier,
+              relayRangeChunks);
     } else if (StorageMarker.get(plugin, block).isPresent()) {
       if (!regionProtection.canUse(player, block)) {
         feedbackError(player, "message.no_permission");

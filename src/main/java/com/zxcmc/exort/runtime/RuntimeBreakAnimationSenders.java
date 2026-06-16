@@ -36,7 +36,7 @@ public final class RuntimeBreakAnimationSenders {
                 materials.storageCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
-                materials.bridgeCarrier());
+                materials.relayCarrier());
         senders.add(
             new DisplayBreakAnimationSender(
                 plugin,
@@ -80,7 +80,7 @@ public final class RuntimeBreakAnimationSenders {
             switch (type) {
               case WIRE -> wire;
               case STORAGE -> storage;
-              case TERMINAL, MONITOR, BUS, BRIDGE -> terminalMonitorBus;
+              case TERMINAL, MONITOR, BUS, RELAY -> terminalMonitorBus;
               case NONE -> fallback;
             },
         type -> shouldShowResourceStageParticles(wireMaterial, type));

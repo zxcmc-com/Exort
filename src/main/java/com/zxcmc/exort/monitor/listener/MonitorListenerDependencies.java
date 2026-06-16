@@ -26,10 +26,10 @@ public record MonitorListenerDependencies(
     Material monitorCarrier,
     Material wireMaterial,
     Material storageCarrier,
-    Material bridgeCarrier,
+    Material relayCarrier,
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
-    IntSupplier bridgeRangeChunks,
+    IntSupplier relayRangeChunks,
     LongSupplier storagePeekTicks,
     Predicate<Block> monitorRecentlyPlaced,
     Consumer<Block> monitorDisplayRefresh) {
@@ -43,7 +43,7 @@ public record MonitorListenerDependencies(
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");
-    Objects.requireNonNull(bridgeRangeChunks, "bridgeRangeChunks");
+    Objects.requireNonNull(relayRangeChunks, "relayRangeChunks");
     Objects.requireNonNull(storagePeekTicks, "storagePeekTicks");
     Objects.requireNonNull(monitorRecentlyPlaced, "monitorRecentlyPlaced");
     Objects.requireNonNull(monitorDisplayRefresh, "monitorDisplayRefresh");

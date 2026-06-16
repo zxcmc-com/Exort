@@ -31,7 +31,7 @@ public class CustomItems {
   private final String monitorItemModel;
   private final String importBusItemModel;
   private final String exportBusItemModel;
-  private final String bridgeItemModel;
+  private final String relayItemModel;
   private final String wirelessItemModel;
   private final String wirelessDisabledItemModel;
   private final String wirelessVanillaModel;
@@ -47,7 +47,7 @@ public class CustomItems {
       String monitorItemModel,
       String importBusItemModel,
       String exportBusItemModel,
-      String bridgeItemModel,
+      String relayItemModel,
       String wirelessItemModel,
       String wirelessDisabledItemModel,
       String wirelessVanillaModel,
@@ -62,7 +62,7 @@ public class CustomItems {
     this.monitorItemModel = monitorItemModel == null ? "" : monitorItemModel;
     this.importBusItemModel = importBusItemModel == null ? "" : importBusItemModel;
     this.exportBusItemModel = exportBusItemModel == null ? "" : exportBusItemModel;
-    this.bridgeItemModel = bridgeItemModel == null ? "" : bridgeItemModel;
+    this.relayItemModel = relayItemModel == null ? "" : relayItemModel;
     this.wirelessItemModel = wirelessItemModel == null ? "" : wirelessItemModel;
     this.wirelessDisabledItemModel =
         wirelessDisabledItemModel == null ? "" : wirelessDisabledItemModel;
@@ -186,14 +186,14 @@ public class CustomItems {
     return item;
   }
 
-  public ItemStack bridgeItem() {
+  public ItemStack relayItem() {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(lang.itemComponent(clientTranslations, "item.bridge"));
-      ItemModelUtil.applyItemModel(meta, bridgeItemModel);
+      meta.itemName(lang.itemComponent(clientTranslations, "item.relay"));
+      ItemModelUtil.applyItemModel(meta, relayItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.BRIDGE.id());
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.RELAY.id());
       item.setItemMeta(meta);
     }
     return item;
@@ -287,9 +287,9 @@ public class CustomItems {
         stack.setItemMeta(meta);
         return true;
       }
-      case "bridge" -> {
-        meta.itemName(lang.itemComponent(clientTranslations, "item.bridge"));
-        ItemModelUtil.applyItemModel(meta, bridgeItemModel);
+      case "relay" -> {
+        meta.itemName(lang.itemComponent(clientTranslations, "item.relay"));
+        ItemModelUtil.applyItemModel(meta, relayItemModel);
         stack.setItemMeta(meta);
         return true;
       }
@@ -310,11 +310,11 @@ public class CustomItems {
     return "wireless_terminal".equalsIgnoreCase(type);
   }
 
-  public boolean isBridge(ItemStack stack) {
+  public boolean isRelay(ItemStack stack) {
     if (stack == null || !stack.hasItemMeta()) return false;
     PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
     String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "bridge".equalsIgnoreCase(type);
+    return "relay".equalsIgnoreCase(type);
   }
 
   public boolean isStorageCore(ItemStack stack) {

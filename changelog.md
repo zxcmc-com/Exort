@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.1 — 2026-06-16
+- Renamed `Bridge` to `Network Relay`; item id, `/exort give`, recipes, config keys, marker data, breaking settings, and resource-pack model paths now use `relay`.
+- Fixed WorldEdit/FAWE history replay for Exort blocks: `//move`, `//cut`, `//copy`, `//paste`, `/undo`, and `/redo` now restore marker data, storage restore state, and displays instead of leaving vanilla carrier blocks.
+- Multi-step history commands such as `/undo 20` now replay Exort marker frames per step, including overlapping and self-overlapping edits.
+- Exort custom breaking now starts or resumes from held left click while a survival player is airborne or flying; landing no longer leaves the block without custom break progress.
+- Updated bundled locale files and runtime fallback strings for Network Relay names, link/status messages, and the give-item list.
+
 ## 0.15.0 — 2026-06-15
 - Added Bridge blocks for connecting distant loaded parts of one Exort storage network without increasing cable length limits. Terminals, crafting terminals, monitors, buses, wireless access checks, and storage lookups can traverse a valid bridge pair as part of the same network.
 - Bridge links are deliberately constrained for server safety: each bridge has one reciprocal peer, links work only inside the same world, `bridge.rangeChunks` uses chunk Manhattan distance, and unloaded peer chunks are not force-loaded or treated as active links.

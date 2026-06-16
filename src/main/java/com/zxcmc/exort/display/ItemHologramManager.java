@@ -45,10 +45,10 @@ public class ItemHologramManager implements Listener {
   private final StorageKeys keys;
   private final int wireLimit;
   private final int wireHardCap;
-  private final int bridgeRangeChunks;
+  private final int relayRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final Material terminalCarrier;
   private final Material disconnectedMaterial;
   private final Config terminalConfig;
@@ -65,10 +65,10 @@ public class ItemHologramManager implements Listener {
       StorageKeys keys,
       int wireLimit,
       int wireHardCap,
-      int bridgeRangeChunks,
+      int relayRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
-      Material bridgeCarrier,
+      Material relayCarrier,
       Material terminalCarrier,
       Config terminalConfig,
       Config storageConfig,
@@ -77,10 +77,10 @@ public class ItemHologramManager implements Listener {
     this.keys = keys;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
-    this.bridgeRangeChunks = bridgeRangeChunks;
+    this.relayRangeChunks = relayRangeChunks;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
     this.terminalCarrier = terminalCarrier;
     this.terminalConfig = terminalConfig;
     this.storageConfig = storageConfig;
@@ -253,8 +253,8 @@ public class ItemHologramManager implements Listener {
             wireHardCap,
             wireMaterial,
             storageCarrier,
-            bridgeCarrier,
-            bridgeRangeChunks);
+            relayCarrier,
+            relayRangeChunks);
     if (result.count() == 1 && result.data() != null) {
       return result.data().tier().displayMaterial();
     }

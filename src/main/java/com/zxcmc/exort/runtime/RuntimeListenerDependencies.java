@@ -58,7 +58,7 @@ public record RuntimeListenerDependencies(
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks,
+    int relayRangeChunks,
     ItemHologramManager hologramManager,
     Supplier<ItemHologramManager> hologramManagerSource,
     WireDisplayManager wireDisplayManager,

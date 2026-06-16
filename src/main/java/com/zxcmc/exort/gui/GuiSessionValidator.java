@@ -20,10 +20,10 @@ final class GuiSessionValidator {
   private final StorageKeys keys;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
-  private final IntSupplier bridgeRangeChunks;
+  private final IntSupplier relayRangeChunks;
   private final Supplier<Material> wireMaterial;
   private final Supplier<Material> storageCarrier;
-  private final Supplier<Material> bridgeCarrier;
+  private final Supplier<Material> relayCarrier;
   private final Supplier<Material> terminalCarrier;
 
   GuiSessionValidator(
@@ -31,19 +31,19 @@ final class GuiSessionValidator {
       StorageKeys keys,
       IntSupplier wireLimit,
       IntSupplier wireHardCap,
-      IntSupplier bridgeRangeChunks,
+      IntSupplier relayRangeChunks,
       Supplier<Material> wireMaterial,
       Supplier<Material> storageCarrier,
-      Supplier<Material> bridgeCarrier,
+      Supplier<Material> relayCarrier,
       Supplier<Material> terminalCarrier) {
     this.plugin = plugin;
     this.keys = keys;
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
-    this.bridgeRangeChunks = bridgeRangeChunks;
+    this.relayRangeChunks = relayRangeChunks;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
     this.terminalCarrier = terminalCarrier;
   }
 
@@ -64,8 +64,8 @@ final class GuiSessionValidator {
             wireHardCap.getAsInt(),
             wireMaterial.get(),
             storageCarrier.get(),
-            bridgeCarrier.get(),
-            bridgeRangeChunks.getAsInt());
+            relayCarrier.get(),
+            relayRangeChunks.getAsInt());
     return link.count() == 1
         && link.data() != null
         && session.getStorageId().equals(link.data().storageId());

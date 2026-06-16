@@ -7,10 +7,10 @@ import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.DisplayTags;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.infra.db.Database;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
@@ -38,7 +38,7 @@ public final class MarkerSanityService {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
 
   public MarkerSanityService(MarkerSanityDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -52,7 +52,7 @@ public final class MarkerSanityService {
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
   }
 
   public int repairFullChorusWires(Chunk chunk) {
@@ -134,17 +134,17 @@ public final class MarkerSanityService {
               registerBusState(block);
             }
           }
-          if (BridgeMarker.isBridge(plugin, block)) {
-            if (!Carriers.matchesCarrier(block, bridgeCarrier)) {
+          if (RelayMarker.isRelay(plugin, block)) {
+            if (!Carriers.matchesCarrier(block, relayCarrier)) {
               if (Carriers.isBarrier(block)) {
-                migrateBridgeCarrier(block);
+                migrateRelayCarrier(block);
               } else {
-                BridgeMarker.unlinkLoadedPair(plugin, block);
-                BridgeMarker.clear(plugin, block);
-                displayRefreshService.removeBridgeDisplay(block);
+                RelayMarker.unlinkLoadedPair(plugin, block);
+                RelayMarker.clear(plugin, block);
+                displayRefreshService.removeRelayDisplay(block);
               }
             } else {
-              cleanupInvalidBridgeLink(block);
+              cleanupInvalidRelayLink(block);
             }
           }
           if (StorageCoreMarker.isCore(plugin, block)
@@ -233,7 +233,7 @@ public final class MarkerSanityService {
     boolean hadTerminal = TerminalMarker.isTerminal(plugin, block);
     boolean hadMonitor = MonitorMarker.isMonitor(plugin, block);
     boolean hadBus = BusMarker.isBus(plugin, block);
-    boolean hadBridge = BridgeMarker.isBridge(plugin, block);
+    boolean hadRelay = RelayMarker.isRelay(plugin, block);
     boolean hadWire = WireMarker.isWire(plugin, block);
     boolean validOrMigratableCarrier = validOrMigratableCarrier(block, hadWire);
     return new MarkerRootState(
@@ -242,7 +242,7 @@ public final class MarkerSanityService {
         hadTerminal,
         hadMonitor,
         hadBus,
-        hadBridge,
+        hadRelay,
         hadWire,
         validOrMigratableCarrier);
   }
@@ -264,9 +264,9 @@ public final class MarkerSanityService {
       displayRefreshService.removeBusDisplay(block);
       unregisterBus(block);
     }
-    if (state.hadBridge()) {
-      BridgeMarker.unlinkLoadedPair(plugin, block);
-      displayRefreshService.removeBridgeDisplay(block);
+    if (state.hadRelay()) {
+      RelayMarker.unlinkLoadedPair(plugin, block);
+      displayRefreshService.removeRelayDisplay(block);
     }
     if (state.hadWire()) {
       displayRefreshService.refreshWireAndNeighbors(block);
@@ -280,7 +280,7 @@ public final class MarkerSanityService {
         || Carriers.matchesCarrier(block, terminalCarrier)
         || Carriers.matchesCarrier(block, monitorCarrier)
         || Carriers.matchesCarrier(block, busCarrier)
-        || Carriers.matchesCarrier(block, bridgeCarrier);
+        || Carriers.matchesCarrier(block, relayCarrier);
   }
 
   private boolean validOrMigratableCarrier(Block block, boolean hadWire) {
@@ -317,7 +317,7 @@ public final class MarkerSanityService {
     boolean hadTerminal = TerminalMarker.isTerminal(plugin, block);
     boolean hadMonitor = MonitorMarker.isMonitor(plugin, block);
     boolean hadBus = BusMarker.isBus(plugin, block);
-    boolean hadBridge = BridgeMarker.isBridge(plugin, block);
+    boolean hadRelay = RelayMarker.isRelay(plugin, block);
 
     removeTaggedDisplaysAt(block);
     StorageMarker.clear(plugin, block);
@@ -325,8 +325,8 @@ public final class MarkerSanityService {
     TerminalMarker.clear(plugin, block);
     MonitorMarker.clear(plugin, block);
     BusMarker.clear(plugin, block);
-    BridgeMarker.unlinkLoadedPair(plugin, block);
-    BridgeMarker.clear(plugin, block);
+    RelayMarker.unlinkLoadedPair(plugin, block);
+    RelayMarker.clear(plugin, block);
     WireMarker.setWire(plugin, block);
     Carriers.applyCarrier(block, wireCarrier);
 
@@ -345,8 +345,8 @@ public final class MarkerSanityService {
       displayRefreshService.removeBusDisplay(block);
       unregisterBus(block);
     }
-    if (hadBridge) {
-      displayRefreshService.removeBridgeDisplay(block);
+    if (hadRelay) {
+      displayRefreshService.removeRelayDisplay(block);
     }
     displayRefreshService.refreshWireAndNeighbors(block);
     displayRefreshService.refreshNetworkFrom(block);
@@ -393,14 +393,14 @@ public final class MarkerSanityService {
     registerBusState(block);
   }
 
-  private void migrateBridgeCarrier(Block block) {
-    Carriers.applyCarrier(block, bridgeCarrier);
-    displayRefreshService.refreshBridge(block);
+  private void migrateRelayCarrier(Block block) {
+    Carriers.applyCarrier(block, relayCarrier);
+    displayRefreshService.refreshRelay(block);
     displayRefreshService.refreshNetworkFrom(block);
   }
 
-  private void cleanupInvalidBridgeLink(Block block) {
-    BridgeMarker.Link link = BridgeMarker.link(plugin, block).orElse(null);
+  private void cleanupInvalidRelayLink(Block block) {
+    RelayMarker.Link link = RelayMarker.link(plugin, block).orElse(null);
     if (link == null) {
       return;
     }
@@ -409,14 +409,14 @@ public final class MarkerSanityService {
       return;
     }
     boolean valid =
-        Carriers.matchesCarrier(peer, bridgeCarrier)
-            && BridgeMarker.isBridge(plugin, peer)
-            && BridgeMarker.link(plugin, peer).filter(back -> back.sameBlock(block)).isPresent();
+        Carriers.matchesCarrier(peer, relayCarrier)
+            && RelayMarker.isRelay(plugin, peer)
+            && RelayMarker.link(plugin, peer).filter(back -> back.sameBlock(block)).isPresent();
     if (valid) {
       return;
     }
-    BridgeMarker.clearLink(plugin, block);
-    displayRefreshService.refreshBridge(block);
+    RelayMarker.clearLink(plugin, block);
+    displayRefreshService.refreshRelay(block);
     displayRefreshService.refreshNetworkFrom(block);
   }
 
@@ -485,7 +485,7 @@ public final class MarkerSanityService {
       boolean hadTerminal,
       boolean hadMonitor,
       boolean hadBus,
-      boolean hadBridge,
+      boolean hadRelay,
       boolean hadWire,
       boolean validOrMigratableCarrier) {
     boolean hasPrimaryMarker() {
@@ -494,7 +494,7 @@ public final class MarkerSanityService {
           || hadTerminal
           || hadMonitor
           || hadBus
-          || hadBridge
+          || hadRelay
           || hadWire;
     }
   }

@@ -109,10 +109,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private RuntimeTaskScheduler runtimeTasks;
   private int wireLimit;
   private int wireHardCap;
-  private int bridgeRangeChunks;
+  private int relayRangeChunks;
   private Material wireMaterial;
   private Material storageCarrier;
-  private Material bridgeCarrier;
+  private Material relayCarrier;
   private Material terminalCarrier;
   private ItemHologramManager hologramManager;
   private boolean dialogSupported;
@@ -227,10 +227,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> dialogSupported,
                 () -> wireLimit,
                 () -> wireHardCap,
-                () -> bridgeRangeChunks,
+                () -> relayRangeChunks,
                 () -> wireMaterial,
                 () -> storageCarrier,
-                () -> bridgeCarrier,
+                () -> relayCarrier,
                 () -> terminalCarrier,
                 () -> GuiRuntimeConfig.fromConfig(getConfig()),
                 GuiOverlayConfig::defaults,
@@ -523,11 +523,11 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     RuntimeMaterials materials = services.materials();
     wireMaterial = materials.wire();
     storageCarrier = materials.storageCarrier();
-    bridgeCarrier = materials.bridgeCarrier();
+    relayCarrier = materials.relayCarrier();
     terminalCarrier = materials.terminalCarrier();
     wireLimit = services.wireLimit();
     wireHardCap = services.wireHardCap();
-    bridgeRangeChunks = services.bridgeRangeChunks();
+    relayRangeChunks = services.relayRangeChunks();
     hologramManager = services.hologramManager();
     monitorDisplayManager = services.monitorDisplayManager();
     blockProxyService = services.blockProxyService();
@@ -557,7 +557,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
               services.monitorDisplayManager(),
               services.wireLimit(),
               services.wireHardCap(),
-              services.bridgeRangeChunks()));
+              services.relayRangeChunks()));
     }
   }
 
@@ -849,10 +849,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> StorageRuntimeConfig.fromConfig(getConfig()).cacheIdleUnloadSeconds(),
         () -> wireLimit,
         () -> wireHardCap,
-        () -> bridgeRangeChunks,
+        () -> relayRangeChunks,
         () -> wireMaterial,
         () -> storageCarrier,
-        () -> bridgeCarrier,
+        () -> relayCarrier,
         this::currentProtectionStatus);
   }
 
