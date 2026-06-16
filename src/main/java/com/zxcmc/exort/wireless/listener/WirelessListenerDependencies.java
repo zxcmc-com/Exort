@@ -28,10 +28,10 @@ public record WirelessListenerDependencies(
     StorageKeys keys,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks,
+    int relayRangeChunks,
     Material wireMaterial,
     Material storageCarrier,
-    Material bridgeCarrier) {
+    Material relayCarrier) {
   public WirelessListenerDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(service, "service");

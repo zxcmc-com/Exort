@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.sk89q.worldedit.math.BlockVector3;
-import com.zxcmc.exort.marker.BridgeMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.util.Map;
 import java.util.UUID;
@@ -13,9 +13,9 @@ import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 
-class BridgeLinkRewriteTest {
+class RelayLinkRewriteTest {
   @Test
-  void copyPastePreservesBridgeLinkOnlyWhenBothEndpointsAreInSameOperation() {
+  void copyPastePreservesRelayLinkOnlyWhenBothEndpointsAreInSameOperation() {
     UUID sourceWorld = uuid(1);
     UUID destinationWorld = uuid(2);
     BlockVector3 firstSource = BlockVector3.at(0, 64, 0);
@@ -24,7 +24,7 @@ class BridgeLinkRewriteTest {
     BlockVector3 secondDestination = BlockVector3.at(108, 64, 0);
 
     MarkerSnapshot rewritten =
-        BridgeLinkRewrite.rewrite(
+        RelayLinkRewrite.rewrite(
             snapshot(link(sourceWorld, secondSource)),
             firstSource,
             sourceWorld,
@@ -36,14 +36,14 @@ class BridgeLinkRewriteTest {
                 secondSource,
                 snapshot(link(sourceWorld, firstSource))));
 
-    assertEquals(destinationWorld, rewritten.bridge().link().worldId());
-    assertEquals(secondDestination.x(), rewritten.bridge().link().x());
-    assertEquals(secondDestination.y(), rewritten.bridge().link().y());
-    assertEquals(secondDestination.z(), rewritten.bridge().link().z());
+    assertEquals(destinationWorld, rewritten.relay().link().worldId());
+    assertEquals(secondDestination.x(), rewritten.relay().link().x());
+    assertEquals(secondDestination.y(), rewritten.relay().link().y());
+    assertEquals(secondDestination.z(), rewritten.relay().link().z());
   }
 
   @Test
-  void singleEndpointCopyPasteClearsBridgeLink() {
+  void singleEndpointCopyPasteClearsRelayLink() {
     UUID sourceWorld = uuid(3);
     UUID destinationWorld = uuid(4);
     BlockVector3 firstSource = BlockVector3.at(0, 64, 0);
@@ -51,7 +51,7 @@ class BridgeLinkRewriteTest {
     BlockVector3 firstDestination = BlockVector3.at(100, 64, 0);
 
     MarkerSnapshot rewritten =
-        BridgeLinkRewrite.rewrite(
+        RelayLinkRewrite.rewrite(
             snapshot(link(sourceWorld, secondSource)),
             firstSource,
             sourceWorld,
@@ -59,7 +59,7 @@ class BridgeLinkRewriteTest {
             Map.of(firstSource, firstDestination),
             Map.of(firstSource, snapshot(link(sourceWorld, secondSource))));
 
-    assertEquals(new BridgeData(null), rewritten.bridge());
+    assertEquals(new RelayData(null), rewritten.relay());
   }
 
   @Test
@@ -71,7 +71,7 @@ class BridgeLinkRewriteTest {
     BlockVector3 secondDestination = BlockVector3.at(8, 65, 3);
 
     MarkerSnapshot rewritten =
-        BridgeLinkRewrite.rewrite(
+        RelayLinkRewrite.rewrite(
             snapshot(link(world, secondSource)),
             firstSource,
             world,
@@ -83,32 +83,32 @@ class BridgeLinkRewriteTest {
                 secondSource,
                 snapshot(link(world, firstSource))));
 
-    assertEquals(world, rewritten.bridge().link().worldId());
-    assertEquals(secondDestination.x(), rewritten.bridge().link().x());
-    assertEquals(secondDestination.y(), rewritten.bridge().link().y());
-    assertEquals(secondDestination.z(), rewritten.bridge().link().z());
+    assertEquals(world, rewritten.relay().link().worldId());
+    assertEquals(secondDestination.x(), rewritten.relay().link().x());
+    assertEquals(secondDestination.y(), rewritten.relay().link().y());
+    assertEquals(secondDestination.z(), rewritten.relay().link().z());
   }
 
   @Test
-  void replacingExistingBridgeThroughWorldEditUnlinksOldLoadedPeer() {
+  void replacingExistingRelayThroughWorldEditUnlinksOldLoadedPeer() {
     Plugin plugin = BukkitTestDoubles.plugin();
-    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("we-bridge-replace", uuid(6));
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("we-relay-replace", uuid(6));
     Block replaced = world.block(0, 64, 0, Material.BARRIER);
     Block oldPeer = world.block(32, 64, 0, Material.BARRIER);
-    BridgeMarker.link(plugin, replaced, oldPeer);
+    RelayMarker.link(plugin, replaced, oldPeer);
 
-    WorldEditBridge.unlinkExistingBridgeForReplacement(plugin, replaced);
+    WorldEditBridge.unlinkExistingRelayForReplacement(plugin, replaced);
 
-    assertFalse(BridgeMarker.link(plugin, replaced).isPresent());
-    assertFalse(BridgeMarker.link(plugin, oldPeer).isPresent());
+    assertFalse(RelayMarker.link(plugin, replaced).isPresent());
+    assertFalse(RelayMarker.link(plugin, oldPeer).isPresent());
   }
 
-  private static MarkerSnapshot snapshot(BridgeLinkData link) {
-    return new MarkerSnapshot(null, null, null, null, new BridgeData(link), false, false);
+  private static MarkerSnapshot snapshot(RelayLinkData link) {
+    return new MarkerSnapshot(null, null, null, null, new RelayData(link), false, false);
   }
 
-  private static BridgeLinkData link(UUID world, BlockVector3 position) {
-    return new BridgeLinkData(world, position.x(), position.y(), position.z());
+  private static RelayLinkData link(UUID world, BlockVector3 position) {
+    return new RelayLinkData(world, position.x(), position.y(), position.z());
   }
 
   private static UUID uuid(int value) {

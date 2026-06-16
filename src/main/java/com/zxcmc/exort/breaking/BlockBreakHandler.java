@@ -16,9 +16,9 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
@@ -48,7 +48,7 @@ public final class BlockBreakHandler {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final ItemHologramManager hologramManager;
   private final WireDisplayManager wireDisplayManager;
   private final DisplayRefreshService displayRefreshService;
@@ -70,7 +70,7 @@ public final class BlockBreakHandler {
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
     this.hologramManager = dependencies.hologramManager();
     this.wireDisplayManager = dependencies.wireDisplayManager();
     this.displayRefreshService = dependencies.displayRefreshService();
@@ -219,24 +219,23 @@ public final class BlockBreakHandler {
       return BreakResult.BROKEN;
     }
 
-    if (BridgeMarker.isBridge(plugin, block)) {
-      if (!Carriers.matchesCarrier(block, bridgeCarrier)) {
-        BridgeMarker.unlinkLoadedPair(plugin, block);
-        BridgeMarker.clear(plugin, block);
+    if (RelayMarker.isRelay(plugin, block)) {
+      if (!Carriers.matchesCarrier(block, relayCarrier)) {
+        RelayMarker.unlinkLoadedPair(plugin, block);
+        RelayMarker.clear(plugin, block);
         return BreakResult.BROKEN;
       }
       if (isRegionDenied(player, block, checkRegion)) {
         return BreakResult.DENIED;
       }
-      Block peer =
-          BridgeMarker.link(plugin, block).map(BridgeMarker.Link::loadedBlock).orElse(null);
-      playBreakParticles(block, BreakType.BRIDGE);
+      Block peer = RelayMarker.link(plugin, block).map(RelayMarker.Link::loadedBlock).orElse(null);
+      playBreakParticles(block, BreakType.RELAY);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
-        dropItemSafe(block, customItems.bridgeItem());
+        dropItemSafe(block, customItems.relayItem());
       }
-      BridgeMarker.unlinkLoadedPair(plugin, block);
-      BridgeMarker.clear(plugin, block);
+      RelayMarker.unlinkLoadedPair(plugin, block);
+      RelayMarker.clear(plugin, block);
       invalidateNetwork(block);
       if (peer != null) {
         invalidateNetwork(peer);
@@ -255,7 +254,7 @@ public final class BlockBreakHandler {
         }
       }
       if (displayRefreshService != null) {
-        displayRefreshService.removeBridgeDisplay(block);
+        displayRefreshService.removeRelayDisplay(block);
         displayRefreshService.refreshBlockAndNeighbors(block);
         displayRefreshService.refreshNetworkFrom(block);
         if (peer != null) {

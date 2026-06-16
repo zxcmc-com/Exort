@@ -11,7 +11,7 @@ public record RuntimeItemModelConfig(
     Material terminalCarrier,
     Material monitorCarrier,
     Material busCarrier,
-    Material bridgeCarrier,
+    Material relayCarrier,
     String wireItemModel,
     String storageItemModel,
     String terminalItemModel,
@@ -19,7 +19,7 @@ public record RuntimeItemModelConfig(
     String monitorItemModel,
     String importBusItemModel,
     String exportBusItemModel,
-    String bridgeItemModel,
+    String relayItemModel,
     String wirelessItemModel,
     String wirelessDisabledModel) {
   private static final String VANILLA_NAMESPACE = "minecraft";
@@ -62,7 +62,7 @@ public record RuntimeItemModelConfig(
         normalizeModelId("terminal/monitor", resourceNamespace),
         normalizeModelId("bus/import", resourceNamespace),
         normalizeModelId("bus/export", resourceNamespace),
-        normalizeModelId("bridge/bridge", resourceNamespace),
+        normalizeModelId("relay/relay", resourceNamespace),
         normalizeModelId("terminal/wireless", resourceNamespace),
         normalizeModelId("terminal/wireless_disabled", resourceNamespace));
   }

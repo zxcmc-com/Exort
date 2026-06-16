@@ -19,10 +19,10 @@ public record BusSessionDependencies(
     Supplier<Material> busCarrier,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks,
+    int relayRangeChunks,
     Material wireMaterial,
     Material storageCarrier,
-    Material bridgeCarrier,
+    Material relayCarrier,
     Supplier<GuiRuntimeConfig> runtimeConfig,
     Supplier<GuiOverlayConfig> overlayConfig,
     ItemNameService itemNameService) {

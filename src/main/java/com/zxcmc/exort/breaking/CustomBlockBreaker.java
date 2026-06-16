@@ -4,9 +4,9 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
@@ -55,7 +55,7 @@ public final class CustomBlockBreaker
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final BreakSessionManager sessionManager = new BreakSessionManager();
   private final Map<UUID, DamageIntent> vanillaDamageIntents = new HashMap<>();
   private final Map<UUID, Long> rightClickTicks = new HashMap<>();
@@ -76,7 +76,39 @@ public final class CustomBlockBreaker
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier) {
+      Material relayCarrier) {
+    this(
+        plugin,
+        regionProtection,
+        worldEditWandGuard,
+        breakHandler,
+        breakConfig,
+        soundConfig,
+        breakAnimationSender,
+        wireMaterial,
+        storageCarrier,
+        terminalCarrier,
+        monitorCarrier,
+        busCarrier,
+        relayCarrier,
+        new ClientBreakSpeedSuppressor(plugin));
+  }
+
+  CustomBlockBreaker(
+      Plugin plugin,
+      RegionProtection regionProtection,
+      WorldEditWandGuard worldEditWandGuard,
+      BlockBreakHandler breakHandler,
+      BreakConfig breakConfig,
+      BreakSoundConfig soundConfig,
+      BreakAnimationSender breakAnimationSender,
+      Material wireMaterial,
+      Material storageCarrier,
+      Material terminalCarrier,
+      Material monitorCarrier,
+      Material busCarrier,
+      Material relayCarrier,
+      ClientBreakSpeedSuppressor clientBreakSpeedSuppressor) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
     this.worldEditWandGuard = worldEditWandGuard;
@@ -85,13 +117,13 @@ public final class CustomBlockBreaker
     this.soundService = new BreakSoundService(soundConfig);
     this.breakAnimationSender =
         breakAnimationSender == null ? BreakAnimationSender.NOOP : breakAnimationSender;
-    this.clientBreakSpeedSuppressor = new ClientBreakSpeedSuppressor(plugin);
+    this.clientBreakSpeedSuppressor = clientBreakSpeedSuppressor;
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
   }
 
   public void start() {
@@ -241,8 +273,7 @@ public final class CustomBlockBreaker
   public void onInteract(PlayerInteractEvent event) {
     if (event.getHand() != EquipmentSlot.HAND) return;
     if (!event.getAction().isRightClick()) return;
-    UUID playerId = event.getPlayer().getUniqueId();
-    rightClickTicks.put(playerId, tick);
+    rememberRightClick(event.getPlayer());
     clearVanillaDamageIntent(event.getPlayer());
     stopBreaking(event.getPlayer());
   }
@@ -253,39 +284,40 @@ public final class CustomBlockBreaker
     pendingSwingTicks.put(event.getPlayer().getUniqueId(), tick);
   }
 
-  private void tryStartOrContinueBreaking(Player player) {
+  private boolean tryStartOrContinueBreaking(Player player) {
     if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
       stopBreaking(player);
-      return;
+      return false;
     }
     Block target = player.getTargetBlockExact((int) DEFAULT_REACH, FluidCollisionMode.NEVER);
     if (target == null) {
       stopBreaking(player);
-      return;
+      return false;
     }
     BreakType type = resolveType(target);
     if (type == BreakType.NONE) {
       stopBreaking(player);
-      return;
+      return false;
     }
-    tryStartOrContinueBreaking(player, target, type);
+    return tryStartOrContinueBreaking(player, target, type);
   }
 
-  private void tryStartOrContinueBreaking(Player player, Block block, BreakType type) {
+  private boolean tryStartOrContinueBreaking(Player player, Block block, BreakType type) {
     if (isWorldEditWand(player, player.getInventory().getItemInMainHand())) {
       stopBreaking(player);
-      return;
+      return false;
     }
     clearVanillaDamageIntent(player);
     if (!regionProtection.canBreak(player, block)) {
       stopBreaking(player);
-      return;
+      return false;
     }
     if (player.getGameMode() == GameMode.CREATIVE) {
       breakCreative(player, block, type);
-      return;
+      return true;
     }
     startBreaking(player, block, type, settingsFor(type));
+    return true;
   }
 
   @EventHandler
@@ -494,6 +526,21 @@ public final class CustomBlockBreaker
     return rightClickTick != null && tick - rightClickTick <= 1;
   }
 
+  void rememberRightClick(Player player) {
+    if (player != null) {
+      rightClickTicks.put(player.getUniqueId(), tick);
+    }
+  }
+
+  boolean processSwing(Player player) {
+    if (player == null || !player.isOnline()) return false;
+    if (isRightClickSwing(player)) return false;
+    boolean hasSession = sessionManager.getPlayerSession(player.getUniqueId()) != null;
+    boolean canRetarget = touchVanillaDamageIntent(player);
+    if (!hasSession && !canRetarget && player.getGameMode() != GameMode.SURVIVAL) return false;
+    return tryStartOrContinueBreaking(player);
+  }
+
   private void processPendingSwings() {
     Iterator<Map.Entry<UUID, Long>> it = pendingSwingTicks.entrySet().iterator();
     while (it.hasNext()) {
@@ -501,12 +548,7 @@ public final class CustomBlockBreaker
       it.remove();
       if (tick - entry.getValue() > MAX_SWING_TICKS) continue;
       Player player = Bukkit.getPlayer(entry.getKey());
-      if (player == null || !player.isOnline()) continue;
-      if (isRightClickSwing(player)) continue;
-      boolean hasSession = sessionManager.getPlayerSession(player.getUniqueId()) != null;
-      boolean canRetarget = touchVanillaDamageIntent(player);
-      if (!hasSession && !canRetarget) continue;
-      tryStartOrContinueBreaking(player);
+      processSwing(player);
     }
   }
 
@@ -562,7 +604,7 @@ public final class CustomBlockBreaker
     return true;
   }
 
-  private boolean isCurrentSession(Player player, Block block) {
+  boolean isCurrentSession(Player player, Block block) {
     BreakSessionManager.BlockKey current = sessionManager.getPlayerSession(player.getUniqueId());
     return current != null && current.equals(BreakSessionManager.BlockKey.from(block));
   }
@@ -583,8 +625,8 @@ public final class CustomBlockBreaker
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       return BreakType.BUS;
     }
-    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
-      return BreakType.BRIDGE;
+    if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
+      return BreakType.RELAY;
     }
     if (Carriers.matchesCarrier(block, storageCarrier)
         && StorageMarker.get(plugin, block).isPresent()) {
@@ -605,7 +647,7 @@ public final class CustomBlockBreaker
       case TERMINAL -> breakConfig.terminal();
       case MONITOR -> breakConfig.monitor();
       case BUS -> breakConfig.bus();
-      case BRIDGE -> breakConfig.bridge();
+      case RELAY -> breakConfig.relay();
       case WIRE -> breakConfig.wire();
       default -> breakConfig.storage();
     };

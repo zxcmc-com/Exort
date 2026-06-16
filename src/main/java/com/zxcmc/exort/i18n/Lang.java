@@ -316,30 +316,32 @@ public class Lang {
     fallback.put("message.no_permission", "No permission.");
     fallback.put("message.operation_failed", "Operation failed. See console.");
     fallback.put("message.command_click", "Click to insert {0}");
-    fallback.put("message.bridge_waiting", "First bridge selected. Right-click the second bridge.");
-    fallback.put("message.bridge_same", "A bridge cannot link to itself.");
-    fallback.put("message.bridge_cross_world", "Bridges cannot link across worlds.");
-    fallback.put("message.bridge_already_linked", "One of these bridges is already linked.");
     fallback.put(
-        "message.bridge_out_of_range",
-        "Bridges are too far apart. Limit: {0} chunks by Manhattan distance.");
-    fallback.put("message.bridge_linked", "Bridges linked.");
-    fallback.put("message.bridge_unlinked", "Bridge link removed.");
+        "message.relay_waiting",
+        "First network relay selected. Right-click the second network relay.");
+    fallback.put("message.relay_same", "A network relay cannot link to itself.");
+    fallback.put("message.relay_cross_world", "Network relays cannot link across worlds.");
+    fallback.put("message.relay_already_linked", "One of these network relays is already linked.");
+    fallback.put(
+        "message.relay_out_of_range",
+        "Network relays are too far apart. Limit: {0} chunks by Manhattan distance.");
+    fallback.put("message.relay_linked", "Network relays linked.");
+    fallback.put("message.relay_unlinked", "Network relay link removed.");
     fallback.put("message.help_header", "Exort Storage Network commands:");
     fallback.put("message.version", "Exort Storage Network v{0} by phantomfighterxx");
     fallback.put("item.storage_core", "Storage Core");
     fallback.put("item.terminal", "Storage Terminal");
     fallback.put("item.crafting_terminal", "Crafting Terminal");
     fallback.put("item.wire", "Storage Wire");
-    fallback.put("item.bridge", "Bridge");
+    fallback.put("item.relay", "Network Relay");
     fallback.put("item.monitor", "Storage Monitor");
     fallback.put("item.import_bus", "Import Bus");
     fallback.put("item.export_bus", "Export Bus");
     fallback.put("item.wireless_terminal", "Wireless Terminal");
-    fallback.put("bridge.status", "Bridge peer {0} | {1}");
-    fallback.put("bridge.storage_multiple", "Storage: multiple connected");
-    fallback.put("bridge.storage_tail", "Storage: {0}");
-    fallback.put("bridge.storage_none", "Storage: none");
+    fallback.put("relay.status", "Network relay peer {0} | {1}");
+    fallback.put("relay.storage_multiple", "Storage: multiple connected");
+    fallback.put("relay.storage_tail", "Storage: {0}");
+    fallback.put("relay.storage_none", "Storage: none");
     fallback.put("lore.storage.capacity", "{0} / {1} ({2})");
     fallback.put("lore.storage.id_tail", "{0}");
     fallback.put("lore.wireless_terminal.battery", "Battery: {0}%");

@@ -40,7 +40,7 @@ public class WireDisplayManager {
   private final Material storageCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final String displayNamespace;
   private final String wireModel;
   private final boolean resourceMode;
@@ -62,7 +62,7 @@ public class WireDisplayManager {
       Material storageCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier,
+      Material relayCarrier,
       String displayNamespace,
       String wireModel,
       boolean resourceMode,
@@ -80,7 +80,7 @@ public class WireDisplayManager {
     this.storageCarrier = storageCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
     this.displayNamespace = displayNamespace == null ? "" : displayNamespace.trim();
     this.wireModel = wireModel == null ? "" : wireModel.trim();
     this.resourceMode = resourceMode;
@@ -355,7 +355,7 @@ public class WireDisplayManager {
         storageCarrier,
         monitorCarrier,
         busCarrier,
-        bridgeCarrier);
+        relayCarrier);
   }
 
   static String compactModelKeyForMask(int mask) {

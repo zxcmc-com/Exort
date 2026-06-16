@@ -123,11 +123,11 @@ final class GiveCommand {
                             amountArgument(
                                 ctx -> giveItem(ctx, amount(ctx), "item.wire", this::wire))))
                 .then(
-                    Commands.literal("bridge")
-                        .executes(ctx -> giveItem(ctx, 1, "item.bridge", this::bridge))
+                    Commands.literal("relay")
+                        .executes(ctx -> giveItem(ctx, 1, "item.relay", this::relay))
                         .then(
                             amountArgument(
-                                ctx -> giveItem(ctx, amount(ctx), "item.bridge", this::bridge))))
+                                ctx -> giveItem(ctx, amount(ctx), "item.relay", this::relay))))
                 .then(
                     Commands.literal("wireless_terminal")
                         .executes(
@@ -281,8 +281,8 @@ final class GiveCommand {
     return dependencies.customItems().wireItem();
   }
 
-  private ItemStack bridge() {
-    return dependencies.customItems().bridgeItem();
+  private ItemStack relay() {
+    return dependencies.customItems().relayItem();
   }
 
   private void sendGiveResult(

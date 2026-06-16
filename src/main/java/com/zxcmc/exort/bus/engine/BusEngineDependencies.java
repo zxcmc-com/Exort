@@ -16,17 +16,17 @@ public record BusEngineDependencies(
     StorageKeys keys,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks,
+    int relayRangeChunks,
     Material wireMaterial,
     Material storageCarrier,
-    Material bridgeCarrier,
+    Material relayCarrier,
     Consumer<String> storageRenderer) {
   public BusEngineDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
-    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
+    Objects.requireNonNull(relayCarrier, "relayCarrier");
     Objects.requireNonNull(storageRenderer, "storageRenderer");
   }
 
@@ -47,8 +47,8 @@ public record BusEngineDependencies(
         wireHardCap,
         wireMaterial,
         storageCarrier,
-        bridgeCarrier,
-        bridgeRangeChunks);
+        relayCarrier,
+        relayRangeChunks);
   }
 
   long topologyVersion() {

@@ -58,10 +58,10 @@ public class SessionManager {
   private final BooleanSupplier dialogSupported;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
-  private final IntSupplier bridgeRangeChunks;
+  private final IntSupplier relayRangeChunks;
   private final Supplier<Material> wireMaterial;
   private final Supplier<Material> storageCarrier;
-  private final Supplier<Material> bridgeCarrier;
+  private final Supplier<Material> relayCarrier;
   private final Supplier<Material> terminalCarrier;
   private final GuiSessionValidator sessionValidator;
   private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
@@ -88,10 +88,10 @@ public class SessionManager {
     this.dialogSupported = dependencies.dialogSupported();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
-    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
+    this.relayRangeChunks = dependencies.relayRangeChunks();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
     this.terminalCarrier = dependencies.terminalCarrier();
     this.sessionValidator =
         new GuiSessionValidator(
@@ -99,10 +99,10 @@ public class SessionManager {
             keys,
             wireLimit,
             wireHardCap,
-            bridgeRangeChunks,
+            relayRangeChunks,
             wireMaterial,
             storageCarrier,
-            bridgeCarrier,
+            relayCarrier,
             terminalCarrier);
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();

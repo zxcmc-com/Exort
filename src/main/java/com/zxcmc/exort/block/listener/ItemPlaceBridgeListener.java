@@ -15,9 +15,9 @@ import com.zxcmc.exort.display.MonitorDisplayManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
@@ -70,7 +70,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
   private final Supplier<DisplayRefreshService> displayRefreshService;
@@ -97,7 +97,7 @@ public class ItemPlaceBridgeListener implements Listener {
     this.terminalCarrier = dependencies.terminalCarrier();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
     this.regionProtection = dependencies.regionProtection();
     this.displayRefreshService = dependencies.displayRefreshService();
     this.hologramManager = dependencies.hologramManager();
@@ -237,14 +237,13 @@ public class ItemPlaceBridgeListener implements Listener {
       return;
     }
 
-    // Bridge
-    if (customItems.isBridge(stack)) {
+    // Network Relay
+    if (customItems.isRelay(stack)) {
       event.setCancelled(true);
-      if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), bridgeCarrier))
-        return;
-      placeBridge(target);
-      finishPlacement(event, target, BreakType.BRIDGE);
-      refreshBridgePlacement(target);
+      if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), relayCarrier)) return;
+      placeRelay(target);
+      finishPlacement(event, target, BreakType.RELAY);
+      refreshRelayPlacement(target);
     }
   }
 
@@ -379,16 +378,16 @@ public class ItemPlaceBridgeListener implements Listener {
     }
   }
 
-  private void placeBridge(Block target) {
-    Carriers.applyCarrier(target, bridgeCarrier);
-    BridgeMarker.set(plugin, target);
+  private void placeRelay(Block target) {
+    Carriers.applyCarrier(target, relayCarrier);
+    RelayMarker.set(plugin, target);
   }
 
-  private void refreshBridgePlacement(Block target) {
+  private void refreshRelayPlacement(Block target) {
     invalidateNetwork(target);
     var refresh = displayRefreshService.get();
     if (refresh != null) {
-      refresh.refreshBridge(target);
+      refresh.refreshRelay(target);
       refresh.refreshBlockAndNeighbors(target);
       refresh.refreshNetworkFrom(target);
     }

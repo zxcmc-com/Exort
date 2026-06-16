@@ -16,6 +16,11 @@ final class WorldEditCommandParser {
         || "lazycut".equals(command);
   }
 
+  static boolean isClipboardCutCommand(String arguments) {
+    String command = commandName(arguments);
+    return "cut".equals(command) || "lazycut".equals(command);
+  }
+
   static boolean isClipboardPasteCommand(String arguments) {
     return "paste".equals(commandName(arguments));
   }
@@ -26,12 +31,43 @@ final class WorldEditCommandParser {
   }
 
   static HistoryAction parseHistoryAction(String arguments) {
+    ParsedHistoryCommand command = parseHistoryCommand(arguments);
+    return command == null ? null : command.action();
+  }
+
+  static ParsedHistoryCommand parseHistoryCommand(String arguments) {
     String command = commandName(arguments);
-    return switch (command) {
-      case "undo" -> HistoryAction.UNDO;
-      case "redo" -> HistoryAction.REDO;
-      default -> null;
-    };
+    HistoryAction action =
+        switch (command) {
+          case "undo" -> HistoryAction.UNDO;
+          case "redo" -> HistoryAction.REDO;
+          default -> null;
+        };
+    if (action == null) {
+      return null;
+    }
+    return new ParsedHistoryCommand(action, parseHistorySteps(commandRemainder(arguments)));
+  }
+
+  private static int parseHistorySteps(String remainder) {
+    if (remainder == null || remainder.isBlank()) {
+      return 1;
+    }
+    for (String token : remainder.split("\\s+")) {
+      if (token.isBlank() || token.startsWith("-")) {
+        continue;
+      }
+      try {
+        long value = Long.parseLong(token);
+        if (value <= 0L) {
+          return 1;
+        }
+        return value > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
+      } catch (NumberFormatException ignored) {
+        // WorldEdit accepts an optional player argument after the count.
+      }
+    }
+    return 1;
   }
 
   static boolean isMoveCommand(String arguments) {

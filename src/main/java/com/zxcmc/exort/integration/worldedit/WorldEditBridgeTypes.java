@@ -19,13 +19,13 @@ record BusData(String type, String facing, String mode, byte[] filters) implemen
 
 record MonitorData(String facing, String itemKey, byte[] itemBlob) implements FacingOwner {}
 
-record BridgeLinkData(UUID worldId, int x, int y, int z) {
-  BridgeLinkData {
+record RelayLinkData(UUID worldId, int x, int y, int z) {
+  RelayLinkData {
     java.util.Objects.requireNonNull(worldId, "worldId");
   }
 }
 
-record BridgeData(BridgeLinkData link) {}
+record RelayData(RelayLinkData link) {}
 
 interface FacingOwner {
   String facing();
@@ -41,12 +41,19 @@ enum HistoryAction {
   REDO
 }
 
+record ParsedHistoryCommand(HistoryAction action, int steps) {
+  ParsedHistoryCommand {
+    java.util.Objects.requireNonNull(action, "action");
+    steps = Math.max(1, steps);
+  }
+}
+
 record MarkerSnapshot(
     StorageData storage,
     TerminalData terminal,
     BusData bus,
     MonitorData monitor,
-    BridgeData bridge,
+    RelayData relay,
     boolean wire,
     boolean storageCore) {}
 
@@ -75,9 +82,15 @@ record PendingHistoryCommand(HistoryAction action, long timestampMs, int usesRem
   }
 }
 
-record PendingPastePatch(Map<Long, MarkerSnapshot> destinationMarkers) {
+record PendingPastePatch(
+    Map<Long, MarkerSnapshot> destinationMarkers, Map<Long, MarkerSnapshot> undoMarkers) {
   PendingPastePatch {
     destinationMarkers = destinationMarkers == null ? Map.of() : Map.copyOf(destinationMarkers);
+    undoMarkers = undoMarkers == null ? Map.of() : Map.copyOf(undoMarkers);
+  }
+
+  PendingPastePatch(Map<Long, MarkerSnapshot> destinationMarkers) {
+    this(destinationMarkers, Map.of());
   }
 
   MarkerSnapshot get(BlockVector3 position) {
@@ -85,25 +98,39 @@ record PendingPastePatch(Map<Long, MarkerSnapshot> destinationMarkers) {
     return destinationMarkers.get(
         WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()));
   }
+
+  MarkerSnapshot undo(BlockVector3 position) {
+    if (position == null) return null;
+    return undoMarkers.get(WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()));
+  }
 }
 
 record PendingMovePatch(
+    Map<Long, MarkerSnapshot> sourceMarkers,
     Map<Long, MarkerSnapshot> destinationMarkers,
     BlockVector3 offset,
     long timestampMs,
     int usesRemaining) {
   PendingMovePatch {
+    sourceMarkers = sourceMarkers == null ? Map.of() : Map.copyOf(sourceMarkers);
     destinationMarkers = destinationMarkers == null ? Map.of() : Map.copyOf(destinationMarkers);
     offset = offset == null ? BlockVector3.at(0, 0, 0) : offset;
   }
 
   PendingMovePatch consume() {
-    return new PendingMovePatch(destinationMarkers, offset, timestampMs, usesRemaining - 1);
+    return new PendingMovePatch(
+        sourceMarkers, destinationMarkers, offset, timestampMs, usesRemaining - 1);
   }
 
   MarkerSnapshot get(BlockVector3 position) {
     if (position == null) return null;
     return destinationMarkers.get(
+        WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()));
+  }
+
+  MarkerSnapshot source(BlockVector3 position) {
+    if (position == null) return null;
+    return sourceMarkers.get(
         WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()));
   }
 
@@ -114,7 +141,11 @@ record PendingMovePatch(
 
 record HistoryKey(UUID actorId, UUID worldId, int x, int y, int z) {}
 
-record HistoryEntry(MarkerSnapshot snapshot, long timestampMs) {}
+record HistoryEntry(WorldEditMarkerHistory.FrameState state, long timestampMs) {
+  MarkerSnapshot snapshot() {
+    return state == null ? null : state.snapshot();
+  }
+}
 
 record MarkerUpdate(
     long operationId,
@@ -124,7 +155,7 @@ record MarkerUpdate(
     int z,
     MarkerSnapshot snapshot,
     String removedStorageId,
-    boolean storageCloneReady,
+    boolean storageCloneRequired,
     boolean moveOperation) {
   int chunkX() {
     return x >> 4;

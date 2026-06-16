@@ -29,6 +29,6 @@ class WorldEditDeferredUpdatesTest {
 
   private static PendingUpdate updateAt(int x, int y, int z) {
     return new PendingUpdate(
-        new MarkerUpdate(1L, UUID.randomUUID(), x, y, z, null, null, true, false));
+        new MarkerUpdate(1L, UUID.randomUUID(), x, y, z, null, null, false, false));
   }
 }

@@ -16,7 +16,7 @@ With stunning visuals, immersive interfaces, and a gameplay experience that feel
 - **Crafting Terminal**: craft directly from network items.
 - **Monitors**: show storage fill % or live item counts.
 - **Automation**: import/export buses with filters and modes.
-- **Bridges**: connect remote sections of the storage network.
+- **Relays**: connect remote sections of the storage network.
 - **Wireless Terminal**: access the network within range using a charged item.
 
 ## Compatibility

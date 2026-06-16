@@ -1,6 +1,8 @@
 package com.zxcmc.exort.breaking;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -12,12 +14,18 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.bukkit.Chunk;
+import org.bukkit.FluidCollisionMode;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.MultipleFacing;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.plugin.Plugin;
@@ -51,6 +59,47 @@ class CustomBlockBreakerTest {
     assertEquals(BreakType.WIRE, breaker(plugin, Carriers.CARRIER_BARRIER).resolveType(wire.block));
   }
 
+  @Test
+  void survivalSwingStartsCustomBreakerWithoutPriorDamageEvent() {
+    Plugin plugin = plugin();
+    BlockProbe wire = block(Material.BARRIER, false);
+    WireMarker.setWire(plugin, wire.block);
+    CustomBlockBreaker breaker = breaker(plugin, Carriers.CARRIER_BARRIER);
+    Player player = player(GameMode.SURVIVAL, wire.block);
+
+    assertTrue(breaker.processSwing(player));
+    assertTrue(breaker.isCurrentSession(player, wire.block));
+  }
+
+  @Test
+  void adventureAndSpectatorSwingsDoNotStartWithoutPriorDamageEvent() {
+    Plugin plugin = plugin();
+    BlockProbe wire = block(Material.BARRIER, false);
+    WireMarker.setWire(plugin, wire.block);
+    CustomBlockBreaker breaker = breaker(plugin, Carriers.CARRIER_BARRIER);
+    Player adventure = player(GameMode.ADVENTURE, wire.block);
+    Player spectator = player(GameMode.SPECTATOR, wire.block);
+
+    assertFalse(breaker.processSwing(adventure));
+    assertFalse(breaker.isCurrentSession(adventure, wire.block));
+    assertFalse(breaker.processSwing(spectator));
+    assertFalse(breaker.isCurrentSession(spectator, wire.block));
+  }
+
+  @Test
+  void rightClickSwingDoesNotStartCustomBreaker() {
+    Plugin plugin = plugin();
+    BlockProbe wire = block(Material.BARRIER, false);
+    WireMarker.setWire(plugin, wire.block);
+    CustomBlockBreaker breaker = breaker(plugin, Carriers.CARRIER_BARRIER);
+    Player player = player(GameMode.SURVIVAL, wire.block);
+
+    breaker.rememberRightClick(player);
+
+    assertFalse(breaker.processSwing(player));
+    assertFalse(breaker.isCurrentSession(player, wire.block));
+  }
+
   private static CustomBlockBreaker breaker(Plugin plugin, Material wireMaterial) {
     BreakSettings settings = new BreakSettings(1.0, Set.of());
     BreakConfig breakConfig =
@@ -68,7 +117,8 @@ class CustomBlockBreakerTest {
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
-        Carriers.CARRIER_BARRIER);
+        Carriers.CARRIER_BARRIER,
+        new ClientBreakSpeedSuppressor(plugin, player -> null));
   }
 
   private static BlockProbe block(Material material, boolean fullChorus) {
@@ -83,6 +133,39 @@ class CustomBlockBreakerTest {
               case "getName" -> "Exort";
               case "namespace" -> "exort";
               case "toString" -> "plugin(Exort)";
+              case "hashCode" -> System.identityHashCode(proxy);
+              case "equals" -> args != null && args.length == 1 && proxy == args[0];
+              default -> defaultValue(method.getReturnType());
+            });
+  }
+
+  private static Player player(GameMode gameMode, Block target) {
+    UUID playerId = UUID.randomUUID();
+    PlayerInventory inventory = inventory();
+    return proxy(
+        Player.class,
+        (proxy, method, args) ->
+            switch (method.getName()) {
+              case "getUniqueId" -> playerId;
+              case "isOnline" -> true;
+              case "getGameMode" -> gameMode;
+              case "getInventory" -> inventory;
+              case "getTargetBlockExact" ->
+                  ((Integer) args[0]) >= 5 && args[1] == FluidCollisionMode.NEVER ? target : null;
+              case "toString" -> "player(" + gameMode + ")";
+              case "hashCode" -> System.identityHashCode(proxy);
+              case "equals" -> args != null && args.length == 1 && proxy == args[0];
+              default -> defaultValue(method.getReturnType());
+            });
+  }
+
+  private static PlayerInventory inventory() {
+    return proxy(
+        PlayerInventory.class,
+        (proxy, method, args) ->
+            switch (method.getName()) {
+              case "getItemInMainHand" -> null;
+              case "toString" -> "inventory(empty)";
               case "hashCode" -> System.identityHashCode(proxy);
               case "equals" -> args != null && args.length == 1 && proxy == args[0];
               default -> defaultValue(method.getReturnType());
@@ -135,6 +218,7 @@ class CustomBlockBreakerTest {
 
   private static final class BlockProbe {
     private final SimplePdc chunkPdc = new SimplePdc();
+    private final World world = world();
     private final Block block;
 
     private BlockProbe(Material material, boolean fullChorus) {
@@ -157,6 +241,7 @@ class CustomBlockBreakerTest {
                     case "getType" -> material;
                     case "getBlockData" -> fullChorus ? fullChorusData() : null;
                     case "getChunk" -> chunk;
+                    case "getWorld" -> world;
                     case "getX" -> 4;
                     case "getY" -> 64;
                     case "getZ" -> -2;
@@ -166,6 +251,20 @@ class CustomBlockBreakerTest {
                     default -> defaultValue(method.getReturnType());
                   });
     }
+  }
+
+  private static World world() {
+    UUID worldId = UUID.randomUUID();
+    return proxy(
+        World.class,
+        (proxy, method, args) ->
+            switch (method.getName()) {
+              case "getUID" -> worldId;
+              case "toString" -> "world(" + worldId + ")";
+              case "hashCode" -> System.identityHashCode(proxy);
+              case "equals" -> args != null && args.length == 1 && proxy == args[0];
+              default -> defaultValue(method.getReturnType());
+            });
   }
 
   private static final class SimplePdc {

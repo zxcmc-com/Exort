@@ -2,10 +2,10 @@ package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
-import com.zxcmc.exort.marker.BridgeMarker;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
@@ -37,19 +37,19 @@ public final class DisplayRefreshService {
 
   private final Plugin plugin;
   private final int wireHardCap;
-  private final int bridgeRangeChunks;
+  private final int relayRangeChunks;
   private final Material wireMaterial;
   private final Material terminalCarrier;
   private final Material monitorCarrier;
   private final Material busCarrier;
-  private final Material bridgeCarrier;
+  private final Material relayCarrier;
   private final Material storageCarrier;
   private final WireDisplayManager wireDisplayManager;
   private final StorageDisplayManager storageDisplayManager;
   private final TerminalDisplayManager terminalDisplayManager;
   private final MonitorDisplayManager monitorDisplayManager;
   private final BusDisplayManager busDisplayManager;
-  private final BridgeDisplayManager bridgeDisplayManager;
+  private final RelayDisplayManager relayDisplayManager;
   private final ExortBlockProxyService blockProxyService;
   private final Set<BlockKey> queuedBlocks = new HashSet<>();
   private final Set<ChunkKey> queuedChunks = new HashSet<>();
@@ -59,35 +59,35 @@ public final class DisplayRefreshService {
   public DisplayRefreshService(
       Plugin plugin,
       int wireHardCap,
-      int bridgeRangeChunks,
+      int relayRangeChunks,
       Material wireMaterial,
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material bridgeCarrier,
+      Material relayCarrier,
       Material storageCarrier,
       WireDisplayManager wireDisplayManager,
       StorageDisplayManager storageDisplayManager,
       TerminalDisplayManager terminalDisplayManager,
       MonitorDisplayManager monitorDisplayManager,
       BusDisplayManager busDisplayManager,
-      BridgeDisplayManager bridgeDisplayManager,
+      RelayDisplayManager relayDisplayManager,
       ExortBlockProxyService blockProxyService) {
     this.plugin = plugin;
     this.wireHardCap = wireHardCap;
-    this.bridgeRangeChunks = bridgeRangeChunks;
+    this.relayRangeChunks = relayRangeChunks;
     this.wireMaterial = wireMaterial;
     this.terminalCarrier = terminalCarrier;
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
-    this.bridgeCarrier = bridgeCarrier;
+    this.relayCarrier = relayCarrier;
     this.storageCarrier = storageCarrier;
     this.wireDisplayManager = wireDisplayManager;
     this.storageDisplayManager = storageDisplayManager;
     this.terminalDisplayManager = terminalDisplayManager;
     this.monitorDisplayManager = monitorDisplayManager;
     this.busDisplayManager = busDisplayManager;
-    this.bridgeDisplayManager = bridgeDisplayManager;
+    this.relayDisplayManager = relayDisplayManager;
     this.blockProxyService = blockProxyService;
   }
 
@@ -126,14 +126,14 @@ public final class DisplayRefreshService {
           if (!flags[2] && TerminalMarker.isTerminal(plugin, block)) flags[2] = true;
           if (!flags[3] && MonitorMarker.isMonitor(plugin, block)) flags[3] = true;
           if (!flags[4] && BusMarker.isBus(plugin, block)) flags[4] = true;
-          if (!flags[5] && BridgeMarker.isBridge(plugin, block)) flags[5] = true;
+          if (!flags[5] && RelayMarker.isRelay(plugin, block)) flags[5] = true;
         });
     boolean hasWire = flags[0];
     boolean hasStorage = flags[1];
     boolean hasTerminal = flags[2];
     boolean hasMonitor = flags[3];
     boolean hasBus = flags[4];
-    boolean hasBridge = flags[5];
+    boolean hasRelay = flags[5];
     if (hasWire && wireDisplayManager != null) {
       wireDisplayManager.refreshChunk(chunk);
     }
@@ -149,8 +149,8 @@ public final class DisplayRefreshService {
     if (hasBus && busDisplayManager != null) {
       busDisplayManager.refreshChunk(chunk);
     }
-    if (hasBridge && bridgeDisplayManager != null) {
-      bridgeDisplayManager.refreshChunk(chunk);
+    if (hasRelay && relayDisplayManager != null) {
+      relayDisplayManager.refreshChunk(chunk);
     }
     if (blockProxyService != null) {
       blockProxyService.refreshChunk(chunk);
@@ -170,7 +170,7 @@ public final class DisplayRefreshService {
     removeTerminalDisplay(block);
     removeMonitorDisplay(block);
     removeBusDisplay(block);
-    removeBridgeDisplay(block);
+    removeRelayDisplay(block);
   }
 
   public void removeWireDisplay(Block block) {
@@ -207,8 +207,8 @@ public final class DisplayRefreshService {
     if (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block)) {
       refreshBus(block);
     }
-    if (Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block)) {
-      refreshBridge(block);
+    if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
+      refreshRelay(block);
     }
     if (blockProxyService != null) {
       blockProxyService.refreshBlock(block);
@@ -222,9 +222,9 @@ public final class DisplayRefreshService {
     if (hardCap == 0) return;
     boolean isWire =
         Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
-    boolean isBridge =
-        Carriers.matchesCarrier(block, bridgeCarrier) && BridgeMarker.isBridge(plugin, block);
-    if (isWire || isBridge) {
+    boolean isRelay =
+        Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+    if (isWire || isRelay) {
       refreshFromNetworkNode(block, hardCap, wireMaterial);
       return;
     }
@@ -233,8 +233,8 @@ public final class DisplayRefreshService {
       if (!isChunkLoaded(neighbor)) continue;
       if (Carriers.matchesCarrier(neighbor, wireMaterial) && WireMarker.isWire(plugin, neighbor)) {
         refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
-      } else if (Carriers.matchesCarrier(neighbor, bridgeCarrier)
-          && BridgeMarker.isBridge(plugin, neighbor)) {
+      } else if (Carriers.matchesCarrier(neighbor, relayCarrier)
+          && RelayMarker.isRelay(plugin, neighbor)) {
         refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
       }
     }
@@ -322,27 +322,25 @@ public final class DisplayRefreshService {
     Set<Block> terminals = new HashSet<>();
     Set<Block> monitors = new HashSet<>();
     Set<Block> buses = new HashSet<>();
-    Set<Block> bridges = new HashSet<>();
+    Set<Block> relays = new HashSet<>();
     NetworkRefreshBudget budget = new NetworkRefreshBudget(hardCap);
     queue.add(start);
     visited.add(start);
     if (Carriers.matchesCarrier(start, wireMaterial) && WireMarker.isWire(plugin, start)) {
       budget.recordStartNode();
-    } else if (Carriers.matchesCarrier(start, bridgeCarrier)
-        && BridgeMarker.isBridge(plugin, start)) {
-      bridges.add(start);
+    } else if (Carriers.matchesCarrier(start, relayCarrier) && RelayMarker.isRelay(plugin, start)) {
+      relays.add(start);
     }
     while (!queue.isEmpty()) {
       Block current = queue.poll();
-      if (Carriers.matchesCarrier(current, bridgeCarrier)
-          && BridgeMarker.isBridge(plugin, current)) {
-        Block peer = validBridgePeer(current);
+      if (Carriers.matchesCarrier(current, relayCarrier) && RelayMarker.isRelay(plugin, current)) {
+        Block peer = validRelayPeer(current);
         if (peer != null && !visited.contains(peer)) {
           if (!budget.tryVisitNextNode()) {
             continue;
           }
           visited.add(peer);
-          bridges.add(peer);
+          relays.add(peer);
           queue.add(peer);
         }
       }
@@ -358,12 +356,12 @@ public final class DisplayRefreshService {
           queue.add(next);
           continue;
         }
-        if (Carriers.matchesCarrier(next, bridgeCarrier) && BridgeMarker.isBridge(plugin, next)) {
+        if (Carriers.matchesCarrier(next, relayCarrier) && RelayMarker.isRelay(plugin, next)) {
           if (!budget.tryVisitNextNode()) {
             continue;
           }
           visited.add(next);
-          bridges.add(next);
+          relays.add(next);
           queue.add(next);
           continue;
         }
@@ -390,8 +388,8 @@ public final class DisplayRefreshService {
         }
       }
     }
-    for (Block bridge : bridges) {
-      refreshBridge(bridge);
+    for (Block relay : relays) {
+      refreshRelay(relay);
     }
     PerfStats.addCounter("wire.networkRefreshVisited", visited.size());
     if (budget.skipped() > 0) {
@@ -442,9 +440,9 @@ public final class DisplayRefreshService {
     refreshProxyBlock(block);
   }
 
-  public void refreshBridge(Block block) {
-    if (bridgeDisplayManager != null) {
-      bridgeDisplayManager.refresh(block);
+  public void refreshRelay(Block block) {
+    if (relayDisplayManager != null) {
+      relayDisplayManager.refresh(block);
     }
     refreshProxyBlock(block);
   }
@@ -477,23 +475,23 @@ public final class DisplayRefreshService {
     restoreProxyBlock(block);
   }
 
-  public void removeBridgeDisplay(Block block) {
-    if (bridgeDisplayManager != null) {
-      bridgeDisplayManager.removeDisplay(block);
+  public void removeRelayDisplay(Block block) {
+    if (relayDisplayManager != null) {
+      relayDisplayManager.removeDisplay(block);
     }
     restoreProxyBlock(block);
   }
 
-  private Block validBridgePeer(Block bridge) {
-    Block peer = BridgeMarker.link(plugin, bridge).map(BridgeMarker.Link::loadedBlock).orElse(null);
+  private Block validRelayPeer(Block relay) {
+    Block peer = RelayMarker.link(plugin, relay).map(RelayMarker.Link::loadedBlock).orElse(null);
     if (peer == null || !isChunkLoaded(peer)) return null;
-    if (!Carriers.matchesCarrier(peer, bridgeCarrier) || !BridgeMarker.isBridge(plugin, peer)) {
+    if (!Carriers.matchesCarrier(peer, relayCarrier) || !RelayMarker.isRelay(plugin, peer)) {
       return null;
     }
-    if (BridgeMarker.link(plugin, peer).filter(link -> link.sameBlock(bridge)).isEmpty()) {
+    if (RelayMarker.link(plugin, peer).filter(link -> link.sameBlock(relay)).isEmpty()) {
       return null;
     }
-    return com.zxcmc.exort.network.NetworkGraphCache.inBridgeRange(bridge, peer, bridgeRangeChunks)
+    return com.zxcmc.exort.network.NetworkGraphCache.inRelayRange(relay, peer, relayRangeChunks)
         ? peer
         : null;
   }

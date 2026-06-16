@@ -16,22 +16,22 @@ class RuntimeNetworkConfigTest {
     assertEquals(120L, config.wirePeekTicks());
     assertEquals(32, config.wireLimit());
     assertEquals(64, config.wireHardCap());
-    assertEquals(3, config.bridgeRangeChunks());
+    assertEquals(3, config.relayRangeChunks());
     assertFalse(config.wireHardCapAdjusted());
   }
 
   @Test
-  void readsPublicWireAndBridgeKeys() {
+  void readsPublicWireAndRelayKeys() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("wire.limit", 20);
     yaml.set("wire.hardCap", 50);
-    yaml.set("bridge.rangeChunks", 8);
+    yaml.set("relay.rangeChunks", 8);
 
     RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
 
     assertEquals(20, config.wireLimit());
     assertEquals(50, config.wireHardCap());
-    assertEquals(8, config.bridgeRangeChunks());
+    assertEquals(8, config.relayRangeChunks());
     assertFalse(config.wireHardCapAdjusted());
   }
 
@@ -49,13 +49,13 @@ class RuntimeNetworkConfigTest {
   }
 
   @Test
-  void bridgeRangeIsClamped() {
+  void relayRangeIsClamped() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("bridge.rangeChunks", -2);
+    yaml.set("relay.rangeChunks", -2);
 
     RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
 
-    assertEquals(0, config.bridgeRangeChunks());
+    assertEquals(0, config.relayRangeChunks());
   }
 
   @Test

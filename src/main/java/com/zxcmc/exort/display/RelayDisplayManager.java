@@ -1,7 +1,7 @@
 package com.zxcmc.exort.display;
 
 import com.zxcmc.exort.carrier.Carriers;
-import com.zxcmc.exort.marker.BridgeMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
@@ -9,10 +9,10 @@ import org.bukkit.block.Block;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
-public final class BridgeDisplayManager extends BaseCarrierDisplayManager {
-  private final Component bridgeName;
+public final class RelayDisplayManager extends BaseCarrierDisplayManager {
+  private final Component relayName;
 
-  public BridgeDisplayManager(
+  public RelayDisplayManager(
       Plugin plugin,
       Material carrierMaterial,
       String displayModelId,
@@ -22,7 +22,7 @@ public final class BridgeDisplayManager extends BaseCarrierDisplayManager {
       double offsetY,
       double offsetZ,
       DisplayMetadataService metadataService,
-      Component bridgeName) {
+      Component relayName) {
     super(
         plugin,
         carrierMaterial,
@@ -33,22 +33,22 @@ public final class BridgeDisplayManager extends BaseCarrierDisplayManager {
         offsetY,
         offsetZ,
         metadataService,
-        "bridge");
-    this.bridgeName = bridgeName == null ? Component.text("Bridge") : bridgeName;
+        "relay");
+    this.relayName = relayName == null ? Component.text("Network Relay") : relayName;
   }
 
   @Override
   protected boolean isValidBlock(Block block) {
-    return Carriers.matchesCarrier(block, carrierMaterial) && BridgeMarker.isBridge(plugin, block);
+    return Carriers.matchesCarrier(block, carrierMaterial) && RelayMarker.isRelay(plugin, block);
   }
 
   @Override
   protected void decorateMeta(ItemMeta meta, Block block) {
-    meta.displayName(bridgeName.decoration(TextDecoration.ITALIC, false));
+    meta.displayName(relayName.decoration(TextDecoration.ITALIC, false));
   }
 
   @Override
   protected String localizationKey(Block block) {
-    return "item.bridge";
+    return "item.relay";
   }
 }

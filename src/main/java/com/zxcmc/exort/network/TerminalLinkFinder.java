@@ -22,8 +22,8 @@ public final class TerminalLinkFinder {
       int wireHardCap,
       Material wireMaterial,
       Material storageCarrier,
-      Material bridgeCarrier,
-      int bridgeRangeChunks) {
+      Material relayCarrier,
+      int relayRangeChunks) {
     return PerfStats.measure(
         PerfStats.Area.NETWORK,
         () ->
@@ -35,8 +35,8 @@ public final class TerminalLinkFinder {
                 wireHardCap,
                 wireMaterial,
                 storageCarrier,
-                bridgeCarrier,
-                bridgeRangeChunks));
+                relayCarrier,
+                relayRangeChunks));
   }
 
   public static StorageSearchResult find(
@@ -59,8 +59,8 @@ public final class TerminalLinkFinder {
       int wireHardCap,
       Material wireMaterial,
       Material storageCarrier,
-      Material bridgeCarrier,
-      int bridgeRangeChunks) {
+      Material relayCarrier,
+      int relayRangeChunks) {
     if (plugin instanceof NetworkGraphCacheProvider provider) {
       var cache = provider.getNetworkGraphCache();
       if (cache != null) {
@@ -72,8 +72,8 @@ public final class TerminalLinkFinder {
             wireHardCap,
             wireMaterial,
             storageCarrier,
-            bridgeCarrier,
-            bridgeRangeChunks);
+            relayCarrier,
+            relayRangeChunks);
       }
     }
     return NetworkGraphCache.scan(
@@ -84,7 +84,7 @@ public final class TerminalLinkFinder {
         wireHardCap,
         wireMaterial,
         storageCarrier,
-        bridgeCarrier,
-        bridgeRangeChunks);
+        relayCarrier,
+        relayRangeChunks);
   }
 }

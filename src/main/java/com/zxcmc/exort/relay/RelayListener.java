@@ -1,4 +1,4 @@
-package com.zxcmc.exort.bridge;
+package com.zxcmc.exort.relay;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.display.DisplayRefreshService;
@@ -8,7 +8,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.marker.BridgeMarker;
+import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import java.util.Map;
@@ -32,7 +32,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-public final class BridgeListener implements Listener {
+public final class RelayListener implements Listener {
   private static final long PENDING_TTL_MS = 60_000L;
   private static final BlockFace[] FACES = {
     BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST
@@ -50,13 +50,13 @@ public final class BridgeListener implements Listener {
   private final Runnable revalidateSessions;
   private final int wireLimit;
   private final int wireHardCap;
-  private final int bridgeRangeChunks;
+  private final int relayRangeChunks;
   private final Material wireMaterial;
   private final Material storageCarrier;
-  private final Material bridgeCarrier;
-  private final Map<UUID, PendingBridge> pending = new ConcurrentHashMap<>();
+  private final Material relayCarrier;
+  private final Map<UUID, PendingRelay> pending = new ConcurrentHashMap<>();
 
-  public BridgeListener(
+  public RelayListener(
       Plugin plugin,
       RegionProtection regionProtection,
       WorldEditWandGuard worldEditWandGuard,
@@ -69,10 +69,10 @@ public final class BridgeListener implements Listener {
       Runnable revalidateSessions,
       int wireLimit,
       int wireHardCap,
-      int bridgeRangeChunks,
+      int relayRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
-      Material bridgeCarrier) {
+      Material relayCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.regionProtection = Objects.requireNonNull(regionProtection, "regionProtection");
     this.worldEditWandGuard = Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
@@ -86,10 +86,10 @@ public final class BridgeListener implements Listener {
     this.revalidateSessions = Objects.requireNonNull(revalidateSessions, "revalidateSessions");
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
-    this.bridgeRangeChunks = bridgeRangeChunks;
+    this.relayRangeChunks = relayRangeChunks;
     this.wireMaterial = Objects.requireNonNull(wireMaterial, "wireMaterial");
     this.storageCarrier = Objects.requireNonNull(storageCarrier, "storageCarrier");
-    this.bridgeCarrier = Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
+    this.relayCarrier = Objects.requireNonNull(relayCarrier, "relayCarrier");
   }
 
   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -97,7 +97,7 @@ public final class BridgeListener implements Listener {
     if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
     if (event.getHand() != EquipmentSlot.HAND) return;
     Block block = event.getClickedBlock();
-    if (!isBridge(block)) return;
+    if (!isRelay(block)) return;
     Player player = event.getPlayer();
     if (worldEditWandGuard.isWorldEditWand(player, event.getItem())) return;
     if (!regionProtection.canUse(player, block)) {
@@ -127,19 +127,19 @@ public final class BridgeListener implements Listener {
   }
 
   private void handleNormalClick(Player player, Block clicked) {
-    if (BridgeMarker.link(plugin, clicked).isPresent()) {
+    if (RelayMarker.link(plugin, clicked).isPresent()) {
       pending.remove(player.getUniqueId());
       showStatus(player, clicked);
       return;
     }
-    PendingBridge first = pending.get(player.getUniqueId());
-    if (first == null || first.expired() || !isBridge(first.block())) {
-      pending.put(player.getUniqueId(), new PendingBridge(clicked, System.currentTimeMillis()));
-      playerFeedback.info(player, "message.bridge_waiting");
+    PendingRelay first = pending.get(player.getUniqueId());
+    if (first == null || first.expired() || !isRelay(first.block())) {
+      pending.put(player.getUniqueId(), new PendingRelay(clicked, System.currentTimeMillis()));
+      playerFeedback.info(player, "message.relay_waiting");
       return;
     }
     if (sameBlock(first.block(), clicked)) {
-      playerFeedback.warn(player, "message.bridge_same");
+      playerFeedback.warn(player, "message.relay_same");
       return;
     }
     if (!regionProtection.canUse(player, first.block())) {
@@ -152,68 +152,68 @@ public final class BridgeListener implements Listener {
 
   private void link(Player player, Block first, Block second) {
     if (!sameWorld(first, second)) {
-      playerFeedback.error(player, "message.bridge_cross_world");
+      playerFeedback.error(player, "message.relay_cross_world");
       return;
     }
-    if (BridgeMarker.link(plugin, first).isPresent()
-        || BridgeMarker.link(plugin, second).isPresent()) {
+    if (RelayMarker.link(plugin, first).isPresent()
+        || RelayMarker.link(plugin, second).isPresent()) {
       pending.remove(player.getUniqueId());
-      playerFeedback.error(player, "message.bridge_already_linked");
+      playerFeedback.error(player, "message.relay_already_linked");
       return;
     }
-    if (!NetworkGraphCache.inBridgeRange(first, second, bridgeRangeChunks)) {
-      playerFeedback.error(player, "message.bridge_out_of_range", bridgeRangeChunks);
+    if (!NetworkGraphCache.inRelayRange(first, second, relayRangeChunks)) {
+      playerFeedback.error(player, "message.relay_out_of_range", relayRangeChunks);
       return;
     }
-    BridgeMarker.link(plugin, first, second);
+    RelayMarker.link(plugin, first, second);
     pending.remove(player.getUniqueId());
     refreshEndpoint(first);
     refreshEndpoint(second);
     revalidateSessions.run();
-    playerFeedback.success(player, "message.bridge_linked");
+    playerFeedback.success(player, "message.relay_linked");
   }
 
   private void unlink(Player player, Block block) {
-    Block peer = BridgeMarker.link(plugin, block).map(BridgeMarker.Link::loadedBlock).orElse(null);
-    BridgeMarker.unlinkLoadedPair(plugin, block);
+    Block peer = RelayMarker.link(plugin, block).map(RelayMarker.Link::loadedBlock).orElse(null);
+    RelayMarker.unlinkLoadedPair(plugin, block);
     pending.remove(player.getUniqueId());
     refreshEndpoint(block);
-    if (peer != null && isBridge(peer)) {
+    if (peer != null && isRelay(peer)) {
       refreshEndpoint(peer);
     }
     revalidateSessions.run();
-    playerFeedback.success(player, "message.bridge_unlinked");
+    playerFeedback.success(player, "message.relay_unlinked");
   }
 
   private void showStatus(Player player, Block block) {
-    BridgeMarker.Link link = BridgeMarker.link(plugin, block).orElse(null);
+    RelayMarker.Link link = RelayMarker.link(plugin, block).orElse(null);
     if (link == null) {
-      playerFeedback.info(player, "message.bridge_waiting");
+      playerFeedback.info(player, "message.relay_waiting");
       return;
     }
     String storageStatus = storageStatus(player, block);
-    bossBarManager.showBridgeStatus(coords(link), storageStatus, player, 120L);
+    bossBarManager.showRelayStatus(coords(link), storageStatus, player, 120L);
   }
 
-  private String storageStatus(Player player, Block bridge) {
+  private String storageStatus(Player player, Block relay) {
     TerminalLinkFinder.StorageSearchResult result =
         TerminalLinkFinder.find(
-            bridge,
+            relay,
             keys,
             plugin,
             wireLimit,
             wireHardCap,
             wireMaterial,
             storageCarrier,
-            bridgeCarrier,
-            bridgeRangeChunks);
+            relayCarrier,
+            relayRangeChunks);
     if (result.count() > 1) {
-      return lang.tr(player, "bridge.storage_multiple");
+      return lang.tr(player, "relay.storage_multiple");
     }
     if (result.count() == 1 && result.data() != null) {
-      return lang.tr(player, "bridge.storage_tail", tail(result.data().storageId()));
+      return lang.tr(player, "relay.storage_tail", tail(result.data().storageId()));
     }
-    return lang.tr(player, "bridge.storage_none");
+    return lang.tr(player, "relay.storage_none");
   }
 
   private void refreshEndpoint(Block block) {
@@ -223,7 +223,7 @@ public final class BridgeListener implements Listener {
     }
     DisplayRefreshService refresh = displayRefreshService.get();
     if (refresh == null) return;
-    refresh.refreshBridge(block);
+    refresh.refreshRelay(block);
     refresh.refreshBlockAndNeighbors(block);
     for (BlockFace face : FACES) {
       refresh.refreshBlockAndNeighbors(block.getRelative(face));
@@ -231,10 +231,10 @@ public final class BridgeListener implements Listener {
     refresh.refreshNetworkFrom(block);
   }
 
-  private boolean isBridge(Block block) {
+  private boolean isRelay(Block block) {
     return block != null
-        && Carriers.matchesCarrier(block, bridgeCarrier)
-        && BridgeMarker.isBridge(plugin, block);
+        && Carriers.matchesCarrier(block, relayCarrier)
+        && RelayMarker.isRelay(plugin, block);
   }
 
   private boolean isEmptyHand(ItemStack item) {
@@ -264,7 +264,7 @@ public final class BridgeListener implements Listener {
         && first.getWorld().getUID().equals(second.getWorld().getUID());
   }
 
-  private String coords(BridgeMarker.Link link) {
+  private String coords(RelayMarker.Link link) {
     return link.x() + " " + link.y() + " " + link.z();
   }
 
@@ -274,7 +274,7 @@ public final class BridgeListener implements Listener {
     return id.substring(start);
   }
 
-  private record PendingBridge(Block block, long createdMs) {
+  private record PendingRelay(Block block, long createdMs) {
     boolean expired() {
       return System.currentTimeMillis() - createdMs > PENDING_TTL_MS;
     }

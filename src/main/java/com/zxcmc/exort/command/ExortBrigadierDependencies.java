@@ -54,10 +54,10 @@ public record ExortBrigadierDependencies(
     LongSupplier cacheIdleUnloadSeconds,
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
-    IntSupplier bridgeRangeChunks,
+    IntSupplier relayRangeChunks,
     Supplier<Material> wireMaterial,
     Supplier<Material> storageCarrier,
-    Supplier<Material> bridgeCarrier,
+    Supplier<Material> relayCarrier,
     Supplier<ProtectionStatus> protectionStatus) {
   public ExortBrigadierDependencies {
     Objects.requireNonNull(plugin, "plugin");
@@ -87,10 +87,10 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(cacheIdleUnloadSeconds, "cacheIdleUnloadSeconds");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");
-    Objects.requireNonNull(bridgeRangeChunks, "bridgeRangeChunks");
+    Objects.requireNonNull(relayRangeChunks, "relayRangeChunks");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
-    Objects.requireNonNull(bridgeCarrier, "bridgeCarrier");
+    Objects.requireNonNull(relayCarrier, "relayCarrier");
     Objects.requireNonNull(protectionStatus, "protectionStatus");
   }
 

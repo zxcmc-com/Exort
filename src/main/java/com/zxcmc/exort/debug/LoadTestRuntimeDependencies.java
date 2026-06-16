@@ -21,7 +21,7 @@ public record LoadTestRuntimeDependencies(
     MonitorDisplayManager monitorDisplayManager,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks) {
+    int relayRangeChunks) {
   public LoadTestRuntimeDependencies {
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(storageManager, "storageManager");

@@ -35,10 +35,10 @@ final class DebugCacheStatusRenderer {
   private final LongSupplier cacheIdleUnloadSeconds;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
-  private final IntSupplier bridgeRangeChunks;
+  private final IntSupplier relayRangeChunks;
   private final Supplier<Material> wireMaterial;
   private final Supplier<Material> storageCarrier;
-  private final Supplier<Material> bridgeCarrier;
+  private final Supplier<Material> relayCarrier;
 
   DebugCacheStatusRenderer(DebugCacheStatusRendererDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -48,10 +48,10 @@ final class DebugCacheStatusRenderer {
     this.cacheIdleUnloadSeconds = dependencies.cacheIdleUnloadSeconds();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
-    this.bridgeRangeChunks = dependencies.bridgeRangeChunks();
+    this.relayRangeChunks = dependencies.relayRangeChunks();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
-    this.bridgeCarrier = dependencies.bridgeCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
   }
 
   void send(CommandSender sender, String storageId) {
@@ -267,8 +267,8 @@ final class DebugCacheStatusRenderer {
             wireHardCap.getAsInt(),
             wireMaterial.get(),
             storageCarrier.get(),
-            bridgeCarrier.get(),
-            bridgeRangeChunks.getAsInt());
+            relayCarrier.get(),
+            relayRangeChunks.getAsInt());
     return result.count() == 1
         && result.data() != null
         && storageId.equals(result.data().storageId());
@@ -285,8 +285,8 @@ final class DebugCacheStatusRenderer {
             wireHardCap.getAsInt(),
             wireMaterial.get(),
             storageCarrier.get(),
-            bridgeCarrier.get(),
-            bridgeRangeChunks.getAsInt());
+            relayCarrier.get(),
+            relayRangeChunks.getAsInt());
     return result.count() == 1
         && result.data() != null
         && storageId.equals(result.data().storageId());
@@ -303,8 +303,8 @@ final class DebugCacheStatusRenderer {
             wireHardCap.getAsInt(),
             wireMaterial.get(),
             storageCarrier.get(),
-            bridgeCarrier.get(),
-            bridgeRangeChunks.getAsInt());
+            relayCarrier.get(),
+            relayRangeChunks.getAsInt());
     return result.count() == 1
         && result.data() != null
         && storageId.equals(result.data().storageId());

@@ -31,7 +31,7 @@ public record ExortRuntimeServices(
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,
-    int bridgeRangeChunks,
+    int relayRangeChunks,
     long storagePeekTicks,
     long wirePeekTicks,
     ItemHologramManager hologramManager,

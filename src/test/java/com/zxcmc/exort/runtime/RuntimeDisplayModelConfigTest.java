@@ -18,7 +18,7 @@ class RuntimeDisplayModelConfigTest {
     assertEquals("exort:terminal/monitor_disabled", config.monitorDisabled());
     assertEquals("exort:bus/import", config.importBus());
     assertEquals("exort:bus/export", config.exportBus());
-    assertEquals("exort:bridge/bridge", config.bridge());
+    assertEquals("exort:relay/relay", config.relay());
   }
 
   @Test
@@ -34,6 +34,6 @@ class RuntimeDisplayModelConfigTest {
     assertEquals("minecraft:smooth_stone", config.monitorDisabled());
     assertEquals("minecraft:dispenser", config.importBus());
     assertEquals("minecraft:dropper", config.exportBus());
-    assertEquals("minecraft:lodestone", config.bridge());
+    assertEquals("minecraft:lodestone", config.relay());
   }
 }

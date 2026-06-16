@@ -16,7 +16,7 @@ public final class BreakConfig {
   private final BreakSettings terminal;
   private final BreakSettings monitor;
   private final BreakSettings bus;
-  private final BreakSettings bridge;
+  private final BreakSettings relay;
   private final BreakSettings wire;
 
   public BreakConfig(
@@ -24,13 +24,13 @@ public final class BreakConfig {
       BreakSettings terminal,
       BreakSettings monitor,
       BreakSettings bus,
-      BreakSettings bridge,
+      BreakSettings relay,
       BreakSettings wire) {
     this.storage = storage;
     this.terminal = terminal;
     this.monitor = monitor;
     this.bus = bus;
-    this.bridge = bridge;
+    this.relay = relay;
     this.wire = wire;
   }
 
@@ -50,8 +50,8 @@ public final class BreakConfig {
     return bus;
   }
 
-  public BreakSettings bridge() {
-    return bridge;
+  public BreakSettings relay() {
+    return relay;
   }
 
   public BreakSettings wire() {
@@ -64,7 +64,7 @@ public final class BreakConfig {
         load(config, logger, "break.terminal", 12.0, defaultTerminalTools()),
         load(config, logger, "break.monitor", 12.0, defaultTerminalTools()),
         load(config, logger, "break.bus", 12.0, defaultTerminalTools()),
-        load(config, logger, "break.bridge", 12.0, defaultTerminalTools()),
+        load(config, logger, "break.relay", 12.0, defaultTerminalTools()),
         load(config, logger, "break.wire", 2.0, defaultWireTools()));
   }
 
