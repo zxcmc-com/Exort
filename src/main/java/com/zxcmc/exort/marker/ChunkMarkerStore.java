@@ -125,6 +125,25 @@ public final class ChunkMarkerStore {
         .map(container -> container.get(key(plugin, field), PersistentDataType.BYTE));
   }
 
+  public static void setLong(Plugin plugin, Block block, String section, String field, long value) {
+    PersistentDataContainer pdc = block.getChunk().getPersistentDataContainer();
+    NamespacedKey rootKey = blockKey(plugin, block);
+    PersistentDataContainer root = getOrCreateRoot(pdc, rootKey);
+    PersistentDataContainer sectionContainer =
+        root.get(key(plugin, section), PersistentDataType.TAG_CONTAINER);
+    if (sectionContainer == null) {
+      sectionContainer = pdc.getAdapterContext().newPersistentDataContainer();
+    }
+    sectionContainer.set(key(plugin, field), PersistentDataType.LONG, value);
+    root.set(key(plugin, section), PersistentDataType.TAG_CONTAINER, sectionContainer);
+    saveRoot(pdc, rootKey, root);
+  }
+
+  public static Optional<Long> getLong(Plugin plugin, Block block, String section, String field) {
+    return getSection(plugin, block, section)
+        .map(container -> container.get(key(plugin, field), PersistentDataType.LONG));
+  }
+
   public static void removeField(Plugin plugin, Block block, String section, String field) {
     PersistentDataContainer pdc = block.getChunk().getPersistentDataContainer();
     NamespacedKey rootKey = blockKey(plugin, block);

@@ -27,6 +27,43 @@ class DatabaseTest {
   @TempDir java.nio.file.Path tempDir;
 
   @Test
+  void setStorageTierPersistsCapacitySnapshot() throws Exception {
+    File file = tempDir.resolve("tier-state.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      database.setStorageTier("storage", "OBSIDIAN", 20L * 45L * 64L).get(5, TimeUnit.SECONDS);
+
+      Database.StorageTierState state =
+          database.getStorageTierState("storage").get(5, TimeUnit.SECONDS).orElseThrow();
+
+      assertEquals("OBSIDIAN", state.tier());
+      assertEquals(20L * 45L * 64L, state.tierMaxItems());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void cloneStoragePersistsOverriddenCapacitySnapshot() throws Exception {
+    File file = tempDir.resolve("tier-clone.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      database.setStorageTier("source", "OBSIDIAN", 20L * 45L * 64L).get(5, TimeUnit.SECONDS);
+
+      database.cloneStorage("source", "copy", "DIAMOND", 10L * 45L * 64L).get(5, TimeUnit.SECONDS);
+      Database.StorageTierState state =
+          database.getStorageTierState("copy").get(5, TimeUnit.SECONDS).orElseThrow();
+
+      assertEquals("DIAMOND", state.tier());
+      assertEquals(10L * 45L * 64L, state.tierMaxItems());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
   void loadStorageSkipsClearlyInvalidRowsBeforeCacheDecode() throws Exception {
     File file = tempDir.resolve("exort.db").toFile();
     Database database = new Database();

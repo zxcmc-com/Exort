@@ -3,7 +3,6 @@ package com.zxcmc.exort.wireless.listener;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
-import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
@@ -23,7 +22,6 @@ public record WirelessListenerDependencies(
     AuthenticationGate authenticationGate,
     BossBarManager bossBarManager,
     PlayerFeedback playerFeedback,
-    Database database,
     SessionManager sessionManager,
     StorageKeys keys,
     int wireLimit,
@@ -40,7 +38,6 @@ public record WirelessListenerDependencies(
     Objects.requireNonNull(authenticationGate, "authenticationGate");
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
-    Objects.requireNonNull(database, "database");
     Objects.requireNonNull(sessionManager, "sessionManager");
     Objects.requireNonNull(keys, "keys");
   }

@@ -1,34 +1,54 @@
 package com.zxcmc.exort.marker;
 
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierResolver;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.plugin.Plugin;
 
-/** Chunk-level marker for storage blocks (all modes). Format: id:tier[:facing:FACING] */
+/** Chunk-level marker for storage blocks (all modes). */
 public final class StorageMarker {
   private StorageMarker() {}
 
   private static final String SECTION = "storage";
   private static final String FIELD_ID = "id";
   private static final String FIELD_TIER = "tier";
+  private static final String FIELD_TIER_MAX_ITEMS = "tierMaxItems";
   private static final String FIELD_FACING = "facing";
+  private static final Set<String> WARNED_FALLBACKS = ConcurrentHashMap.newKeySet();
+  private static final Set<String> WARNED_UNUSABLE = ConcurrentHashMap.newKeySet();
 
-  public record Data(String storageId, StorageTier tier, BlockFace facing) {}
+  public record Data(
+      String storageId, StorageTier tier, BlockFace facing, long tierMaxItems, boolean fallback) {}
 
   public static void set(Plugin plugin, Block block, String storageId, StorageTier tier) {
-    if (storageId == null || tier == null) return;
-    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, storageId);
-    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, tier.key());
-    ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_FACING);
+    set(plugin, block, storageId, tier, null);
   }
 
   public static void set(
       Plugin plugin, Block block, String storageId, StorageTier tier, BlockFace facing) {
     if (storageId == null || tier == null) return;
+    setRaw(plugin, block, storageId, tier.key(), tier.maxItems(), facing);
+  }
+
+  public static void setRaw(
+      Plugin plugin,
+      Block block,
+      String storageId,
+      String tierKey,
+      Long tierMaxItems,
+      BlockFace facing) {
+    if (storageId == null || tierKey == null) return;
     ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, storageId);
-    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, tier.key());
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, tierKey);
+    if (tierMaxItems != null && tierMaxItems > 0) {
+      ChunkMarkerStore.setLong(plugin, block, SECTION, FIELD_TIER_MAX_ITEMS, tierMaxItems);
+    } else {
+      ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_TIER_MAX_ITEMS);
+    }
     if (facing != null) {
       ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_FACING, facing.name());
     } else {
@@ -41,8 +61,14 @@ public final class StorageMarker {
     String storageId = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_ID).orElse(null);
     String tierKey = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TIER).orElse(null);
     if (storageId == null || tierKey == null) return Optional.empty();
-    var tierOpt = StorageTier.fromString(tierKey);
-    if (tierOpt.isEmpty()) return Optional.empty();
+    Long storedMaxItems =
+        ChunkMarkerStore.getLong(plugin, block, SECTION, FIELD_TIER_MAX_ITEMS).orElse(null);
+    var resolution = StorageTierResolver.resolve(tierKey, storedMaxItems);
+    if (resolution.isEmpty()) {
+      warnUnusable(plugin, storageId, tierKey);
+      return Optional.empty();
+    }
+    StorageTierResolver.Resolution resolved = resolution.get();
     BlockFace facing = null;
     String facingRaw =
         ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_FACING).orElse(null);
@@ -53,10 +79,68 @@ public final class StorageMarker {
         facing = null;
       }
     }
-    return Optional.of(new Data(storageId, tierOpt.get(), facing));
+    boolean rewriteTier = !resolved.tier().key().equals(tierKey);
+    boolean rewriteMaxItems =
+        storedMaxItems == null || storedMaxItems.longValue() != resolved.tierMaxItems();
+    if (rewriteTier || rewriteMaxItems) {
+      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, resolved.tier().key());
+      ChunkMarkerStore.setLong(
+          plugin, block, SECTION, FIELD_TIER_MAX_ITEMS, resolved.tierMaxItems());
+    }
+    if (resolved.fallback()) {
+      warnFallback(plugin, storageId, tierKey, storedMaxItems, resolved);
+    }
+    return Optional.of(
+        new Data(storageId, resolved.tier(), facing, resolved.tierMaxItems(), resolved.fallback()));
   }
 
   public static void clear(Plugin plugin, Block block) {
     ChunkMarkerStore.clearSection(plugin, block, SECTION);
+  }
+
+  private static void warnFallback(
+      Plugin plugin,
+      String storageId,
+      String missingTier,
+      Long storedMaxItems,
+      StorageTierResolver.Resolution resolved) {
+    if (plugin == null || !WARNED_FALLBACKS.add(storageId + ":" + missingTier)) return;
+    if (resolved.missingSnapshot()) {
+      plugin
+          .getLogger()
+          .warning(
+              "Storage "
+                  + storageId
+                  + " references missing tier '"
+                  + missingTier
+                  + "' without tierMaxItems snapshot; migrated to smallest configured tier "
+                  + resolved.tier().key()
+                  + ".");
+      return;
+    }
+    plugin
+        .getLogger()
+        .warning(
+            "Storage "
+                + storageId
+                + " references missing tier '"
+                + missingTier
+                + "' with tierMaxItems="
+                + storedMaxItems
+                + "; migrated to "
+                + resolved.tier().key()
+                + ".");
+  }
+
+  private static void warnUnusable(Plugin plugin, String storageId, String missingTier) {
+    if (plugin == null || !WARNED_UNUSABLE.add(storageId + ":" + missingTier)) return;
+    plugin
+        .getLogger()
+        .warning(
+            "Storage "
+                + storageId
+                + " references tier '"
+                + missingTier
+                + "', but no storage tiers are configured; leaving marker inactive.");
   }
 }

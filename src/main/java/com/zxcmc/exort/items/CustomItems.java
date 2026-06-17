@@ -4,6 +4,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -83,6 +84,7 @@ public class CustomItems {
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "storage");
       pdc.set(keys.storageTier(), PersistentDataType.STRING, tier.key());
+      pdc.set(keys.storageTierMaxItems(), PersistentDataType.LONG, tier.maxItems());
       if (storageId != null) {
         pdc.set(keys.storageId(), PersistentDataType.STRING, storageId);
       }
@@ -232,9 +234,9 @@ public class CustomItems {
     if (type == null) return false;
     switch (type) {
       case "storage" -> {
-        String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
-        StorageTier tier = StorageTier.fromString(tierRaw).orElse(null);
-        if (tier == null) return false;
+        StorageTierResolver.Resolution resolution = resolveStorageTier(pdc).orElse(null);
+        if (resolution == null) return false;
+        StorageTier tier = resolution.tier();
         String storageId = pdc.get(keys.storageId(), PersistentDataType.STRING);
         long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
         meta.itemName(Component.text(tier.displayName()).decoration(TextDecoration.ITALIC, false));
@@ -343,11 +345,15 @@ public class CustomItems {
   public Optional<StorageTier> tierFromItem(ItemStack stack) {
     if (stack == null) return Optional.empty();
     if (!stack.hasItemMeta()) return Optional.empty();
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+    ItemMeta meta = stack.getItemMeta();
+    PersistentDataContainer pdc = meta.getPersistentDataContainer();
     String type = pdc.get(keys.type(), PersistentDataType.STRING);
     if (!"storage".equalsIgnoreCase(type)) return Optional.empty();
-    String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
-    return StorageTier.fromString(tierRaw);
+    Optional<StorageTierResolver.Resolution> resolution = resolveStorageTier(pdc);
+    if (resolution.isPresent()) {
+      stack.setItemMeta(meta);
+    }
+    return resolution.map(StorageTierResolver.Resolution::tier);
   }
 
   public boolean isTerminal(ItemStack stack) {
@@ -407,6 +413,19 @@ public class CustomItems {
                 .getItemMeta()
                 .getPersistentDataContainer()
                 .get(keys.storageId(), PersistentDataType.STRING)));
+  }
+
+  private Optional<StorageTierResolver.Resolution> resolveStorageTier(PersistentDataContainer pdc) {
+    String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
+    Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
+    Optional<StorageTierResolver.Resolution> resolution =
+        StorageTierResolver.resolve(tierRaw, tierMaxItems);
+    resolution.ifPresent(
+        resolved -> {
+          pdc.set(keys.storageTier(), PersistentDataType.STRING, resolved.tier().key());
+          pdc.set(keys.storageTierMaxItems(), PersistentDataType.LONG, resolved.tierMaxItems());
+        });
+    return resolution;
   }
 
   private void applyLore(ItemMeta meta, StorageTier tier, String storageId, long currentAmount) {

@@ -32,8 +32,6 @@ import com.zxcmc.exort.wire.WirePlacementLimitGuard;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -74,7 +72,7 @@ public class BlockListener implements Listener {
   private final Supplier<MonitorDisplayManager> monitorDisplayManager;
   private final Supplier<BusService> busService;
   private final Supplier<NetworkGraphCache> networkGraphCache;
-  private final BiFunction<String, String, CompletableFuture<Void>> storageTierSaver;
+  private final StorageTierSaver storageTierSaver;
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
 
@@ -377,7 +375,13 @@ public class BlockListener implements Listener {
     StorageMarker.set(plugin, block, storageId, tier, storageFace);
     preloadStorage(event.getPlayer(), storageId);
     persistStorageTier(
-        event.getPlayer(), block, storageId, tier.key(), placedItem, refundOnPersistFailure);
+        event.getPlayer(),
+        block,
+        storageId,
+        tier.key(),
+        tier.maxItems(),
+        placedItem,
+        refundOnPersistFailure);
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshStorage(block);
@@ -527,10 +531,11 @@ public class BlockListener implements Listener {
       Block block,
       String storageId,
       String tierKey,
+      long tierMaxItems,
       ItemStack refund,
       boolean shouldRefund) {
     storageTierSaver
-        .apply(storageId, tierKey)
+        .save(storageId, tierKey, tierMaxItems)
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {

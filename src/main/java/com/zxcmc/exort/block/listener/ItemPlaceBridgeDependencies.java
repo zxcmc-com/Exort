@@ -13,8 +13,6 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -42,7 +40,7 @@ public record ItemPlaceBridgeDependencies(
     Supplier<NetworkGraphCache> networkGraphCache,
     Runnable revalidateSessions,
     Consumer<Block> monitorPlacedRecorder,
-    BiFunction<String, String, CompletableFuture<Void>> storageTierSaver,
+    StorageTierSaver storageTierSaver,
     Supplier<BreakSoundConfig> breakSoundConfig,
     Supplier<BusRuntimeConfig> busRuntimeConfig) {
   public ItemPlaceBridgeDependencies {

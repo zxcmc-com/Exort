@@ -8,6 +8,7 @@ import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
@@ -67,6 +68,34 @@ class NetworkGraphCacheRelayTest {
 
     assertEquals(1, result.count());
     assertEquals("storage-a", result.data().storageId());
+  }
+
+  @Test
+  void scanUsesStorageMarkerFallbackWhenTierWasRemoved() {
+    ConfigurationSection gold =
+        config(Map.of("maxItems", 45L * 64L, "material", "minecraft:gold_block"));
+    ConfigurationSection diamond =
+        config(Map.of("maxItems", 10L * 45L * 64L, "material", "minecraft:diamond_block"));
+    StorageTier.loadFromConfig(
+        config(Map.of("gold", gold, "diamond", diamond), Set.of("gold", "diamond")),
+        Logger.getLogger("ExortTest"));
+    BukkitTestDoubles.TestWorld world =
+        BukkitTestDoubles.world("relay-graph-missing-tier", uuid(11));
+    Block terminal = world.block(0, 64, 0, CARRIER);
+    Block firstRelay = world.block(1, 64, 0, CARRIER);
+    Block secondRelay = world.block(64, 64, 0, CARRIER);
+    Block storage = world.block(65, 64, 0, CARRIER);
+    TerminalMarker.set(plugin, terminal);
+    RelayMarker.link(plugin, firstRelay, secondRelay);
+    ChunkMarkerStore.setString(plugin, storage, "storage", "id", "storage-a");
+    ChunkMarkerStore.setString(plugin, storage, "storage", "tier", "OBSIDIAN");
+    ChunkMarkerStore.setLong(plugin, storage, "storage", "tierMaxItems", 20L * 45L * 64L);
+
+    TerminalLinkFinder.StorageSearchResult result = scan(terminal, 0, 16, 4);
+
+    assertEquals(1, result.count());
+    assertEquals("storage-a", result.data().storageId());
+    assertEquals("DIAMOND", result.data().tier().key());
   }
 
   @Test

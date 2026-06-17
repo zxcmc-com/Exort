@@ -5,7 +5,6 @@ import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
-import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
@@ -46,7 +45,6 @@ public class WirelessListener implements Listener {
   private final AuthenticationGate authenticationGate;
   private final BossBarManager bossBarManager;
   private final PlayerFeedback playerFeedback;
-  private final Database database;
   private final SessionManager sessionManager;
   private final StorageKeys keys;
   private final int wireLimit;
@@ -65,7 +63,6 @@ public class WirelessListener implements Listener {
     this.authenticationGate = dependencies.authenticationGate();
     this.bossBarManager = dependencies.bossBarManager();
     this.playerFeedback = dependencies.playerFeedback();
-    this.database = dependencies.database();
     this.sessionManager = dependencies.sessionManager();
     this.keys = dependencies.keys();
     this.wireLimit = dependencies.wireLimit();
@@ -212,13 +209,9 @@ public class WirelessListener implements Listener {
       feedbackError(player, "message.wireless.out_of_range");
       return;
     }
-    database
-        .getStorageTier(storageId)
-        .thenCompose(
-            optTier ->
-                storageManager
-                    .getOrLoad(storageId)
-                    .thenApply(cache -> new WirelessOpenData(optTier, cache)))
+    storageManager
+        .getOrLoad(storageId)
+        .thenApply(WirelessOpenData::new)
         .whenComplete(
             (data, err) -> {
               if (err != null) {
@@ -287,9 +280,9 @@ public class WirelessListener implements Listener {
       return;
     }
 
-    StorageTier tier =
-        openData.optTier().flatMap(StorageTier::fromString).orElse(markerData.get().tier());
-    boolean opened = sessionManager.openWirelessSession(player, openData.cache(), tier, anchor);
+    boolean opened =
+        sessionManager.openWirelessSession(
+            player, openData.cache(), markerData.get().tier(), anchor);
     if (!opened) return;
     if (player.getGameMode() != GameMode.CREATIVE && !service.consumeCharge(current)) {
       feedbackError(player, "message.wireless.empty");
@@ -334,5 +327,5 @@ public class WirelessListener implements Listener {
     }
   }
 
-  private record WirelessOpenData(Optional<String> optTier, StorageCache cache) {}
+  private record WirelessOpenData(StorageCache cache) {}
 }

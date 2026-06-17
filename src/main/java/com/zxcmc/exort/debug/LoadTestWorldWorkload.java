@@ -289,7 +289,7 @@ final class LoadTestWorldWorkload {
     int operations = 0;
     lane.storageId = storageId(lane);
     storageIds.add(lane.storageId);
-    database.setStorageTier(lane.storageId, tier.key());
+    database.setStorageTier(lane.storageId, tier.key(), tier.maxItems());
     dependencies.storageManager().getOrLoad(lane.storageId);
     for (LoadTestWorldPlanner.Placement placement : plan.placements()) {
       Block block = blockAt(lane, placement.cell(), slotOffset);

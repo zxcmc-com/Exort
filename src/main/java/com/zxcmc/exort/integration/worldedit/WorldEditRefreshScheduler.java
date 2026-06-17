@@ -326,7 +326,6 @@ final class WorldEditRefreshScheduler {
             deps.displayRefreshService(),
             deps::hologramManager,
             deps::busService,
-            deps.storageManager(),
             deps.database(),
             deps.wireMaterial(),
             deps.storageCarrier(),
