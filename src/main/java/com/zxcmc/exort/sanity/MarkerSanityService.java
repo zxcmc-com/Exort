@@ -15,7 +15,6 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import com.zxcmc.exort.storage.StorageManager;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -31,7 +30,6 @@ public final class MarkerSanityService {
   private final DisplayRefreshService displayRefreshService;
   private final Supplier<ItemHologramManager> hologramManager;
   private final Supplier<BusService> busService;
-  private final StorageManager storageManager;
   private final Database database;
   private final Material wireCarrier;
   private final Material storageCarrier;
@@ -45,7 +43,6 @@ public final class MarkerSanityService {
     this.displayRefreshService = dependencies.displayRefreshService();
     this.hologramManager = dependencies.hologramManager();
     this.busService = dependencies.busService();
-    this.storageManager = dependencies.storageManager();
     this.database = dependencies.database();
     this.wireCarrier = dependencies.wireCarrier();
     this.storageCarrier = dependencies.storageCarrier();
@@ -171,57 +168,40 @@ public final class MarkerSanityService {
           }
           String storageId = data.get().storageId();
           String tierKey = data.get().tier().key();
-          if (storageManager.peekLoadedCache(storageId).isPresent()) {
-            return;
-          }
+          long tierMaxItems = data.get().tierMaxItems();
+          boolean refreshAfterSync = data.get().fallback();
           database
-              .storageExists(storageId)
+              .setStorageTier(storageId, tierKey, tierMaxItems)
               .whenComplete(
-                  (exists, err) -> {
+                  (ignored, err) -> {
                     if (err != null) {
                       plugin
                           .getLogger()
                           .log(
                               Level.WARNING,
-                              "Failed to check storage marker " + storageId,
+                              "Failed to repair storage tier for " + storageId,
                               unwrap(err));
                       return;
                     }
-                    if (exists) return;
-                    database
-                        .setStorageTier(storageId, tierKey)
-                        .whenComplete(
-                            (ignored, tierErr) -> {
-                              if (tierErr != null) {
-                                plugin
-                                    .getLogger()
-                                    .log(
-                                        Level.WARNING,
-                                        "Failed to repair storage tier for " + storageId,
-                                        unwrap(tierErr));
-                                return;
-                              }
-                              if (!plugin.isEnabled()) return;
-                              try {
-                                Bukkit.getScheduler()
-                                    .runTask(
-                                        plugin,
-                                        () -> {
-                                          if (!plugin.isEnabled()) return;
-                                          var current = StorageMarker.get(plugin, block);
-                                          if (current.isEmpty()
-                                              || !storageId.equals(current.get().storageId())
-                                              || !Carriers.matchesCarrier(block, storageCarrier)) {
-                                            return;
-                                          }
-                                          displayRefreshService.refreshStorage(block);
-                                          registerStorageHologram(block);
-                                        });
-                              } catch (IllegalStateException handoffFailure) {
-                                // Plugin is disabling between the async repair and the sync
-                                // handoff.
-                              }
-                            });
+                    if (!refreshAfterSync || !plugin.isEnabled()) return;
+                    try {
+                      Bukkit.getScheduler()
+                          .runTask(
+                              plugin,
+                              () -> {
+                                if (!plugin.isEnabled()) return;
+                                var current = StorageMarker.get(plugin, block);
+                                if (current.isEmpty()
+                                    || !storageId.equals(current.get().storageId())
+                                    || !Carriers.matchesCarrier(block, storageCarrier)) {
+                                  return;
+                                }
+                                displayRefreshService.refreshStorage(block);
+                                registerStorageHologram(block);
+                              });
+                    } catch (IllegalStateException handoffFailure) {
+                      // Plugin is disabling between the async repair and the sync handoff.
+                    }
                   });
         });
     return new CleanupResult(acceptedRoots[0], skippedRoots[0], clearedRoots[0]);

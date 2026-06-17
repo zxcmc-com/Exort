@@ -7,6 +7,7 @@ import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.storage.StorageTier;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -48,6 +49,8 @@ public class Database implements AutoCloseable {
   public record DeltaWrite(
       String storageId, Collection<DbItem> upserts, Collection<String> removals) {}
 
+  public record StorageTierState(String tier, Long tierMaxItems) {}
+
   public Database() {
     this(null, () -> SortMode.AMOUNT.name());
   }
@@ -85,6 +88,7 @@ public class Database implements AutoCloseable {
               CREATE TABLE IF NOT EXISTS storages (
                   id TEXT PRIMARY KEY,
                   tier TEXT NULL,
+                  tier_max_items INTEGER NULL,
                   sort_mode TEXT NULL,
                   created_at INTEGER NOT NULL,
                   updated_at INTEGER NOT NULL
@@ -145,6 +149,7 @@ public class Database implements AutoCloseable {
   private void ensureSchema() throws SQLException {
     createTables();
     ensureColumn("storages", "sort_mode", "TEXT");
+    ensureColumn("storages", "tier_max_items", "INTEGER");
   }
 
   private void ensureColumn(String table, String column, String type) throws SQLException {
@@ -191,6 +196,12 @@ public class Database implements AutoCloseable {
   }
 
   public CompletableFuture<Void> setStorageTier(String storageId, String tierKey) {
+    Long tierMaxItems = StorageTier.fromString(tierKey).map(StorageTier::maxItems).orElse(null);
+    return setStorageTier(storageId, tierKey, tierMaxItems);
+  }
+
+  public CompletableFuture<Void> setStorageTier(
+      String storageId, String tierKey, Long tierMaxItems) {
     Objects.requireNonNull(storageId, "storageId");
     Objects.requireNonNull(tierKey, "tierKey");
     long now = Instant.now().getEpochSecond();
@@ -199,23 +210,33 @@ public class Database implements AutoCloseable {
         "set storage tier " + storageId,
         () -> {
           String sql =
-              "INSERT INTO storages(id, tier, sort_mode, created_at, updated_at) VALUES(?, ?,"
-                  + " COALESCE((SELECT sort_mode FROM storages WHERE id = ?), ?), ?, ?) ON"
-                  + " CONFLICT(id) DO UPDATE SET tier = excluded.tier, updated_at ="
-                  + " excluded.updated_at";
+              "INSERT INTO storages(id, tier, tier_max_items, sort_mode, created_at, updated_at)"
+                  + " VALUES(?, ?, ?, COALESCE((SELECT sort_mode FROM storages WHERE id = ?), ?),"
+                  + " ?, ?) ON CONFLICT(id) DO UPDATE SET tier = excluded.tier, tier_max_items ="
+                  + " excluded.tier_max_items, updated_at = excluded.updated_at";
           try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, storageId);
             ps.setString(2, tierKey);
-            ps.setString(3, storageId);
-            ps.setString(4, defaultSort);
-            ps.setLong(5, now);
+            setNullableLong(ps, 3, tierMaxItems);
+            ps.setString(4, storageId);
+            ps.setString(5, defaultSort);
             ps.setLong(6, now);
+            ps.setLong(7, now);
             ps.executeUpdate();
           } catch (SQLException e) {
             log(Level.SEVERE, "Failed to set storage tier for " + storageId, e);
             throw new CompletionException(e);
           }
         });
+  }
+
+  private static void setNullableLong(PreparedStatement ps, int index, Long value)
+      throws SQLException {
+    if (value == null) {
+      ps.setNull(index, java.sql.Types.INTEGER);
+    } else {
+      ps.setLong(index, value);
+    }
   }
 
   private String defaultSortModeName() {
@@ -337,6 +358,15 @@ public class Database implements AutoCloseable {
 
   public CompletableFuture<Void> createStorageWithItems(
       String storageId, String tierKey, String sortMode, Collection<DbItem> items) {
+    return createStorageWithItems(storageId, tierKey, null, sortMode, items);
+  }
+
+  public CompletableFuture<Void> createStorageWithItems(
+      String storageId,
+      String tierKey,
+      Long tierMaxItems,
+      String sortMode,
+      Collection<DbItem> items) {
     Objects.requireNonNull(storageId, "storageId");
     long now = Instant.now().getEpochSecond();
     String mode = sortMode == null ? defaultSortModeName() : sortMode;
@@ -348,14 +378,15 @@ public class Database implements AutoCloseable {
           try {
             connection.setAutoCommit(false);
             String sql =
-                "INSERT OR REPLACE INTO storages(id, tier, sort_mode, created_at, updated_at)"
-                    + " VALUES(?, ?, ?, ?, ?)";
+                "INSERT OR REPLACE INTO storages(id, tier, tier_max_items, sort_mode, created_at,"
+                    + " updated_at) VALUES(?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
               ps.setString(1, storageId);
               ps.setString(2, tierKey);
-              ps.setString(3, mode);
-              ps.setLong(4, now);
+              setNullableLong(ps, 3, tierMaxItems);
+              ps.setString(4, mode);
               ps.setLong(5, now);
+              ps.setLong(6, now);
               ps.executeUpdate();
             }
             try (PreparedStatement delete =
@@ -439,6 +470,11 @@ public class Database implements AutoCloseable {
   }
 
   public CompletableFuture<Void> cloneStorage(String fromId, String toId, String tierKey) {
+    return cloneStorage(fromId, toId, tierKey, null);
+  }
+
+  public CompletableFuture<Void> cloneStorage(
+      String fromId, String toId, String tierKey, Long tierMaxItems) {
     Objects.requireNonNull(fromId, "fromId");
     Objects.requireNonNull(toId, "toId");
     long now = Instant.now().getEpochSecond();
@@ -449,8 +485,8 @@ public class Database implements AutoCloseable {
             connection.setAutoCommit(false);
             int rows;
             String insertSql =
-                "INSERT INTO storages(id, tier, sort_mode, created_at, updated_at)"
-                    + " SELECT ?, tier, sort_mode, ?, ? FROM storages WHERE id = ?";
+                "INSERT INTO storages(id, tier, tier_max_items, sort_mode, created_at, updated_at)"
+                    + " SELECT ?, tier, tier_max_items, sort_mode, ?, ? FROM storages WHERE id = ?";
             try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
               ps.setString(1, toId);
               ps.setLong(2, now);
@@ -463,10 +499,12 @@ public class Database implements AutoCloseable {
             } else if (tierKey != null) {
               try (PreparedStatement ps =
                   connection.prepareStatement(
-                      "UPDATE storages SET tier = ?, updated_at = ? WHERE id = ?")) {
+                      "UPDATE storages SET tier = ?, tier_max_items = ?, updated_at = ? WHERE id ="
+                          + " ?")) {
                 ps.setString(1, tierKey);
-                ps.setLong(2, now);
-                ps.setString(3, toId);
+                setNullableLong(ps, 2, tierMaxItems);
+                ps.setLong(3, now);
+                ps.setString(4, toId);
                 ps.executeUpdate();
               }
             }
@@ -512,6 +550,30 @@ public class Database implements AutoCloseable {
             }
           } catch (SQLException e) {
             log(Level.SEVERE, "Failed to read storage tier for " + storageId, e);
+            throw new CompletionException(e);
+          }
+          return Optional.empty();
+        });
+  }
+
+  public CompletableFuture<Optional<StorageTierState>> getStorageTierState(String storageId) {
+    Objects.requireNonNull(storageId, "storageId");
+    return supplyDbTask(
+        "read storage tier state " + storageId,
+        () -> {
+          String sql = "SELECT tier, tier_max_items FROM storages WHERE id = ?";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, storageId);
+            try (ResultSet rs = ps.executeQuery()) {
+              if (rs.next()) {
+                String tier = rs.getString("tier");
+                long maxItems = rs.getLong("tier_max_items");
+                Long tierMaxItems = rs.wasNull() ? null : maxItems;
+                return Optional.of(new StorageTierState(tier, tierMaxItems));
+              }
+            }
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to read storage tier state for " + storageId, e);
             throw new CompletionException(e);
           }
           return Optional.empty();

@@ -18,6 +18,7 @@ import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.protection.ProtectionStatus;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierResolver;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
@@ -637,16 +638,23 @@ final class DebugCommand {
       String storageId, boolean write, Player viewer, CommandSender feedback) {
     dependencies
         .database()
-        .getStorageTier(storageId)
+        .getStorageTierState(storageId)
         .thenCompose(
-            optTier -> {
-              if (optTier.isEmpty()) {
-                return CompletableFuture.completedFuture(new DebugStorageOpen(optTier, null));
+            optState -> {
+              Optional<StorageTierResolver.Resolution> resolution =
+                  optState.flatMap(
+                      state -> StorageTierResolver.resolve(state.tier(), state.tierMaxItems()));
+              if (resolution.isEmpty()) {
+                return CompletableFuture.completedFuture(
+                    new DebugStorageOpen(Optional.empty(), null));
               }
               return dependencies
                   .storageManager()
                   .getOrLoad(storageId)
-                  .thenApply(cache -> new DebugStorageOpen(optTier, cache));
+                  .thenApply(
+                      cache ->
+                          new DebugStorageOpen(
+                              resolution.map(StorageTierResolver.Resolution::tier), cache));
             })
         .whenComplete(
             (open, err) -> {
@@ -661,16 +669,10 @@ final class DebugCommand {
                           feedback, tr(feedback, "message.debug_storage_missing", storageId));
                       return;
                     }
-                    StorageTier tier = StorageTier.fromString(open.optTier().get()).orElse(null);
-                    if (tier == null) {
-                      sendMessage(
-                          feedback, tr(feedback, "message.debug_storage_missing", storageId));
-                      return;
-                    }
                     if (!viewer.isOnline()) return;
                     dependencies
                         .sessionManager()
-                        .openDebugSession(viewer, open.cache(), tier, write);
+                        .openDebugSession(viewer, open.cache(), open.optTier().get(), write);
                     sendMessage(
                         feedback,
                         tr(
@@ -709,7 +711,7 @@ final class DebugCommand {
     CommandFeedback.send(sender, message);
   }
 
-  private record DebugStorageOpen(Optional<String> optTier, StorageCache cache) {}
+  private record DebugStorageOpen(Optional<StorageTier> optTier, StorageCache cache) {}
 
   private Component clickableDebugPlayer(CommandSender sender, String message, String storageId) {
     int idx = message.indexOf(storageId);

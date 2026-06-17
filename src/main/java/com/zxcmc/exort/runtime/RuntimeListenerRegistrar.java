@@ -81,7 +81,8 @@ public final class RuntimeListenerRegistrar {
                 deps.busServiceSource(),
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
-                deps.database()::setStorageTier,
+                (storageId, tierKey, tierMaxItems) ->
+                    deps.database().setStorageTier(storageId, tierKey, tierMaxItems),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
   }
@@ -225,7 +226,8 @@ public final class RuntimeListenerRegistrar {
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
                 deps.monitorPlacedRecorder(),
-                deps.database()::setStorageTier,
+                (storageId, tierKey, tierMaxItems) ->
+                    deps.database().setStorageTier(storageId, tierKey, tierMaxItems),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
   }
@@ -365,7 +367,6 @@ public final class RuntimeListenerRegistrar {
                 deps.authenticationGate(),
                 deps.bossBarManager(),
                 deps.playerFeedback(),
-                deps.database(),
                 deps.sessionManager(),
                 deps.keys(),
                 deps.wireLimit(),

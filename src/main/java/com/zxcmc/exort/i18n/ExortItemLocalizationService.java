@@ -4,6 +4,7 @@ import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessMeta;
 import com.zxcmc.exort.wireless.charge.WirelessChargeService;
 import java.text.DecimalFormat;
@@ -59,11 +60,12 @@ public final class ExortItemLocalizationService {
     if (meta == null) {
       return source;
     }
+    PersistentDataContainer localizedPdc = meta.getPersistentDataContainer();
 
     boolean changed =
         switch (type) {
-          case "storage" -> localizeStorage(meta, pdc, language);
-          case "wireless_terminal" -> localizeWireless(meta, pdc, language);
+          case "storage" -> localizeStorage(meta, localizedPdc, language);
+          case "wireless_terminal" -> localizeWireless(meta, localizedPdc, language);
           default ->
               CustomItemRegistry.fixedItem(type)
                   .map(identity -> localizeName(meta, language, identity.translationKey()))
@@ -83,10 +85,15 @@ public final class ExortItemLocalizationService {
 
   private boolean localizeStorage(ItemMeta meta, PersistentDataContainer pdc, String language) {
     String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
-    StorageTier tier = StorageTier.fromString(tierRaw).orElse(null);
-    if (tier == null) {
+    Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
+    StorageTierResolver.Resolution resolution =
+        StorageTierResolver.resolve(tierRaw, tierMaxItems).orElse(null);
+    if (resolution == null) {
       return false;
     }
+    StorageTier tier = resolution.tier();
+    pdc.set(keys.storageTier(), PersistentDataType.STRING, tier.key());
+    pdc.set(keys.storageTierMaxItems(), PersistentDataType.LONG, resolution.tierMaxItems());
     long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
     String storageId =
         PdcValueSanitizer.uuidString(pdc.get(keys.storageId(), PersistentDataType.STRING));

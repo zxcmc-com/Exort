@@ -11,7 +11,12 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.enginehub.linbus.tree.LinCompoundTag;
 
-record StorageData(String storageId, String tier, String facing) implements FacingOwner {}
+record StorageData(String storageId, String tier, Long tierMaxItems, String facing)
+    implements FacingOwner {
+  StorageData(String storageId, String tier, String facing) {
+    this(storageId, tier, null, facing);
+  }
+}
 
 record TerminalData(String type, String facing) implements FacingOwner {}
 

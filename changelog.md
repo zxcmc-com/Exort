@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.2 — 2026-06-17
+- Storage blocks and items now keep a capacity snapshot for their configured tier; if a tier is later removed, Exort migrates that storage to the closest available lower-capacity tier instead of leaving only an unusable carrier block.
+
 ## 0.15.1 — 2026-06-16
 - Renamed `Bridge` to `Network Relay`; item id, `/exort give`, recipes, config keys, marker data, breaking settings, and resource-pack model paths now use `relay`.
 - Fixed WorldEdit/FAWE history replay for Exort blocks: `//move`, `//cut`, `//copy`, `//paste`, `/undo`, and `/redo` now restore marker data, storage restore state, and displays instead of leaving vanilla carrier blocks.

@@ -129,4 +129,87 @@ class StorageTierTest {
     assertEquals(1, snapshot.size());
     assertEquals(2, StorageTier.allTiers().size());
   }
+
+  @Test
+  void resolverUsesExistingTierAndRefreshesCapacitySnapshot() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("gold.maxItems", 256);
+    config.set("gold.material", "GOLD_BLOCK");
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var resolution = StorageTierResolver.resolve("gold", 128L).orElseThrow();
+
+    assertEquals("GOLD", resolution.tier().key());
+    assertEquals(256L, resolution.tierMaxItems());
+  }
+
+  @Test
+  void resolverFallsBackToSameCapacityTier() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("gold.maxItems", 256);
+    config.set("gold.material", "GOLD_BLOCK");
+    config.set("diamond.maxItems", 512);
+    config.set("diamond.material", "DIAMOND_BLOCK");
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var resolution = StorageTierResolver.resolve("missing", 512L).orElseThrow();
+
+    assertEquals("DIAMOND", resolution.tier().key());
+    assertEquals(512L, resolution.tierMaxItems());
+    assertTrue(resolution.fallback());
+  }
+
+  @Test
+  void resolverFallsBackToClosestLowerCapacityTier() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("gold.maxItems", 256);
+    config.set("gold.material", "GOLD_BLOCK");
+    config.set("diamond.maxItems", 512);
+    config.set("diamond.material", "DIAMOND_BLOCK");
+    config.set("netherite.maxItems", 1024);
+    config.set("netherite.material", "NETHERITE_BLOCK");
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var resolution = StorageTierResolver.resolve("missing", 900L).orElseThrow();
+
+    assertEquals("DIAMOND", resolution.tier().key());
+    assertEquals(512L, resolution.tierMaxItems());
+  }
+
+  @Test
+  void resolverFallsBackToSmallestTierWhenSnapshotIsBelowAllTiers() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("gold.maxItems", 256);
+    config.set("gold.material", "GOLD_BLOCK");
+    config.set("diamond.maxItems", 512);
+    config.set("diamond.material", "DIAMOND_BLOCK");
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var resolution = StorageTierResolver.resolve("missing", 128L).orElseThrow();
+
+    assertEquals("GOLD", resolution.tier().key());
+    assertEquals(256L, resolution.tierMaxItems());
+  }
+
+  @Test
+  void resolverFallsBackToSmallestTierWhenSnapshotIsMissing() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("gold.maxItems", 256);
+    config.set("gold.material", "GOLD_BLOCK");
+    config.set("diamond.maxItems", 512);
+    config.set("diamond.material", "DIAMOND_BLOCK");
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var resolution = StorageTierResolver.resolve("missing", null).orElseThrow();
+
+    assertEquals("GOLD", resolution.tier().key());
+    assertTrue(resolution.missingSnapshot());
+  }
+
+  @Test
+  void resolverReturnsEmptyWhenNoTiersAreConfigured() {
+    StorageTier.loadFromConfig(new YamlConfiguration(), LOGGER);
+
+    assertTrue(StorageTierResolver.resolve("missing", 128L).isEmpty());
+  }
 }

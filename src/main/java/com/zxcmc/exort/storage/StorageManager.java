@@ -185,6 +185,11 @@ public class StorageManager {
   }
 
   public CompletableFuture<Void> cloneStorage(String fromId, String toId, String tierKey) {
+    return cloneStorage(fromId, toId, tierKey, null);
+  }
+
+  public CompletableFuture<Void> cloneStorage(
+      String fromId, String toId, String tierKey, Long tierMaxItems) {
     if (fromId == null || toId == null) {
       return CompletableFuture.completedFuture(null);
     }
@@ -195,10 +200,10 @@ public class StorageManager {
               snapshot ->
                   database
                       .createStorageWithItems(
-                          toId, tierKey, snapshot.sortMode().name(), snapshot.items())
+                          toId, tierKey, tierMaxItems, snapshot.sortMode().name(), snapshot.items())
                       .thenCompose(ignored -> installClonedCache(toId, snapshot)));
     }
-    return database.cloneStorage(fromId, toId, tierKey);
+    return database.cloneStorage(fromId, toId, tierKey, tierMaxItems);
   }
 
   private CompletableFuture<CloneSnapshot> snapshotLoadedCacheForClone(

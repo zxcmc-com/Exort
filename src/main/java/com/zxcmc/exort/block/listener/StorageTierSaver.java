@@ -1,0 +1,8 @@
+package com.zxcmc.exort.block.listener;
+
+import java.util.concurrent.CompletableFuture;
+
+@FunctionalInterface
+public interface StorageTierSaver {
+  CompletableFuture<Void> save(String storageId, String tierKey, long tierMaxItems);
+}

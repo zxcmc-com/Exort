@@ -335,7 +335,6 @@ public final class RuntimeDisplayServicesFactory {
                     displayRefreshService,
                     () -> hologramManager,
                     deps.busService(),
-                    deps.storageManager(),
                     deps.database(),
                     materials.wire(),
                     materials.storageCarrier(),

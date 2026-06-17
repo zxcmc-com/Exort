@@ -4,7 +4,6 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.display.DisplayRefreshService;
 import com.zxcmc.exort.display.ItemHologramManager;
 import com.zxcmc.exort.infra.db.Database;
-import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -15,7 +14,6 @@ public record MarkerSanityDependencies(
     DisplayRefreshService displayRefreshService,
     Supplier<ItemHologramManager> hologramManager,
     Supplier<BusService> busService,
-    StorageManager storageManager,
     Database database,
     Material wireCarrier,
     Material storageCarrier,
@@ -28,7 +26,6 @@ public record MarkerSanityDependencies(
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");
     Objects.requireNonNull(hologramManager, "hologramManager");
     Objects.requireNonNull(busService, "busService");
-    Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(wireCarrier, "wireCarrier");
     Objects.requireNonNull(storageCarrier, "storageCarrier");

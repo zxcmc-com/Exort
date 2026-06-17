@@ -15,8 +15,6 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -44,7 +42,7 @@ public record BlockListenerDependencies(
     Supplier<BusService> busService,
     Supplier<NetworkGraphCache> networkGraphCache,
     Runnable revalidateSessions,
-    BiFunction<String, String, CompletableFuture<Void>> storageTierSaver,
+    StorageTierSaver storageTierSaver,
     Supplier<BreakSoundConfig> breakSoundConfig,
     Supplier<BusRuntimeConfig> busRuntimeConfig) {
   public BlockListenerDependencies {

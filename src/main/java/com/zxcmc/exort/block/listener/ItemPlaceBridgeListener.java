@@ -30,8 +30,6 @@ import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wire.WirePlacementLimitGuard;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.bukkit.GameMode;
@@ -80,7 +78,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Supplier<NetworkGraphCache> networkGraphCache;
   private final Runnable revalidateSessions;
   private final Consumer<Block> monitorPlacedRecorder;
-  private final BiFunction<String, String, CompletableFuture<Void>> storageTierSaver;
+  private final StorageTierSaver storageTierSaver;
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
 
@@ -178,7 +176,13 @@ public class ItemPlaceBridgeListener implements Listener {
       placeStorage(event, target, tier, storageId);
       finishPlacement(event, target, BreakType.STORAGE);
       persistStorageTier(
-          event.getPlayer(), target, storageId, tier.key(), placedItem, shouldRefund);
+          event.getPlayer(),
+          target,
+          storageId,
+          tier.key(),
+          tier.maxItems(),
+          placedItem,
+          shouldRefund);
       preloadStorage(event.getPlayer(), storageId);
       refreshStoragePlacement(target);
       return;
@@ -516,10 +520,11 @@ public class ItemPlaceBridgeListener implements Listener {
       Block block,
       String storageId,
       String tierKey,
+      long tierMaxItems,
       ItemStack refund,
       boolean shouldRefund) {
     storageTierSaver
-        .apply(storageId, tierKey)
+        .save(storageId, tierKey, tierMaxItems)
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {

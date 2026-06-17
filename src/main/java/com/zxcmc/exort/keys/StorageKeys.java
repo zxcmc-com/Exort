@@ -7,6 +7,7 @@ public final class StorageKeys {
   private final NamespacedKey storageId;
   private final NamespacedKey type;
   private final NamespacedKey storageTier;
+  private final NamespacedKey storageTierMaxItems;
   private final NamespacedKey nestedCount;
   // Wireless terminal keys
   private final NamespacedKey wirelessOwner;
@@ -24,6 +25,7 @@ public final class StorageKeys {
     this.storageId = new NamespacedKey(plugin, "storage_id");
     this.type = new NamespacedKey(plugin, "type");
     this.storageTier = new NamespacedKey(plugin, "storage_tier");
+    this.storageTierMaxItems = new NamespacedKey(plugin, "storage_tier_max_items");
     this.nestedCount = new NamespacedKey(plugin, "nested_items");
     this.wirelessOwner = new NamespacedKey(plugin, "wireless_owner");
     this.wirelessOwnerName = new NamespacedKey(plugin, "wireless_owner_name");
@@ -47,6 +49,10 @@ public final class StorageKeys {
 
   public NamespacedKey storageTier() {
     return storageTier;
+  }
+
+  public NamespacedKey storageTierMaxItems() {
+    return storageTierMaxItems;
   }
 
   public NamespacedKey nestedCount() {
