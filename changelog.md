@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.3 — 2026-06-18
+- Added an optional Chorusfix integration: Exort detects and logs enabled Chorusfix instances, and `/exort mode fix RESOURCE` can install or update the latest Chorusfix release from GitHub, and fall back to a manual download link if automatic installation is unavailable.
+
 ## 0.15.2 — 2026-06-17
 - Storage blocks and items now keep a capacity snapshot for their configured tier; if a tier is later removed, Exort migrates that storage to the closest available lower-capacity tier instead of leaving only an unusable carrier block.
 

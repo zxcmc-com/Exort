@@ -10,6 +10,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
+import com.zxcmc.exort.integration.chorusfix.ChorusfixInstaller;
 import com.zxcmc.exort.integration.protection.ProtectionStatus;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -17,9 +18,11 @@ import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -51,6 +54,9 @@ public record ExortBrigadierDependencies(
     BooleanSupplier resourceWireCarrierFallback,
     Supplier<String> pluginVersion,
     Supplier<PaperChorusPlantUpdates.FixResult> chorusPlantUpdateDisabler,
+    Supplier<Optional<ChorusfixInstaller.LoadedPlugin>> loadedChorusfixPlugin,
+    Function<Optional<ChorusfixInstaller.LoadedPlugin>, ChorusfixInstaller.InstallResult>
+        chorusfixInstaller,
     LongSupplier cacheIdleUnloadSeconds,
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
@@ -84,6 +90,8 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(resourceWireCarrierFallback, "resourceWireCarrierFallback");
     Objects.requireNonNull(pluginVersion, "pluginVersion");
     Objects.requireNonNull(chorusPlantUpdateDisabler, "chorusPlantUpdateDisabler");
+    Objects.requireNonNull(loadedChorusfixPlugin, "loadedChorusfixPlugin");
+    Objects.requireNonNull(chorusfixInstaller, "chorusfixInstaller");
     Objects.requireNonNull(cacheIdleUnloadSeconds, "cacheIdleUnloadSeconds");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");

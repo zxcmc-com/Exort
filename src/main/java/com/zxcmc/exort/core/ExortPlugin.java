@@ -37,6 +37,8 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.metrics.ExortMetrics;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
 import com.zxcmc.exort.infra.update.UpdateChecker;
+import com.zxcmc.exort.integration.chorusfix.ChorusfixInstaller;
+import com.zxcmc.exort.integration.chorusfix.ChorusfixIntegration;
 import com.zxcmc.exort.integration.protection.CompositeRegionProtection;
 import com.zxcmc.exort.integration.protection.MutableRegionProtection;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
@@ -137,6 +139,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private boolean resourceMode;
   private boolean resourceWireUsesBarrier;
   private boolean resourceWireCarrierFallback;
+  private boolean chorusfixIntegrationLogged;
   private String configuredMode = "RESOURCE";
   private volatile String defaultSortModeName = SortMode.AMOUNT.name();
   private final MutableRegionProtection regionProtection =
@@ -157,6 +160,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       return;
     }
     registerRuntime(true);
+    registerChorusfixIntegrationWatcher();
     reloadResourcePackService();
     registerBrigadierCommands();
   }
@@ -441,6 +445,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (playerLocaleService != null) {
       Bukkit.getPluginManager().registerEvents(playerLocaleService, this);
     }
+    registerChorusfixIntegrationWatcher();
   }
 
   private void resetReloadableDisplayState() {
@@ -586,13 +591,60 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     return PaperChorusPlantUpdates.disable(serverRoot());
   }
 
+  public Optional<ChorusfixInstaller.LoadedPlugin> loadedChorusfixPlugin() {
+    File pluginsDir = pluginsDir();
+    if (pluginsDir == null) {
+      return Optional.empty();
+    }
+    return ChorusfixInstaller.findLoadedPlugin(pluginsDir.toPath());
+  }
+
+  public ChorusfixInstaller.InstallResult installOrUpdateChorusfix(
+      Optional<ChorusfixInstaller.LoadedPlugin> loadedPlugin) {
+    File pluginsDir = pluginsDir();
+    if (pluginsDir == null) {
+      return ChorusfixInstaller.InstallResult.failed("plugins directory is unavailable");
+    }
+    return new ChorusfixInstaller(pluginsDir.toPath(), () -> loadedPlugin).installOrUpdate();
+  }
+
   private boolean isChorusUpdatesDisabled() {
     return chorusPlantUpdateStatus().disabled();
   }
 
   private File serverRoot() {
-    File pluginsDir = getDataFolder().getParentFile();
+    File pluginsDir = pluginsDir();
     return pluginsDir != null ? pluginsDir.getParentFile() : null;
+  }
+
+  private File pluginsDir() {
+    return getDataFolder().getParentFile();
+  }
+
+  private void registerChorusfixIntegrationWatcher() {
+    logChorusfixIntegrationIfEnabled(
+        Bukkit.getPluginManager().getPlugin(ChorusfixIntegration.PLUGIN_NAME));
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new Listener() {
+              @EventHandler
+              public void onPluginEnable(PluginEnableEvent event) {
+                if (!ChorusfixIntegration.PLUGIN_NAME.equals(event.getPlugin().getName())) {
+                  return;
+                }
+                logChorusfixIntegrationIfEnabled(event.getPlugin());
+                HandlerList.unregisterAll(this);
+              }
+            },
+            this);
+  }
+
+  private void logChorusfixIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {
+    if (chorusfixIntegrationLogged || plugin == null || !plugin.isEnabled()) {
+      return;
+    }
+    chorusfixIntegrationLogged = true;
+    ExortLog.success(ChorusfixIntegration.enabledMessage(plugin));
   }
 
   private void setupRegionProtection() {
@@ -846,6 +898,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> resourceWireCarrierFallback,
         () -> getPluginMeta().getVersion(),
         this::disableChorusPlantUpdatesInPaperConfig,
+        this::loadedChorusfixPlugin,
+        this::installOrUpdateChorusfix,
         () -> StorageRuntimeConfig.fromConfig(getConfig()).cacheIdleUnloadSeconds(),
         () -> wireLimit,
         () -> wireHardCap,

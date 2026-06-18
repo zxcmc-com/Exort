@@ -87,6 +87,12 @@ class LangTest {
             "message.debug_protection_status_runtime",
             "message.mode_carrier_warning",
             "message.mode_fix_not_resource",
+            "message.mode_fix_chorusfix_checking",
+            "message.mode_fix_chorusfix_current",
+            "message.mode_fix_chorusfix_present",
+            "message.mode_fix_chorusfix_installed",
+            "message.mode_fix_chorusfix_updated",
+            "message.mode_fix_chorusfix_failed",
             "message.wire.hard_cap");
 
     for (String key : requiredKeys) {

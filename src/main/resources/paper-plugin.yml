@@ -52,6 +52,10 @@ dependencies:
       load: AFTER
       required: false
       join-classpath: false
+    Chorusfix:
+      load: AFTER
+      required: false
+      join-classpath: false
 permissions:
   exort.storagenetwork.admin:
     description: Allows use of Exort administrative commands.
