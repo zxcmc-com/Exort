@@ -1,6 +1,7 @@
 package com.zxcmc.exort.integration.worldedit;
 
 import com.sk89q.worldedit.math.BlockVector3;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
@@ -11,10 +12,19 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.enginehub.linbus.tree.LinCompoundTag;
 
-record StorageData(String storageId, String tier, Long tierMaxItems, String facing)
+record StorageData(
+    String storageId, String tier, Long tierMaxItems, String facing, String displayName)
     implements FacingOwner {
+  StorageData {
+    displayName = StorageDisplayName.normalize(displayName);
+  }
+
   StorageData(String storageId, String tier, String facing) {
-    this(storageId, tier, null, facing);
+    this(storageId, tier, null, facing, null);
+  }
+
+  StorageData(String storageId, String tier, Long tierMaxItems, String facing) {
+    this(storageId, tier, tierMaxItems, facing, null);
   }
 }
 

@@ -435,7 +435,10 @@ public final class NetworkGraphCache {
       Plugin plugin, Block block, Material storageCarrier) {
     if (!Carriers.matchesCarrier(block, storageCarrier)) return Optional.empty();
     return StorageMarker.get(plugin, block)
-        .map(data -> new TerminalLinkFinder.StorageBlockInfo(block, data.storageId(), data.tier()));
+        .map(
+            data ->
+                new TerminalLinkFinder.StorageBlockInfo(
+                    block, data.storageId(), data.tier(), data.displayName()));
   }
 
   private static BlockFace frontFace(Block block, Plugin plugin) {

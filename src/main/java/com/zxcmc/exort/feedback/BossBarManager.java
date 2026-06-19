@@ -1,9 +1,9 @@
 package com.zxcmc.exort.feedback;
 
 import com.zxcmc.exort.i18n.Lang;
-import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Map;
@@ -32,6 +32,11 @@ public class BossBarManager {
   }
 
   public void showPeek(String storageId, StorageTier tier, Player player, long durationTicks) {
+    showPeek(storageId, tier, null, player, durationTicks);
+  }
+
+  public void showPeek(
+      String storageId, StorageTier tier, String displayName, Player player, long durationTicks) {
     int gen = generations.compute(player.getUniqueId(), (id, val) -> val == null ? 1 : val + 1);
     cancelRemoval(player.getUniqueId());
     storageManager
@@ -51,11 +56,12 @@ public class BossBarManager {
                     long max = Math.max(1, tier.maxItems());
                     double progress = Math.min(1.0, Math.max(0.0, (double) current / (double) max));
                     String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
+                    String labelName = displayName == null ? cache.getDisplayName() : displayName;
                     String title =
                         lang.tr(
                             player,
                             "gui.bossbar",
-                            StorageTierText.storageLabelWithTier(lang, player, tier),
+                            StorageDisplayName.label(lang, player, tier, labelName),
                             formatNumber(current),
                             formatNumber(max),
                             percent);

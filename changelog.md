@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.1 — 2026-06-20
+- Storage items can now be named through a vanilla anvil, cleared with an empty anvil rename, and edited with only the raw custom name shown in the anvil field.
+- Terminals, storage peeks, buses, relays, and placed storage displays now show custom storage names while keeping UUID reveal behavior available; unnamed bus storage info shows the tier name.
+- Storage item lore now shows capacity first, then the initialized UUID tail, and the plain localized tier value as the final line without a `Tier:` label.
+
 ## 0.16.0 — 2026-06-19
 - Reworked bundled storage tiers to `common`, `rare`, `mythical`, `legendary`, and `immortal`; storage items and placed storage displays now use a localized `Storage` name colored by tier, while the tier appears as localized lore/status metadata with a white label and tier-colored value.
 - `storage-tiers.yml` now uses tier `name` placeholders such as `{tier.rare}` and MiniMessage-style color values such as `#4b69ff`, `red`, or `<red>`.

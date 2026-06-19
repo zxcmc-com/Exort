@@ -7,6 +7,7 @@ import com.zxcmc.exort.bus.BusSettings;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import java.io.File;
 import java.sql.Connection;
@@ -89,6 +90,7 @@ public class Database implements AutoCloseable {
                   id TEXT PRIMARY KEY,
                   tier TEXT NULL,
                   tier_max_items INTEGER NULL,
+                  display_name TEXT NULL,
                   sort_mode TEXT NULL,
                   created_at INTEGER NOT NULL,
                   updated_at INTEGER NOT NULL
@@ -150,6 +152,7 @@ public class Database implements AutoCloseable {
     createTables();
     ensureColumn("storages", "sort_mode", "TEXT");
     ensureColumn("storages", "tier_max_items", "INTEGER");
+    ensureColumn("storages", "display_name", "TEXT");
   }
 
   private void ensureColumn(String table, String column, String type) throws SQLException {
@@ -225,6 +228,40 @@ public class Database implements AutoCloseable {
             ps.executeUpdate();
           } catch (SQLException e) {
             log(Level.SEVERE, "Failed to set storage tier for " + storageId, e);
+            throw new CompletionException(e);
+          }
+        });
+  }
+
+  public CompletableFuture<Void> setStorageMetadata(
+      String storageId, String tierKey, Long tierMaxItems, String displayName) {
+    Objects.requireNonNull(storageId, "storageId");
+    Objects.requireNonNull(tierKey, "tierKey");
+    long now = Instant.now().getEpochSecond();
+    String defaultSort = defaultSortModeName();
+    String normalizedName = StorageDisplayName.normalize(displayName);
+    return runDbTask(
+        "set storage metadata " + storageId,
+        () -> {
+          String sql =
+              "INSERT INTO storages(id, tier, tier_max_items, display_name, sort_mode,"
+                  + " created_at, updated_at)"
+                  + " VALUES(?, ?, ?, ?, COALESCE((SELECT sort_mode FROM storages WHERE id = ?),"
+                  + " ?), ?, ?) ON CONFLICT(id) DO UPDATE SET tier = excluded.tier,"
+                  + " tier_max_items = excluded.tier_max_items, display_name ="
+                  + " excluded.display_name, updated_at = excluded.updated_at";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, storageId);
+            ps.setString(2, tierKey);
+            setNullableLong(ps, 3, tierMaxItems);
+            ps.setString(4, normalizedName);
+            ps.setString(5, storageId);
+            ps.setString(6, defaultSort);
+            ps.setLong(7, now);
+            ps.setLong(8, now);
+            ps.executeUpdate();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to set storage metadata for " + storageId, e);
             throw new CompletionException(e);
           }
         });
@@ -367,9 +404,20 @@ public class Database implements AutoCloseable {
       Long tierMaxItems,
       String sortMode,
       Collection<DbItem> items) {
+    return createStorageWithItems(storageId, tierKey, tierMaxItems, sortMode, null, items);
+  }
+
+  public CompletableFuture<Void> createStorageWithItems(
+      String storageId,
+      String tierKey,
+      Long tierMaxItems,
+      String sortMode,
+      String displayName,
+      Collection<DbItem> items) {
     Objects.requireNonNull(storageId, "storageId");
     long now = Instant.now().getEpochSecond();
     String mode = sortMode == null ? defaultSortModeName() : sortMode;
+    String normalizedName = StorageDisplayName.normalize(displayName);
     Collection<DbItem> safeItems = items == null ? List.of() : items;
     return runDbTask(
         "create storage " + storageId,
@@ -378,15 +426,16 @@ public class Database implements AutoCloseable {
           try {
             connection.setAutoCommit(false);
             String sql =
-                "INSERT OR REPLACE INTO storages(id, tier, tier_max_items, sort_mode, created_at,"
-                    + " updated_at) VALUES(?, ?, ?, ?, ?, ?)";
+                "INSERT OR REPLACE INTO storages(id, tier, tier_max_items, display_name,"
+                    + " sort_mode, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
               ps.setString(1, storageId);
               ps.setString(2, tierKey);
               setNullableLong(ps, 3, tierMaxItems);
-              ps.setString(4, mode);
-              ps.setLong(5, now);
+              ps.setString(4, normalizedName);
+              ps.setString(5, mode);
               ps.setLong(6, now);
+              ps.setLong(7, now);
               ps.executeUpdate();
             }
             try (PreparedStatement delete =
@@ -485,8 +534,10 @@ public class Database implements AutoCloseable {
             connection.setAutoCommit(false);
             int rows;
             String insertSql =
-                "INSERT INTO storages(id, tier, tier_max_items, sort_mode, created_at, updated_at)"
-                    + " SELECT ?, tier, tier_max_items, sort_mode, ?, ? FROM storages WHERE id = ?";
+                "INSERT INTO storages(id, tier, tier_max_items, display_name, sort_mode,"
+                    + " created_at, updated_at)"
+                    + " SELECT ?, tier, tier_max_items, display_name, sort_mode, ?, ? FROM"
+                    + " storages WHERE id = ?";
             try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
               ps.setString(1, toId);
               ps.setLong(2, now);
@@ -577,6 +628,54 @@ public class Database implements AutoCloseable {
             throw new CompletionException(e);
           }
           return Optional.empty();
+        });
+  }
+
+  public CompletableFuture<Optional<String>> getStorageDisplayName(String storageId) {
+    Objects.requireNonNull(storageId, "storageId");
+    return supplyDbTask(
+        "read storage display name " + storageId,
+        () -> {
+          String sql = "SELECT display_name FROM storages WHERE id = ?";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, storageId);
+            try (ResultSet rs = ps.executeQuery()) {
+              if (rs.next()) {
+                return Optional.ofNullable(
+                    StorageDisplayName.normalize(rs.getString("display_name")));
+              }
+            }
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to read storage display name for " + storageId, e);
+            throw new CompletionException(e);
+          }
+          return Optional.empty();
+        });
+  }
+
+  public CompletableFuture<Void> setStorageDisplayName(String storageId, String displayName) {
+    Objects.requireNonNull(storageId, "storageId");
+    long now = Instant.now().getEpochSecond();
+    String defaultSort = defaultSortModeName();
+    String normalizedName = StorageDisplayName.normalize(displayName);
+    return runDbTask(
+        "set storage display name " + storageId,
+        () -> {
+          String sql =
+              "INSERT INTO storages(id, tier, display_name, sort_mode, created_at, updated_at)"
+                  + " VALUES(?, NULL, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET display_name ="
+                  + " excluded.display_name, updated_at = excluded.updated_at";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, storageId);
+            ps.setString(2, normalizedName);
+            ps.setString(3, defaultSort);
+            ps.setLong(4, now);
+            ps.setLong(5, now);
+            ps.executeUpdate();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to set storage display name for " + storageId, e);
+            throw new CompletionException(e);
+          }
         });
   }
 

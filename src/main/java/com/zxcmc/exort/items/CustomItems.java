@@ -4,6 +4,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -73,10 +74,15 @@ public class CustomItems {
   }
 
   public ItemStack storageItem(StorageTier tier, String storageId) {
-    return storageItem(tier, storageId, 0);
+    return storageItem(tier, storageId, 0, null);
   }
 
   public ItemStack storageItem(StorageTier tier, String storageId, long currentAmount) {
+    return storageItem(tier, storageId, currentAmount, null);
+  }
+
+  public ItemStack storageItem(
+      StorageTier tier, String storageId, long currentAmount, String displayName) {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
@@ -90,6 +96,12 @@ public class CustomItems {
         pdc.set(keys.storageId(), PersistentDataType.STRING, storageId);
       }
       pdc.set(keys.nestedCount(), PersistentDataType.LONG, currentAmount);
+      StorageItemNameEditor.apply(
+          keys,
+          meta,
+          pdc,
+          displayName,
+          StorageDisplayName.customNameComponent(lang, clientTranslations, tier, displayName));
       applyLore(meta, tier, storageId, currentAmount);
       ItemModelUtil.applyItemModel(meta, storageItemModel);
       item.setItemMeta(meta);
@@ -240,7 +252,14 @@ public class CustomItems {
         StorageTier tier = resolution.tier();
         String storageId = pdc.get(keys.storageId(), PersistentDataType.STRING);
         long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
+        String displayName = StorageItemNameEditor.displayName(keys, pdc).orElse(null);
         meta.itemName(StorageTierText.storageName(lang, clientTranslations, tier));
+        StorageItemNameEditor.apply(
+            keys,
+            meta,
+            pdc,
+            displayName,
+            StorageDisplayName.customNameComponent(lang, clientTranslations, tier, displayName));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         applyLore(meta, tier, storageId, nested);
         ItemModelUtil.applyItemModel(meta, storageItemModel);
@@ -416,6 +435,18 @@ public class CustomItems {
                 .get(keys.storageId(), PersistentDataType.STRING)));
   }
 
+  public Optional<String> storageDisplayName(ItemStack stack) {
+    return StorageItemNameEditor.displayName(keys, stack);
+  }
+
+  public boolean setStorageDisplayName(ItemStack stack, String displayName) {
+    String rawName = StorageDisplayName.normalizeAnvilInput(lang, displayName);
+    if (!StorageItemNameEditor.apply(keys, stack, rawName)) {
+      return false;
+    }
+    return refreshItem(stack, null, false);
+  }
+
   private Optional<StorageTierResolver.Resolution> resolveStorageTier(PersistentDataContainer pdc) {
     String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
     Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
@@ -434,7 +465,6 @@ public class CustomItems {
     double percent =
         Math.min(100.0, Math.max(0.0, (double) currentAmount / Math.max(1, max) * 100.0));
     List<Component> lore = new ArrayList<>();
-    lore.add(StorageTierText.tierLore(lang, clientTranslations, tier));
     lore.add(
         lang.itemComponent(
             clientTranslations,
@@ -449,6 +479,7 @@ public class CustomItems {
               .color(NamedTextColor.GRAY)
               .decoration(TextDecoration.ITALIC, false));
     }
+    lore.add(StorageTierText.tierValueLore(lang, clientTranslations, tier));
     meta.lore(lore);
   }
 

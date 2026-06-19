@@ -151,7 +151,9 @@ public class WirelessListener implements Listener {
       StorageMarker.Data data = StorageMarker.get(plugin, block).get();
       link =
           new TerminalLinkFinder.StorageSearchResult(
-              1, new TerminalLinkFinder.StorageBlockInfo(block, data.storageId(), data.tier()));
+              1,
+              new TerminalLinkFinder.StorageBlockInfo(
+                  block, data.storageId(), data.tier(), data.displayName()));
     } else {
       return false;
     }
@@ -280,6 +282,7 @@ public class WirelessListener implements Listener {
       return;
     }
 
+    openData.cache().setDisplayName(markerData.get().displayName());
     boolean opened =
         sessionManager.openWirelessSession(
             player, openData.cache(), markerData.get().tier(), anchor);

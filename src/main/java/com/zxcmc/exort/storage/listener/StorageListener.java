@@ -61,6 +61,7 @@ public class StorageListener implements Listener {
     event.setCancelled(true);
     var data = StorageMarker.get(plugin, block).orElse(null);
     if (data == null) return;
-    bossBarManager.showPeek(data.storageId(), data.tier(), event.getPlayer(), peekDurationTicks);
+    bossBarManager.showPeek(
+        data.storageId(), data.tier(), data.displayName(), event.getPlayer(), peekDurationTicks);
   }
 }

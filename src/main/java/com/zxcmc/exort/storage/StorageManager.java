@@ -82,7 +82,14 @@ public class StorageManager {
             v ->
                 database
                     .loadStorage(storageId)
-                    .thenCombine(database.getStorageSortMode(storageId), LoadedStorageData::new))
+                    .thenCombine(
+                        database.getStorageSortMode(storageId),
+                        (items, sortMode) ->
+                            new LoadedStorageData(items, sortMode, Optional.empty()))
+                    .thenCombine(
+                        database.getStorageDisplayName(storageId),
+                        (data, displayName) ->
+                            new LoadedStorageData(data.items(), data.sortMode(), displayName)))
         .thenCompose(data -> finishLoadOnMainThread(storageId, cache, data))
         .whenComplete(
             (res, err) -> {
@@ -105,6 +112,7 @@ public class StorageManager {
         "loading storage " + storageId,
         () -> {
           cache.loadFromDb(data.items());
+          cache.setDisplayName(data.displayName().orElse(null));
           refreshCustomItems(cache);
           SortMode mode = sortService.resolveAndPersistDefault(storageId, data.sortMode());
           cache.setSortMode(mode);
@@ -164,6 +172,16 @@ public class StorageManager {
     return Optional.ofNullable(cache);
   }
 
+  public void setCachedDisplayName(String storageId, String displayName) {
+    if (storageId == null) {
+      return;
+    }
+    StorageCache cache = caches.get(storageId);
+    if (cache != null) {
+      cache.setDisplayName(displayName);
+    }
+  }
+
   public void discardCacheForInternalCleanup(String storageId) {
     if (storageId == null) return;
     loading.remove(storageId);
@@ -200,7 +218,12 @@ public class StorageManager {
               snapshot ->
                   database
                       .createStorageWithItems(
-                          toId, tierKey, tierMaxItems, snapshot.sortMode().name(), snapshot.items())
+                          toId,
+                          tierKey,
+                          tierMaxItems,
+                          snapshot.sortMode().name(),
+                          snapshot.displayName(),
+                          snapshot.items())
                       .thenCompose(ignored -> installClonedCache(toId, snapshot)));
     }
     return database.cloneStorage(fromId, toId, tierKey, tierMaxItems);
@@ -216,7 +239,7 @@ public class StorageManager {
           for (DbItem item : items) {
             byKey.put(item.key(), item);
           }
-          return new CloneSnapshot(items, byKey, cache.getSortMode());
+          return new CloneSnapshot(items, byKey, cache.getSortMode(), cache.getDisplayName());
         });
   }
 
@@ -227,6 +250,7 @@ public class StorageManager {
           StorageCache cloned = createCache(toId);
           cloned.loadFromDb(snapshot.byKey());
           cloned.setSortMode(snapshot.sortMode());
+          cloned.setDisplayName(snapshot.displayName());
           caches.put(toId, cloned);
           return null;
         });
@@ -264,10 +288,11 @@ public class StorageManager {
     }
   }
 
-  private record LoadedStorageData(Map<String, DbItem> items, Optional<String> sortMode) {}
+  private record LoadedStorageData(
+      Map<String, DbItem> items, Optional<String> sortMode, Optional<String> displayName) {}
 
   private record CloneSnapshot(
-      Collection<DbItem> items, Map<String, DbItem> byKey, SortMode sortMode) {}
+      Collection<DbItem> items, Map<String, DbItem> byKey, SortMode sortMode, String displayName) {}
 
   private StorageCache createCache(String storageId) {
     return new StorageCache(storageId, keys, logger, cacheDebugService);

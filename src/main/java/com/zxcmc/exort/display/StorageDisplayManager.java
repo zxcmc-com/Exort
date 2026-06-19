@@ -3,6 +3,7 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -63,7 +64,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
   protected void decorateMeta(ItemMeta meta, Block block) {
     StorageMarker.get(plugin, block)
         .ifPresentOrElse(
-            data -> meta.displayName(storageName(data.tier())),
+            data -> meta.displayName(storageName(data.tier(), data.displayName())),
             () -> {
               if (StorageCoreMarker.isCore(plugin, block)) {
                 meta.displayName(coreName().decoration(TextDecoration.ITALIC, false));
@@ -86,7 +87,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
       var data = dataOpt.get();
       t.getLeftRotation().set(DisplayRotation.rotationForFacing(data.facing()));
       t.getRightRotation().identity();
-      display.customName(storageName(data.tier()));
+      display.customName(storageName(data.tier(), data.displayName()));
       display.setCustomNameVisible(false);
     } else if (StorageCoreMarker.isCore(plugin, block)) {
       t.getLeftRotation().set(new Quaternionf());
@@ -105,8 +106,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
     return coreName;
   }
 
-  private Component storageName(StorageTier tier) {
-    Component name = tier.color() == null ? storageName : storageName.color(tier.color());
-    return name.decoration(TextDecoration.ITALIC, false);
+  private Component storageName(StorageTier tier, String displayName) {
+    return StorageDisplayName.displayComponent(storageName, tier, displayName);
   }
 }

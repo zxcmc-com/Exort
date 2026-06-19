@@ -4,5 +4,6 @@ import java.util.concurrent.CompletableFuture;
 
 @FunctionalInterface
 public interface StorageTierSaver {
-  CompletableFuture<Void> save(String storageId, String tierKey, long tierMaxItems);
+  CompletableFuture<Void> save(
+      String storageId, String tierKey, long tierMaxItems, String displayName);
 }

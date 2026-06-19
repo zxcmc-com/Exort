@@ -11,6 +11,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -211,7 +212,9 @@ public final class RelayListener implements Listener {
       return lang.tr(player, "relay.storage_multiple");
     }
     if (result.count() == 1 && result.data() != null) {
-      return lang.tr(player, "relay.storage_tail", tail(result.data().storageId()));
+      String displayName = StorageDisplayName.normalize(result.data().displayName());
+      String label = displayName != null ? displayName : tail(result.data().storageId());
+      return lang.tr(player, "relay.storage_tail", label);
     }
     return lang.tr(player, "relay.storage_none");
   }

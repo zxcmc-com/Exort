@@ -172,8 +172,9 @@ public class ItemPlaceBridgeListener implements Listener {
       placedItem.setAmount(1);
       StorageTier tier = tierOpt.get();
       String storageId = customItems.storageId(stack).orElse(UUID.randomUUID().toString());
+      String displayName = customItems.storageDisplayName(stack).orElse(null);
       boolean shouldRefund = shouldRefundPlacementItem(event.getPlayer(), placedItem);
-      placeStorage(event, target, tier, storageId);
+      placeStorage(event, target, tier, storageId, displayName);
       finishPlacement(event, target, BreakType.STORAGE);
       persistStorageTier(
           event.getPlayer(),
@@ -181,6 +182,7 @@ public class ItemPlaceBridgeListener implements Listener {
           storageId,
           tier.key(),
           tier.maxItems(),
+          displayName,
           placedItem,
           shouldRefund);
       preloadStorage(event.getPlayer(), storageId);
@@ -274,10 +276,14 @@ public class ItemPlaceBridgeListener implements Listener {
   }
 
   private void placeStorage(
-      PlayerInteractEvent event, Block target, StorageTier tier, String storageId) {
+      PlayerInteractEvent event,
+      Block target,
+      StorageTier tier,
+      String storageId,
+      String displayName) {
     Carriers.applyCarrier(target, storageCarrier);
     BlockFace face = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
-    StorageMarker.set(plugin, target, storageId, tier, face);
+    StorageMarker.set(plugin, target, storageId, tier, face, displayName);
   }
 
   private void refreshStoragePlacement(Block target) {
@@ -521,15 +527,18 @@ public class ItemPlaceBridgeListener implements Listener {
       String storageId,
       String tierKey,
       long tierMaxItems,
+      String displayName,
       ItemStack refund,
       boolean shouldRefund) {
     storageTierSaver
-        .save(storageId, tierKey, tierMaxItems)
+        .save(storageId, tierKey, tierMaxItems, displayName)
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {
                 placementFailureHandler.rollbackFailedPlacement(
                     player, block, storageId, refund, shouldRefund, err);
+              } else {
+                storageManager.setCachedDisplayName(storageId, displayName);
               }
             });
   }

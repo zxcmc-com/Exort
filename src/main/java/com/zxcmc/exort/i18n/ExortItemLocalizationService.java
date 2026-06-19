@@ -1,8 +1,10 @@
 package com.zxcmc.exort.i18n;
 
 import com.zxcmc.exort.items.CustomItemRegistry;
+import com.zxcmc.exort.items.StorageItemNameEditor;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessMeta;
@@ -97,7 +99,14 @@ public final class ExortItemLocalizationService {
     long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
     String storageId =
         PdcValueSanitizer.uuidString(pdc.get(keys.storageId(), PersistentDataType.STRING));
+    String displayName = StorageItemNameEditor.displayName(keys, pdc).orElse(null);
     meta.itemName(StorageTierText.storageName(lang, language, tier));
+    StorageItemNameEditor.apply(
+        keys,
+        meta,
+        pdc,
+        displayName,
+        StorageDisplayName.customNameComponent(lang, language, tier, displayName));
     meta.lore(storageLore(tier, storageId, nested, language));
     return true;
   }
@@ -108,7 +117,6 @@ public final class ExortItemLocalizationService {
     double percent =
         Math.min(100.0, Math.max(0.0, (double) currentAmount / Math.max(1, max) * 100.0));
     List<Component> lore = new ArrayList<>();
-    lore.add(StorageTierText.tierLore(lang, language, tier));
     lore.add(
         text(
             language,
@@ -120,6 +128,7 @@ public final class ExortItemLocalizationService {
       String tail = storageId.substring(storageId.length() - STORAGE_ID_TAIL_LENGTH);
       lore.add(text(language, "lore.storage.id_tail", tail).color(NamedTextColor.GRAY));
     }
+    lore.add(StorageTierText.tierValueLore(lang, language, tier));
     return lore;
   }
 

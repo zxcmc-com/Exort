@@ -33,12 +33,15 @@ class StorageTierTextTest {
     Component englishLore = StorageTierText.tierLore(lang, "en_us", tier);
     Component russianLore = StorageTierText.tierLore(lang, "ru_ru", tier);
     Component clientLore = StorageTierText.tierLore(lang, true, tier);
+    Component storageItemTier = StorageTierText.tierValueLore(lang, "ru_ru", tier);
     assertEquals("Tier: Rare", plain(englishLore));
     assertEquals("Тир: Редкий", plain(russianLore));
+    assertEquals("Редкий", plain(storageItemTier));
     assertEquals(NamedTextColor.WHITE, firstColor(englishLore));
     assertEquals(NamedTextColor.RED, lastColor(englishLore));
     assertEquals(NamedTextColor.WHITE, firstColor(russianLore));
     assertEquals(NamedTextColor.RED, lastColor(russianLore));
+    assertEquals(NamedTextColor.RED, firstColor(storageItemTier));
     assertEquals(NamedTextColor.WHITE, clientLore.color());
   }
 

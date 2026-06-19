@@ -1,5 +1,6 @@
 package com.zxcmc.exort.marker;
 
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import java.util.Optional;
@@ -18,20 +19,45 @@ public final class StorageMarker {
   private static final String FIELD_TIER = "tier";
   private static final String FIELD_TIER_MAX_ITEMS = "tierMaxItems";
   private static final String FIELD_FACING = "facing";
+  private static final String FIELD_NAME = "name";
   private static final Set<String> WARNED_FALLBACKS = ConcurrentHashMap.newKeySet();
   private static final Set<String> WARNED_UNUSABLE = ConcurrentHashMap.newKeySet();
 
   public record Data(
-      String storageId, StorageTier tier, BlockFace facing, long tierMaxItems, boolean fallback) {}
+      String storageId,
+      StorageTier tier,
+      BlockFace facing,
+      long tierMaxItems,
+      boolean fallback,
+      String displayName) {
+    public Data(
+        String storageId, StorageTier tier, BlockFace facing, long tierMaxItems, boolean fallback) {
+      this(storageId, tier, facing, tierMaxItems, fallback, null);
+    }
+
+    public Data {
+      displayName = StorageDisplayName.normalize(displayName);
+    }
+  }
 
   public static void set(Plugin plugin, Block block, String storageId, StorageTier tier) {
-    set(plugin, block, storageId, tier, null);
+    set(plugin, block, storageId, tier, null, null);
   }
 
   public static void set(
       Plugin plugin, Block block, String storageId, StorageTier tier, BlockFace facing) {
+    set(plugin, block, storageId, tier, facing, null);
+  }
+
+  public static void set(
+      Plugin plugin,
+      Block block,
+      String storageId,
+      StorageTier tier,
+      BlockFace facing,
+      String displayName) {
     if (storageId == null || tier == null) return;
-    setRaw(plugin, block, storageId, tier.key(), tier.maxItems(), facing);
+    setRaw(plugin, block, storageId, tier.key(), tier.maxItems(), facing, displayName);
   }
 
   public static void setRaw(
@@ -41,6 +67,17 @@ public final class StorageMarker {
       String tierKey,
       Long tierMaxItems,
       BlockFace facing) {
+    setRaw(plugin, block, storageId, tierKey, tierMaxItems, facing, null);
+  }
+
+  public static void setRaw(
+      Plugin plugin,
+      Block block,
+      String storageId,
+      String tierKey,
+      Long tierMaxItems,
+      BlockFace facing,
+      String displayName) {
     if (storageId == null || tierKey == null) return;
     ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, storageId);
     ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, tierKey);
@@ -53,6 +90,12 @@ public final class StorageMarker {
       ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_FACING, facing.name());
     } else {
       ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_FACING);
+    }
+    String normalizedName = StorageDisplayName.normalize(displayName);
+    if (normalizedName != null) {
+      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_NAME, normalizedName);
+    } else {
+      ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_NAME);
     }
   }
 
@@ -90,8 +133,21 @@ public final class StorageMarker {
     if (resolved.fallback()) {
       warnFallback(plugin, storageId, tierKey, storedMaxItems, resolved);
     }
+    String nameRaw = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_NAME).orElse(null);
+    String displayName = StorageDisplayName.normalize(nameRaw);
+    if (displayName == null && nameRaw != null) {
+      ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_NAME);
+    } else if (displayName != null && !displayName.equals(nameRaw)) {
+      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_NAME, displayName);
+    }
     return Optional.of(
-        new Data(storageId, resolved.tier(), facing, resolved.tierMaxItems(), resolved.fallback()));
+        new Data(
+            storageId,
+            resolved.tier(),
+            facing,
+            resolved.tierMaxItems(),
+            resolved.fallback(),
+            displayName));
   }
 
   public static void clear(Plugin plugin, Block block) {

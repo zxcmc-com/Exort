@@ -19,6 +19,7 @@ import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -101,7 +102,9 @@ class ExortItemLocalizationServiceTest {
     item.meta.pdc.set(harness.keys.storageTier(), "rare");
     item.meta.pdc.set(harness.keys.storageTierMaxItems(), 45L * 64L * 5L);
     item.meta.pdc.set(harness.keys.nestedCount(), 64L);
+    item.meta.pdc.set(harness.keys.storageName(), "Main Vault");
     item.meta.itemName = Component.text("Rare Storage");
+    item.meta.customName = Component.text("Main Vault");
     item.meta.lore = List.of(Component.text("64 / 14,400 (0.4%)"));
 
     ItemStack localized = harness.service.localize(item, "ru_ru");
@@ -110,9 +113,18 @@ class ExortItemLocalizationServiceTest {
     assertEquals("Rare Storage", plain(item.getItemMeta().itemName()));
     assertEquals(List.of("64 / 14,400 (0.4%)"), lore(item));
     assertEquals("Хранилище", plain(localized.getItemMeta().itemName()));
+    assertEquals("Хранилище: Main Vault", plain(localized.getItemMeta().customName()));
+    assertEquals(
+        TextDecoration.State.FALSE,
+        localized.getItemMeta().customName().decoration(TextDecoration.ITALIC));
+    assertEquals(
+        TextDecoration.State.TRUE,
+        localized.getItemMeta().customName().children().get(1).decoration(TextDecoration.ITALIC));
+    assertEquals(
+        NamedTextColor.WHITE, localized.getItemMeta().customName().children().get(1).color());
     assertEquals(NamedTextColor.RED, firstColor(localized.getItemMeta().itemName()));
-    assertEquals(List.of("Тир: Редкий", "64 / 14,400 (0.4%)"), lore(localized));
-    assertEquals(NamedTextColor.WHITE, firstColor(localized.getItemMeta().lore().getFirst()));
+    assertEquals(List.of("64 / 14,400 (0.4%)", "Редкий"), lore(localized));
+    assertEquals(NamedTextColor.RED, firstColor(localized.getItemMeta().lore().getLast()));
   }
 
   @Test
@@ -247,6 +259,7 @@ class ExortItemLocalizationServiceTest {
 
   private static final class MetaState implements InvocationHandler {
     private Component itemName;
+    private Component customName;
     private List<Component> lore;
     private final PdcState pdc;
 
@@ -269,6 +282,7 @@ class ExortItemLocalizationServiceTest {
     private MetaState copy() {
       MetaState copy = new MetaState(pdc.copy());
       copy.itemName = itemName;
+      copy.customName = customName;
       copy.lore = lore == null ? null : new ArrayList<>(lore);
       return copy;
     }
@@ -289,6 +303,14 @@ class ExortItemLocalizationServiceTest {
           yield null;
         }
         case "hasItemName" -> itemName != null;
+        case "customName" -> {
+          if (args == null || args.length == 0) {
+            yield customName;
+          }
+          customName = (Component) args[0];
+          yield null;
+        }
+        case "hasCustomName" -> customName != null;
         case "lore" -> {
           if (args == null || args.length == 0) {
             yield lore;

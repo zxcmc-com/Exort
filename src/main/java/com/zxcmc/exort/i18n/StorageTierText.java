@@ -43,9 +43,17 @@ public final class StorageTierText {
         .decoration(TextDecoration.ITALIC, false);
   }
 
+  public static Component tierValueLore(Lang lang, boolean clientTranslations, StorageTier tier) {
+    return tierName(lang, clientTranslations, tier);
+  }
+
   public static Component tierLore(Lang lang, String language, StorageTier tier) {
     String template = lang.trLanguage(language, "lore.storage.tier", TEMPLATE_TOKEN);
     return replaceToken(template, tierName(lang, language, tier));
+  }
+
+  public static Component tierValueLore(Lang lang, String language, StorageTier tier) {
+    return tierName(lang, language, tier);
   }
 
   public static String tierNamePlain(Lang lang, Player player, StorageTier tier) {

@@ -129,6 +129,7 @@ public class StorageCache {
   private long totalWeighted;
   private long version;
   private SortMode sortMode = SortMode.AMOUNT;
+  private String displayName;
   private long lastAccessMs;
   private long lastTouchMs;
   private String lastTouchSource;
@@ -293,6 +294,22 @@ public class StorageCache {
   public synchronized SortMode getSortMode() {
     touch();
     return sortMode;
+  }
+
+  public synchronized String getDisplayName() {
+    touch();
+    return displayName;
+  }
+
+  public synchronized void setDisplayName(String displayName) {
+    String normalized = StorageDisplayName.normalize(displayName);
+    if (Objects.equals(this.displayName, normalized)) {
+      touch();
+      return;
+    }
+    this.displayName = normalized;
+    version++;
+    touch();
   }
 
   public synchronized void setSortMode(SortMode sortMode) {

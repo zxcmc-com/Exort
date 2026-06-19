@@ -64,6 +64,71 @@ class DatabaseTest {
   }
 
   @Test
+  void migratesAndPersistsStorageDisplayName() throws Exception {
+    File file = tempDir.resolve("display-name-migration.db").toFile();
+    long now = Instant.now().getEpochSecond();
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+        var statement = connection.createStatement()) {
+      statement.execute(
+          """
+          CREATE TABLE storages (
+              id TEXT PRIMARY KEY,
+              tier TEXT NULL,
+              tier_max_items INTEGER NULL,
+              sort_mode TEXT NULL,
+              created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL
+          )
+          """);
+      statement.execute(
+          "INSERT INTO storages(id, tier, tier_max_items, sort_mode, created_at, updated_at)"
+              + " VALUES('storage', 'BASIC', 100, 'AMOUNT', "
+              + now
+              + ", "
+              + now
+              + ")");
+    }
+
+    Database database = new Database();
+    database.init(file);
+    try {
+      database
+          .setStorageMetadata("storage", "BASIC", 100L, "  Main\u0000 Vault  ")
+          .get(5, TimeUnit.SECONDS);
+
+      assertEquals(
+          "Main Vault",
+          database.getStorageDisplayName("storage").get(5, TimeUnit.SECONDS).orElseThrow());
+
+      database.setStorageDisplayName("storage", " ").get(5, TimeUnit.SECONDS);
+
+      assertTrue(database.getStorageDisplayName("storage").get(5, TimeUnit.SECONDS).isEmpty());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void cloneStoragePreservesDisplayName() throws Exception {
+    File file = tempDir.resolve("display-name-clone.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      database
+          .setStorageMetadata("source", "OBSIDIAN", 20L * 45L * 64L, "Main Vault")
+          .get(5, TimeUnit.SECONDS);
+
+      database.cloneStorage("source", "copy", "DIAMOND", 10L * 45L * 64L).get(5, TimeUnit.SECONDS);
+
+      assertEquals(
+          "Main Vault",
+          database.getStorageDisplayName("copy").get(5, TimeUnit.SECONDS).orElseThrow());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
   void loadStorageSkipsClearlyInvalidRowsBeforeCacheDecode() throws Exception {
     File file = tempDir.resolve("exort.db").toFile();
     Database database = new Database();
