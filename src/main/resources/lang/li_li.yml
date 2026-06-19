@@ -198,6 +198,7 @@ debug:
     read: "solo lectura"
     write: "escritura"
 item:
+  storage: "Opslaag"
   terminal: "Opslaagterminal"
   crafting_terminal: "Maakterminal"
   monitor: "Opslaagmonitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Importbus"
   export_bus: "Exportbus"
   wireless_terminal: "Draodloze terminal"
+tier:
+  common: "Gewoon"
+  rare: "Zeldzaam"
+  mythical: "Mythisch"
+  legendary: "Legendarisch"
+  immortal: "Onsterfelijk"
+
 relay:
   status: "Netwirkrelais-peer {0} | {1}"
   storage_multiple: "Opslaag: meerdere gekoppeld"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Opslaag: gein"
 lore:
   storage:
+    tier: "Rang: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

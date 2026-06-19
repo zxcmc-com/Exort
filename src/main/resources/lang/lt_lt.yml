@@ -198,6 +198,7 @@ debug:
     read: "tik skaitymas"
     write: "rašymas"
 item:
+  storage: "Saugykla"
   terminal: "Saugyklos terminalas"
   crafting_terminal: "Gamybos terminalas"
   monitor: "Saugyklos monitorius"
@@ -207,6 +208,13 @@ item:
   import_bus: "Importo šina"
   export_bus: "Eksporto šina"
   wireless_terminal: "Belaidis terminalas"
+tier:
+  common: "Įprasta"
+  rare: "Reta"
+  mythical: "Mitinė"
+  legendary: "Legendinė"
+  immortal: "Nemirtinga"
+
 relay:
   status: "Tinklo relės pora {0} | {1}"
   storage_multiple: "Saugykla: prijungtos kelios"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Saugykla: nėra"
 lore:
   storage:
+    tier: "Pakopa: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.0 — 2026-06-19
+- Reworked bundled storage tiers to `common`, `rare`, `mythical`, `legendary`, and `immortal`; storage items and placed storage displays now use a localized `Storage` name colored by tier, while the tier appears as localized lore/status metadata with a white label and tier-colored value.
+- `storage-tiers.yml` now uses tier `name` placeholders such as `{tier.rare}` and MiniMessage-style color values such as `#4b69ff`, `red`, or `<red>`.
+- Removed the old default storage crafting recipes until the new five-tier economy is explicitly designed.
+
 ## 0.15.3 — 2026-06-18
 - Added an optional Chorusfix integration: Exort detects and logs enabled Chorusfix instances, and `/exort mode fix RESOURCE` can install or update the latest Chorusfix release from GitHub, and fall back to a manual download link if automatic installation is unavailable.
 

@@ -198,6 +198,7 @@ debug:
     read: "lectio tantum"
     write: "scriptio"
 item:
+  storage: "Repositorium"
   terminal: "Terminale Repositorii"
   crafting_terminal: "Terminale Fabricae"
   monitor: "Monitor Repositorii"
@@ -207,6 +208,13 @@ item:
   import_bus: "Canalis Importationis"
   export_bus: "Canalis Exportationis"
   wireless_terminal: "Terminale Sine Filo"
+tier:
+  common: "Communis"
+  rare: "Rarus"
+  mythical: "Mythicus"
+  legendary: "Legendarius"
+  immortal: "Immortalis"
+
 relay:
   status: "Par relei {0} | {1}"
   storage_multiple: "Repositorium: plura coniuncta"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Repositorium: nullum"
 lore:
   storage:
+    tier: "Gradus: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -198,6 +198,7 @@ debug:
     read: "bert lesa"
     write: "skriva"
 item:
+  storage: "Goymsla"
   terminal: "Goymsluterminalur"
   crafting_terminal: "Crafting-terminalur"
   monitor: "Goymslumonitorur"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import-bussur"
   export_bus: "Export-bussur"
   wireless_terminal: "Tráðleysur terminalur"
+tier:
+  common: "Vanligur"
+  rare: "Sjaldsamur"
+  mythical: "Mýtiskur"
+  legendary: "Legendariskur"
+  immortal: "Ódeyðiligur"
+
 relay:
   status: "Netverksrelæ-peer {0} | {1}"
   storage_multiple: "Goymsla: fleiri knýttar"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Goymsla: eingin"
 lore:
   storage:
+    tier: "Stig: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

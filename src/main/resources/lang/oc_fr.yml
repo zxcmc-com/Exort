@@ -198,6 +198,7 @@ debug:
     read: "lecture seule"
     write: "écriture"
 item:
+  storage: "Emmagazinatge"
   terminal: "Terminal d’emmagazinatge"
   crafting_terminal: "Terminal de fabricacion"
   monitor: "Monitor d’emmagazinatge"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus d’importacion"
   export_bus: "Bus d’exportacion"
   wireless_terminal: "Terminal sens fial"
+tier:
+  common: "Comun"
+  rare: "Rar"
+  mythical: "Mitic"
+  legendary: "Legendari"
+  immortal: "Immortal"
+
 relay:
   status: "Par del relai {0} | {1}"
   storage_multiple: "Emmagazinatge: mantuns connectats"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Emmagazinatge: cap"
 lore:
   storage:
+    tier: "Rang: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -3,6 +3,7 @@ package com.zxcmc.exort.gui;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
@@ -344,7 +345,12 @@ public abstract class AbstractStorageSession implements SearchableSession {
     double free = 1.0 - progress;
     String percent = FORMAT_PERCENT.format(progress * 100.0) + "%";
     bossBar.setTitle(
-        tr("gui.bossbar", tier.displayName(), formatNumber(current), formatNumber(max), percent));
+        tr(
+            "gui.bossbar",
+            StorageTierText.storageLabelWithTier(lang, viewer, tier),
+            formatNumber(current),
+            formatNumber(max),
+            percent));
     bossBar.setColor(readOnly ? BarColor.RED : freeColorBar(free));
     bossBar.setProgress(progress);
   }

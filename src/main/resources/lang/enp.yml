@@ -198,6 +198,7 @@ debug:
     read: "read-only"
     write: "write"
 item:
+  storage: "Storehouse"
   terminal: "Storehouse Terminal"
   crafting_terminal: "Making Terminal"
   monitor: "Storehouse Watch"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import Cart"
   export_bus: "Export Cart"
   wireless_terminal: "Aether Terminal"
+tier:
+  common: "Common"
+  rare: "Rare"
+  mythical: "Mythical"
+  legendary: "Legendary"
+  immortal: "Undying"
+
 relay:
   status: "Relay fellow {0} | {1}"
   storage_multiple: "Storehouse: many joined"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Storehouse: none"
 lore:
   storage:
+    tier: "Rank: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

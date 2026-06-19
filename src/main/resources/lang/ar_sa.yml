@@ -198,6 +198,7 @@ debug:
     read: "قراءة فقط"
     write: "كتابة"
 item:
+  storage: "التخزين"
   terminal: "طرفية التخزين"
   crafting_terminal: "طرفية التصنيع"
   monitor: "مراقب التخزين"
@@ -207,6 +208,13 @@ item:
   import_bus: "ناقل الاستيراد"
   export_bus: "ناقل التصدير"
   wireless_terminal: "طرفية لاسلكية"
+tier:
+  common: "شائع"
+  rare: "نادر"
+  mythical: "خرافي"
+  legendary: "أسطوري"
+  immortal: "خالد"
+
 relay:
   status: "نظير المرحل {0} | {1}"
   storage_multiple: "التخزين: عدة اتصالات"
@@ -214,6 +222,7 @@ relay:
   storage_none: "التخزين: لا يوجد"
 lore:
   storage:
+    tier: "الفئة: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

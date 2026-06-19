@@ -198,6 +198,7 @@ debug:
     read: "ອ່ານຢ່າງດຽວ"
     write: "ຂຽນ"
 item:
+  storage: "ຄັງເກັບ"
   terminal: "ເທີມິນັນຄັງເກັບ"
   crafting_terminal: "ເທີມິນັນຄຣາຟ"
   monitor: "ຈໍຄັງເກັບ"
@@ -207,6 +208,13 @@ item:
   import_bus: "ບັສນໍາເຂົ້າ"
   export_bus: "ບັສສົ່ງອອກ"
   wireless_terminal: "ເທີມິນັນໄຮ້ສາຍ"
+tier:
+  common: "ທົ່ວໄປ"
+  rare: "ຫາຍາກ"
+  mythical: "ເທບນິຍາຍ"
+  legendary: "ຕໍານານ"
+  immortal: "ອະມະຕະ"
+
 relay:
   status: "ຄູ່ລິ້ງຣີເລເຄືອຂ່າຍ {0} | {1}"
   storage_multiple: "ຄັງເກັບ: ເຊື່ອມຕໍ່ຫຼາຍອັນ"
@@ -214,6 +222,7 @@ relay:
   storage_none: "ຄັງເກັບ: ບໍ່ມີ"
 lore:
   storage:
+    tier: "ລະດັບ: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

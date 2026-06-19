@@ -198,6 +198,7 @@ debug:
     read: "nëmme liesen"
     write: "schreiwen"
 item:
+  storage: "Späicher"
   terminal: "Späicherterminal"
   crafting_terminal: "Crafting-Terminal"
   monitor: "Späichermonitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funkterminal"
+tier:
+  common: "Gewéinlech"
+  rare: "Seelen"
+  mythical: "Mythesch"
+  legendary: "Legendär"
+  immortal: "Onstierflech"
+
 relay:
   status: "Netzwierk-Relais-Peer {0} | {1}"
   storage_multiple: "Späicher: méi verbonnen"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Späicher: keen"
 lore:
   storage:
+    tier: "Stuf: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

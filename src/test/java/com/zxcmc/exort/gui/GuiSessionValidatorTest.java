@@ -33,7 +33,7 @@ class GuiSessionValidatorTest {
     YamlConfiguration config = new YamlConfiguration();
     config.set("basic.maxItems", 64);
     config.set("basic.material", "CHEST");
-    config.set("basic.displayName", "Basic");
+    config.set("basic.name", "Basic");
     StorageTier.loadFromConfig(config, Logger.getLogger("test"));
   }
 

@@ -1,6 +1,7 @@
 package com.zxcmc.exort.items;
 
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
@@ -79,7 +80,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(Component.text(tier.displayName()).decoration(TextDecoration.ITALIC, false));
+      meta.itemName(StorageTierText.storageName(lang, clientTranslations, tier));
       meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, "storage");
@@ -239,7 +240,7 @@ public class CustomItems {
         StorageTier tier = resolution.tier();
         String storageId = pdc.get(keys.storageId(), PersistentDataType.STRING);
         long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
-        meta.itemName(Component.text(tier.displayName()).decoration(TextDecoration.ITALIC, false));
+        meta.itemName(StorageTierText.storageName(lang, clientTranslations, tier));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         applyLore(meta, tier, storageId, nested);
         ItemModelUtil.applyItemModel(meta, storageItemModel);
@@ -433,6 +434,7 @@ public class CustomItems {
     double percent =
         Math.min(100.0, Math.max(0.0, (double) currentAmount / Math.max(1, max) * 100.0));
     List<Component> lore = new ArrayList<>();
+    lore.add(StorageTierText.tierLore(lang, clientTranslations, tier));
     lore.add(
         lang.itemComponent(
             clientTranslations,

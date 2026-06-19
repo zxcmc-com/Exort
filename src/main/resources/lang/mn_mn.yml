@@ -198,6 +198,7 @@ debug:
     read: "зөвхөн унших"
     write: "бичих"
 item:
+  storage: "Хадгалах сан"
   terminal: "Хадгалах сангийн терминал"
   crafting_terminal: "Крафтын терминал"
   monitor: "Хадгалах сангийн монитор"
@@ -207,6 +208,13 @@ item:
   import_bus: "Импортын шин"
   export_bus: "Экспортын шин"
   wireless_terminal: "Утасгүй терминал"
+tier:
+  common: "Энгийн"
+  rare: "Ховор"
+  mythical: "Домгийн"
+  legendary: "Домогт"
+  immortal: "Үхэшгүй"
+
 relay:
   status: "Релений хос {0} | {1}"
   storage_multiple: "Хадгалах сан: олон холбогдсон"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Хадгалах сан: байхгүй"
 lore:
   storage:
+    tier: "Зэрэглэл: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

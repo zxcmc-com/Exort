@@ -37,6 +37,26 @@ class DefaultRecipesValidationTest {
     validateSmithing(recipes.getConfigurationSection("smithing"), tiers);
   }
 
+  @Test
+  void bundledRecipesDoNotCraftStorageTierItemsByDefault() {
+    YamlConfiguration recipes =
+        YamlConfiguration.loadConfiguration(new File("src/main/resources/recipes.yml"));
+
+    assertNoStorageResults(recipes.getConfigurationSection("shaped"));
+    assertNoStorageResults(recipes.getConfigurationSection("shapeless"));
+    assertNoStorageResults(recipes.getConfigurationSection("smithing"));
+  }
+
+  private static void assertNoStorageResults(ConfigurationSection section) {
+    assertNotNull(section, "missing recipe section");
+    for (String id : section.getKeys(false)) {
+      ConfigurationSection result = section.getConfigurationSection(id + ".result");
+      assertNotNull(result, id + " result missing");
+      String item = result.getString("item", "").trim().toLowerCase();
+      assertFalse(item.startsWith("exort:storage:"), id + " crafts a storage tier by default");
+    }
+  }
+
   private static void validateShaped(ConfigurationSection shaped, Set<String> tiers) {
     assertNotNull(shaped, "missing shaped section");
     for (String id : shaped.getKeys(false)) {

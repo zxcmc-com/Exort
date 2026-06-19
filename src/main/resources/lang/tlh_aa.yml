@@ -198,6 +198,7 @@ debug:
     read: "laD neH"
     write: "ghItlh"
 item:
+  storage: "Dochpol"
   terminal: "DochpolmeH terminal"
   crafting_terminal: "chenmoHmeH terminal"
   monitor: "Dochpol bejwiʼ"
@@ -207,6 +208,13 @@ item:
   import_bus: "yapbeʼwIʼ lupwIʼ"
   export_bus: "teqmeH lupwIʼ"
   wireless_terminal: "tlhegh Hutlh terminal"
+tier:
+  common: "motlh"
+  rare: "qub"
+  mythical: "wIch"
+  legendary: "noyquʼ"
+  immortal: "jub"
+
 relay:
   status: "pat rarwIʼ latlh {0} | {1}"
   storage_multiple: "Dochpol: lawʼ rarluʼ"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Dochpol: pagh"
 lore:
   storage:
+    tier: "patlh: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

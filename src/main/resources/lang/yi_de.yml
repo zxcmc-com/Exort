@@ -198,6 +198,7 @@ debug:
     read: "נאר לייענען"
     write: "שרייבן"
 item:
+  storage: "סטאָרידזש"
   terminal: "סטאָרידזש־טערמינאַל"
   crafting_terminal: "קראַפטינג־טערמינאַל"
   monitor: "סטאָרידזש־מאָניטאָר"
@@ -207,6 +208,13 @@ item:
   import_bus: "אימפּאָרט־בוס"
   export_bus: "עקספּאָרט־בוס"
   wireless_terminal: "וויירלאָזער טערמינאַל"
+tier:
+  common: "געוויינטלעך"
+  rare: "זעלטן"
+  mythical: "מיטיש"
+  legendary: "לעגענדאַריש"
+  immortal: "אומשטערבלעך"
+
 relay:
   status: "נעץ־ריליי פּיר {0} | {1}"
   storage_multiple: "סטאָרידזש: עטלעכע פארבונדן"
@@ -214,6 +222,7 @@ relay:
   storage_none: "סטאָרידזש: קיינער נישט"
 lore:
   storage:
+    tier: "ראַנג: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

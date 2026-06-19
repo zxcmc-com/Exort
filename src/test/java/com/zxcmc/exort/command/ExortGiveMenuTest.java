@@ -25,9 +25,11 @@ class ExortGiveMenuTest {
 
     assertEquals(
         List.of(
-            "storage:gold",
-            "storage:diamond",
-            "storage:netherite",
+            "storage:common",
+            "storage:rare",
+            "storage:mythical",
+            "storage:legendary",
+            "storage:immortal",
             "storage_core",
             "terminal",
             "crafting_terminal",
@@ -75,15 +77,21 @@ class ExortGiveMenuTest {
 
   private static void loadDefaultLikeTiers() {
     YamlConfiguration config = new YamlConfiguration();
-    config.set("gold.maxItems", 5760);
-    config.set("gold.material", Material.GOLD_BLOCK.name());
-    config.set("gold.displayName", "Gold Storage");
-    config.set("diamond.maxItems", "10p");
-    config.set("diamond.material", Material.DIAMOND_BLOCK.name());
-    config.set("diamond.displayName", "Diamond Storage");
-    config.set("netherite.maxItems", "100p");
-    config.set("netherite.material", Material.NETHERITE_BLOCK.name());
-    config.set("netherite.displayName", "Netherite Storage");
+    config.set("common.maxItems", "1p");
+    config.set("common.material", Material.GRAY_SHULKER_BOX.name());
+    config.set("common.name", "{tier.common}");
+    config.set("rare.maxItems", "5p");
+    config.set("rare.material", Material.LIGHT_BLUE_SHULKER_BOX.name());
+    config.set("rare.name", "{tier.rare}");
+    config.set("mythical.maxItems", "20p");
+    config.set("mythical.material", Material.SHULKER_BOX.name());
+    config.set("mythical.name", "{tier.mythical}");
+    config.set("legendary.maxItems", "100p");
+    config.set("legendary.material", Material.MAGENTA_SHULKER_BOX.name());
+    config.set("legendary.name", "{tier.legendary}");
+    config.set("immortal.maxItems", "500p");
+    config.set("immortal.material", Material.YELLOW_SHULKER_BOX.name());
+    config.set("immortal.name", "{tier.immortal}");
 
     StorageTier.loadFromConfig(config, LOGGER);
   }

@@ -198,6 +198,7 @@ debug:
     read: "tcidu poonai"
     write: "ciska"
 item:
+  storage: "sorcu"
   terminal: "sorcu te samjongau"
   crafting_terminal: "zbasu te samjongau"
   monitor: "sorcu jarco"
@@ -207,6 +208,13 @@ item:
   import_bus: "nerbei tanbo"
   export_bus: "barbei tanbo"
   wireless_terminal: "cladu medomoi samjongau"
+tier:
+  common: "fadni"
+  rare: "rirci"
+  mythical: "ranmi"
+  legendary: "misno ranmi"
+  immortal: "nalmorsi"
+
 relay:
   status: "samjoʼe benji pendo {0} | {1}"
   storage_multiple: "Sorcu: soʼi jorne"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Sorcu: no da"
 lore:
   storage:
+    tier: "klesi: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

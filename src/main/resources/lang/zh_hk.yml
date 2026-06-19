@@ -198,6 +198,7 @@ debug:
     read: "唯讀"
     write: "讀寫"
 item:
+  storage: "儲存"
   terminal: "儲存終端機"
   crafting_terminal: "合成終端機"
   monitor: "儲存監視器"
@@ -207,6 +208,13 @@ item:
   import_bus: "匯入總線"
   export_bus: "匯出總線"
   wireless_terminal: "無線終端機"
+tier:
+  common: "普通"
+  rare: "稀有"
+  mythical: "神話"
+  legendary: "傳說"
+  immortal: "不朽"
+
 relay:
   status: "中繼對端 {0} | {1}"
   storage_multiple: "儲存：已連接多個"
@@ -214,6 +222,7 @@ relay:
   storage_none: "儲存：無"
 lore:
   storage:
+    tier: "階級：{0}"
     capacity: "{0} / {1}（{2}）"
     id_tail: "{0}"
   wireless_terminal:

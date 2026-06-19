@@ -198,6 +198,7 @@ debug:
     read: "allinnich lêze"
     write: "skriuwe"
 item:
+  storage: "Opslach"
   terminal: "Opslachterminal"
   crafting_terminal: "Craftingterminal"
   monitor: "Opslachmonitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Ymportbus"
   export_bus: "Eksportbus"
   wireless_terminal: "Draadleaze terminal"
+tier:
+  common: "Gewoan"
+  rare: "Seldsum"
+  mythical: "Mytysk"
+  legendary: "Legindarysk"
+  immortal: "Unstjerlik"
+
 relay:
   status: "Netwurkrelais-peer {0} | {1}"
   storage_multiple: "Opslach: meardere ferbûn"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Opslach: gjin"
 lore:
   storage:
+    tier: "Nivo: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

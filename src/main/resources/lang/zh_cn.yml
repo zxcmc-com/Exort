@@ -198,6 +198,7 @@ debug:
     read: "只读"
     write: "读写"
 item:
+  storage: "存储"
   terminal: "存储终端"
   crafting_terminal: "合成终端"
   monitor: "存储监视器"
@@ -207,6 +208,13 @@ item:
   import_bus: "导入总线"
   export_bus: "导出总线"
   wireless_terminal: "无线终端"
+tier:
+  common: "普通"
+  rare: "稀有"
+  mythical: "神话"
+  legendary: "传说"
+  immortal: "不朽"
+
 relay:
   status: "中继对端 {0} | {1}"
   storage_multiple: "存储：已连接多个"
@@ -214,6 +222,7 @@ relay:
   storage_none: "存储：无"
 lore:
   storage:
+    tier: "层级：{0}"
     capacity: "{0} / {1}（{2}）"
     id_tail: "{0}"
   wireless_terminal:

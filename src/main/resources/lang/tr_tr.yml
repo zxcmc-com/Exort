@@ -198,6 +198,7 @@ debug:
     read: "salt okunur"
     write: "yazma"
 item:
+  storage: "Depo"
   terminal: "Depo Terminali"
   crafting_terminal: "Üretim Terminali"
   monitor: "Depo Monitörü"
@@ -207,6 +208,13 @@ item:
   import_bus: "İçe Aktarma Veri Yolu"
   export_bus: "Dışa Aktarma Veri Yolu"
   wireless_terminal: "Kablosuz Terminal"
+tier:
+  common: "Yaygın"
+  rare: "Nadir"
+  mythical: "Mitik"
+  legendary: "Efsanevi"
+  immortal: "Ölümsüz"
+
 relay:
   status: "Aktarıcı eşleşmesi {0} | {1}"
   storage_multiple: "Depo: birden fazla bağlı"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Depo: yok"
 lore:
   storage:
+    tier: "Katman: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -26,6 +26,7 @@ class BundledLanguageFilesTest {
   private static final Pattern JAVA_PLACEHOLDER = Pattern.compile("\\{\\d+}");
   private static final Set<String> CRITICAL_PLAYER_FACING_KEYS =
       Set.of(
+          "item.storage",
           "item.storage_core",
           "item.terminal",
           "item.crafting_terminal",
@@ -34,6 +35,12 @@ class BundledLanguageFilesTest {
           "item.import_bus",
           "item.export_bus",
           "item.wireless_terminal",
+          "lore.storage.tier",
+          "tier.common",
+          "tier.rare",
+          "tier.mythical",
+          "tier.legendary",
+          "tier.immortal",
           "gui.give.title",
           "gui.bus.import_title",
           "gui.bus.export_title",

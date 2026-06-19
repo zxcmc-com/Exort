@@ -198,6 +198,7 @@ debug:
     read: "léamh amháin"
     write: "scríobh"
 item:
+  storage: "Stóras"
   terminal: "Teirminéal Stóráis"
   crafting_terminal: "Teirminéal Ceardaíochta"
   monitor: "Monatóir Stóráis"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus Iompórtála"
   export_bus: "Bus Easpórtála"
   wireless_terminal: "Teirminéal Gan Sreang"
+tier:
+  common: "Coitianta"
+  rare: "Annamh"
+  mythical: "Miotasach"
+  legendary: "Finscéalach"
+  immortal: "Neamhbhásmhar"
+
 relay:
   status: "Comhpháirtí athsheachadáin {0} | {1}"
   storage_multiple: "Stóras: níos mó ná ceann amháin ceangailte"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Stóras: níl aon cheann"
 lore:
   storage:
+    tier: "Leibhéal: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

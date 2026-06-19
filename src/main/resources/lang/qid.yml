@@ -198,6 +198,7 @@ debug:
     read: "lectio sola"
     write: "scriptura"
 item:
+  storage: "Quietum"
   terminal: "Terminale quietum"
   crafting_terminal: "Terminale artificii"
   monitor: "Speculum quietum"
@@ -207,6 +208,13 @@ item:
   import_bus: "Via intrantis"
   export_bus: "Via exeuntis"
   wireless_terminal: "Terminale sine filo"
+tier:
+  common: "Commune"
+  rare: "Rarum"
+  mythical: "Mythicum"
+  legendary: "Legendarium"
+  immortal: "Immortale"
+
 relay:
   status: "Socius relais retis {0} | {1}"
   storage_multiple: "Quietum: multa nexa"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Quietum: nihil"
 lore:
   storage:
+    tier: "Gradus: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

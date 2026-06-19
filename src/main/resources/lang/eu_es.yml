@@ -198,6 +198,7 @@ debug:
     read: "irakurtzeko soilik"
     write: "idazketa"
 item:
+  storage: "Biltegia"
   terminal: "Biltegi-terminala"
   crafting_terminal: "Sortze-terminala"
   monitor: "Biltegi-monitorea"
@@ -207,6 +208,13 @@ item:
   import_bus: "Inportazio-busa"
   export_bus: "Esportazio-busa"
   wireless_terminal: "Haririk gabeko terminala"
+tier:
+  common: "Arrunta"
+  rare: "Arraroa"
+  mythical: "Mitikoa"
+  legendary: "Kondairazkoa"
+  immortal: "Hilezkorra"
+
 relay:
   status: "Sare-errelearen parekoa {0} | {1}"
   storage_multiple: "Biltegia: hainbat konektatuta"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Biltegia: bat ere ez"
 lore:
   storage:
+    tier: "Maila: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

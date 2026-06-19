@@ -198,6 +198,7 @@ debug:
     read: "уку гына"
     write: "язу"
 item:
+  storage: "Саклагыч"
   terminal: "Саклагыч терминалы"
   crafting_terminal: "Крафт терминалы"
   monitor: "Саклагыч мониторы"
@@ -207,6 +208,13 @@ item:
   import_bus: "Импорт шинасы"
   export_bus: "Экспорт шинасы"
   wireless_terminal: "Чыбыксыз терминал"
+tier:
+  common: "Гади"
+  rare: "Сирәк"
+  mythical: "Мифик"
+  legendary: "Легендар"
+  immortal: "Үлемсез"
+
 relay:
   status: "Реле пары {0} | {1}"
   storage_multiple: "Саклагыч: берничә тоташкан"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Саклагыч: юк"
 lore:
   storage:
+    tier: "Тир: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

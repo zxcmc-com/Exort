@@ -198,6 +198,7 @@ debug:
     read: "միայն կարդալ"
     write: "գրել"
 item:
+  storage: "Պահեստ"
   terminal: "Պահեստի տերմինալ"
   crafting_terminal: "Crafting տերմինալ"
   monitor: "Պահեստի մոնիտոր"
@@ -207,6 +208,13 @@ item:
   import_bus: "Ներմուծման bus"
   export_bus: "Արտահանման bus"
   wireless_terminal: "Անլար տերմինալ"
+tier:
+  common: "Սովորական"
+  rare: "Հազվագյուտ"
+  mythical: "Առասպելական"
+  legendary: "Լեգենդար"
+  immortal: "Անմահ"
+
 relay:
   status: "Ռելեի կապ {0} | {1}"
   storage_multiple: "Պահեստ: մի քանի միացված"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Պահեստ: չկա"
 lore:
   storage:
+    tier: "Կարգ: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

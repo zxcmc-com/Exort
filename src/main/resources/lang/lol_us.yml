@@ -198,6 +198,7 @@ debug:
     read: "read-onlyz"
     write: "writez"
 item:
+  storage: "Stash"
   terminal: "Stash Termnul"
   crafting_terminal: "Crafftin Termnul"
   monitor: "Stash Watcher"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bring-In Bus"
   export_bus: "Send-Out Bus"
   wireless_terminal: "No-Wire Termnul"
+tier:
+  common: "Commonz"
+  rare: "Rarez"
+  mythical: "Mythicalz"
+  legendary: "Legendaryz"
+  immortal: "Immortalz"
+
 relay:
   status: "Relay buddy {0} | {1}"
   storage_multiple: "Stash: many linky"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Stash: nonez"
 lore:
   storage:
+    tier: "Tierz: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

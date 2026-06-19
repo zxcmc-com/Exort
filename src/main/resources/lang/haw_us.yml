@@ -198,6 +198,7 @@ debug:
     read: "helu-wale"
     write: "kākau"
 item:
+  storage: "Waihona"
   terminal: "Terminal Waihona"
   crafting_terminal: "Terminal Hana Mea"
   monitor: "Monitor Waihona"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus Hoʻokomo"
   export_bus: "Bus Hoʻouna"
   wireless_terminal: "Terminal Uea ʻOle"
+tier:
+  common: "Maʻamau"
+  rare: "Kākaʻikahi"
+  mythical: "Kaʻao"
+  legendary: "Kaulana"
+  immortal: "Make ʻOle"
+
 relay:
   status: "Hoa relay pūnaewele {0} | {1}"
   storage_multiple: "Waihona: nui nā waihona i pili"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Waihona: ʻaʻohe"
 lore:
   storage:
+    tier: "Papa: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -198,6 +198,7 @@ debug:
     read: "leughadh a-mhàin"
     write: "sgrìobhadh"
 item:
+  storage: "Stòras"
   terminal: "Tèirmineal Stòrais"
   crafting_terminal: "Tèirmineal Ciùird"
   monitor: "Monitor Stòrais"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus Ion-phortaidh"
   export_bus: "Bus Às-phortaidh"
   wireless_terminal: "Tèirmineal gun Uèir"
+tier:
+  common: "Cumanta"
+  rare: "Ainneamh"
+  mythical: "Miotasach"
+  legendary: "Uirsgeulach"
+  immortal: "Neo-bhàsmhor"
+
 relay:
   status: "Co-phàirtiche ath-chraoladair {0} | {1}"
   storage_multiple: "Stòras: barrachd air aon cheangailte"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Stòras: chan eil gin"
 lore:
   storage:
+    tier: "Ìre: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

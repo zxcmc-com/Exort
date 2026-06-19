@@ -198,6 +198,7 @@ debug:
     read: "읽기 전용"
     write: "쓰기"
 item:
+  storage: "저장소"
   terminal: "저장소 터미널"
   crafting_terminal: "제작 터미널"
   monitor: "저장소 모니터"
@@ -207,6 +208,13 @@ item:
   import_bus: "가져오기 버스"
   export_bus: "내보내기 버스"
   wireless_terminal: "무선 터미널"
+tier:
+  common: "보통"
+  rare: "희귀"
+  mythical: "신화"
+  legendary: "전설"
+  immortal: "불멸"
+
 relay:
   status: "릴레이 상대 {0} | {1}"
   storage_multiple: "저장소: 여러 개 연결됨"
@@ -214,6 +222,7 @@ relay:
   storage_none: "저장소: 없음"
 lore:
   storage:
+    tier: "등급: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

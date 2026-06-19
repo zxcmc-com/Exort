@@ -198,6 +198,7 @@ debug:
     read: "vetëm lexim"
     write: "shkrim"
 item:
+  storage: "Depo"
   terminal: "Terminal depoje"
   crafting_terminal: "Terminal craftimi"
   monitor: "Monitor depoje"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus importi"
   export_bus: "Bus eksporti"
   wireless_terminal: "Terminal pa tel"
+tier:
+  common: "I zakonshëm"
+  rare: "I rrallë"
+  mythical: "Mitik"
+  legendary: "Legjendar"
+  immortal: "I pavdekshëm"
+
 relay:
   status: "Partneri i relesë {0} | {1}"
   storage_multiple: "Depo: disa të lidhura"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Depo: asnjë"
 lore:
   storage:
+    tier: "Niveli: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

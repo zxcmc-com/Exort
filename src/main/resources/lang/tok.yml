@@ -198,6 +198,7 @@ debug:
     read: "lukin taso"
     write: "sitelen"
 item:
+  storage: "poki"
   terminal: "ilo poki"
   crafting_terminal: "ilo pali"
   monitor: "ilo lukin poki"
@@ -207,6 +208,13 @@ item:
   import_bus: "linja tawa insa"
   export_bus: "linja tawa selo"
   wireless_terminal: "ilo poki pi linja ala"
+tier:
+  common: "mute"
+  rare: "lili"
+  mythical: "pi toki majuna"
+  legendary: "pi toki suli"
+  immortal: "moli ala"
+
 relay:
   status: "ilo pana poka {0} | {1}"
   storage_multiple: "Poki: linja mute"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Poki: ala"
 lore:
   storage:
+    tier: "nanpa: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

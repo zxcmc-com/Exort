@@ -198,6 +198,7 @@ debug:
     read: "redya hepken"
     write: "skriva"
 item:
+  storage: "Gwithva"
   terminal: "Terminal Gwithva"
   crafting_terminal: "Terminal Craftya"
   monitor: "Monitor Gwithva"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus Ynporzh"
   export_bus: "Bus Esporth"
   wireless_terminal: "Terminal Heb Wire"
+tier:
+  common: "Kemmyn"
+  rare: "Ankyllys"
+  mythical: "Mitologek"
+  legendary: "Hwedhellek"
+  immortal: "Anvarwel"
+
 relay:
   status: "Peer relay {0} | {1}"
   storage_multiple: "Gwithva: meur a dra kevrenys"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Gwithva: nyns eus"
 lore:
   storage:
+    tier: "Nivel: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

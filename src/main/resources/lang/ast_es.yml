@@ -198,6 +198,7 @@ debug:
     read: "solo lectura"
     write: "escritura"
 item:
+  storage: "Almacenamientu"
   terminal: "Terminal d'almacenamientu"
   crafting_terminal: "Terminal de fabricación"
   monitor: "Monitor d'almacenamientu"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus d'importación"
   export_bus: "Bus d'esportación"
   wireless_terminal: "Terminal ensin cable"
+tier:
+  common: "Común"
+  rare: "Raru"
+  mythical: "Míticu"
+  legendary: "Llexendariu"
+  immortal: "Inmortal"
+
 relay:
   status: "Par del relé {0} | {1}"
   storage_multiple: "Almacenamientu: varios conectaos"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Almacenamientu: dengún"
 lore:
   storage:
+    tier: "Rangu: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:
