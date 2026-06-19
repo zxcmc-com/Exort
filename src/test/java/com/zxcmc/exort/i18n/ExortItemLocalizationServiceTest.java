@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.storage.StorageTier;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -16,9 +17,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataAdapterContext;
@@ -83,6 +87,35 @@ class ExortItemLocalizationServiceTest {
   }
 
   @Test
+  void localizesStorageNameAndTierLoreForRequestedLanguage() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("rare.maxItems", "5p");
+    config.set("rare.material", "CHEST");
+    config.set("rare.name", "{tier.rare}");
+    config.set("rare.color", "red");
+    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+
+    Harness harness = harness("en_us");
+    TestItemStack item = item(Material.PAPER, 1);
+    item.meta.pdc.set(harness.keys.type(), "storage");
+    item.meta.pdc.set(harness.keys.storageTier(), "rare");
+    item.meta.pdc.set(harness.keys.storageTierMaxItems(), 45L * 64L * 5L);
+    item.meta.pdc.set(harness.keys.nestedCount(), 64L);
+    item.meta.itemName = Component.text("Rare Storage");
+    item.meta.lore = List.of(Component.text("64 / 14,400 (0.4%)"));
+
+    ItemStack localized = harness.service.localize(item, "ru_ru");
+
+    assertNotSame(item, localized);
+    assertEquals("Rare Storage", plain(item.getItemMeta().itemName()));
+    assertEquals(List.of("64 / 14,400 (0.4%)"), lore(item));
+    assertEquals("Хранилище", plain(localized.getItemMeta().itemName()));
+    assertEquals(NamedTextColor.RED, firstColor(localized.getItemMeta().itemName()));
+    assertEquals(List.of("Тир: Редкий", "64 / 14,400 (0.4%)"), lore(localized));
+    assertEquals(NamedTextColor.WHITE, firstColor(localized.getItemMeta().lore().getFirst()));
+  }
+
+  @Test
   void ignoresNonExortItems() {
     Harness harness = harness("en_us");
     TestItemStack item = item(Material.STONE, 1);
@@ -133,6 +166,20 @@ class ExortItemLocalizationServiceTest {
       return List.of();
     }
     return lore.stream().map(ExortItemLocalizationServiceTest::plain).toList();
+  }
+
+  private static TextColor firstColor(Component component) {
+    TextColor color = component.color();
+    if (color != null) {
+      return color;
+    }
+    for (Component child : component.children()) {
+      TextColor childColor = firstColor(child);
+      if (childColor != null) {
+        return childColor;
+      }
+    }
+    return null;
   }
 
   private static Object defaultValue(Class<?> type) {

@@ -198,6 +198,7 @@ debug:
     read: "тільки читання"
     write: "запис"
 item:
+  storage: "Сховище"
   terminal: "Термінал сховища"
   crafting_terminal: "Термінал крафту"
   monitor: "Монітор сховища"
@@ -207,6 +208,13 @@ item:
   import_bus: "Шина імпорту"
   export_bus: "Шина експорту"
   wireless_terminal: "Бездротовий термінал"
+tier:
+  common: "Звичайний"
+  rare: "Рідкісний"
+  mythical: "Міфічний"
+  legendary: "Легендарний"
+  immortal: "Безсмертний"
+
 relay:
   status: "Ретранслятор: {0} | {1}"
   storage_multiple: "Сховище: підключено кілька"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Сховище: нема"
 lore:
   storage:
+    tier: "Рівень: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

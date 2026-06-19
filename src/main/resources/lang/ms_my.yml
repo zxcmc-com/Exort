@@ -198,6 +198,7 @@ debug:
     read: "baca sahaja"
     write: "tulis"
 item:
+  storage: "Storan"
   terminal: "Terminal Storan"
   crafting_terminal: "Terminal Crafting"
   monitor: "Monitor Storan"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bas Import"
   export_bus: "Bas Eksport"
   wireless_terminal: "Terminal Wayarles"
+tier:
+  common: "Biasa"
+  rare: "Jarang"
+  mythical: "Mitos"
+  legendary: "Lagenda"
+  immortal: "Abadi"
+
 relay:
   status: "Rakan relay rangkaian {0} | {1}"
   storage_multiple: "Storan: beberapa bersambung"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Storan: tiada"
 lore:
   storage:
+    tier: "Peringkat: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

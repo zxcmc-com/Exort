@@ -198,6 +198,7 @@ debug:
     read: "solo lectura"
     write: "escritura"
 item:
+  storage: "Guardado"
   terminal: "Terminal de guardado"
   crafting_terminal: "Terminal de fabricación"
   monitor: "Monitor de guardado"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus de entrada"
   export_bus: "Bus de salida"
   wireless_terminal: "Terminal sin cable"
+tier:
+  common: "Común"
+  rare: "Raro"
+  mythical: "Mítico"
+  legendary: "Legendario"
+  immortal: "Inmortal"
+
 relay:
   status: "Parell del relé {0} | {1}"
   storage_multiple: "Emmagatzematge: diversos connectats"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Emmagatzematge: cap"
 lore:
   storage:
+    tier: "Rango: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

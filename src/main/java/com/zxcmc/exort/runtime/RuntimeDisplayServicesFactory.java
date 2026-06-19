@@ -203,6 +203,7 @@ public final class RuntimeDisplayServicesFactory {
         storageDisplay.offsetY(),
         storageDisplay.offsetZ(),
         metadataService,
+        deps.lang().clientComponent(deps.resourceMode(), "item.storage"),
         deps.lang().clientComponent(deps.resourceMode(), "item.storage_core"));
   }
 

@@ -198,6 +198,7 @@ debug:
     read: "nur lesn"
     write: "schreibn"
 item:
+  storage: "Speicha"
   terminal: "Speicha-Terminal"
   crafting_terminal: "Crafting-Terminal"
   monitor: "Speicha-Monitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funkterminal"
+tier:
+  common: "Gewöhnlich"
+  rare: "Selten"
+  mythical: "Mythisch"
+  legendary: "Legendär"
+  immortal: "Unsterblich"
+
 relay:
   status: "Netzwerk-Relais-Peer {0} | {1}"
   storage_multiple: "Speicha: mehrere verbunden"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Speicha: koana"
 lore:
   storage:
+    tier: "Stufn: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

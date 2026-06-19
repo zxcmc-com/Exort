@@ -198,6 +198,7 @@ debug:
     read: "ааҕыы эрэ"
     write: "суруйуу"
 item:
+  storage: "Харайыы"
   terminal: "Харайыы терминала"
   crafting_terminal: "Оҥоруу терминала"
   monitor: "Харайыы монитора"
@@ -207,6 +208,13 @@ item:
   import_bus: "Импорт шина"
   export_bus: "Экспорт шина"
   wireless_terminal: "Симэ суох терминал"
+tier:
+  common: "Көннөрү"
+  rare: "Сэдэх"
+  mythical: "Мифическэй"
+  legendary: "Легендарнай"
+  immortal: "Өлбөт"
+
 relay:
   status: "Реле холбуута {0} | {1}"
   storage_multiple: "Харайыы: хас да холбоммут"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Харайыы: суох"
 lore:
   storage:
+    tier: "Тир: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

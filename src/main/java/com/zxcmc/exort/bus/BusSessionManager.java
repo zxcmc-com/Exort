@@ -7,6 +7,7 @@ import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.gui.GuiRuntimeConfig;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
@@ -246,7 +247,8 @@ public class BusSessionManager {
     }
     String storageId = link.data().storageId();
     StorageTier tier = link.data().tier();
-    String storageName = tier == null ? storageId : tier.displayName();
+    String storageName =
+        tier == null ? storageId : StorageTierText.storageLabelWithTier(lang, viewer, tier);
     var targetOpt = busService.resolveTarget(busBlock, state.facing());
     String invName = null;
     if (targetOpt.isPresent()) {
@@ -257,7 +259,7 @@ public class BusSessionManager {
         StorageTier targetTier = storageTarget.tier();
         invName =
             targetTier != null
-                ? targetTier.displayName()
+                ? StorageTierText.storageLabelWithTier(lang, viewer, targetTier)
                 : lang.tr(viewer, "gui.bus.info.exort_storage");
       }
     }

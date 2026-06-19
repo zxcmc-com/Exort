@@ -198,6 +198,7 @@ debug:
     read: "cenda er"
     write: "tecë"
 item:
+  storage: "Harmava"
   terminal: "Sarnie harmava"
   crafting_terminal: "Sarnie carma"
   monitor: "Palantir harmava"
@@ -207,6 +208,13 @@ item:
   import_bus: "Raxë mitta"
   export_bus: "Raxë etten"
   wireless_terminal: "Sarnie rámenna"
+tier:
+  common: "Sanya"
+  rare: "Mírima"
+  mythical: "Quentavëa"
+  legendary: "Nyarnavëa"
+  immortal: "Alfirin"
+
 relay:
   status: "Rangwa-nuntalë málo {0} | {1}"
   storage_multiple: "Harmava: rimbë nútinë"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Harmava: munta"
 lore:
   storage:
+    tier: "Tyellë: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

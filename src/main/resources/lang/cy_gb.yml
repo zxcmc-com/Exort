@@ -198,6 +198,7 @@ debug:
     read: "darllen yn unig"
     write: "ysgrifennu"
 item:
+  storage: "Storfa"
   terminal: "Terfynell Storfa"
   crafting_terminal: "Terfynell Crefftio"
   monitor: "Monitor Storfa"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bws Mewnforio"
   export_bus: "Bws Allforio"
   wireless_terminal: "Terfynell Ddiwifr"
+tier:
+  common: "Cyffredin"
+  rare: "Prin"
+  mythical: "Mytholegol"
+  legendary: "Chwedlonol"
+  immortal: "Anfarwol"
+
 relay:
   status: "Cymar trosglwyddydd {0} | {1}"
   storage_multiple: "Storfa: sawl un wedi'u cysylltu"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Storfa: dim"
 lore:
   storage:
+    tier: "Haen: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

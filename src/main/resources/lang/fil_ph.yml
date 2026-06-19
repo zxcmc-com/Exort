@@ -198,6 +198,7 @@ debug:
     read: "read-only"
     write: "write"
 item:
+  storage: "Imbakan"
   terminal: "Storage Terminal"
   crafting_terminal: "Crafting Terminal"
   monitor: "Storage Monitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import Bus"
   export_bus: "Export Bus"
   wireless_terminal: "Wireless Terminal"
+tier:
+  common: "Karaniwan"
+  rare: "Bihira"
+  mythical: "Mitikal"
+  legendary: "Maalamat"
+  immortal: "Imortal"
+
 relay:
   status: "Kapares ng relay ng network {0} | {1}"
   storage_multiple: "Storage: maraming nakakonekta"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Storage: wala"
 lore:
   storage:
+    tier: "Antas: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

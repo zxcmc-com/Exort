@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.feedback.CommandFeedback;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -212,10 +213,14 @@ final class GiveCommand {
     }
     StorageTier tier = tierOpt.get();
     int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
+    String language =
+        sender instanceof Player player
+            ? dependencies.lang().pluginTextLanguage(player)
+            : dependencies.lang().configuredLanguage();
     sendGiveResult(
         sender,
         target,
-        tier.displayName(),
+        StorageTierText.storageLabelWithTier(dependencies.lang(), language, tier),
         giveAmount,
         CommandItemDelivery.deliver(
             target, () -> dependencies.customItems().storageItem(tier, null), giveAmount));

@@ -198,6 +198,7 @@ debug:
     read: "tylko odczyt"
     write: "zapis"
 item:
+  storage: "Magazyn"
   terminal: "Terminal magazynu"
   crafting_terminal: "Terminal craftingu"
   monitor: "Monitor magazynu"
@@ -207,6 +208,13 @@ item:
   import_bus: "Szyna importu"
   export_bus: "Szyna eksportu"
   wireless_terminal: "Terminal bezprzewodowy"
+tier:
+  common: "Pospolity"
+  rare: "Rzadki"
+  mythical: "Mityczny"
+  legendary: "Legendarny"
+  immortal: "Nieśmiertelny"
+
 relay:
   status: "Partner przekaźnika {0} | {1}"
   storage_multiple: "Magazyn: podłączono kilka"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Magazyn: brak"
 lore:
   storage:
+    tier: "Poziom: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

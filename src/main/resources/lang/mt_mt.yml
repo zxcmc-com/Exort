@@ -198,6 +198,7 @@ debug:
     read: "qari biss"
     write: "kitba"
 item:
+  storage: "Ħażna"
   terminal: "Terminal tal-Ħażna"
   crafting_terminal: "Terminal tal-Crafting"
   monitor: "Monitor tal-Ħażna"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus tal-Importazzjoni"
   export_bus: "Bus tal-Esportazzjoni"
   wireless_terminal: "Terminal Bla Wajer"
+tier:
+  common: "Komuni"
+  rare: "Rari"
+  mythical: "Mitiku"
+  legendary: "Leġġendarju"
+  immortal: "Immortali"
+
 relay:
   status: "Sieħeb tar-relay {0} | {1}"
   storage_multiple: "Ħażna: diversi mqabbda"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Ħażna: xejn"
 lore:
   storage:
+    tier: "Livell: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

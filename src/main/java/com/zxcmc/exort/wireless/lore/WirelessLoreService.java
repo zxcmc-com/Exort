@@ -1,6 +1,7 @@
 package com.zxcmc.exort.wireless.lore;
 
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.wireless.WirelessMeta;
 import java.util.ArrayList;
@@ -57,8 +58,7 @@ public final class WirelessLoreService {
               .decoration(TextDecoration.ITALIC, false));
     } else if (metaInfo != null) {
       if (metaInfo.tier() != null) {
-        lore.add(
-            Component.text(metaInfo.tier().displayName()).decoration(TextDecoration.ITALIC, false));
+        lore.add(StorageTierText.tierLore(lang, clientTranslations, metaInfo.tier()));
       }
       if (metaInfo.storageId() != null && metaInfo.storageId().length() >= 12) {
         String tail = metaInfo.storageId().substring(metaInfo.storageId().length() - 12);

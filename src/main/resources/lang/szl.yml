@@ -198,6 +198,7 @@ debug:
     read: "ino czytanie"
     write: "pisanie"
 item:
+  storage: "Magazyn"
   terminal: "Terminal magazynu"
   crafting_terminal: "Terminal craftingu"
   monitor: "Monitor magazynu"
@@ -207,6 +208,13 @@ item:
   import_bus: "Szyna importu"
   export_bus: "Szyna eksportu"
   wireless_terminal: "Bezdrôtowy terminal"
+tier:
+  common: "Zwykły"
+  rare: "Rzodki"
+  mythical: "Mityczny"
+  legendary: "Legendarny"
+  immortal: "Niysmiertelny"
+
 relay:
   status: "Przekoźnik: {0} | {1}"
   storage_multiple: "Magazyn: podłōnczōnych pora"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Magazyn: brak"
 lore:
   storage:
+    tier: "Poziōm: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

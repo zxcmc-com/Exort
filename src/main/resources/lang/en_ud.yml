@@ -198,6 +198,7 @@ debug:
     read: "ʎluo-pɐǝɹ"
     write: "ǝʇᴉɹʍ"
 item:
+  storage: "ǝƃɐɹoʇS"
   terminal: "lɐuᴉɯɹǝ⊥ ǝƃɐɹoʇS"
   crafting_terminal: "lɐuᴉɯɹǝ⊥ ƃuᴉʇɟɐɹƆ"
   monitor: "ɹoʇᴉuoW ǝƃɐɹoʇS"
@@ -207,6 +208,13 @@ item:
   import_bus: "sn𐐒 ʇɹodɯI"
   export_bus: "sn𐐒 ʇɹodxƎ"
   wireless_terminal: "lɐuᴉɯɹǝ⊥ ssǝlǝɹᴉM"
+tier:
+  common: "uoɯɯoƆ"
+  rare: "ǝɹɐᴚ"
+  mythical: "lɐɔᴉɥʇʎW"
+  legendary: "ʎɹɐpuǝƃǝ⅂"
+  immortal: "lɐʇɹoɯɯI"
+
 relay:
   status: "ɹǝǝd ʎɐlǝᴚ {0} | {1}"
   storage_multiple: "pǝʇɔǝuuoɔ ǝldᴉʇlnɯ :ǝƃɐɹoʇS"
@@ -214,6 +222,7 @@ relay:
   storage_none: "ǝuou :ǝƃɐɹoʇS"
 lore:
   storage:
+    tier: "ɹǝᴉ⊥: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

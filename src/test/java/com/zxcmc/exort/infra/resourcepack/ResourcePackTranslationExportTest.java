@@ -24,7 +24,10 @@ class ResourcePackTranslationExportTest {
       var entry = zip.getEntry("assets/exort/lang/en_us.json");
       assertTrue(entry != null, "missing generated en_us resource-pack language file");
       String json = new String(zip.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8);
+      assertTrue(json.contains("\"exort.item.storage\": \"Storage\""));
       assertTrue(json.contains("\"exort.item.storage_core\": \"Storage Core\""));
+      assertTrue(json.contains("\"exort.tier.rare\": \"Rare\""));
+      assertTrue(json.contains("\"exort.lore.storage.tier\": \"Tier: %1$s\""));
       assertTrue(json.contains("\"exort.lore.wireless_terminal.battery\": \"Battery: %1$s%%\""));
       assertFalse(json.contains("exort.message.no_permission"));
       assertFalse(json.contains("exort.gui.search.button"));

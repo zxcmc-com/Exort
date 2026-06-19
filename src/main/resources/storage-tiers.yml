@@ -1,24 +1,48 @@
 # Storage tiers: add/remove tiers; each tier has maxItems and display material shown inside storage.
 # maxItems can be a number of items (e.g. 14400) or a page count with "p" suffix (e.g. 5p).
 tiers:
-  gold:
+  common:
     # Maximum items that can be stored by this tier.
-    maxItems: 5760
+    maxItems: 1p
     # Material shown in the storage hologram.
-    material: GOLD_BLOCK
-    # Display name for this tier.
-    displayName: Gold Storage
-  diamond:
+    material: GRAY_SHULKER_BOX
+    # Color for this tier.
+    color: "#b0c3d9"
+    # Name for this tier. Use {tier.common} to resolve bundled localized text.
+    name: "{tier.common}"
+  rare:
     # Maximum items that can be stored by this tier.
-    maxItems: 10p
+    maxItems: 5p
     # Material shown in the storage hologram.
-    material: DIAMOND_BLOCK
-    # Display name for this tier.
-    displayName: Diamond Storage
-  netherite:
+    material: LIGHT_BLUE_SHULKER_BOX
+    # Color for this tier.
+    color: "#4b69ff"
+    # Name for this tier. Use {tier.rare} to resolve bundled localized text.
+    name: "{tier.rare}"
+  mythical:
+    # Maximum items that can be stored by this tier.
+    maxItems: 20p
+    # Material shown in the storage hologram.
+    material: SHULKER_BOX
+    # Color for this tier.
+    color: "#8847ff"
+    # Name for this tier. Use {tier.mythical} to resolve bundled localized text.
+    name: "{tier.mythical}"
+  legendary:
     # Maximum items that can be stored by this tier.
     maxItems: 100p
     # Material shown in the storage hologram.
-    material: NETHERITE_BLOCK
-    # Display name for this tier.
-    displayName: Netherite Storage
+    material: MAGENTA_SHULKER_BOX
+    # Color for this tier.
+    color: "#d32ce6"
+    # Name for this tier. Use {tier.legendary} to resolve bundled localized text.
+    name: "{tier.legendary}"
+  immortal:
+    # Maximum items that can be stored by this tier.
+    maxItems: 500p
+    # Material shown in the storage hologram.
+    material: YELLOW_SHULKER_BOX
+    # Color for this tier.
+    color: "#b28a33"
+    # Name for this tier. Use {tier.immortal} to resolve bundled localized text.
+    name: "{tier.immortal}"

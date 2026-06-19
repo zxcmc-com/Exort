@@ -12,42 +12,6 @@ shaped:
       B: minecraft:redstone_block
       C: minecraft:shulker_box
 
-  storage_gold:
-    result:
-      item: exort:storage:gold
-      amount: 1
-    shape:
-      - "AAA"
-      - "ABA"
-      - "AAA"
-    ingredients:
-      A: minecraft:gold_block
-      B: exort:storage_core
-
-  storage_diamond:
-    result:
-      item: exort:storage:diamond
-      amount: 1
-    shape:
-      - "AAA"
-      - "ABA"
-      - "AAA"
-    ingredients:
-      A: minecraft:diamond_block
-      B: exort:storage_core
-
-  storage_netherite:
-    result:
-      item: exort:storage:netherite
-      amount: 1
-    shape:
-      - "AAA"
-      - "ABA"
-      - "AAA"
-    ingredients:
-      A: minecraft:netherite_ingot
-      B: exort:storage_core
-
   terminal:
     result:
       item: exort:terminal

@@ -211,7 +211,7 @@ class NetworkGraphCacheRelayTest {
             Map.of(
                 "maxItems", 320,
                 "material", "minecraft:barrel",
-                "displayName", "Basic"));
+                "name", "Basic"));
     return config(Map.of("BASIC", basic), Set.of("BASIC"));
   }
 

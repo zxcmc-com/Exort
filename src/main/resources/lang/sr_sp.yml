@@ -198,6 +198,7 @@ debug:
     read: "само читање"
     write: "писање"
 item:
+  storage: "Складиште"
   terminal: "Терминал складишта"
   crafting_terminal: "Терминал за израду"
   monitor: "Монитор складишта"
@@ -207,6 +208,13 @@ item:
   import_bus: "Увозна сабирница"
   export_bus: "Извозна сабирница"
   wireless_terminal: "Бежични терминал"
+tier:
+  common: "Обични"
+  rare: "Ретки"
+  mythical: "Митски"
+  legendary: "Легендарни"
+  immortal: "Бесмртни"
+
 relay:
   status: "Релеј: {0} | {1}"
   storage_multiple: "Складиште: повезано више њих"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Складиште: нема"
 lore:
   storage:
+    tier: "Ниво: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

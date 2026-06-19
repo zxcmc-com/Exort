@@ -198,6 +198,7 @@ debug:
     read: "lecture seule"
     write: "écriture"
 item:
+  storage: "Stockage"
   terminal: "Terminal de stockage"
   crafting_terminal: "Terminal de fabrication"
   monitor: "Moniteur de stockage"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus d'importation"
   export_bus: "Bus d'exportation"
   wireless_terminal: "Terminal sans fil"
+tier:
+  common: "Commun"
+  rare: "Rare"
+  mythical: "Mythique"
+  legendary: "Légendaire"
+  immortal: "Immortel"
+
 relay:
   status: "Pair du relais {0} | {1}"
   storage_multiple: "Stockage: plusieurs connectés"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Stockage: aucun"
 lore:
   storage:
+    tier: "Rang: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

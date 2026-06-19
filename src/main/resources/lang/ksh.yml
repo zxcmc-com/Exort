@@ -198,6 +198,7 @@ debug:
     read: "nor läse"
     write: "schrive"
 item:
+  storage: "Spiescher"
   terminal: "Spiescher-Terminal"
   crafting_terminal: "Crafting-Terminal"
   monitor: "Spiescher-Monitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funk-Terminal"
+tier:
+  common: "Jemeen"
+  rare: "Rar"
+  mythical: "Mythisch"
+  legendary: "Legendär"
+  immortal: "Onsterblich"
+
 relay:
   status: "Netzwärk-Relais-Peer {0} | {1}"
   storage_multiple: "Spiescher: miehfach verbunge"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Spiescher: keiner"
 lore:
   storage:
+    tier: "Stuf: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

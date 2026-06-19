@@ -1,6 +1,7 @@
 package com.zxcmc.exort.feedback;
 
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.storage.StorageManager;
@@ -54,7 +55,7 @@ public class BossBarManager {
                         lang.tr(
                             player,
                             "gui.bossbar",
-                            tier.displayName(),
+                            StorageTierText.storageLabelWithTier(lang, player, tier),
                             formatNumber(current),
                             formatNumber(max),
                             percent);

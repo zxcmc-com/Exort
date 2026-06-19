@@ -3,6 +3,7 @@ package com.zxcmc.exort.display;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.storage.StorageTier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
@@ -16,6 +17,7 @@ import org.joml.Vector3f;
 
 /** RESOURCE/VANILLA display manager for storage blocks (carrier + ItemDisplay model). */
 public class StorageDisplayManager extends BaseCarrierDisplayManager {
+  private final Component storageName;
   private final Component coreName;
 
   public StorageDisplayManager(
@@ -28,6 +30,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
       double offsetY,
       double offsetZ,
       DisplayMetadataService metadataService,
+      Component storageName,
       Component coreName) {
     super(
         plugin,
@@ -40,6 +43,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
         offsetZ,
         metadataService,
         "storage");
+    this.storageName = storageName == null ? Component.text("Storage") : storageName;
     this.coreName = coreName == null ? Component.text("Storage Core") : coreName;
   }
 
@@ -59,10 +63,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
   protected void decorateMeta(ItemMeta meta, Block block) {
     StorageMarker.get(plugin, block)
         .ifPresentOrElse(
-            data ->
-                meta.displayName(
-                    Component.text(data.tier().displayName())
-                        .decoration(TextDecoration.ITALIC, false)),
+            data -> meta.displayName(storageName(data.tier())),
             () -> {
               if (StorageCoreMarker.isCore(plugin, block)) {
                 meta.displayName(coreName().decoration(TextDecoration.ITALIC, false));
@@ -85,7 +86,7 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
       var data = dataOpt.get();
       t.getLeftRotation().set(DisplayRotation.rotationForFacing(data.facing()));
       t.getRightRotation().identity();
-      display.customName(Component.text(data.tier().displayName()));
+      display.customName(storageName(data.tier()));
       display.setCustomNameVisible(false);
     } else if (StorageCoreMarker.isCore(plugin, block)) {
       t.getLeftRotation().set(new Quaternionf());
@@ -102,5 +103,10 @@ public class StorageDisplayManager extends BaseCarrierDisplayManager {
 
   private Component coreName() {
     return coreName;
+  }
+
+  private Component storageName(StorageTier tier) {
+    Component name = tier.color() == null ? storageName : storageName.color(tier.color());
+    return name.decoration(TextDecoration.ITALIC, false);
   }
 }

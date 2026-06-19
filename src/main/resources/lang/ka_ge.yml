@@ -198,6 +198,7 @@ debug:
     read: "მხოლოდ წაკითხვა"
     write: "ჩაწერა"
 item:
+  storage: "საცავი"
   terminal: "საცავის ტერმინალი"
   crafting_terminal: "კრაფტის ტერმინალი"
   monitor: "საცავის მონიტორი"
@@ -207,6 +208,13 @@ item:
   import_bus: "იმპორტის შინა"
   export_bus: "ექსპორტის შინა"
   wireless_terminal: "უკაბელო ტერმინალი"
+tier:
+  common: "ჩვეულებრივი"
+  rare: "იშვიათი"
+  mythical: "მითური"
+  legendary: "ლეგენდარული"
+  immortal: "უკვდავი"
+
 relay:
   status: "რელეს წყვილი {0} | {1}"
   storage_multiple: "საცავი: რამდენიმეა მიერთებული"
@@ -214,6 +222,7 @@ relay:
   storage_none: "საცავი: არ არის"
 lore:
   storage:
+    tier: "რანგი: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

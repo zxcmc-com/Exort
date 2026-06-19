@@ -198,6 +198,7 @@ debug:
     read: "nur read"
     write: "write"
 item:
+  storage: "Stokado"
   terminal: "Terminal de stokado"
   crafting_terminal: "Terminal de kreado"
   monitor: "Monitor de stokado"
@@ -207,6 +208,13 @@ item:
   import_bus: "Bus de enporto"
   export_bus: "Bus de elporto"
   wireless_terminal: "Terminal sen drato"
+tier:
+  common: "Vanlig"
+  rare: "Sällsynt"
+  mythical: "Mytisk"
+  legendary: "Legendär"
+  immortal: "Odödlig"
+
 relay:
   status: "Nät-relajo par {0} | {1}"
   storage_multiple: "Stokado: multe konekta"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Stokado: nai"
 lore:
   storage:
+    tier: "Nivå: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

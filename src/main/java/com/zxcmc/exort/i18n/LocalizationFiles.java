@@ -80,7 +80,8 @@ public final class LocalizationFiles {
   }
 
   public static boolean isClientResourcePackKey(String key) {
-    return key != null && (key.startsWith("item.") || key.startsWith("lore."));
+    return key != null
+        && (key.startsWith("item.") || key.startsWith("lore.") || key.startsWith("tier."));
   }
 
   public static byte[] clientResourcePackJson(Map<String, String> language) {

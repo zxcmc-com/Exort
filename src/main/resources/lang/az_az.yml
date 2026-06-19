@@ -198,6 +198,7 @@ debug:
     read: "yalnız oxuma"
     write: "yazma"
 item:
+  storage: "Saxlama"
   terminal: "Saxlama terminalı"
   crafting_terminal: "Crafting terminalı"
   monitor: "Saxlama monitoru"
@@ -207,6 +208,13 @@ item:
   import_bus: "İdxal bus-u"
   export_bus: "İxrac bus-u"
   wireless_terminal: "Simsiz terminal"
+tier:
+  common: "Adi"
+  rare: "Nadir"
+  mythical: "Mifik"
+  legendary: "Əfsanəvi"
+  immortal: "Ölümsüz"
+
 relay:
   status: "Rele tərəfdaşı {0} | {1}"
   storage_multiple: "Saxlama: birdən çox qoşulub"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Saxlama: yoxdur"
 lore:
   storage:
+    tier: "Dərəcə: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

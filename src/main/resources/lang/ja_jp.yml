@@ -198,6 +198,7 @@ debug:
     read: "読み取り専用"
     write: "書き込み"
 item:
+  storage: "ストレージ"
   terminal: "ストレージ端末"
   crafting_terminal: "クラフト端末"
   monitor: "ストレージモニター"
@@ -207,6 +208,13 @@ item:
   import_bus: "インポートバス"
   export_bus: "エクスポートバス"
   wireless_terminal: "無線端末"
+tier:
+  common: "コモン"
+  rare: "レア"
+  mythical: "ミシック"
+  legendary: "レジェンダリー"
+  immortal: "イモータル"
+
 relay:
   status: "リレー相手 {0} | {1}"
   storage_multiple: "ストレージ: 複数接続"
@@ -214,6 +222,7 @@ relay:
   storage_none: "ストレージ: なし"
 lore:
   storage:
+    tier: "ティア: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

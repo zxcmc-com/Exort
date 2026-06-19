@@ -97,6 +97,7 @@ public final class ExortItemLocalizationService {
     long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
     String storageId =
         PdcValueSanitizer.uuidString(pdc.get(keys.storageId(), PersistentDataType.STRING));
+    meta.itemName(StorageTierText.storageName(lang, language, tier));
     meta.lore(storageLore(tier, storageId, nested, language));
     return true;
   }
@@ -107,6 +108,7 @@ public final class ExortItemLocalizationService {
     double percent =
         Math.min(100.0, Math.max(0.0, (double) currentAmount / Math.max(1, max) * 100.0));
     List<Component> lore = new ArrayList<>();
+    lore.add(StorageTierText.tierLore(lang, language, tier));
     lore.add(
         text(
             language,
@@ -143,8 +145,7 @@ public final class ExortItemLocalizationService {
       lore.add(text(language, "lore.wireless_terminal.not_linked").color(NamedTextColor.RED));
     } else {
       if (metaInfo.tier() != null) {
-        lore.add(
-            Component.text(metaInfo.tier().displayName()).decoration(TextDecoration.ITALIC, false));
+        lore.add(StorageTierText.tierLore(lang, language, metaInfo.tier()));
       }
       String storageId = metaInfo.storageId();
       if (storageId != null && storageId.length() >= STORAGE_ID_TAIL_LENGTH) {

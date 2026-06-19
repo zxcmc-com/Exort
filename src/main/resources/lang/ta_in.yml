@@ -198,6 +198,7 @@ debug:
     read: "வாசிப்பு மட்டும்"
     write: "எழுது"
 item:
+  storage: "சேமிப்பு"
   terminal: "சேமிப்பு முனையம்"
   crafting_terminal: "க்ராஃப்டிங் முனையம்"
   monitor: "சேமிப்பு கண்காணிப்பான்"
@@ -207,6 +208,13 @@ item:
   import_bus: "இறக்குமதி பஸ்"
   export_bus: "ஏற்றுமதி பஸ்"
   wireless_terminal: "வயர்லெஸ் முனையம்"
+tier:
+  common: "சாதாரணம்"
+  rare: "அரியது"
+  mythical: "புராணம் சார்ந்தது"
+  legendary: "பழம்பெரும்"
+  immortal: "இறப்பற்றது"
+
 relay:
   status: "நெட்வொர்க் ரிலே peer {0} | {1}"
   storage_multiple: "சேமிப்பு: பல இணைக்கப்பட்டுள்ளன"
@@ -214,6 +222,7 @@ relay:
   storage_none: "சேமிப்பு: இல்லை"
 lore:
   storage:
+    tier: "தரம்: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

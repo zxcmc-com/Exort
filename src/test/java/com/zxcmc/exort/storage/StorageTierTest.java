@@ -1,11 +1,14 @@
 package com.zxcmc.exort.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.logging.Logger;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -18,7 +21,7 @@ class StorageTierTest {
     YamlConfiguration config = new YamlConfiguration();
     config.set("basic.maxItems", "2p");
     config.set("basic.material", "CHEST");
-    config.set("basic.displayName", "Basic");
+    config.set("basic.name", "Basic");
 
     StorageTier.loadFromConfig(config, LOGGER);
 
@@ -81,11 +84,68 @@ class StorageTierTest {
   }
 
   @Test
-  void loadFromConfigHumanizesBlankDisplayName() {
+  void loadFromConfigIgnoresLegacyDisplayName() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("rare.maxItems", 128);
+    config.set("rare.material", "CHEST");
+    config.set("rare.displayName", "Legacy Rare");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var tier = StorageTier.fromString("rare").orElseThrow();
+    assertEquals("Rare", tier.displayName());
+    assertTrue(tier.translationKey().isEmpty());
+  }
+
+  @Test
+  void loadFromConfigReadsTranslationPlaceholderName() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("rare.maxItems", 128);
+    config.set("rare.material", "CHEST");
+    config.set("rare.name", "{tier.rare}");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    var tier = StorageTier.fromString("rare").orElseThrow();
+    assertEquals("Rare", tier.displayName());
+    assertEquals("tier.rare", tier.translationKey().orElseThrow());
+  }
+
+  @Test
+  void loadFromConfigParsesTierColorValues() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("hex.maxItems", 128);
+    config.set("hex.material", "CHEST");
+    config.set("hex.color", "#4b69ff");
+    config.set("named.maxItems", 128);
+    config.set("named.material", "CHEST");
+    config.set("named.color", "<red>");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    assertEquals(
+        TextColor.fromHexString("#4b69ff"), StorageTier.fromString("hex").orElseThrow().color());
+    assertEquals(NamedTextColor.RED, StorageTier.fromString("named").orElseThrow().color());
+  }
+
+  @Test
+  void loadFromConfigIgnoresInvalidTierColor() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("bad.maxItems", 128);
+    config.set("bad.material", "CHEST");
+    config.set("bad.color", "<#zzzzzz>");
+
+    StorageTier.loadFromConfig(config, LOGGER);
+
+    assertNull(StorageTier.fromString("bad").orElseThrow().color());
+  }
+
+  @Test
+  void loadFromConfigHumanizesBlankName() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("wire-tier.maxItems", 128);
     config.set("wire-tier.material", "CHEST");
-    config.set("wire-tier.displayName", " ");
+    config.set("wire-tier.name", " ");
 
     StorageTier.loadFromConfig(config, LOGGER);
 
@@ -97,7 +157,7 @@ class StorageTierTest {
     YamlConfiguration config = new YamlConfiguration();
     config.set("basic.maxItems", 128);
     config.set("basic.material", "minecraft:chest");
-    config.set("basic.displayName", "Basic");
+    config.set("basic.name", "Basic");
 
     StorageTier.loadFromConfig(config, LOGGER);
 

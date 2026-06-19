@@ -198,6 +198,7 @@ debug:
     read: "केवल पढ़ना"
     write: "लिखना"
 item:
+  storage: "भंडारण"
   terminal: "भंडारण टर्मिनल"
   crafting_terminal: "क्राफ्टिंग टर्मिनल"
   monitor: "भंडारण मॉनिटर"
@@ -207,6 +208,13 @@ item:
   import_bus: "इम्पोर्ट बस"
   export_bus: "एक्सपोर्ट बस"
   wireless_terminal: "वायरलेस टर्मिनल"
+tier:
+  common: "सामान्य"
+  rare: "दुर्लभ"
+  mythical: "मिथकीय"
+  legendary: "पौराणिक"
+  immortal: "अमर"
+
 relay:
   status: "नेटवर्क रिले peer {0} | {1}"
   storage_multiple: "भंडारण: कई जुड़े हैं"
@@ -214,6 +222,7 @@ relay:
   storage_none: "भंडारण: कोई नहीं"
 lore:
   storage:
+    tier: "टियर: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

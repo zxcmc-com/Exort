@@ -13,6 +13,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -230,7 +231,7 @@ public class Lang {
   private String formatParams(String base, Object... params) {
     String result = base;
     for (int i = 0; i < params.length; i++) {
-      result = result.replace("{" + i + "}", String.valueOf(params[i]));
+      result = result.replace("{" + i + "}", paramText(params[i]));
     }
     return result;
   }
@@ -251,9 +252,19 @@ public class Lang {
   private Component[] componentArgs(Object... params) {
     Component[] args = new Component[params.length];
     for (int i = 0; i < params.length; i++) {
-      args[i] = Component.text(String.valueOf(params[i]));
+      args[i] =
+          params[i] instanceof Component component
+              ? component
+              : Component.text(paramText(params[i]));
     }
     return args;
+  }
+
+  private String paramText(Object param) {
+    if (param instanceof Component component) {
+      return PlainTextComponentSerializer.plainText().serialize(component);
+    }
+    return String.valueOf(param);
   }
 
   public String clientKey(String key) {
@@ -329,6 +340,7 @@ public class Lang {
     fallback.put("message.relay_unlinked", "Network relay link removed.");
     fallback.put("message.help_header", "Exort Storage Network commands:");
     fallback.put("message.version", "Exort Storage Network v{0} by phantomfighterxx");
+    fallback.put("item.storage", "Storage");
     fallback.put("item.storage_core", "Storage Core");
     fallback.put("item.terminal", "Storage Terminal");
     fallback.put("item.crafting_terminal", "Crafting Terminal");
@@ -338,10 +350,16 @@ public class Lang {
     fallback.put("item.import_bus", "Import Bus");
     fallback.put("item.export_bus", "Export Bus");
     fallback.put("item.wireless_terminal", "Wireless Terminal");
+    fallback.put("tier.common", "Common");
+    fallback.put("tier.rare", "Rare");
+    fallback.put("tier.mythical", "Mythical");
+    fallback.put("tier.legendary", "Legendary");
+    fallback.put("tier.immortal", "Immortal");
     fallback.put("relay.status", "Network relay peer {0} | {1}");
     fallback.put("relay.storage_multiple", "Storage: multiple connected");
     fallback.put("relay.storage_tail", "Storage: {0}");
     fallback.put("relay.storage_none", "Storage: none");
+    fallback.put("lore.storage.tier", "Tier: {0}");
     fallback.put("lore.storage.capacity", "{0} / {1} ({2})");
     fallback.put("lore.storage.id_tail", "{0}");
     fallback.put("lore.wireless_terminal.battery", "Battery: {0}%");

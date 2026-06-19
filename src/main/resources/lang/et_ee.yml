@@ -198,6 +198,7 @@ debug:
     read: "ainult lugemine"
     write: "kirjutamine"
 item:
+  storage: "Hoidla"
   terminal: "Hoidla terminal"
   crafting_terminal: "Meisterdamisterminal"
   monitor: "Hoidla monitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Impordi siin"
   export_bus: "Ekspordi siin"
   wireless_terminal: "Juhtmevaba terminal"
+tier:
+  common: "Tavaline"
+  rare: "Haruldane"
+  mythical: "Müütiline"
+  legendary: "Legendaarne"
+  immortal: "Surematu"
+
 relay:
   status: "Võrgurelee paariline {0} | {1}"
   storage_multiple: "Hoidla: mitu ühendatud"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Hoidla: puudub"
 lore:
   storage:
+    tier: "Tase: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

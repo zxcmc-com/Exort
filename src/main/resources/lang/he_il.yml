@@ -198,6 +198,7 @@ debug:
     read: "קריאה בלבד"
     write: "כתיבה"
 item:
+  storage: "אחסון"
   terminal: "מסוף אחסון"
   crafting_terminal: "מסוף יצירה"
   monitor: "צג אחסון"
@@ -207,6 +208,13 @@ item:
   import_bus: "אפיק ייבוא"
   export_bus: "אפיק ייצוא"
   wireless_terminal: "מסוף אלחוטי"
+tier:
+  common: "נפוץ"
+  rare: "נדיר"
+  mythical: "מיתולוגי"
+  legendary: "אגדי"
+  immortal: "אלמותי"
+
 relay:
   status: "צד ממסר {0} | {1}"
   storage_multiple: "אחסון: כמה מחוברים"
@@ -214,6 +222,7 @@ relay:
   storage_none: "אחסון: אין"
 lore:
   storage:
+    tier: "דרגה: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -198,6 +198,7 @@ debug:
     read: "только чтение"
     write: "чтение/запись"
 item:
+  storage: "Хранилище"
   terminal: "Терминал хранилища"
   crafting_terminal: "Терминал создания"
   monitor: "Монитор хранилища"
@@ -207,6 +208,13 @@ item:
   import_bus: "Шина импорта"
   export_bus: "Шина экспорта"
   wireless_terminal: "Беспроводной терминал"
+tier:
+  common: "Обычный"
+  rare: "Редкий"
+  mythical: "Мифический"
+  legendary: "Легендарный"
+  immortal: "Бессмертный"
+
 relay:
   status: "Ретранслятор: {0} | {1}"
   storage_multiple: "Хранилище: подключено несколько"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Хранилище: нет"
 lore:
   storage:
+    tier: "Тир: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

@@ -1,6 +1,7 @@
 package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
@@ -106,7 +107,7 @@ final class StorageGuiControls {
                     "(" + FORMAT_PERCENT.format(filled * 100.0) + "%)", freeColor(free)));
 
     List<Component> lore = new ArrayList<>();
-    lore.add(text(tier.displayName()));
+    lore.add(StorageTierText.tierLore(lang, lang.pluginTextLanguage(viewer), tier));
     if (showStorageId) {
       lore.add(text(lang.tr(viewer, "gui.info.storage_id", cache.getStorageId())));
     }

@@ -198,6 +198,7 @@ debug:
     read: "look-only"
     write: "write aboard"
 item:
+  storage: "Cargo Hold"
   terminal: "Cargo Hold Terminal"
   crafting_terminal: "Craftin' Terminal"
   monitor: "Cargo Hold Lookout"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import Skiff"
   export_bus: "Export Skiff"
   wireless_terminal: "Wireless Speaking Tube"
+tier:
+  common: "Common"
+  rare: "Rare"
+  mythical: "Mythic"
+  legendary: "Legendary"
+  immortal: "Undying"
+
 relay:
   status: "Relay mate {0} | {1}"
   storage_multiple: "Cargo Hold: too many lashed"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Cargo Hold: none"
 lore:
   storage:
+    tier: "Rank: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

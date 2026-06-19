@@ -198,6 +198,7 @@ debug:
     read: "read-only"
     write: "write"
 item:
+  storage: "Складиште"
   terminal: "Storage Terminal"
   crafting_terminal: "Crafting Terminal"
   monitor: "Storage Monitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import Bus"
   export_bus: "Export Bus"
   wireless_terminal: "Wireless Terminal"
+tier:
+  common: "Обично"
+  rare: "Ретко"
+  mythical: "Митско"
+  legendary: "Легендарно"
+  immortal: "Бесмртно"
+
 relay:
   status: "Релеј: {0} | {1}"
   storage_multiple: "Складиште: поврзани се повеќе"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Складиште: нема"
 lore:
   storage:
+    tier: "Ниво: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

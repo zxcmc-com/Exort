@@ -198,6 +198,7 @@ debug:
     read: "อ่านอย่างเดียว"
     write: "เขียน"
 item:
+  storage: "คลัง"
   terminal: "เทอร์มินัลคลัง"
   crafting_terminal: "เทอร์มินัลคราฟต์"
   monitor: "มอนิเตอร์คลัง"
@@ -207,6 +208,13 @@ item:
   import_bus: "บัสนำเข้า"
   export_bus: "บัสส่งออก"
   wireless_terminal: "เทอร์มินัลไร้สาย"
+tier:
+  common: "ธรรมดา"
+  rare: "หายาก"
+  mythical: "เทพปกรณัม"
+  legendary: "ตำนาน"
+  immortal: "อมตะ"
+
 relay:
   status: "คู่รีเลย์เครือข่าย {0} | {1}"
   storage_multiple: "คลัง: เชื่อมต่อหลายอัน"
@@ -214,6 +222,7 @@ relay:
   storage_none: "คลัง: ไม่มี"
 lore:
   storage:
+    tier: "ระดับ: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

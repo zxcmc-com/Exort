@@ -198,6 +198,7 @@ debug:
     read: "chỉ đọc"
     write: "ghi"
 item:
+  storage: "Kho lưu trữ"
   terminal: "Storage Terminal"
   crafting_terminal: "Crafting Terminal"
   monitor: "Storage Monitor"
@@ -207,6 +208,13 @@ item:
   import_bus: "Import Bus"
   export_bus: "Export Bus"
   wireless_terminal: "Wireless Terminal"
+tier:
+  common: "Thường"
+  rare: "Hiếm"
+  mythical: "Thần thoại"
+  legendary: "Huyền thoại"
+  immortal: "Bất tử"
+
 relay:
   status: "Bộ chuyển tiếp mạng ngang hàng {0} | {1}"
   storage_multiple: "Kho lưu trữ: nhiều kết nối"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Kho lưu trữ: không có"
 lore:
   storage:
+    tier: "Bậc: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:

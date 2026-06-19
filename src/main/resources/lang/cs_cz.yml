@@ -198,6 +198,7 @@ debug:
     read: "jen pro čtení"
     write: "zápis"
 item:
+  storage: "Úložiště"
   terminal: "Terminál úložiště"
   crafting_terminal: "Craftovací terminál"
   monitor: "Monitor úložiště"
@@ -207,6 +208,13 @@ item:
   import_bus: "Importní sběrnice"
   export_bus: "Exportní sběrnice"
   wireless_terminal: "Bezdrátový terminál"
+tier:
+  common: "Běžná"
+  rare: "Vzácná"
+  mythical: "Mýtická"
+  legendary: "Legendární"
+  immortal: "Nesmrtelná"
+
 relay:
   status: "Relé: {0} | {1}"
   storage_multiple: "Úložiště: připojeno více"
@@ -214,6 +222,7 @@ relay:
   storage_none: "Úložiště: žádné"
 lore:
   storage:
+    tier: "Třída: {0}"
     capacity: "{0} / {1} ({2})"
     id_tail: "{0}"
   wireless_terminal:
