@@ -3,9 +3,9 @@ package com.zxcmc.exort.gui;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
-import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.text.DecimalFormat;
@@ -347,7 +347,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     bossBar.setTitle(
         tr(
             "gui.bossbar",
-            StorageTierText.storageLabelWithTier(lang, viewer, tier),
+            StorageDisplayName.label(lang, viewer, tier, cache.getDisplayName()),
             formatNumber(current),
             formatNumber(max),
             percent));

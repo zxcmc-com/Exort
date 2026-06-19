@@ -335,6 +335,7 @@ public final class BlockBreakHandler {
     }
     String storageId = marker.get().storageId();
     StorageTier tier = marker.get().tier();
+    String displayName = marker.get().displayName();
     StorageCache cache = storageManager.getLoadedCache(storageId).orElse(null);
     if (cache == null) {
       preloadStorageForBreak(player, storageId, true);
@@ -343,7 +344,10 @@ public final class BlockBreakHandler {
     playBreakParticles(block, BreakType.STORAGE);
     block.setType(Material.AIR);
     long amount = cache.effectiveTotal();
-    ItemStack drop = customItems.storageItem(tier, storageId, amount);
+    if (displayName == null) {
+      displayName = cache.getDisplayName();
+    }
+    ItemStack drop = customItems.storageItem(tier, storageId, amount, displayName);
     dropItemSafe(block, drop);
 
     for (GuiSession session : sessionManager.sessionsForStorage(storageId).stream().toList()) {

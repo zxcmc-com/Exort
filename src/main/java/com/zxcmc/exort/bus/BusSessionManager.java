@@ -13,6 +13,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.platform.PlayerInteractionRange;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
@@ -247,8 +248,7 @@ public class BusSessionManager {
     }
     String storageId = link.data().storageId();
     StorageTier tier = link.data().tier();
-    String storageName =
-        tier == null ? storageId : StorageTierText.storageLabelWithTier(lang, viewer, tier);
+    Component storageValue = storageValue(viewer, tier, storageId, link.data().displayName());
     var targetOpt = busService.resolveTarget(busBlock, state.facing());
     String invName = null;
     if (targetOpt.isPresent()) {
@@ -259,11 +259,34 @@ public class BusSessionManager {
         StorageTier targetTier = storageTarget.tier();
         invName =
             targetTier != null
-                ? StorageTierText.storageLabelWithTier(lang, viewer, targetTier)
+                ? StorageDisplayName.label(lang, viewer, targetTier, storageTarget.displayName())
                 : lang.tr(viewer, "gui.bus.info.exort_storage");
       }
     }
-    return new BusLinkStatus(StorageState.OK, storageId, storageName, invName, loop);
+    return new BusLinkStatus(StorageState.OK, storageId, storageValue, invName, loop);
+  }
+
+  private Component storageValue(
+      Player viewer, StorageTier tier, String storageId, String displayName) {
+    return storageValue(lang, viewer, tier, storageId, displayName);
+  }
+
+  static Component storageValue(
+      Lang lang, Player viewer, StorageTier tier, String storageId, String displayName) {
+    String normalizedName = StorageDisplayName.normalize(displayName);
+    if (normalizedName != null) {
+      Component component = ExortText.itemText(normalizedName);
+      return tier == null || tier.color() == null ? component : component.color(tier.color());
+    }
+    if (tier != null) {
+      String language = lang == null ? null : lang.pluginTextLanguage(viewer);
+      if (lang != null) {
+        return StorageTierText.tierName(lang, language, tier);
+      }
+      Component component = ExortText.itemText(tier.displayName());
+      return tier.color() == null ? component : component.color(tier.color());
+    }
+    return ExortText.itemText(storageId == null ? "" : storageId);
   }
 
   String inventoryDisplayName(Material material, Player viewer) {
@@ -308,7 +331,7 @@ public class BusSessionManager {
   public record BusLinkStatus(
       StorageState storageState,
       String storageId,
-      String storageName,
+      Component storageValue,
       String inventoryName,
       boolean loopDisabled) {}
 

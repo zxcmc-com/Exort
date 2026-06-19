@@ -173,9 +173,7 @@ public class BusSession implements InventoryHolder {
               .decoration(TextDecoration.ITALIC, false));
     }
     if (status.storageState() == BusSessionManager.StorageState.OK) {
-      lore.add(
-          Component.text(lang.tr(viewer, "gui.bus.info.storage", status.storageName()))
-              .decoration(TextDecoration.ITALIC, false));
+      lore.add(storageInfoLine(status.storageValue()));
       if (showStorageId && status.storageId() != null && !status.storageId().isBlank()) {
         lore.add(
             Component.text(lang.tr(viewer, "gui.bus.info.storage_id", status.storageId()))
@@ -212,6 +210,16 @@ public class BusSession implements InventoryHolder {
       return GuiItems.infoErrorButton(title, lore);
     }
     return GuiItems.infoButton(title, lore, useFillers);
+  }
+
+  private Component storageInfoLine(Component storageName) {
+    return storageInfoLine(lang.tr(viewer, "gui.bus.info.storage", ""), storageName);
+  }
+
+  static Component storageInfoLine(String prefix, Component storageName) {
+    return Component.text(prefix == null ? "" : prefix)
+        .append(storageName == null ? Component.empty() : storageName)
+        .decoration(TextDecoration.ITALIC, false);
   }
 
   private boolean isFilterSlot(int slot) {

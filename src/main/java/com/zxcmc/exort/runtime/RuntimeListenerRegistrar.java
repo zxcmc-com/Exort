@@ -10,6 +10,7 @@ import com.zxcmc.exort.gui.listener.SearchDialogListener;
 import com.zxcmc.exort.gui.listener.TerminalListener;
 import com.zxcmc.exort.items.listener.InventoryRefreshListener;
 import com.zxcmc.exort.items.listener.PickListener;
+import com.zxcmc.exort.items.listener.StorageAnvilRenameListener;
 import com.zxcmc.exort.monitor.listener.MonitorListener;
 import com.zxcmc.exort.monitor.listener.MonitorListenerDependencies;
 import com.zxcmc.exort.placement.ExortBlockTargetResolver;
@@ -47,6 +48,7 @@ public final class RuntimeListenerRegistrar {
     registerMonitorListener(deps);
     RightClickPlacementGuard placementGuard = registerPlacementGuard(deps, placementConfig);
     registerInventoryRefreshListener(deps);
+    registerStorageAnvilRenameListener(deps);
     RecipeRegistration recipes = registerRecipes(deps);
     registerWirelessListeners(deps);
     return new RuntimeListenerRegistration(
@@ -81,8 +83,9 @@ public final class RuntimeListenerRegistrar {
                 deps.busServiceSource(),
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
-                (storageId, tierKey, tierMaxItems) ->
-                    deps.database().setStorageTier(storageId, tierKey, tierMaxItems),
+                (storageId, tierKey, tierMaxItems, displayName) ->
+                    deps.database()
+                        .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
   }
@@ -226,8 +229,9 @@ public final class RuntimeListenerRegistrar {
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
                 deps.monitorPlacedRecorder(),
-                (storageId, tierKey, tierMaxItems) ->
-                    deps.database().setStorageTier(storageId, tierKey, tierMaxItems),
+                (storageId, tierKey, tierMaxItems, displayName) ->
+                    deps.database()
+                        .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
   }
@@ -334,6 +338,10 @@ public final class RuntimeListenerRegistrar {
             deps.inventoryRefreshService()::epoch,
             deps.inventoryRefreshService()::refreshPlayerInventory,
             deps.inventoryRefreshService()::refreshContainerInventory));
+  }
+
+  private static void registerStorageAnvilRenameListener(RuntimeListenerDependencies deps) {
+    register(deps, new StorageAnvilRenameListener(deps.plugin(), deps.keys(), deps.customItems()));
   }
 
   private static RecipeRegistration registerRecipes(RuntimeListenerDependencies deps) {

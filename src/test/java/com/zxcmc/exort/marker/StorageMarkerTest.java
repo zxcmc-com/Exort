@@ -63,6 +63,26 @@ class StorageMarkerTest {
     assertTrue(StorageMarker.get(plugin, block).isEmpty());
   }
 
+  @Test
+  void markerStoresNormalizesAndClearsDisplayName() {
+    loadTiers(true);
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block =
+        BukkitTestDoubles.world("storage-marker-display-name", uuid(4))
+            .block(0, 64, 0, Material.BARRIER);
+    StorageTier tier = StorageTier.fromString("gold").orElseThrow();
+
+    StorageMarker.set(plugin, block, "storage-d", tier, null, "  Main\u0000 Vault  ");
+
+    StorageMarker.Data named = StorageMarker.get(plugin, block).orElseThrow();
+    assertEquals("Main Vault", named.displayName());
+
+    StorageMarker.set(plugin, block, "storage-d", tier, null, " ");
+
+    StorageMarker.Data cleared = StorageMarker.get(plugin, block).orElseThrow();
+    assertEquals(null, cleared.displayName());
+  }
+
   private static void loadTiers(boolean includeObsidian) {
     YamlConfiguration config = new YamlConfiguration();
     config.set("gold.maxItems", "1p");

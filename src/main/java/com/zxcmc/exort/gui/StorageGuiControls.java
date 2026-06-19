@@ -3,6 +3,7 @@ package com.zxcmc.exort.gui;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import java.text.DecimalFormat;
@@ -106,8 +107,40 @@ final class StorageGuiControls {
                 Component.text(
                     "(" + FORMAT_PERCENT.format(filled * 100.0) + "%)", freeColor(free)));
 
+    List<Component> lore =
+        infoLore(
+            lang,
+            viewer,
+            cache,
+            tier,
+            showStorageId,
+            readOnly,
+            infoErrorActive,
+            infoErrorMessage,
+            infoConfirmRemaining,
+            infoBlocked);
+    return infoErrorActive
+        ? GuiItems.infoErrorButton(title, lore)
+        : GuiItems.infoButton(title, lore, useFillers);
+  }
+
+  static List<Component> infoLore(
+      Lang lang,
+      Player viewer,
+      StorageCache cache,
+      StorageTier tier,
+      boolean showStorageId,
+      boolean readOnly,
+      boolean infoErrorActive,
+      String infoErrorMessage,
+      int infoConfirmRemaining,
+      boolean infoBlocked) {
     List<Component> lore = new ArrayList<>();
     lore.add(StorageTierText.tierLore(lang, lang.pluginTextLanguage(viewer), tier));
+    String displayName = StorageDisplayName.normalize(cache.getDisplayName());
+    if (displayName != null) {
+      lore.add(text(StorageDisplayName.label(lang, viewer, tier, displayName)));
+    }
     if (showStorageId) {
       lore.add(text(lang.tr(viewer, "gui.info.storage_id", cache.getStorageId())));
     }
@@ -123,9 +156,7 @@ final class StorageGuiControls {
         lore.add(redText(lang.tr(viewer, "gui.info.force_blocked")));
       }
     }
-    return infoErrorActive
-        ? GuiItems.infoErrorButton(title, lore)
-        : GuiItems.infoButton(title, lore, useFillers);
+    return lore;
   }
 
   private static Component text(String value) {

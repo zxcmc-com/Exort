@@ -153,6 +153,7 @@ public class MonitorListener implements Listener {
         bossBarManager.showPeek(
             link.data().storageId(),
             link.data().tier(),
+            link.data().displayName(),
             event.getPlayer(),
             storagePeekTicks.getAsLong());
       }

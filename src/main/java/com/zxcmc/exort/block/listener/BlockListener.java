@@ -360,6 +360,7 @@ public class BlockListener implements Listener {
 
     String storageId =
         customItems.storageId(event.getItemInHand()).orElse(UUID.randomUUID().toString());
+    String displayName = customItems.storageDisplayName(event.getItemInHand()).orElse(null);
     ItemStack placedItem = event.getItemInHand().clone();
     placedItem.setAmount(1);
     boolean refundOnPersistFailure = shouldRefundPlacementItem(event.getPlayer(), placedItem);
@@ -372,7 +373,7 @@ public class BlockListener implements Listener {
       block.setBlockData(directional, false);
     }
     BlockFace storageFace = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
-    StorageMarker.set(plugin, block, storageId, tier, storageFace);
+    StorageMarker.set(plugin, block, storageId, tier, storageFace, displayName);
     preloadStorage(event.getPlayer(), storageId);
     persistStorageTier(
         event.getPlayer(),
@@ -380,6 +381,7 @@ public class BlockListener implements Listener {
         storageId,
         tier.key(),
         tier.maxItems(),
+        displayName,
         placedItem,
         refundOnPersistFailure);
     var refresh = displayRefreshService.get();
@@ -532,15 +534,18 @@ public class BlockListener implements Listener {
       String storageId,
       String tierKey,
       long tierMaxItems,
+      String displayName,
       ItemStack refund,
       boolean shouldRefund) {
     storageTierSaver
-        .save(storageId, tierKey, tierMaxItems)
+        .save(storageId, tierKey, tierMaxItems, displayName)
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {
                 placementFailureHandler.rollbackFailedPlacement(
                     player, block, storageId, refund, shouldRefund, err);
+              } else {
+                storageManager.setCachedDisplayName(storageId, displayName);
               }
             });
   }

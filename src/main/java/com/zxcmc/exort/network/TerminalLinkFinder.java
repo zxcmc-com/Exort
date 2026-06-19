@@ -10,7 +10,12 @@ import org.bukkit.plugin.Plugin;
 public final class TerminalLinkFinder {
   private TerminalLinkFinder() {}
 
-  public record StorageBlockInfo(Block block, String storageId, StorageTier tier) {}
+  public record StorageBlockInfo(
+      Block block, String storageId, StorageTier tier, String displayName) {
+    public StorageBlockInfo(Block block, String storageId, StorageTier tier) {
+      this(block, storageId, tier, null);
+    }
+  }
 
   public record StorageSearchResult(int count, StorageBlockInfo data) {}
 

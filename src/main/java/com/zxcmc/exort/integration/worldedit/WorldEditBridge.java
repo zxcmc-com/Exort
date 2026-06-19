@@ -111,6 +111,7 @@ public final class WorldEditBridge implements Listener {
   private static final String FIELD_TYPE = "type";
   private static final String FIELD_MODE = "mode";
   private static final String FIELD_FACING = "facing";
+  private static final String FIELD_NAME = "name";
   private static final String FIELD_ITEM_KEY = "item_key";
   private static final String FIELD_ITEM_BLOB = "item_blob";
   private static final String FIELD_PRESENT = "present";
@@ -1268,7 +1269,12 @@ public final class WorldEditBridge implements Listener {
       String storageId = snapshot.storage().storageId();
       if (resolution != null) {
         StorageMarker.set(
-            plugin, block, storageId, resolution.tier(), parseFacing(snapshot.storage()));
+            plugin,
+            block,
+            storageId,
+            resolution.tier(),
+            parseFacing(snapshot.storage()),
+            snapshot.storage().displayName());
         ItemHologramManager hologramManager = deps.hologramManager();
         if (hologramManager != null) {
           hologramManager.registerStorage(block);
@@ -1283,7 +1289,8 @@ public final class WorldEditBridge implements Listener {
             storageId,
             snapshot.storage().tier(),
             snapshot.storage().tierMaxItems(),
-            parseFacing(snapshot.storage()));
+            parseFacing(snapshot.storage()),
+            snapshot.storage().displayName());
       }
     }
     if (snapshot.storageCore() && Carriers.matchesCarrier(block, deps.storageCarrier())) {
@@ -1485,6 +1492,9 @@ public final class WorldEditBridge implements Listener {
       storageTag.putString(FIELD_ID, data.storageId());
       storageTag.putString(FIELD_TIER, data.tier().key());
       storageTag.putString(FIELD_TIER_MAX_ITEMS, Long.toString(data.tierMaxItems()));
+      if (data.displayName() != null) {
+        storageTag.putString(FIELD_NAME, data.displayName());
+      }
       if (data.facing() != null) {
         storageTag.putString(FIELD_FACING, data.facing().name());
       }
@@ -1649,6 +1659,9 @@ public final class WorldEditBridge implements Listener {
         storageTag.putString(
             FIELD_TIER_MAX_ITEMS, Long.toString(snapshot.storage().tierMaxItems()));
       }
+      if (snapshot.storage().displayName() != null) {
+        storageTag.putString(FIELD_NAME, snapshot.storage().displayName());
+      }
       if (snapshot.storage().facing() != null) {
         storageTag.putString(FIELD_FACING, snapshot.storage().facing());
       }
@@ -1789,8 +1802,9 @@ public final class WorldEditBridge implements Listener {
       String tier = readString(storageTag, FIELD_TIER);
       Long tierMaxItems = readPositiveLongString(storageTag, FIELD_TIER_MAX_ITEMS);
       String facing = readString(storageTag, FIELD_FACING);
+      String displayName = readString(storageTag, FIELD_NAME);
       if (id != null && tier != null) {
-        storage = new StorageData(id, tier, tierMaxItems, facing);
+        storage = new StorageData(id, tier, tierMaxItems, facing, displayName);
       }
     }
 
@@ -3172,7 +3186,8 @@ public final class WorldEditBridge implements Listener {
                 resolvedStorage.storageId(),
                 resolvedStorage.tier(),
                 resolvedStorage.tierMaxItems(),
-                rotateFacing(resolvedStorage.facing(), transform));
+                rotateFacing(resolvedStorage.facing(), transform),
+                resolvedStorage.displayName());
     TerminalData terminal =
         snapshot.terminal() == null
             ? null
@@ -3206,7 +3221,8 @@ public final class WorldEditBridge implements Listener {
             storageId,
             resolvedStorage.tier(),
             resolvedStorage.tierMaxItems(),
-            resolvedStorage.facing());
+            resolvedStorage.facing(),
+            resolvedStorage.displayName());
     return new MarkerSnapshot(
         storage,
         snapshot.terminal(),
@@ -3237,7 +3253,11 @@ public final class WorldEditBridge implements Listener {
         StorageTierResolver.resolve(storage.tier(), storage.tierMaxItems()).orElse(null);
     if (resolution == null) return storage;
     return new StorageData(
-        storage.storageId(), resolution.tier().key(), resolution.tierMaxItems(), storage.facing());
+        storage.storageId(),
+        resolution.tier().key(),
+        resolution.tierMaxItems(),
+        storage.facing(),
+        storage.displayName());
   }
 
   private static MarkerSnapshot withRelay(MarkerSnapshot snapshot, RelayData relay) {

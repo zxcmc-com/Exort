@@ -187,6 +187,7 @@ public class TerminalListener implements Listener {
     }
     if (!storageId.equals(cache.getStorageId())) return;
 
+    cache.setDisplayName(storageData.data().displayName());
     Location storageLoc =
         storageData.data().block() != null ? storageData.data().block().getLocation() : null;
     TerminalKind kind = TerminalMarker.kind(plugin, block);

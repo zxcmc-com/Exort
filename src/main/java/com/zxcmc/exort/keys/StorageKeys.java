@@ -5,6 +5,7 @@ import org.bukkit.plugin.Plugin;
 
 public final class StorageKeys {
   private final NamespacedKey storageId;
+  private final NamespacedKey storageName;
   private final NamespacedKey type;
   private final NamespacedKey storageTier;
   private final NamespacedKey storageTierMaxItems;
@@ -23,6 +24,7 @@ public final class StorageKeys {
 
   public StorageKeys(Plugin plugin) {
     this.storageId = new NamespacedKey(plugin, "storage_id");
+    this.storageName = new NamespacedKey(plugin, "storage_name");
     this.type = new NamespacedKey(plugin, "type");
     this.storageTier = new NamespacedKey(plugin, "storage_tier");
     this.storageTierMaxItems = new NamespacedKey(plugin, "storage_tier_max_items");
@@ -41,6 +43,10 @@ public final class StorageKeys {
 
   public NamespacedKey storageId() {
     return storageId;
+  }
+
+  public NamespacedKey storageName() {
+    return storageName;
   }
 
   public NamespacedKey type() {

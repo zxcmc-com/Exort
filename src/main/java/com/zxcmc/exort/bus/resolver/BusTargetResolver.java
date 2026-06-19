@@ -39,7 +39,8 @@ public final class BusTargetResolver {
         return Optional.empty();
       }
       StorageMarker.Data data = storage.get();
-      return Optional.of(new StorageTarget(target, data.storageId(), data.tier()));
+      return Optional.of(
+          new StorageTarget(target, data.storageId(), data.tier(), data.displayName()));
     }
     if (TerminalMarker.isTerminal(plugin, target)
         || MonitorMarker.isMonitor(plugin, target)
@@ -108,8 +109,12 @@ public final class BusTargetResolver {
   public record InventoryTarget(Block block, Inventory inventory, BlockState state, BlockFace side)
       implements BusTarget {}
 
-  public record StorageTarget(Block block, String storageId, StorageTier tier)
-      implements BusTarget {}
+  public record StorageTarget(Block block, String storageId, StorageTier tier, String displayName)
+      implements BusTarget {
+    public StorageTarget(Block block, String storageId, StorageTier tier) {
+      this(block, storageId, tier, null);
+    }
+  }
 
   public record InvKey(UUID world, int x, int y, int z) {}
 }
