@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.2 — 2026-06-22
+- Updated bundled vanilla creative-tab ordering through Minecraft `26.2`, including the new sulfur and cinnabar blocks, potent sulfur, sulfur spike, sulfur cube items, and the `Bounce` music disc.
+- Documented Purpur `26.2` as an experimental smoke-tested target while keeping full declared compatibility and the compile Paper API target on the stable `1.21.7-26.1.2` range.
+
 ## 0.16.1 — 2026-06-20
 - Storage items can now be named through a vanilla anvil, cleared with an empty anvil rename, and edited with only the raw custom name shown in the anvil field.
 - Terminals, storage peeks, buses, relays, and placed storage displays now show custom storage names while keeping UUID reveal behavior available; unnamed bus storage info shows the tier name.
