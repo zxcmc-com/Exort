@@ -4,6 +4,7 @@ import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.items.ItemKeyUtil;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
@@ -37,6 +38,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   protected final StorageTier tier;
   protected final Lang lang;
   protected final ItemNameService itemNames;
+  protected final StorageKeys keys;
   protected final SessionManager manager;
   protected final Block terminalBlock;
   protected final Location storageLocation;
@@ -71,6 +73,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
       StorageTier tier,
       Lang lang,
       ItemNameService itemNames,
+      StorageKeys keys,
       SessionManager manager,
       Block terminalBlock,
       Location storageLocation,
@@ -84,6 +87,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     this.tier = tier;
     this.lang = lang;
     this.itemNames = itemNames;
+    this.keys = keys;
     this.manager = manager;
     this.terminalBlock = terminalBlock;
     this.storageLocation = storageLocation;
@@ -193,7 +197,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected boolean matchesQuery(ItemStack stack) {
-    return searchQuery.matches(stack, itemNames, itemDictionaryLanguage());
+    return searchQuery.matches(stack, itemNames, lang, keys, itemDictionaryLanguage());
   }
 
   protected List<DisplayEntry> buildDisplayList() {
@@ -223,6 +227,8 @@ public abstract class AbstractStorageSession implements SearchableSession {
                     sortOrder,
                     searchQuery,
                     itemNames,
+                    lang,
+                    keys,
                     itemLanguage,
                     page,
                     pageSize(),

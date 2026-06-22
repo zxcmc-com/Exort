@@ -1,6 +1,8 @@
 package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,16 +63,33 @@ record SearchQuery(String displayText, List<String> tokens) {
     return SortSearchHelper.matchesQuery(stack, tokens, itemNames, language);
   }
 
+  boolean matches(
+      ItemStack stack, ItemNameService itemNames, Lang lang, StorageKeys keys, String language) {
+    return SortSearchHelper.matchesQuery(stack, tokens, itemNames, lang, keys, language);
+  }
+
   boolean matchesCached(
       StorageCache.StorageItem item,
       Map<String, List<String>> candidatesCache,
       ItemNameService itemNames,
       String language) {
+    return matchesCached(item, candidatesCache, itemNames, null, null, language);
+  }
+
+  boolean matchesCached(
+      StorageCache.StorageItem item,
+      Map<String, List<String>> candidatesCache,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      String language) {
     if (tokens.isEmpty()) return true;
     List<String> candidates =
         candidatesCache.computeIfAbsent(
             item.key(),
-            key -> SortSearchHelper.buildSearchCandidates(item.sample(), itemNames, language));
+            key ->
+                SortSearchHelper.buildSearchCandidates(
+                    item.sample(), itemNames, lang, keys, language));
     if (candidates.isEmpty()) return true;
     for (String token : tokens) {
       for (String candidate : candidates) {

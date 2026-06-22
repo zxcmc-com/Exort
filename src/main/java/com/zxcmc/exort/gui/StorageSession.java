@@ -2,6 +2,7 @@ package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public class StorageSession extends AbstractStorageSession {
       StorageTier tier,
       Lang lang,
       ItemNameService itemNames,
+      StorageKeys keys,
       Block terminalBlock,
       Location storageLocation,
       SessionManager manager,
@@ -46,6 +48,7 @@ public class StorageSession extends AbstractStorageSession {
         tier,
         lang,
         itemNames,
+        keys,
         manager,
         terminalBlock,
         storageLocation,

@@ -2,6 +2,8 @@ package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -29,6 +31,36 @@ final class StorageDisplayListBuilder {
       int pageSize,
       int maxDisplayEntries,
       Function<StorageCache.StorageItem, ItemStack> displaySample) {
+    return build(
+        items,
+        sortMode,
+        sortFrozen,
+        previousSortOrder,
+        searchQuery,
+        itemNames,
+        null,
+        null,
+        itemLanguage,
+        requestedPage,
+        pageSize,
+        maxDisplayEntries,
+        displaySample);
+  }
+
+  static Result build(
+      List<StorageCache.StorageItem> items,
+      SortMode sortMode,
+      boolean sortFrozen,
+      List<String> previousSortOrder,
+      SearchQuery searchQuery,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      String itemLanguage,
+      int requestedPage,
+      int pageSize,
+      int maxDisplayEntries,
+      Function<StorageCache.StorageItem, ItemStack> displaySample) {
     boolean hasSearch = searchQuery != null && !searchQuery.isEmpty();
     boolean allowCategoryDupes = sortMode == SortMode.CATEGORY && !hasSearch;
     SortSearchHelper.SortResult orderedResult =
@@ -41,6 +73,8 @@ final class StorageDisplayListBuilder {
                     sortFrozen,
                     previousSortOrder,
                     itemNames,
+                    lang,
+                    keys,
                     itemLanguage,
                     allowCategoryDupes));
     List<String> sortOrder = orderedResult.order();
@@ -67,7 +101,8 @@ final class StorageDisplayListBuilder {
         "gui.search",
         () -> {
           for (StorageCache.StorageItem item : ordered) {
-            if (activeSearch.matchesCached(item, candidatesCache, itemNames, itemLanguage)) {
+            if (activeSearch.matchesCached(
+                item, candidatesCache, itemNames, lang, keys, itemLanguage)) {
               matches.add(item);
             } else {
               others.add(item);

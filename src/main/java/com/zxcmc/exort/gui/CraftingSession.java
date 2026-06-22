@@ -3,6 +3,7 @@ package com.zxcmc.exort.gui;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.items.ItemKeyUtil;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
@@ -66,6 +67,7 @@ public class CraftingSession extends AbstractStorageSession {
       StorageTier tier,
       Lang lang,
       ItemNameService itemNames,
+      StorageKeys keys,
       Block terminalBlock,
       Location storageLocation,
       SessionManager manager,
@@ -83,6 +85,7 @@ public class CraftingSession extends AbstractStorageSession {
         tier,
         lang,
         itemNames,
+        keys,
         manager,
         terminalBlock,
         storageLocation,

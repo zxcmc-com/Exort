@@ -2,6 +2,7 @@ package com.zxcmc.exort.core;
 
 import com.zxcmc.exort.api.ExortApi;
 import com.zxcmc.exort.api.model.StorageTierDescriptor;
+import com.zxcmc.exort.block.ExortBlockClassifier;
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
@@ -84,6 +85,7 @@ import java.util.logging.Level;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -116,6 +118,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private Material storageCarrier;
   private Material relayCarrier;
   private Material terminalCarrier;
+  private RuntimeMaterials runtimeMaterials;
+  private ExortBlockClassifier blockClassifier;
   private ItemHologramManager hologramManager;
   private boolean dialogSupported;
   private MonitorDisplayManager monitorDisplayManager;
@@ -280,6 +284,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (database != null) {
       database.close();
     }
+    runtimeMaterials = null;
+    blockClassifier = null;
   }
 
   private void stopResourcePackService() {
@@ -348,6 +354,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   @Override
   public Collection<StorageTierDescriptor> getStorageTiers() {
     return StorageTier.allTiers().stream().map(StorageTier::descriptor).toList();
+  }
+
+  @Override
+  public boolean isExortBlock(Block block) {
+    RuntimeMaterials materials = runtimeMaterials;
+    ExortBlockClassifier classifier = blockClassifier;
+    return materials != null && classifier != null && classifier.isExortBlock(block);
+  }
+
+  @Override
+  public boolean isExortChorusCarrier(Block block) {
+    RuntimeMaterials materials = runtimeMaterials;
+    ExortBlockClassifier classifier = blockClassifier;
+    return materials != null && classifier != null && classifier.isExortChorusCarrier(block);
   }
 
   private boolean ensureMinMinecraftVersion() {
@@ -526,6 +546,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     customItems = services.customItems();
     wirelessService = services.wirelessService();
     RuntimeMaterials materials = services.materials();
+    runtimeMaterials = materials;
+    blockClassifier = new ExortBlockClassifier(this, materials);
     wireMaterial = materials.wire();
     storageCarrier = materials.storageCarrier();
     relayCarrier = materials.relayCarrier();

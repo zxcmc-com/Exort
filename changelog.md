@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.3 — 2026-06-22
+- Exort's public API now exposes read-only carrier detection for external integrations: plugins can check whether a loaded block is an Exort-managed block and whether it is specifically backed by a real `CHORUS_PLANT` carrier.
+- Terminal and crafting-terminal search now matches Exort items by the viewer's localized item names, storage tier names, and custom storage names while keeping stable Exort ids searchable.
+
 ## 0.16.2 — 2026-06-22
 - Updated bundled vanilla creative-tab ordering through Minecraft `26.2`, including the new sulfur and cinnabar blocks, potent sulfur, sulfur spike, sulfur cube items, and the `Bounce` music disc.
 - Documented Purpur `26.2` as an experimental smoke-tested target while keeping full declared compatibility and the compile Paper API target on the stable `1.21.7-26.1.2` range.

@@ -1,14 +1,26 @@
 package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.i18n.ItemNameService;
+import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.i18n.StorageTierText;
+import com.zxcmc.exort.items.CustomItemIdentity;
+import com.zxcmc.exort.items.CustomItemRegistry;
+import com.zxcmc.exort.items.StorageItemNameEditor;
+import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierResolver;
 import java.util.*;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 public final class SortSearchHelper {
   public record SortResult(List<StorageCache.StorageItem> ordered, List<String> order) {}
+
+  private record ExortSearchNames(String primaryName, List<String> candidates) {}
 
   private static final CreativeTabOrder FALLBACK_CATEGORY_ORDER = CreativeTabOrder.fromData();
 
@@ -37,6 +49,28 @@ public final class SortSearchHelper {
       ItemNameService itemNames,
       String language,
       boolean allowCategoryDuplicates) {
+    return resolveOrder(
+        items,
+        sortMode,
+        sortFrozen,
+        currentOrder,
+        itemNames,
+        null,
+        null,
+        language,
+        allowCategoryDuplicates);
+  }
+
+  public static SortResult resolveOrder(
+      List<StorageCache.StorageItem> items,
+      SortMode sortMode,
+      boolean sortFrozen,
+      List<String> currentOrder,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      String language,
+      boolean allowCategoryDuplicates) {
     Map<String, StorageCache.StorageItem> byKey = new HashMap<>();
     for (StorageCache.StorageItem item : items) {
       byKey.put(item.key(), item);
@@ -44,7 +78,7 @@ public final class SortSearchHelper {
     if (sortFrozen) {
       if (currentOrder.isEmpty()) {
         List<StorageCache.StorageItem> sorted =
-            sortItems(items, sortMode, itemNames, language, allowCategoryDuplicates);
+            sortItems(items, sortMode, itemNames, lang, keys, language, allowCategoryDuplicates);
         List<String> order =
             new ArrayList<>(sorted.stream().map(StorageCache.StorageItem::key).toList());
         return new SortResult(sorted, order);
@@ -64,12 +98,13 @@ public final class SortSearchHelper {
             extra.add(item);
           }
         }
-        ordered.addAll(sortItems(extra, sortMode, itemNames, language, allowCategoryDuplicates));
+        ordered.addAll(
+            sortItems(extra, sortMode, itemNames, lang, keys, language, allowCategoryDuplicates));
       }
       return new SortResult(ordered, new ArrayList<>(currentOrder));
     }
     List<StorageCache.StorageItem> sorted =
-        sortItems(items, sortMode, itemNames, language, allowCategoryDuplicates);
+        sortItems(items, sortMode, itemNames, lang, keys, language, allowCategoryDuplicates);
     List<String> order =
         new ArrayList<>(sorted.stream().map(StorageCache.StorageItem::key).toList());
     return new SortResult(sorted, order);
@@ -89,6 +124,17 @@ public final class SortSearchHelper {
       ItemNameService itemNames,
       String language,
       boolean allowCategoryDuplicates) {
+    return sortItems(items, sortMode, itemNames, null, null, language, allowCategoryDuplicates);
+  }
+
+  public static List<StorageCache.StorageItem> sortItems(
+      List<StorageCache.StorageItem> items,
+      SortMode sortMode,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      String language,
+      boolean allowCategoryDuplicates) {
     List<StorageCache.StorageItem> list = new ArrayList<>(items);
     Map<String, String> nameKeys = new HashMap<>(items.size());
     Map<String, String> idKeys = new HashMap<>(items.size());
@@ -97,7 +143,7 @@ public final class SortSearchHelper {
     Map<String, List<CreativeTabOrder.Position>> positionsCache = new HashMap<>();
     for (StorageCache.StorageItem item : items) {
       String key = item.key();
-      nameKeys.put(key, sortNameKey(item.sample(), itemNames, language));
+      nameKeys.put(key, sortNameKey(item.sample(), itemNames, lang, keys, language));
       idKeys.put(key, item.sample().getType().getKey().getKey());
       categoryKeys.put(key, categoryIndex(item.sample()));
     }
@@ -203,8 +249,18 @@ public final class SortSearchHelper {
 
   public static boolean matchesQuery(
       ItemStack stack, List<String> searchTokens, ItemNameService itemNames, String language) {
+    return matchesQuery(stack, searchTokens, itemNames, null, null, language);
+  }
+
+  public static boolean matchesQuery(
+      ItemStack stack,
+      List<String> searchTokens,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      String language) {
     if (searchTokens == null || searchTokens.isEmpty()) return true;
-    List<String> candidates = buildSearchCandidates(stack, itemNames, language);
+    List<String> candidates = buildSearchCandidates(stack, itemNames, lang, keys, language);
     if (candidates.isEmpty()) return true;
     for (String token : searchTokens) {
       for (String candidate : candidates) {
@@ -221,12 +277,25 @@ public final class SortSearchHelper {
   }
 
   public static String sortNameKey(ItemStack stack, ItemNameService itemNames, String language) {
+    return sortNameKey(stack, itemNames, null, null, language);
+  }
+
+  public static String sortNameKey(
+      ItemStack stack, ItemNameService itemNames, Lang lang, StorageKeys keys, String language) {
     if (stack == null) return "";
     ItemMeta meta = stack.getItemMeta();
     if (meta != null) {
       if (meta.hasDisplayName()) {
         return PlainTextComponentSerializer.plainText().serialize(meta.displayName());
       }
+    }
+    ExortSearchNames exortNames = exortSearchNames(stack, lang, keys, language);
+    if (exortNames != null
+        && exortNames.primaryName() != null
+        && !exortNames.primaryName().isBlank()) {
+      return exortNames.primaryName();
+    }
+    if (meta != null) {
       if (meta.hasItemName()) {
         return PlainTextComponentSerializer.plainText().serialize(meta.itemName());
       }
@@ -244,6 +313,11 @@ public final class SortSearchHelper {
 
   public static List<String> buildSearchCandidates(
       ItemStack stack, ItemNameService itemNames, String language) {
+    return buildSearchCandidates(stack, itemNames, null, null, language);
+  }
+
+  public static List<String> buildSearchCandidates(
+      ItemStack stack, ItemNameService itemNames, Lang lang, StorageKeys keys, String language) {
     List<String> candidates = new ArrayList<>();
     if (stack == null) return candidates;
     ItemMeta meta = stack.getItemMeta();
@@ -254,6 +328,14 @@ public final class SortSearchHelper {
           candidates.add(name.toLowerCase(Locale.ROOT));
         }
       }
+    }
+    ExortSearchNames exortNames = exortSearchNames(stack, lang, keys, language);
+    if (exortNames != null) {
+      for (String candidate : exortNames.candidates()) {
+        addCandidate(candidates, candidate);
+      }
+    }
+    if (meta != null) {
       if (meta.hasItemName()) {
         String name = PlainTextComponentSerializer.plainText().serialize(meta.itemName());
         if (name != null && !name.isBlank()) {
@@ -271,6 +353,69 @@ public final class SortSearchHelper {
       candidates.add(id.toLowerCase(Locale.ROOT));
     }
     return candidates;
+  }
+
+  private static ExortSearchNames exortSearchNames(
+      ItemStack stack, Lang lang, StorageKeys keys, String language) {
+    if (stack == null || lang == null || keys == null || !stack.hasItemMeta()) {
+      return null;
+    }
+    ItemMeta meta = stack.getItemMeta();
+    if (meta == null) {
+      return null;
+    }
+    PersistentDataContainer pdc = meta.getPersistentDataContainer();
+    String type = pdc.get(keys.type(), PersistentDataType.STRING);
+    if (type == null || type.isBlank()) {
+      return null;
+    }
+    String normalizedType = type.trim().toLowerCase(Locale.ROOT);
+    if ("storage".equals(normalizedType)) {
+      return storageSearchNames(pdc, lang, keys, language);
+    }
+    return CustomItemRegistry.fixedItem(normalizedType)
+        .map(identity -> fixedItemSearchNames(identity, lang, language))
+        .orElse(null);
+  }
+
+  private static ExortSearchNames fixedItemSearchNames(
+      CustomItemIdentity identity, Lang lang, String language) {
+    String localized = lang.trLanguage(language, identity.translationKey());
+    List<String> candidates = new ArrayList<>();
+    addCandidate(candidates, localized);
+    addCandidate(candidates, identity.id());
+    addCandidate(candidates, identity.namespacedId());
+    return new ExortSearchNames(localized, List.copyOf(candidates));
+  }
+
+  private static ExortSearchNames storageSearchNames(
+      PersistentDataContainer pdc, Lang lang, StorageKeys keys, String language) {
+    String storageName = lang.trLanguage(language, "item.storage");
+    List<String> candidates = new ArrayList<>();
+    addCandidate(candidates, storageName);
+    StorageTierResolver.Resolution resolution =
+        StorageTierResolver.resolve(
+                pdc.get(keys.storageTier(), PersistentDataType.STRING),
+                pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG))
+            .orElse(null);
+    if (resolution != null) {
+      StorageTier tier = resolution.tier();
+      addCandidate(candidates, StorageTierText.tierNamePlain(lang, language, tier));
+    }
+    StorageItemNameEditor.displayName(keys, pdc).ifPresent(name -> addCandidate(candidates, name));
+    addCandidate(candidates, "storage");
+    addCandidate(candidates, "exort:storage");
+    return new ExortSearchNames(storageName, List.copyOf(candidates));
+  }
+
+  private static void addCandidate(List<String> candidates, String value) {
+    if (value == null || value.isBlank()) {
+      return;
+    }
+    String normalized = value.toLowerCase(Locale.ROOT);
+    if (!candidates.contains(normalized)) {
+      candidates.add(normalized);
+    }
   }
 
   public static int categoryIndex(ItemStack stack) {

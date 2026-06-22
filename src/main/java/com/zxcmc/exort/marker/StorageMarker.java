@@ -150,6 +150,12 @@ public final class StorageMarker {
             displayName));
   }
 
+  public static boolean isMarkedStorage(Plugin plugin, Block block) {
+    if (!ChunkMarkerStore.hasSection(plugin, block, SECTION)) return false;
+    return ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_ID).isPresent()
+        && ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TIER).isPresent();
+  }
+
   public static void clear(Plugin plugin, Block block) {
     ChunkMarkerStore.clearSection(plugin, block, SECTION);
   }
