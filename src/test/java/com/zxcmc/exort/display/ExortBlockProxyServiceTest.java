@@ -25,7 +25,7 @@ class ExortBlockProxyServiceTest {
       "down=true,east=false,north=false,south=false,up=true,west=false";
   private static final String ALL_TRUE_CHORUS_STATE =
       "down=true,east=true,north=true,south=true,up=true,west=true";
-  private static final List<String> IMPOSSIBLE_CHORUS_STATES =
+  private static final List<String> UNCLAIMED_IMPOSSIBLE_CHORUS_STATES =
       List.of(
           "down=true,east=false,north=true,south=false,up=true,west=false",
           "down=true,east=true,north=false,south=false,up=true,west=false",
@@ -38,10 +38,7 @@ class ExortBlockProxyServiceTest {
           "down=true,east=true,north=false,south=false,up=true,west=true",
           "down=true,east=false,north=false,south=true,up=true,west=true",
           "down=true,east=true,north=true,south=true,up=true,west=false",
-          ExortBlockProxyService.ProxyVisual.TERMINAL_MONITOR_BUS.stateKey(),
-          ExortBlockProxyService.ProxyVisual.STORAGE.stateKey(),
-          "down=true,east=false,north=true,south=true,up=true,west=true",
-          ALL_TRUE_CHORUS_STATE);
+          "down=true,east=false,north=true,south=true,up=true,west=true");
 
   @Test
   void proxiesAtSingleTransitionBeforeRenderEdge() {
@@ -209,21 +206,15 @@ class ExortBlockProxyServiceTest {
   }
 
   @Test
-  void resourcePackHidesImpossibleChorusStatesExceptProxyVisuals() throws Exception {
+  void resourcePackClaimsOnlyActiveExortChorusStates() throws Exception {
     JsonObject variants = chorusPlantVariants();
 
     assertEquals("block/chorus_plant", modelFor(variants, ALL_FALSE_CHORUS_STATE));
+    assertEquals(ChorusPlantVisualState.NONE.modelId(), modelFor(variants, ALL_TRUE_CHORUS_STATE));
+    assertEquals(1, countModels(variants, ChorusPlantVisualState.NONE.modelId()));
     assertNull(variants.getAsJsonObject(NATURAL_VERTICAL_CHORUS_STATE));
-    for (String state : IMPOSSIBLE_CHORUS_STATES) {
-      assertNotNull(variants.getAsJsonObject(state), state);
-      String model = modelFor(variants, state);
-      if (state.equals(ExortBlockProxyService.ProxyVisual.TERMINAL_MONITOR_BUS.stateKey())) {
-        assertEquals(ExortBlockProxyService.ProxyVisual.TERMINAL_MONITOR_BUS.modelId(), model);
-      } else if (state.equals(ExortBlockProxyService.ProxyVisual.STORAGE.stateKey())) {
-        assertEquals(ExortBlockProxyService.ProxyVisual.STORAGE.modelId(), model);
-      } else {
-        assertEquals("exort:none", model, state);
-      }
+    for (String state : UNCLAIMED_IMPOSSIBLE_CHORUS_STATES) {
+      assertNull(variants.getAsJsonObject(state), state);
     }
   }
 
@@ -294,6 +285,13 @@ class ExortBlockProxyServiceTest {
 
   private static String modelFor(JsonObject variants, String state) {
     return variants.getAsJsonObject(state).get("model").getAsString();
+  }
+
+  private static long countModels(JsonObject variants, String expected) {
+    return variants.entrySet().stream()
+        .filter(
+            entry -> expected.equals(entry.getValue().getAsJsonObject().get("model").getAsString()))
+        .count();
   }
 
   private static void assertModelParticle(String modelPath, String expected) throws Exception {

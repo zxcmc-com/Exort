@@ -121,10 +121,10 @@ public final class StorageAnvilRenameListener implements Listener {
     if (keys == null || !isEmpty(second) || renameText == null) {
       return null;
     }
-    ItemStack result = first == null ? null : first.clone();
-    if (isEmpty(result)) {
+    if (first == null || first.getType() == Material.AIR || first.getAmount() <= 0) {
       return null;
     }
+    ItemStack result = first.clone();
     boolean changed =
         customItems != null
             ? customItems.setStorageDisplayName(result, renameText)

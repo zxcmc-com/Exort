@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.16.4 — 2026-06-24
+- The bundled RESOURCE pack no longer claims unused impossible `chorus_plant` states with `exort:none`, keeping only Exort's real carrier and proxy states so custom-block providers can supply textures for their own chorus-based block states.
+
 ## 0.16.3 — 2026-06-22
 - Exort's public API now exposes read-only carrier detection for external integrations: plugins can check whether a loaded block is an Exort-managed block and whether it is specifically backed by a real `CHORUS_PLANT` carrier.
 - Terminal and crafting-terminal search now matches Exort items by the viewer's localized item names, storage tier names, and custom storage names while keeping stable Exort ids searchable.
