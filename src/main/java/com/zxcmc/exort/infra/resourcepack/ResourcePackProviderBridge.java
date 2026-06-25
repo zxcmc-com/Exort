@@ -29,7 +29,9 @@ public final class ResourcePackProviderBridge {
   private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
   private static final String NEXO_PLUGIN = "Nexo";
   private static final String ITEMS_ADDER_PLUGIN = "ItemsAdder";
+  private static final String ORAXEN_PLUGIN = "Oraxen";
   private static final String NEXO_PACK_NAME = "zxcmc_exort.zip";
+  private static final String ORAXEN_PACK_NAME = "zxcmc_exort.zip";
   private static final String EXORT_NAMESPACE = "exort";
   private static final String ITEMS_ADDER_ITEM_TEXTURE_PREFIX = "item/ia_";
 
@@ -63,6 +65,9 @@ public final class ResourcePackProviderBridge {
     if (hosting == ResourcePackHosting.ITEMSADDER) {
       return syncItemsAdderPack(pluginsDir, rawPack);
     }
+    if (hosting == ResourcePackHosting.ORAXEN) {
+      return copyOraxenPack(pluginsDir, rawPack);
+    }
     return HandoffResult.error(null, "Unsupported resource-pack provider: " + hosting);
   }
 
@@ -73,6 +78,9 @@ public final class ResourcePackProviderBridge {
     if (active != ResourcePackHosting.ITEMSADDER) {
       removeItemsAdderHandoff(pluginsDir(plugin));
     }
+    if (active != ResourcePackHosting.ORAXEN) {
+      removeOraxenHandoff(pluginsDir(plugin));
+    }
   }
 
   public static void removeAll(JavaPlugin plugin) {
@@ -82,6 +90,7 @@ public final class ResourcePackProviderBridge {
   static void removeAll(File pluginsDir) {
     removeNexoHandoff(pluginsDir);
     removeItemsAdderHandoff(pluginsDir);
+    removeOraxenHandoff(pluginsDir);
   }
 
   static boolean isPluginJarInstalled(File pluginsDir, String pluginName) {
@@ -103,15 +112,32 @@ public final class ResourcePackProviderBridge {
   }
 
   static HandoffResult copyNexoPack(File pluginsDir, File source) {
+    return copyProviderPack(
+        source,
+        new File(new File(new File(pluginsDir, NEXO_PLUGIN), "pack"), "external_packs"),
+        NEXO_PACK_NAME,
+        "Nexo external_packs",
+        "Nexo");
+  }
+
+  static HandoffResult copyOraxenPack(File pluginsDir, File source) {
+    return copyProviderPack(
+        source,
+        new File(new File(new File(pluginsDir, ORAXEN_PLUGIN), "pack"), "uploads"),
+        ORAXEN_PACK_NAME,
+        "Oraxen uploads",
+        "Oraxen");
+  }
+
+  private static HandoffResult copyProviderPack(
+      File source, File targetDir, String packName, String directoryName, String providerName) {
     if (source == null || !source.isFile()) {
       return HandoffResult.error(null, "Exort raw resource pack is missing");
     }
-    File targetDir =
-        new File(new File(new File(pluginsDir, NEXO_PLUGIN), "pack"), "external_packs");
     if (!targetDir.exists() && !targetDir.mkdirs()) {
-      return HandoffResult.error(targetDir, "Cannot create Nexo external_packs directory");
+      return HandoffResult.error(targetDir, "Cannot create " + directoryName + " directory");
     }
-    File target = new File(targetDir, NEXO_PACK_NAME);
+    File target = new File(targetDir, packName);
     try {
       if (target.isFile() && Files.mismatch(source.toPath(), target.toPath()) == -1L) {
         return HandoffResult.success(target);
@@ -119,7 +145,8 @@ public final class ResourcePackProviderBridge {
       Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
       return HandoffResult.success(target);
     } catch (IOException e) {
-      ExortLog.warn("Failed to copy Exort resource pack to Nexo: " + e.getMessage());
+      ExortLog.warn(
+          "Failed to copy Exort resource pack to " + providerName + ": " + e.getMessage());
       return HandoffResult.error(target, e.getMessage());
     }
   }
@@ -373,6 +400,19 @@ public final class ResourcePackProviderBridge {
     }
   }
 
+  private static void removeOraxenHandoff(File pluginsDir) {
+    File target =
+        new File(new File(new File(pluginsDir, ORAXEN_PLUGIN), "pack/uploads"), ORAXEN_PACK_NAME);
+    if (!target.isFile()) {
+      return;
+    }
+    try {
+      Files.delete(target.toPath());
+    } catch (IOException e) {
+      ExortLog.warn("Failed to remove Exort resource pack from Oraxen: " + e.getMessage());
+    }
+  }
+
   private static void deleteRecursively(Path path) throws IOException {
     if (path == null || !Files.exists(path)) {
       return;
@@ -427,6 +467,7 @@ public final class ResourcePackProviderBridge {
     return switch (hosting) {
       case NEXO -> NEXO_PLUGIN;
       case ITEMSADDER -> ITEMS_ADDER_PLUGIN;
+      case ORAXEN -> ORAXEN_PLUGIN;
       default -> null;
     };
   }

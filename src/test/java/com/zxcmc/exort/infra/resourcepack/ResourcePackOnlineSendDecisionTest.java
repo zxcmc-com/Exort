@@ -46,6 +46,9 @@ class ResourcePackOnlineSendDecisionTest {
         SKIP,
         decision(
             state("STARTING", ResourcePackHosting.ITEMSADDER, ResourcePackDelivery.AUTO, false)));
+    assertEquals(
+        SKIP,
+        decision(state("READY", ResourcePackHosting.ORAXEN, ResourcePackDelivery.AUTO, false)));
   }
 
   @Test

@@ -87,12 +87,13 @@ class LangTest {
             "message.debug_protection_status_runtime",
             "message.mode_carrier_warning",
             "message.mode_fix_not_resource",
-            "message.mode_fix_chorusfix_checking",
-            "message.mode_fix_chorusfix_current",
-            "message.mode_fix_chorusfix_present",
-            "message.mode_fix_chorusfix_installed",
-            "message.mode_fix_chorusfix_updated",
-            "message.mode_fix_chorusfix_failed",
+            "message.mode_fix_chorusfix_embedded",
+            "message.mode_chorusfix_status",
+            "message.mode_chorusfix_status_embedded",
+            "message.mode_chorusfix_status_external",
+            "message.mode_chorusfix_status_disabled",
+            "message.mode_chorusfix_status_inactive",
+            "message.mode_chorusfix_status_blocked_by_provider",
             "message.wire.hard_cap");
 
     for (String key : requiredKeys) {

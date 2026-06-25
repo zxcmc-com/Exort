@@ -11,6 +11,11 @@ class ResourcePackHostingTest {
   }
 
   @Test
+  void oraxenHostingParsesFromConfig() {
+    assertEquals(ResourcePackHosting.ORAXEN, ResourcePackHosting.fromConfig("ORAXEN"));
+  }
+
+  @Test
   void invalidHostingFallsBackToAutoAtRuntime() {
     assertEquals(ResourcePackHosting.AUTO, ResourcePackHosting.fromConfig("bad"));
   }
@@ -23,24 +28,34 @@ class ResourcePackHostingTest {
   @Test
   void autoHostingPrefersNexoBeforeItemsAdder() {
     assertEquals(
-        ResourcePackHosting.NEXO, ResourcePackService.resolveAutoHosting(true, true, true));
+        ResourcePackHosting.NEXO, ResourcePackService.resolveAutoHosting(true, true, true, true));
   }
 
   @Test
-  void autoHostingUsesItemsAdderBeforeOfficialPack() {
+  void autoHostingUsesItemsAdderBeforeOraxen() {
     assertEquals(
-        ResourcePackHosting.ITEMSADDER, ResourcePackService.resolveAutoHosting(false, true, true));
+        ResourcePackHosting.ITEMSADDER,
+        ResourcePackService.resolveAutoHosting(false, true, true, true));
+  }
+
+  @Test
+  void autoHostingUsesOraxenBeforeOfficialPack() {
+    assertEquals(
+        ResourcePackHosting.ORAXEN,
+        ResourcePackService.resolveAutoHosting(false, false, true, true));
   }
 
   @Test
   void autoHostingCanUseOfficialPackWithoutProvider() {
     assertEquals(
-        ResourcePackHosting.EXORT, ResourcePackService.resolveAutoHosting(false, false, true));
+        ResourcePackHosting.EXORT,
+        ResourcePackService.resolveAutoHosting(false, false, false, true));
   }
 
   @Test
   void autoHostingFallsBackToSelfHostWithoutProviderOrOfficialPack() {
     assertEquals(
-        ResourcePackHosting.SELFHOST, ResourcePackService.resolveAutoHosting(false, false, false));
+        ResourcePackHosting.SELFHOST,
+        ResourcePackService.resolveAutoHosting(false, false, false, false));
   }
 }

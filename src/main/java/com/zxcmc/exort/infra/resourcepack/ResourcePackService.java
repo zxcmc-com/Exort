@@ -306,6 +306,7 @@ public final class ResourcePackService implements Listener {
     return resolveAutoHosting(
         ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.NEXO),
         ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.ITEMSADDER),
+        ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.ORAXEN),
         officialPackConfigured());
   }
 
@@ -340,12 +341,18 @@ public final class ResourcePackService implements Listener {
   }
 
   static ResourcePackHosting resolveAutoHosting(
-      boolean nexoInstalled, boolean itemsAdderInstalled, boolean officialConfigured) {
+      boolean nexoInstalled,
+      boolean itemsAdderInstalled,
+      boolean oraxenInstalled,
+      boolean officialConfigured) {
     if (nexoInstalled) {
       return ResourcePackHosting.NEXO;
     }
     if (itemsAdderInstalled) {
       return ResourcePackHosting.ITEMSADDER;
+    }
+    if (oraxenInstalled) {
+      return ResourcePackHosting.ORAXEN;
     }
     if (officialConfigured) {
       return ResourcePackHosting.EXORT;
@@ -354,7 +361,9 @@ public final class ResourcePackService implements Listener {
   }
 
   private boolean isProviderHosting(ResourcePackHosting hosting) {
-    return hosting == ResourcePackHosting.NEXO || hosting == ResourcePackHosting.ITEMSADDER;
+    return hosting == ResourcePackHosting.NEXO
+        || hosting == ResourcePackHosting.ITEMSADDER
+        || hosting == ResourcePackHosting.ORAXEN;
   }
 
   static boolean configurationGateEnabled(
@@ -375,7 +384,12 @@ public final class ResourcePackService implements Listener {
   }
 
   private String providerDisplayName(ResourcePackHosting hosting) {
-    return hosting == ResourcePackHosting.NEXO ? "Nexo" : "ItemsAdder";
+    return switch (hosting) {
+      case NEXO -> "Nexo";
+      case ITEMSADDER -> "ItemsAdder";
+      case ORAXEN -> "Oraxen";
+      default -> hosting.name();
+    };
   }
 
   private DeliverySettings readDeliverySettings(ResourcePackDelivery configuredDelivery) {
@@ -551,6 +565,10 @@ public final class ResourcePackService implements Listener {
     }
     if (ready.effective() == ResourcePackHosting.ITEMSADDER) {
       ExortLog.info("Resource-pack delivery is managed by ItemsAdder: " + ready.handoffTarget());
+      return;
+    }
+    if (ready.effective() == ResourcePackHosting.ORAXEN) {
+      ExortLog.info("Resource-pack delivery is managed by Oraxen: " + ready.handoffTarget());
       return;
     }
     if (ready.dispatchReady()) {

@@ -36,10 +36,13 @@ import com.zxcmc.exort.infra.config.ConfigUpdater;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.metrics.ExortMetrics;
+import com.zxcmc.exort.infra.resourcepack.OraxenResourcePackIntegration;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
 import com.zxcmc.exort.infra.update.UpdateChecker;
-import com.zxcmc.exort.integration.chorusfix.ChorusfixInstaller;
 import com.zxcmc.exort.integration.chorusfix.ChorusfixIntegration;
+import com.zxcmc.exort.integration.chorusfix.embedded.EmbeddedChorusfixConfig;
+import com.zxcmc.exort.integration.chorusfix.embedded.EmbeddedChorusfixController;
+import com.zxcmc.exort.integration.chorusfix.embedded.EmbeddedChorusfixStatus;
 import com.zxcmc.exort.integration.protection.CompositeRegionProtection;
 import com.zxcmc.exort.integration.protection.MutableRegionProtection;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
@@ -139,11 +142,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private ResourcePackService resourcePackService;
   private PacketEnhancements packetEnhancements;
   private RightClickPlacementGuard placementGuard;
+  private EmbeddedChorusfixController embeddedChorusfix;
   private NetworkGraphCache networkGraphCache;
   private boolean resourceMode;
   private boolean resourceWireUsesBarrier;
   private boolean resourceWireCarrierFallback;
   private boolean chorusfixIntegrationLogged;
+  private boolean oraxenResourcePackIntegrationRegistered;
   private String configuredMode = "RESOURCE";
   private volatile String defaultSortModeName = SortMode.AMOUNT.name();
   private final MutableRegionProtection regionProtection =
@@ -165,6 +170,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
     registerRuntime(true);
     registerChorusfixIntegrationWatcher();
+    registerOraxenResourcePackIntegrationWatcher();
     reloadResourcePackService();
     registerBrigadierCommands();
   }
@@ -252,6 +258,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     cacheDebugService = new CacheDebugService(this);
     pickDebugService = new PickDebugService();
     worldEditDebugService = new WorldEditDebugService(this);
+    embeddedChorusfix =
+        new EmbeddedChorusfixController(
+            this,
+            () -> EmbeddedChorusfixConfig.from(getConfig()),
+            this::isChorusUpdatesDisabled,
+            () -> wireMaterial,
+            this::isExortChorusCarrier);
     metrics = ExortMetrics.create(this);
     return true;
   }
@@ -274,6 +287,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (metrics != null) {
       metrics.shutdown();
     }
+    stopEmbeddedChorusfix();
     stopReloadableRuntime();
     stopBusService();
     stopRecipeService();
@@ -448,6 +462,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (loadTestService != null) {
       loadTestService.clearRuntimeDependencies();
     }
+    stopEmbeddedChorusfix();
     stopWorldEditIntegration();
     stopPlacementGuard();
     stopPacketEnhancements();
@@ -465,7 +480,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (playerLocaleService != null) {
       Bukkit.getPluginManager().registerEvents(playerLocaleService, this);
     }
+    oraxenResourcePackIntegrationRegistered = false;
     registerChorusfixIntegrationWatcher();
+    registerOraxenResourcePackIntegrationWatcher();
   }
 
   private void resetReloadableDisplayState() {
@@ -492,6 +509,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     ExortRuntimeServices services =
         ExortRuntimeFactory.create(createRuntimeFactoryDependencies(), refreshItemDictionaries);
     applyRuntimeServices(services);
+    refreshEmbeddedChorusfix();
     return services.itemNamesStatus();
   }
 
@@ -613,21 +631,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     return PaperChorusPlantUpdates.disable(serverRoot());
   }
 
-  public Optional<ChorusfixInstaller.LoadedPlugin> loadedChorusfixPlugin() {
-    File pluginsDir = pluginsDir();
-    if (pluginsDir == null) {
-      return Optional.empty();
-    }
-    return ChorusfixInstaller.findLoadedPlugin(pluginsDir.toPath());
-  }
-
-  public ChorusfixInstaller.InstallResult installOrUpdateChorusfix(
-      Optional<ChorusfixInstaller.LoadedPlugin> loadedPlugin) {
-    File pluginsDir = pluginsDir();
-    if (pluginsDir == null) {
-      return ChorusfixInstaller.InstallResult.failed("plugins directory is unavailable");
-    }
-    return new ChorusfixInstaller(pluginsDir.toPath(), () -> loadedPlugin).installOrUpdate();
+  public EmbeddedChorusfixStatus chorusfixStatus() {
+    return embeddedChorusfix == null
+        ? EmbeddedChorusfixStatus.INACTIVE
+        : embeddedChorusfix.status();
   }
 
   private boolean isChorusUpdatesDisabled() {
@@ -643,6 +650,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     return getDataFolder().getParentFile();
   }
 
+  private void refreshEmbeddedChorusfix() {
+    if (embeddedChorusfix != null) {
+      embeddedChorusfix.refresh();
+    }
+  }
+
+  private void stopEmbeddedChorusfix() {
+    if (embeddedChorusfix != null) {
+      embeddedChorusfix.stop();
+    }
+  }
+
   private void registerChorusfixIntegrationWatcher() {
     logChorusfixIntegrationIfEnabled(
         Bukkit.getPluginManager().getPlugin(ChorusfixIntegration.PLUGIN_NAME));
@@ -651,14 +670,42 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
             new Listener() {
               @EventHandler
               public void onPluginEnable(PluginEnableEvent event) {
-                if (!ChorusfixIntegration.PLUGIN_NAME.equals(event.getPlugin().getName())) {
+                String pluginName = event.getPlugin().getName();
+                boolean chorusfixEnabled = ChorusfixIntegration.PLUGIN_NAME.equals(pluginName);
+                boolean knownProviderEnabled =
+                    embeddedChorusfix != null && embeddedChorusfix.isKnownProvider(pluginName);
+                if (!chorusfixEnabled && !knownProviderEnabled) {
                   return;
                 }
-                logChorusfixIntegrationIfEnabled(event.getPlugin());
-                HandlerList.unregisterAll(this);
+                if (chorusfixEnabled) {
+                  logChorusfixIntegrationIfEnabled(event.getPlugin());
+                }
+                refreshEmbeddedChorusfix();
               }
             },
             this);
+  }
+
+  private void registerOraxenResourcePackIntegrationWatcher() {
+    registerOraxenResourcePackIntegrationIfEnabled(
+        Bukkit.getPluginManager().getPlugin(OraxenResourcePackIntegration.PLUGIN_NAME));
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new Listener() {
+              @EventHandler
+              public void onPluginEnable(PluginEnableEvent event) {
+                registerOraxenResourcePackIntegrationIfEnabled(event.getPlugin());
+              }
+            },
+            this);
+  }
+
+  private void registerOraxenResourcePackIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {
+    if (oraxenResourcePackIntegrationRegistered) {
+      return;
+    }
+    oraxenResourcePackIntegrationRegistered =
+        OraxenResourcePackIntegration.registerIfEnabled(this, plugin);
   }
 
   private void logChorusfixIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {
@@ -920,8 +967,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> resourceWireCarrierFallback,
         () -> getPluginMeta().getVersion(),
         this::disableChorusPlantUpdatesInPaperConfig,
-        this::loadedChorusfixPlugin,
-        this::installOrUpdateChorusfix,
+        this::chorusfixStatus,
         () -> StorageRuntimeConfig.fromConfig(getConfig()).cacheIdleUnloadSeconds(),
         () -> wireLimit,
         () -> wireHardCap,

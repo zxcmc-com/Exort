@@ -32,8 +32,11 @@ class ResourcePackProviderBridgeTest {
 
     writeZip(
         tempDir.resolve("ItemsAdder.jar"), Map.of("plugin.yml", "name: ItemsAdder\nversion: 4\n"));
+    writeZip(
+        tempDir.resolve("Oraxen.jar"), Map.of("plugin.yml", "name: Oraxen\nversion: 1.217.0\n"));
 
     assertTrue(ResourcePackProviderBridge.isPluginJarInstalled(tempDir.toFile(), "ItemsAdder"));
+    assertTrue(ResourcePackProviderBridge.isPluginJarInstalled(tempDir.toFile(), "Oraxen"));
   }
 
   @Test
@@ -52,6 +55,28 @@ class ResourcePackProviderBridgeTest {
 
     ResourcePackProviderBridge.HandoffResult second =
         ResourcePackProviderBridge.copyNexoPack(tempDir.toFile(), source.toFile());
+
+    assertTrue(second.success());
+    assertEquals(preservedTime, Files.getLastModifiedTime(target));
+  }
+
+  @Test
+  void oraxenHandoffCopiesRawPackToUploadsAndSkipsUnchangedPack() throws IOException {
+    Path source = tempDir.resolve("exort.raw.zip");
+    writeZip(source, Map.of("assets/exort/items/storage/storage.json", "{}"));
+
+    ResourcePackProviderBridge.HandoffResult first =
+        ResourcePackProviderBridge.copyOraxenPack(tempDir.toFile(), source.toFile());
+    assertTrue(first.success());
+    Path target = tempDir.resolve("Oraxen/pack/uploads/zxcmc_exort.zip");
+    assertEquals(target, first.target().toPath());
+    assertTrue(Files.isRegularFile(target));
+
+    Files.setLastModifiedTime(target, FileTime.fromMillis(123456789L));
+    FileTime preservedTime = Files.getLastModifiedTime(target);
+
+    ResourcePackProviderBridge.HandoffResult second =
+        ResourcePackProviderBridge.copyOraxenPack(tempDir.toFile(), source.toFile());
 
     assertTrue(second.success());
     assertEquals(preservedTime, Files.getLastModifiedTime(target));
@@ -136,6 +161,8 @@ class ResourcePackProviderBridgeTest {
     Path itemsAdderPack = tempDir.resolve("ItemsAdder/contents/exort/resourcepack/assets/a.txt");
     Path itemsAdderOther =
         tempDir.resolve("ItemsAdder/contents/other/resourcepack/assets/keep.txt");
+    Path oraxenPack = tempDir.resolve("Oraxen/pack/uploads/zxcmc_exort.zip");
+    Path oraxenOther = tempDir.resolve("Oraxen/pack/uploads/other.zip");
     Files.createDirectories(nexoPack.getParent());
     Files.writeString(nexoPack, "exort");
     Files.writeString(nexoOther, "other");
@@ -143,6 +170,9 @@ class ResourcePackProviderBridgeTest {
     Files.writeString(itemsAdderPack, "exort");
     Files.createDirectories(itemsAdderOther.getParent());
     Files.writeString(itemsAdderOther, "other");
+    Files.createDirectories(oraxenPack.getParent());
+    Files.writeString(oraxenPack, "exort");
+    Files.writeString(oraxenOther, "other");
 
     ResourcePackProviderBridge.removeAll(tempDir.toFile());
 
@@ -150,6 +180,8 @@ class ResourcePackProviderBridgeTest {
     assertTrue(Files.isRegularFile(nexoOther));
     assertFalse(Files.exists(tempDir.resolve("ItemsAdder/contents/exort/resourcepack")));
     assertTrue(Files.isRegularFile(itemsAdderOther));
+    assertFalse(Files.exists(oraxenPack));
+    assertTrue(Files.isRegularFile(oraxenOther));
   }
 
   private static void writeZip(Path target, Map<String, String> entries) throws IOException {

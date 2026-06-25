@@ -77,6 +77,9 @@ class ResourcePackConfigurationGateTest {
         decision(ungated("READY", ResourcePackHosting.ITEMSADDER, ResourcePackDelivery.MANUAL)));
     assertEquals(
         IGNORE,
+        decision(ungated("READY", ResourcePackHosting.ORAXEN, ResourcePackDelivery.MANUAL)));
+    assertEquals(
+        IGNORE,
         decision(ungated("DISABLED", ResourcePackHosting.DISABLED, ResourcePackDelivery.MANUAL)));
   }
 
