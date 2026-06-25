@@ -37,4 +37,22 @@ class FaweExtentAccessTest {
     assertFalse(result.modified());
     assertFalse(result.saved());
   }
+
+  @Test
+  void configHelperAddsOraxenExtentWithoutDroppingMarkerExtent() throws Exception {
+    Path config = tempDir.resolve("config.yml");
+    String marker = "com.zxcmc.exort.integration.worldedit.WorldEditBridge$MarkerExtent";
+    String oraxen = "io.th0rgal.oraxen.compatibilities.provided.worldedit.WorldEditHandlers$1";
+    Files.writeString(config, "extent:\n  allowed-plugins:\n  - " + marker + "\n");
+
+    FaweExtentAccess.ConfigResult result =
+        FaweExtentAccess.allowExtentInConfig(config.toFile(), oraxen);
+    String updated = Files.readString(config);
+
+    assertTrue(result.fileFound());
+    assertTrue(result.modified());
+    assertTrue(result.saved());
+    assertTrue(updated.contains(marker));
+    assertTrue(updated.contains(oraxen));
+  }
 }
