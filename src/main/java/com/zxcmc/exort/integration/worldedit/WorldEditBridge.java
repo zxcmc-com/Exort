@@ -104,6 +104,9 @@ public final class WorldEditBridge implements Listener {
   private static final String SECTION_RELAY = "relay";
   private static final String SECTION_WIRE = "wire";
   private static final String SECTION_STORAGE_CORE = "storage_core";
+  private static final String ORAXEN_PLUGIN_NAME = "Oraxen";
+  private static final String ORAXEN_WORLDEDIT_EXTENT =
+      "io.th0rgal.oraxen.compatibilities.provided.worldedit.WorldEditHandlers$1";
 
   private static final String FIELD_ID = "id";
   private static final String FIELD_TIER = "tier";
@@ -181,12 +184,9 @@ public final class WorldEditBridge implements Listener {
     if (worldEdit == null && fawe == null) return null;
     try {
       if (fawe != null) {
-        FaweExtentAccess.Result result =
-            FaweExtentAccess.allowMarkerExtent(fawe, MarkerExtent.class.getName());
-        if (FaweExtentAccess.shouldLogWarning(result)) {
-          plugin.getLogger().warning(result.logMessage(MarkerExtent.class.getName()));
-        } else if (!result.hasFailure()) {
-          plugin.getLogger().info(result.logMessage(MarkerExtent.class.getName()));
+        allowFaweExtent(plugin, fawe, "marker", MarkerExtent.class.getName());
+        if (Bukkit.getPluginManager().getPlugin(ORAXEN_PLUGIN_NAME) != null) {
+          allowFaweExtent(plugin, fawe, "Oraxen", ORAXEN_WORLDEDIT_EXTENT);
         }
       }
       WorldEditBridge bridge = new WorldEditBridge(deps);
@@ -200,6 +200,16 @@ public final class WorldEditBridge implements Listener {
     } catch (Throwable err) {
       ExortLog.warn("[WorldEdit] Integration disabled: " + err.getMessage());
       return null;
+    }
+  }
+
+  private static void allowFaweExtent(
+      Plugin plugin, Plugin fawe, String label, String extentClass) {
+    FaweExtentAccess.Result result = FaweExtentAccess.allowExtent(fawe, extentClass);
+    if (FaweExtentAccess.shouldLogWarning(result, extentClass)) {
+      plugin.getLogger().warning(result.logMessage(label, extentClass));
+    } else if (!result.hasFailure()) {
+      plugin.getLogger().info(result.logMessage(label, extentClass));
     }
   }
 

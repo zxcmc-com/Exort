@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.1 — 2026-06-25
+- Fixed Oraxen WorldEdit/FAWE marker handling for Exort blocks: Oraxen + WorldEdit/FAWE setups now keep Exort marker copy, move, paste, undo, and redo handling active; when FAWE is present, Exort also auto-allows Oraxen's WorldEdit extent alongside Exort's marker extent.
+
 ## 0.17.0 — 2026-06-25
 - RESOURCE wires now have an embedded Exort-only Chorusfix handler for real `CHORUS_PLANT` carriers, while an enabled external Chorusfix plugin still takes over automatically.
 - The embedded Chorusfix handler is controlled by the new `chorusfix: true` config flag, disables itself when Nexo, ItemsAdder, or Oraxen is loaded without external Chorusfix, and is now shown in `/exort mode info`.

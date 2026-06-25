@@ -11,9 +11,9 @@ final class FaweExtentAccess {
 
   private FaweExtentAccess() {}
 
-  static Result allowMarkerExtent(Plugin fawe, String extentClass) {
+  static Result allowExtent(Plugin fawe, String extentClass) {
     File configFile = new File(fawe.getDataFolder(), "config.yml");
-    ConfigResult configResult = allowMarkerExtentInConfig(configFile, extentClass);
+    ConfigResult configResult = allowExtentInConfig(configFile, extentClass);
     boolean modified = configResult.modified() && configResult.saved();
     boolean runtimeAllowed = false;
     Throwable runtimeError = null;
@@ -70,6 +70,14 @@ final class FaweExtentAccess {
         describe(runtimeError));
   }
 
+  static Result allowMarkerExtent(Plugin fawe, String extentClass) {
+    return allowExtent(fawe, extentClass);
+  }
+
+  static ConfigResult allowExtentInConfig(File configFile, String extentClass) {
+    return allowMarkerExtentInConfig(configFile, extentClass);
+  }
+
   static ConfigResult allowMarkerExtentInConfig(File configFile, String extentClass) {
     String path = configFile == null ? "<unknown>" : configFile.getAbsolutePath();
     if (configFile == null || !configFile.isFile()) {
@@ -91,10 +99,14 @@ final class FaweExtentAccess {
   }
 
   static boolean shouldLogWarning(Result result) {
+    return shouldLogWarning(result, ALLOWED_PLUGINS_KEY);
+  }
+
+  static boolean shouldLogWarning(Result result, String warningKey) {
     if (result == null) {
       return false;
     }
-    return result.hasFailure() && WARNED_KEYS.add(ALLOWED_PLUGINS_KEY);
+    return result.hasFailure() && WARNED_KEYS.add(ALLOWED_PLUGINS_KEY + ":" + warningKey);
   }
 
   private static String describe(Throwable error) {
@@ -131,7 +143,13 @@ final class FaweExtentAccess {
     }
 
     String logMessage(String extentClass) {
-      return "[WorldEdit] FAWE marker extent access: class="
+      return logMessage("marker", extentClass);
+    }
+
+    String logMessage(String label, String extentClass) {
+      return "[WorldEdit] FAWE "
+          + label
+          + " extent access: class="
           + extentClass
           + ", config="
           + config.path()
