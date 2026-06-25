@@ -8,18 +8,13 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.feedback.CommandFeedback;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
-import com.zxcmc.exort.integration.chorusfix.ChorusfixInstaller;
 import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
@@ -82,17 +77,15 @@ final class ModeCommand {
                 "message.mode_info",
                 dependencies.configuredMode().get(),
                 dependencies.effectiveMode().get());
+    List<String> lines = new ArrayList<>();
+    lines.add(chorusfixStatusLine(sender));
     if (dependencies.resourceWireCarrierFallback().getAsBoolean()) {
-      CommandFeedback.sendBlock(
-          sender,
-          title,
-          List.of(
-              dependencies
-                  .lang()
-                  .tr(sender, "message.mode_carrier_warning", MODE_FIX_RESOURCE_COMMAND)));
-    } else {
-      sendMessage(sender, title);
+      lines.add(
+          dependencies
+              .lang()
+              .tr(sender, "message.mode_carrier_warning", MODE_FIX_RESOURCE_COMMAND));
     }
+    CommandFeedback.sendBlock(sender, title, lines);
     return 1;
   }
 
@@ -143,7 +136,7 @@ final class ModeCommand {
       sendPaperFixError(sender, result.file().getPath(), result.accessDenied(), result.error());
       return;
     }
-    installChorusfixAndFinishModeFix(sender, result);
+    finishModeFix(sender, result);
   }
 
   private void sendPaperFixError(
@@ -208,81 +201,46 @@ final class ModeCommand {
             });
   }
 
-  private void installChorusfixAndFinishModeFix(
-      CommandSender sender, PaperChorusPlantUpdates.FixResult paperResult) {
-    Optional<ChorusfixInstaller.LoadedPlugin> loadedPlugin =
-        dependencies.loadedChorusfixPlugin().get();
-    sendMessage(sender, dependencies.lang().tr(sender, "message.mode_fix_chorusfix_checking"));
-    Bukkit.getScheduler()
-        .runTaskAsynchronously(
-            dependencies.plugin(),
-            () -> {
-              ChorusfixInstaller.InstallResult installResult;
-              try {
-                installResult = dependencies.chorusfixInstaller().apply(loadedPlugin);
-              } catch (RuntimeException e) {
-                installResult =
-                    ChorusfixInstaller.InstallResult.failed(ExortLog.unwrap(e).toString());
-              }
-              ChorusfixInstaller.InstallResult result = installResult;
-              runSync(() -> finishModeFix(sender, paperResult, result));
-            });
-  }
-
-  private void finishModeFix(
-      CommandSender sender,
-      PaperChorusPlantUpdates.FixResult paperResult,
-      ChorusfixInstaller.InstallResult installResult) {
-    if (!installResult.success()) {
-      sendMessage(
-          sender,
-          dependencies
-              .lang()
-              .tr(
-                  sender,
-                  "message.mode_fix_chorusfix_failed",
-                  installResult.reason(),
-                  ChorusfixInstaller.MANUAL_URL));
-      if (!paperResult.restartRequired()) {
-        setMode(sender, "RESOURCE");
+  private void finishModeFix(CommandSender sender, PaperChorusPlantUpdates.FixResult paperResult) {
+    if (!paperResult.restartRequired()) {
+      if (paperResult.changed()) {
+        sendMessage(
+            sender,
+            dependencies
+                .lang()
+                .tr(
+                    sender,
+                    "message.mode_fix_paper_changed",
+                    PaperChorusPlantUpdates.SETTING_PATH,
+                    paperResult.file().getPath()));
       }
-      return;
-    }
-
-    if (!paperResult.restartRequired() && !installResult.restartRequired()) {
-      sendMessage(sender, chorusfixLine(sender, installResult));
+      sendMessage(sender, dependencies.lang().tr(sender, "message.mode_fix_chorusfix_embedded"));
       setMode(sender, "RESOURCE");
       return;
     }
 
     dependencies.configuredModeSaver().accept("RESOURCE");
-    notifyModeFixRestart(sender, paperResult, installResult);
+    notifyModeFixRestart(sender, paperResult);
     scheduleRestartAfterModeFix();
   }
 
   private void notifyModeFixRestart(
-      CommandSender sender,
-      PaperChorusPlantUpdates.FixResult paperResult,
-      ChorusfixInstaller.InstallResult installResult) {
+      CommandSender sender, PaperChorusPlantUpdates.FixResult paperResult) {
     String paperLineKey =
         !paperResult.restartRequired()
             ? null
             : paperResult.changed()
                 ? "message.mode_fix_paper_changed"
                 : "message.mode_fix_paper_restart_required";
-    sendBlockToSenderAndPlayers(sender, paperLineKey, paperResult.file().getPath(), installResult);
+    sendBlockToSenderAndPlayers(sender, paperLineKey, paperResult.file().getPath());
   }
 
   private void sendBlockToSenderAndPlayers(
-      CommandSender sender,
-      String paperLineKey,
-      String paperConfigPath,
-      ChorusfixInstaller.InstallResult installResult) {
-    List<String> senderLines =
-        modeFixRestartLines(sender, paperLineKey, paperConfigPath, installResult);
+      CommandSender sender, String paperLineKey, String paperConfigPath) {
+    List<String> senderLines = modeFixRestartLines(sender, paperLineKey, paperConfigPath);
     CommandFeedback.sendBlock(
         sender, senderLines.getFirst(), senderLines.subList(1, senderLines.size()));
-    Set<UUID> skippedPlayers = new HashSet<>();
+    java.util.Set<java.util.UUID> skippedPlayers = new java.util.HashSet<>();
     if (sender instanceof Player player) {
       skippedPlayers.add(player.getUniqueId());
     }
@@ -290,17 +248,13 @@ final class ModeCommand {
       if (skippedPlayers.contains(player.getUniqueId())) {
         continue;
       }
-      List<String> lines =
-          modeFixRestartLines(player, paperLineKey, paperConfigPath, installResult);
+      List<String> lines = modeFixRestartLines(player, paperLineKey, paperConfigPath);
       CommandFeedback.sendBlock(player, lines.getFirst(), lines.subList(1, lines.size()));
     }
   }
 
   private List<String> modeFixRestartLines(
-      CommandSender recipient,
-      String paperLineKey,
-      String paperConfigPath,
-      ChorusfixInstaller.InstallResult installResult) {
+      CommandSender recipient, String paperLineKey, String paperConfigPath) {
     List<String> lines = new ArrayList<>();
     if (paperLineKey != null) {
       lines.add(
@@ -308,56 +262,20 @@ final class ModeCommand {
               .lang()
               .tr(recipient, paperLineKey, PaperChorusPlantUpdates.SETTING_PATH, paperConfigPath));
     }
-    lines.add(chorusfixLine(recipient, installResult));
+    lines.add(dependencies.lang().tr(recipient, "message.mode_fix_chorusfix_embedded"));
     lines.add(dependencies.lang().tr(recipient, "message.mode_fix_exort_changed"));
     lines.add(dependencies.lang().tr(recipient, "message.mode_fix_restart_scheduled"));
     return List.copyOf(lines);
   }
 
-  private String chorusfixLine(
-      CommandSender recipient, ChorusfixInstaller.InstallResult installResult) {
-    return switch (installResult.outcome()) {
-      case CURRENT ->
-          dependencies
-              .lang()
-              .tr(recipient, "message.mode_fix_chorusfix_current", installResult.version());
-      case PRESENT ->
-          dependencies
-              .lang()
-              .tr(
-                  recipient,
-                  "message.mode_fix_chorusfix_present",
-                  installResult.version(),
-                  displayPath(installResult.target()));
-      case INSTALLED ->
-          dependencies
-              .lang()
-              .tr(
-                  recipient,
-                  "message.mode_fix_chorusfix_installed",
-                  installResult.version(),
-                  displayPath(installResult.target()));
-      case UPDATED ->
-          dependencies
-              .lang()
-              .tr(
-                  recipient,
-                  "message.mode_fix_chorusfix_updated",
-                  installResult.version(),
-                  displayPath(installResult.target()));
-      case FAILED ->
-          dependencies
-              .lang()
-              .tr(
-                  recipient,
-                  "message.mode_fix_chorusfix_failed",
-                  installResult.reason(),
-                  ChorusfixInstaller.MANUAL_URL);
-    };
-  }
-
-  private static String displayPath(java.nio.file.Path path) {
-    return path == null ? "" : path.toString();
+  private String chorusfixStatusLine(CommandSender recipient) {
+    var status = dependencies.chorusfixStatus().get();
+    return dependencies
+        .lang()
+        .tr(
+            recipient,
+            "message.mode_chorusfix_status",
+            dependencies.lang().tr(recipient, status.messageKey()));
   }
 
   private void scheduleRestartAfterModeFix() {

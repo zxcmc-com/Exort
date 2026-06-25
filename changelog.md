@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0 — 2026-06-25
+- RESOURCE wires now have an embedded Exort-only Chorusfix handler for real `CHORUS_PLANT` carriers, while an enabled external Chorusfix plugin still takes over automatically.
+- The embedded Chorusfix handler is controlled by the new `chorusfix: true` config flag, disables itself when Nexo, ItemsAdder, or Oraxen is loaded without external Chorusfix, and is now shown in `/exort mode info`.
+- `/exort mode fix RESOURCE` no longer downloads or updates Chorusfix from GitHub; it only patches the Paper chorus-plant update setting, stores `mode: RESOURCE`, and keeps the restart workflow.
+- Added Oraxen resource-pack hosting: admins can select `resourcePack.hosting: ORAXEN`, `AUTO` now considers Oraxen after Nexo and ItemsAdder, Exort copies the raw pack into Oraxen uploads, and duplicate `chorus_plant` blockstates are merged during Oraxen pack generation.
+- The startup update check now reads the current `zxcmc-com/Exort` GitHub repository.
+
 ## 0.16.4 — 2026-06-24
 - The bundled RESOURCE pack no longer claims unused impossible `chorus_plant` states with `exort:none`, keeping only Exort's real carrier and proxy states so custom-block providers can supply textures for their own chorus-based block states.
 

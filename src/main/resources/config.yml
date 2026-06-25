@@ -9,9 +9,13 @@ mode: RESOURCE
 # Check GitHub for a newer Exort version on startup. Network failures are ignored.
 updateCheck: true
 
+# Built-in Exort-only chorus handling for RESOURCE wires that use CHORUS_PLANT.
+# If the external Chorusfix plugin is enabled, Exort delegates to it without changing this value.
+chorusfix: true
+
 # Resource pack delivery is used only when the effective mode is RESOURCE.
 resourcePack:
-  # AUTO | EXORT | NEXO | ITEMSADDER | SELFHOST | LOBFILE | DISABLED
+  # AUTO | EXORT | NEXO | ITEMSADDER | ORAXEN | SELFHOST | LOBFILE | DISABLED
   hosting: AUTO
   # AUTO | CONFIGURATION | JOIN | MANUAL
   delivery: AUTO

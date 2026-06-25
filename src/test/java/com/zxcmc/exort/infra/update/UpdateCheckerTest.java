@@ -19,6 +19,13 @@ final class UpdateCheckerTest {
   }
 
   @Test
+  void updateCheckReadsCurrentGithubRepository() {
+    assertEquals(
+        "https://raw.githubusercontent.com/zxcmc-com/Exort/master/build.gradle",
+        UpdateChecker.BUILD_GRADLE_URL);
+  }
+
+  @Test
   void returnsEmptyWhenVersionDeclarationIsMissing() {
     assertTrue(UpdateChecker.extractVersion("group = 'com.zxcmc.exort'").isEmpty());
   }

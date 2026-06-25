@@ -7,6 +7,7 @@ public enum ResourcePackHosting {
   EXORT,
   NEXO,
   ITEMSADDER,
+  ORAXEN,
   SELFHOST,
   LOBFILE,
   DISABLED;

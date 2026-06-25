@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.16.4'
+version = '0.17.0'
 description = 'Exort Storage Network'
 
 base {
@@ -53,6 +53,9 @@ repositories {
     maven {
         url = 'https://repo.incredibleplugins.com/releases/'
     }
+    maven {
+        url = 'https://repo.oraxen.com/releases/'
+    }
 }
 
 configurations {
@@ -75,6 +78,7 @@ dependencies {
     compileOnly('com.incredibleplugins:lands-api:7.25.14') { transitive = false }
     compileOnly('com.github.Zrips:Residence:6.0.0.1') { transitive = false }
     compileOnly 'com.github.retrooper:packetevents-spigot:2.12.2'
+    compileOnly('io.th0rgal:oraxen:1.217.0') { transitive = false }
     implementation 'org.bstats:bstats-bukkit:3.1.0'
     implementation 'org.bstats:bstats-base:3.1.0'
     testImplementation platform('org.junit:junit-bom:5.11.4')

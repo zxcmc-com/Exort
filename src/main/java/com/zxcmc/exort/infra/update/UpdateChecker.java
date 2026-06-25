@@ -17,8 +17,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class UpdateChecker {
-  private static final String BUILD_GRADLE_URL =
-      "https://raw.githubusercontent.com/phantomfighterxx/Exort/master/build.gradle";
+  static final String BUILD_GRADLE_URL =
+      "https://raw.githubusercontent.com/zxcmc-com/Exort/master/build.gradle";
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
   private static final Pattern VERSION_DECLARATION =
       Pattern.compile("(?m)^\\s*version\\s*=\\s*['\"]([^'\"]+)['\"]\\s*$");

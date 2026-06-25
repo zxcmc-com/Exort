@@ -52,6 +52,10 @@ dependencies:
       load: AFTER
       required: false
       join-classpath: false
+    Oraxen:
+      load: AFTER
+      required: false
+      join-classpath: true
     Chorusfix:
       load: AFTER
       required: false
