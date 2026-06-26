@@ -63,8 +63,8 @@ public final class BreakConfig {
         load(config, logger, "break.storage", 20.0, defaultStorageTools()),
         load(config, logger, "break.terminal", 12.0, defaultTerminalTools()),
         load(config, logger, "break.monitor", 12.0, defaultTerminalTools()),
-        load(config, logger, "break.bus", 12.0, defaultTerminalTools()),
-        load(config, logger, "break.relay", 12.0, defaultTerminalTools()),
+        load(config, logger, "break.bus", 14.0, defaultTerminalTools()),
+        load(config, logger, "break.relay", 16.0, defaultTerminalTools()),
         load(config, logger, "break.wire", 2.0, defaultWireTools()));
   }
 

@@ -2,10 +2,45 @@ package com.zxcmc.exort.integration.worldedit;
 
 import com.sk89q.worldedit.math.BlockVector3;
 import java.util.Locale;
+import java.util.Set;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 
 final class WorldEditCommandParser {
+  private static final Set<String> OPERATION_SNAPSHOT_COMMANDS =
+      Set.of(
+          "set",
+          "replace",
+          "replacenear",
+          "regen",
+          "smooth",
+          "snowsmooth",
+          "naturalize",
+          "walls",
+          "faces",
+          "outline",
+          "center",
+          "overlay",
+          "hollow",
+          "deform",
+          "forest",
+          "flora",
+          "green",
+          "snow",
+          "thaw",
+          "fixlava",
+          "fixwater",
+          "drain",
+          "fill",
+          "fillr",
+          "line",
+          "curve",
+          "stack");
+  private static final Set<String> ENTITY_REFRESH_COMMANDS =
+      Set.of("butcher", "remove", "rem", "rement");
+  private static final Set<String> BROAD_OPERATION_SNAPSHOT_COMMANDS =
+      Set.of("replacenear", "fixlava", "fixwater", "drain", "fill", "fillr", "stack");
+
   private WorldEditCommandParser() {}
 
   static boolean isClipboardCopyCommand(String arguments) {
@@ -72,6 +107,18 @@ final class WorldEditCommandParser {
 
   static boolean isMoveCommand(String arguments) {
     return "move".equals(commandName(arguments));
+  }
+
+  static boolean isOperationSnapshotCommand(String arguments) {
+    return OPERATION_SNAPSHOT_COMMANDS.contains(commandName(arguments));
+  }
+
+  static boolean isEntityRefreshCommand(String arguments) {
+    return ENTITY_REFRESH_COMMANDS.contains(commandName(arguments));
+  }
+
+  static boolean isBroadOperationSnapshotCommand(String arguments) {
+    return BROAD_OPERATION_SNAPSHOT_COMMANDS.contains(commandName(arguments));
   }
 
   static PendingPasteCommand parsePasteCommand(String arguments) {

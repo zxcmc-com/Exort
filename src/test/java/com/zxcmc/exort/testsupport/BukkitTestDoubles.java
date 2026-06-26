@@ -135,6 +135,11 @@ public final class BukkitTestDoubles {
                   switch (method.getName()) {
                     case "getUID" -> uid;
                     case "getName" -> name;
+                    case "getLoadedChunks" ->
+                        chunks.values().stream()
+                            .filter(TestChunk::loaded)
+                            .map(TestChunk::chunk)
+                            .toArray(Chunk[]::new);
                     case "isChunkLoaded" -> isChunkLoaded((int) args[0], (int) args[1]);
                     case "getChunkAt" -> chunk((int) args[0], (int) args[1]).chunk();
                     case "getBlockAt" -> {

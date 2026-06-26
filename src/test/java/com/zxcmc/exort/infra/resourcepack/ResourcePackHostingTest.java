@@ -6,6 +6,11 @@ import org.junit.jupiter.api.Test;
 
 class ResourcePackHostingTest {
   @Test
+  void nexoHostingParsesFromConfig() {
+    assertEquals(ResourcePackHosting.NEXO, ResourcePackHosting.fromConfig("NEXO"));
+  }
+
+  @Test
   void itemsAdderHostingParsesFromConfig() {
     assertEquals(ResourcePackHosting.ITEMSADDER, ResourcePackHosting.fromConfig("ITEMSADDER"));
   }

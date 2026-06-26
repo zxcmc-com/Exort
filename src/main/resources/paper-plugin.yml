@@ -47,7 +47,7 @@ dependencies:
     Nexo:
       load: AFTER
       required: false
-      join-classpath: false
+      join-classpath: true
     ItemsAdder:
       load: AFTER
       required: false

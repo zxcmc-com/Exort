@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.17.1'
+version = '0.17.2'
 description = 'Exort Storage Network'
 
 base {
@@ -56,6 +56,9 @@ repositories {
     maven {
         url = 'https://repo.oraxen.com/releases/'
     }
+    maven {
+        url = 'https://repo.nexomc.com/releases/'
+    }
 }
 
 configurations {
@@ -79,6 +82,8 @@ dependencies {
     compileOnly('com.github.Zrips:Residence:6.0.0.1') { transitive = false }
     compileOnly 'com.github.retrooper:packetevents-spigot:2.12.2'
     compileOnly('io.th0rgal:oraxen:1.217.0') { transitive = false }
+    compileOnly('com.nexomc:nexo:1.24.0') { transitive = false }
+    compileOnly('team.unnamed:creative-api:1.13.14') { transitive = false }
     implementation 'org.bstats:bstats-bukkit:3.1.0'
     implementation 'org.bstats:bstats-base:3.1.0'
     testImplementation platform('org.junit:junit-bom:5.11.4')

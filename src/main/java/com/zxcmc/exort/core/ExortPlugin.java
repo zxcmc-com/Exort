@@ -36,6 +36,7 @@ import com.zxcmc.exort.infra.config.ConfigUpdater;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.metrics.ExortMetrics;
+import com.zxcmc.exort.infra.resourcepack.NexoResourcePackIntegration;
 import com.zxcmc.exort.infra.resourcepack.OraxenResourcePackIntegration;
 import com.zxcmc.exort.infra.resourcepack.ResourcePackService;
 import com.zxcmc.exort.infra.update.UpdateChecker;
@@ -140,6 +141,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private Metrics metrics;
   private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
+  private NexoResourcePackIntegration nexoResourcePackIntegration;
   private PacketEnhancements packetEnhancements;
   private RightClickPlacementGuard placementGuard;
   private EmbeddedChorusfixController embeddedChorusfix;
@@ -170,6 +172,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
     registerRuntime(true);
     registerChorusfixIntegrationWatcher();
+    registerNexoResourcePackIntegrationWatcher();
     registerOraxenResourcePackIntegrationWatcher();
     reloadResourcePackService();
     registerBrigadierCommands();
@@ -186,8 +189,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private boolean initCoreServices() {
     lang = new Lang(this);
     itemNameService = new ItemNameService(this);
+    nexoResourcePackIntegration = new NexoResourcePackIntegration();
     resourcePackService =
-        new ResourcePackService(this, () -> resourceMode, lang::tr, ExortText::configRichText);
+        new ResourcePackService(
+            this,
+            () -> resourceMode,
+            lang::tr,
+            ExortText::configRichText,
+            nexoResourcePackIntegration);
     Bukkit.getPluginManager().registerEvents(resourcePackService, this);
     playerFeedback = new PlayerFeedback(lang);
     playerLocaleService =
@@ -480,8 +489,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (playerLocaleService != null) {
       Bukkit.getPluginManager().registerEvents(playerLocaleService, this);
     }
+    if (nexoResourcePackIntegration != null) {
+      nexoResourcePackIntegration.clearRegistration();
+    }
     oraxenResourcePackIntegrationRegistered = false;
     registerChorusfixIntegrationWatcher();
+    registerNexoResourcePackIntegrationWatcher();
     registerOraxenResourcePackIntegrationWatcher();
   }
 
@@ -706,6 +719,27 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
     oraxenResourcePackIntegrationRegistered =
         OraxenResourcePackIntegration.registerIfEnabled(this, plugin);
+  }
+
+  private void registerNexoResourcePackIntegrationWatcher() {
+    registerNexoResourcePackIntegrationIfAvailable(
+        Bukkit.getPluginManager().getPlugin(NexoResourcePackIntegration.PLUGIN_NAME));
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new Listener() {
+              @EventHandler
+              public void onPluginEnable(PluginEnableEvent event) {
+                registerNexoResourcePackIntegrationIfAvailable(event.getPlugin());
+              }
+            },
+            this);
+  }
+
+  private void registerNexoResourcePackIntegrationIfAvailable(org.bukkit.plugin.Plugin plugin) {
+    if (nexoResourcePackIntegration == null || nexoResourcePackIntegration.isRegistered()) {
+      return;
+    }
+    nexoResourcePackIntegration.registerIfAvailable(this, plugin);
   }
 
   private void logChorusfixIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {

@@ -4,6 +4,7 @@ import com.zxcmc.exort.block.listener.BlockListener;
 import com.zxcmc.exort.block.listener.BlockListenerDependencies;
 import com.zxcmc.exort.block.listener.ItemPlaceBridgeDependencies;
 import com.zxcmc.exort.block.listener.ItemPlaceBridgeListener;
+import com.zxcmc.exort.breaking.explosion.ExortExplosionListener;
 import com.zxcmc.exort.bus.listener.BusListener;
 import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
@@ -88,6 +89,7 @@ public final class RuntimeListenerRegistrar {
                         .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
+    register(deps, new ExortExplosionListener(deps.plugin(), materials, deps.breakHandler()));
   }
 
   private static void registerGuiListeners(RuntimeListenerDependencies deps) {

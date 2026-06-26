@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.2 — 2026-06-26
+- Exort blocks now use configurable plugin-side explosion handling from the `break.*.blastResistance` settings: wires, terminals, monitors, buses, relays, and storages use their own blast resistance values while vanilla carrier drops are suppressed and successful explosion breaks run through Exort's item-drop and display-cleanup logic.
+- Fixed destructive WorldEdit/FAWE edits such as `//regen` and `//set` so overwritten Exort blocks clear marker, runtime, display, bus, relay, and hologram state cleanly, while WorldEdit undo/redo can still restore and re-destroy the Exort state without orphan visuals.
+- Improved Nexo resource-pack provider hosting: Exort can now hand its raw pack to Nexo through the post-generate API when available, keeps the official `external_packs` fallback when it is not, and auto-allows Nexo's WorldEdit extent for FAWE alongside Exort's marker extent.
+- Default custom-breaking hardness now makes buses slightly slower to mine and network relays slower still, with Java fallback defaults kept in sync with the bundled `config.yml`.
+- Simplified FAWE extent allowlist startup logging: Exort now stays quiet when required marker/provider extent classes are already allowed and logs compact action/warning messages only when it changes the allowlist or cannot verify access.
+
 ## 0.17.1 — 2026-06-25
 - Fixed Oraxen WorldEdit/FAWE marker handling for Exort blocks: Oraxen + WorldEdit/FAWE setups now keep Exort marker copy, move, paste, undo, and redo handling active; when FAWE is present, Exort also auto-allows Oraxen's WorldEdit extent alongside Exort's marker extent.
 

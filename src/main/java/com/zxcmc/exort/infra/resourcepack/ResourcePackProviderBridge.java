@@ -71,6 +71,10 @@ public final class ResourcePackProviderBridge {
     return HandoffResult.error(null, "Unsupported resource-pack provider: " + hosting);
   }
 
+  public static HandoffResult prepareNexoApiHandoff(JavaPlugin plugin, File rawPack) {
+    return prepareNexoApiHandoff(pluginsDir(plugin), rawPack);
+  }
+
   public static void removeOtherProviderHandoffs(JavaPlugin plugin, ResourcePackHosting active) {
     if (active != ResourcePackHosting.NEXO) {
       removeNexoHandoff(pluginsDir(plugin));
@@ -118,6 +122,24 @@ public final class ResourcePackProviderBridge {
         NEXO_PACK_NAME,
         "Nexo external_packs",
         "Nexo");
+  }
+
+  static HandoffResult prepareNexoApiHandoff(File pluginsDir, File source) {
+    if (source == null || !source.isFile()) {
+      return HandoffResult.error(null, "Exort raw resource pack is missing");
+    }
+    File fallbackTarget = nexoHandoffTarget(pluginsDir);
+    if (fallbackTarget.isFile()) {
+      try {
+        Files.delete(fallbackTarget.toPath());
+      } catch (IOException e) {
+        return HandoffResult.error(
+            fallbackTarget,
+            "Cannot remove existing Exort Nexo external_packs handoff before API handoff: "
+                + e.getMessage());
+      }
+    }
+    return HandoffResult.success(source, "Nexo post-generate API: " + source.getPath());
   }
 
   static HandoffResult copyOraxenPack(File pluginsDir, File source) {
@@ -376,9 +398,7 @@ public final class ResourcePackProviderBridge {
   }
 
   private static void removeNexoHandoff(File pluginsDir) {
-    File target =
-        new File(
-            new File(new File(pluginsDir, NEXO_PLUGIN), "pack/external_packs"), NEXO_PACK_NAME);
+    File target = nexoHandoffTarget(pluginsDir);
     if (!target.isFile()) {
       return;
     }
@@ -387,6 +407,11 @@ public final class ResourcePackProviderBridge {
     } catch (IOException e) {
       ExortLog.warn("Failed to remove Exort resource pack from Nexo: " + e.getMessage());
     }
+  }
+
+  private static File nexoHandoffTarget(File pluginsDir) {
+    return new File(
+        new File(new File(pluginsDir, NEXO_PLUGIN), "pack/external_packs"), NEXO_PACK_NAME);
   }
 
   private static void removeItemsAdderHandoff(File pluginsDir) {
@@ -495,17 +520,28 @@ public final class ResourcePackProviderBridge {
     }
   }
 
-  public record HandoffResult(boolean success, File target, String error) {
+  public record HandoffResult(boolean success, File target, String displayTarget, String error) {
+    public HandoffResult(boolean success, File target, String error) {
+      this(success, target, null, error);
+    }
+
     String targetPath() {
+      if (displayTarget != null && !displayTarget.isBlank()) {
+        return displayTarget;
+      }
       return target == null ? null : target.getPath();
     }
 
     static HandoffResult success(File target) {
-      return new HandoffResult(true, target, null);
+      return new HandoffResult(true, target, null, null);
+    }
+
+    static HandoffResult success(File target, String displayTarget) {
+      return new HandoffResult(true, target, displayTarget, null);
     }
 
     static HandoffResult error(File target, String error) {
-      return new HandoffResult(false, target, error);
+      return new HandoffResult(false, target, null, error);
     }
   }
 }

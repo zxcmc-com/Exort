@@ -136,34 +136,41 @@ wireless:
 
 # Custom breaking for Exort carrier blocks.
 # Hardness controls break speed; higher is slower.
+# Blast resistance controls Exort-side explosion destruction; vanilla carrier resistance is ignored.
 # Tools only speed breaking up, they do not restrict who can break the block.
 break:
   storage:
     hardness: 20.0
+    blastResistance: 1200.0
     tools:
       - pickaxe
   terminal:
     hardness: 12.0
+    blastResistance: 9.0
     tools:
       - pickaxe
       - axe
   monitor:
     hardness: 12.0
+    blastResistance: 9.0
     tools:
       - pickaxe
       - axe
   bus:
-    hardness: 12.0
+    hardness: 14.0
+    blastResistance: 10.0
     tools:
       - pickaxe
       - axe
   relay:
-    hardness: 12.0
+    hardness: 16.0
+    blastResistance: 50.0
     tools:
       - pickaxe
       - axe
   wire:
     hardness: 2.0
+    blastResistance: 6.0
     tools:
       - pickaxe
       - axe

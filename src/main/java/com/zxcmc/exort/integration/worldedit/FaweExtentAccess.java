@@ -106,7 +106,7 @@ final class FaweExtentAccess {
     if (result == null) {
       return false;
     }
-    return result.hasFailure() && WARNED_KEYS.add(ALLOWED_PLUGINS_KEY + ":" + warningKey);
+    return result.shouldLogWarning() && WARNED_KEYS.add(ALLOWED_PLUGINS_KEY + ":" + warningKey);
   }
 
   private static String describe(Throwable error) {
@@ -139,42 +139,77 @@ final class FaweExtentAccess {
       boolean runtimeAllowed,
       String runtimeError) {
     boolean hasFailure() {
-      return !runtimeAllowed || config.error() != null || reloadError != null;
+      return shouldLogWarning();
     }
 
-    String logMessage(String extentClass) {
-      return logMessage("marker", extentClass);
+    boolean shouldLogInfo() {
+      return (config != null && config.modified() && config.saved()) || reloadAttempted;
     }
 
-    String logMessage(String label, String extentClass) {
+    boolean shouldLogWarning() {
+      return config == null
+          || !config.fileFound()
+          || (config.modified() && !config.saved())
+          || config.error() != null
+          || reloadError != null
+          || runtimeError != null
+          || !runtimeAllowed;
+    }
+
+    String infoMessage(String extentClass) {
+      return infoMessage("marker", extentClass);
+    }
+
+    String infoMessage(String label, String extentClass) {
+      return "[WorldEdit] Added FAWE " + label + " extent to allowed-plugins: " + extentClass;
+    }
+
+    String warningMessage(String extentClass) {
+      return warningMessage("marker", extentClass);
+    }
+
+    String warningMessage(String label, String extentClass) {
       return "[WorldEdit] FAWE "
           + label
-          + " extent access: class="
+          + " extent is not fully allowed: "
+          + warningReason()
+          + "; class="
           + extentClass
-          + ", config="
-          + config.path()
-          + ", fileFound="
-          + config.fileFound()
-          + ", modified="
-          + config.modified()
-          + ", saved="
-          + config.saved()
-          + ", configError="
-          + none(config.error())
-          + ", reloadAttempted="
-          + reloadAttempted
-          + ", reloadSucceeded="
-          + reloadSucceeded
-          + ", reloadError="
-          + none(reloadError)
-          + ", runtimeAllowed="
-          + runtimeAllowed
-          + ", runtimeError="
-          + none(runtimeError);
+          + "; config="
+          + configPath();
     }
 
-    private static String none(String value) {
-      return value == null || value.isBlank() ? "none" : value;
+    private String warningReason() {
+      java.util.List<String> reasons = new java.util.ArrayList<>();
+      if (config == null) {
+        reasons.add("config unavailable");
+      } else {
+        if (!config.fileFound()) {
+          reasons.add("config not found");
+        }
+        if (config.modified() && !config.saved()) {
+          reasons.add("config save failed" + detail(config.error()));
+        } else if (config.error() != null) {
+          reasons.add("config error" + detail(config.error()));
+        }
+      }
+      if (reloadError != null) {
+        reasons.add("reload failed" + detail(reloadError));
+      }
+      if (runtimeError != null) {
+        reasons.add("runtime check failed" + detail(runtimeError));
+      } else if (!runtimeAllowed) {
+        reasons.add("runtime not allowed");
+      }
+      return reasons.isEmpty() ? "unknown" : String.join("; ", reasons);
+    }
+
+    private String configPath() {
+      return config == null ? "<unknown>" : config.path();
+    }
+
+    private static String detail(String value) {
+      return value == null || value.isBlank() ? "" : ": " + value;
     }
   }
 }

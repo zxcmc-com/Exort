@@ -61,6 +61,26 @@ class ResourcePackProviderBridgeTest {
   }
 
   @Test
+  void nexoApiHandoffRemovesOnlyExortExternalPackFallback() throws IOException {
+    Path source = tempDir.resolve("exort.raw.zip");
+    writeZip(source, Map.of("assets/exort/items/storage/storage.json", "{}"));
+    Path exortFallback = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    Path otherPack = tempDir.resolve("Nexo/pack/external_packs/other.zip");
+    Files.createDirectories(exortFallback.getParent());
+    Files.writeString(exortFallback, "old-exort");
+    Files.writeString(otherPack, "other");
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.prepareNexoApiHandoff(tempDir.toFile(), source.toFile());
+
+    assertTrue(result.success());
+    assertEquals(source, result.target().toPath());
+    assertEquals("Nexo post-generate API: " + source, result.targetPath());
+    assertFalse(Files.exists(exortFallback));
+    assertTrue(Files.isRegularFile(otherPack));
+  }
+
+  @Test
   void oraxenHandoffCopiesRawPackToUploadsAndSkipsUnchangedPack() throws IOException {
     Path source = tempDir.resolve("exort.raw.zip");
     writeZip(source, Map.of("assets/exort/items/storage/storage.json", "{}"));

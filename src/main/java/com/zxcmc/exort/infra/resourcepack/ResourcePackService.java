@@ -58,6 +58,7 @@ public final class ResourcePackService implements Listener {
   private final BooleanSupplier resourceMode;
   private final Translator translator;
   private final Function<String, Component> richTextParser;
+  private final NexoResourcePackIntegration nexoIntegration;
   private final SelfHostPackServer selfHost;
   private final AtomicLong generation = new AtomicLong();
   private final ConcurrentMap<UUID, String> configurationAttempts = new ConcurrentHashMap<>();
@@ -71,10 +72,20 @@ public final class ResourcePackService implements Listener {
       BooleanSupplier resourceMode,
       Translator translator,
       Function<String, Component> richTextParser) {
+    this(plugin, resourceMode, translator, richTextParser, new NexoResourcePackIntegration());
+  }
+
+  public ResourcePackService(
+      JavaPlugin plugin,
+      BooleanSupplier resourceMode,
+      Translator translator,
+      Function<String, Component> richTextParser,
+      NexoResourcePackIntegration nexoIntegration) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.resourceMode = Objects.requireNonNull(resourceMode, "resourceMode");
     this.translator = Objects.requireNonNull(translator, "translator");
     this.richTextParser = Objects.requireNonNull(richTextParser, "richTextParser");
+    this.nexoIntegration = Objects.requireNonNull(nexoIntegration, "nexoIntegration");
     this.selfHost = new SelfHostPackServer();
     this.state = new AtomicReference<>(initialState());
   }
@@ -118,6 +129,7 @@ public final class ResourcePackService implements Listener {
     onlineSendRequestGeneration.set(NO_GENERATION);
     onlineSendScheduledGeneration.set(NO_GENERATION);
     selfHost.stop();
+    nexoIntegration.clearApiHandoff();
 
     ResourcePackHosting configured =
         ResourcePackHosting.fromConfig(
@@ -166,8 +178,7 @@ public final class ResourcePackService implements Listener {
 
     if (isProviderHosting(effective)) {
       ResourcePackProviderBridge.removeOtherProviderHandoffs(plugin, effective);
-      ResourcePackProviderBridge.HandoffResult handoff =
-          ResourcePackProviderBridge.handoff(plugin, effective, pack.rawFile());
+      ResourcePackProviderBridge.HandoffResult handoff = providerHandoff(effective, pack.rawFile());
       if (!handoff.success()) {
         setState(
             errorState(
@@ -364,6 +375,26 @@ public final class ResourcePackService implements Listener {
     return hosting == ResourcePackHosting.NEXO
         || hosting == ResourcePackHosting.ITEMSADDER
         || hosting == ResourcePackHosting.ORAXEN;
+  }
+
+  private ResourcePackProviderBridge.HandoffResult providerHandoff(
+      ResourcePackHosting hosting, java.io.File rawPack) {
+    if (hosting == ResourcePackHosting.NEXO && nexoIntegration.isApiHandoffAvailable()) {
+      ResourcePackProviderBridge.HandoffResult apiHandoff =
+          ResourcePackProviderBridge.prepareNexoApiHandoff(plugin, rawPack);
+      if (apiHandoff.success() && nexoIntegration.useApiHandoff(rawPack)) {
+        return apiHandoff;
+      }
+      nexoIntegration.clearApiHandoff();
+      String reason =
+          apiHandoff.success()
+              ? "listener state is unavailable"
+              : String.valueOf(apiHandoff.error());
+      ExortLog.warn(
+          "[Nexo] API resource-pack handoff unavailable; falling back to external_packs: "
+              + reason);
+    }
+    return ResourcePackProviderBridge.handoff(plugin, hosting, rawPack);
   }
 
   static boolean configurationGateEnabled(

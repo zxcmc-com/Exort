@@ -10,6 +10,7 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.math.BlockVector3;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Material;
 import org.enginehub.linbus.tree.LinCompoundTag;
@@ -419,6 +420,78 @@ class WorldEditHistoryCarrierTest {
     assertNotNull(defaultRedo);
     assertEquals(HistoryAction.REDO, defaultRedo.action());
     assertEquals(1, defaultRedo.steps());
+  }
+
+  @Test
+  void parserSeparatesDestructiveAndEntityOnlyCommands() {
+    assertTrue(WorldEditCommandParser.isOperationSnapshotCommand("//regen"));
+    assertTrue(WorldEditCommandParser.isOperationSnapshotCommand("/worldedit:regen"));
+    assertTrue(WorldEditCommandParser.isOperationSnapshotCommand("//set barrier"));
+    assertTrue(WorldEditCommandParser.isOperationSnapshotCommand("/worldedit:replace air stone"));
+    assertTrue(WorldEditCommandParser.isOperationSnapshotCommand("//stack 2"));
+    assertFalse(WorldEditCommandParser.isOperationSnapshotCommand("//copy"));
+    assertFalse(WorldEditCommandParser.isOperationSnapshotCommand("//cut"));
+    assertFalse(WorldEditCommandParser.isOperationSnapshotCommand("//paste"));
+    assertFalse(WorldEditCommandParser.isOperationSnapshotCommand("//move"));
+    assertFalse(WorldEditCommandParser.isOperationSnapshotCommand("//undo"));
+    assertFalse(WorldEditCommandParser.isOperationSnapshotCommand("//redo"));
+
+    assertTrue(WorldEditCommandParser.isEntityRefreshCommand("//butcher"));
+    assertTrue(WorldEditCommandParser.isEntityRefreshCommand("/worldedit:remove item_display 100"));
+    assertTrue(WorldEditCommandParser.isEntityRefreshCommand("//rem item 100"));
+    assertTrue(
+        WorldEditCommandParser.isEntityRefreshCommand("//rement minecraft:item_display 100"));
+    assertFalse(WorldEditCommandParser.isEntityRefreshCommand("//regen"));
+  }
+
+  @Test
+  void operationSnapshotSuppliesOldMarkerWhenLiveSnapshotMisses() {
+    UUID worldId = new UUID(81L, 82L);
+    UUID otherWorldId = new UUID(83L, 84L);
+    BlockVector3 position = BlockVector3.at(-18, 70, 31);
+    MarkerSnapshot terminal =
+        new MarkerSnapshot(
+            null, new TerminalData("TERMINAL", "NORTH"), null, null, null, false, false);
+    MarkerSnapshot storage =
+        new MarkerSnapshot(
+            new StorageData("live-storage", "BASIC", "SOUTH"),
+            null,
+            null,
+            null,
+            null,
+            false,
+            false);
+    PendingOperationSnapshot operationSnapshot =
+        new PendingOperationSnapshot(
+            worldId,
+            Map.of(
+                WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()), terminal),
+            Set.of(new ChunkKey(worldId, position.x() >> 4, position.z() >> 4)),
+            System.currentTimeMillis(),
+            3,
+            "worldedit_regen");
+
+    assertEquals(
+        terminal,
+        WorldEditBridge.chooseExistingSnapshot(null, operationSnapshot, worldId, position));
+    assertEquals(
+        storage,
+        WorldEditBridge.chooseExistingSnapshot(storage, operationSnapshot, worldId, position));
+    assertNull(
+        WorldEditBridge.chooseExistingSnapshot(null, operationSnapshot, otherWorldId, position));
+    assertEquals(terminal, operationSnapshot.get(worldId, position));
+    assertEquals(
+        position.x(),
+        WorldEditMarkerMath.blockX(
+            WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z())));
+    assertEquals(
+        position.y(),
+        WorldEditMarkerMath.blockY(
+            WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z())));
+    assertEquals(
+        position.z(),
+        WorldEditMarkerMath.blockZ(
+            WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z())));
   }
 
   @Test
