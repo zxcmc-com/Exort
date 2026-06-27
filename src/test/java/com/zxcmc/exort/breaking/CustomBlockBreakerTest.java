@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
+import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.marker.WireMarker;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;

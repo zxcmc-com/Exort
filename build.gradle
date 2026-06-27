@@ -19,7 +19,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.17.2'
+version = '0.17.3'
 description = 'Exort Storage Network'
 
 base {
@@ -157,7 +157,7 @@ tasks.register('exportResourcePack', JavaExec) {
     description = 'Exports the standalone Exort resource pack to build/exort-resource-pack.'
     dependsOn tasks.named('classes')
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'com.zxcmc.exort.infra.resourcepack.ResourcePackCli'
+    mainClass = 'com.zxcmc.exort.infra.resourcepack.export.ResourcePackCli'
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(25)
     }

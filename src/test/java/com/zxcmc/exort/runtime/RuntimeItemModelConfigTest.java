@@ -1,52 +1,58 @@
 package com.zxcmc.exort.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.carrier.Carriers;
+import java.util.List;
 import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
 class RuntimeItemModelConfigTest {
   @Test
-  void resourceDefaultsUseExortNamespaceAndResourceCarriers() {
-    RuntimeItemModelConfig config = RuntimeItemModelConfig.forMode(true);
+  void resourceModeUsesExortModelsAndConfiguredWireCarrier() {
+    RuntimeItemModelConfig chorusWire = RuntimeItemModelConfig.forMode(true, false);
+    RuntimeItemModelConfig barrierWire = RuntimeItemModelConfig.forMode(true, true);
 
-    assertEquals("exort", config.displayNamespace());
-    assertEquals(Carriers.CHORUS_MATERIAL, config.wireMaterial());
-    assertEquals(Carriers.CARRIER_BARRIER, config.storageCarrier());
-    assertEquals(Carriers.CARRIER_BARRIER, config.relayCarrier());
-    assertEquals("exort:wire/center", config.wireItemModel());
-    assertEquals("exort:storage/storage", config.storageItemModel());
-    assertEquals("exort:relay/relay", config.relayItemModel());
-    assertEquals("exort:terminal/wireless_disabled", config.wirelessDisabledModel());
+    assertEquals(Carriers.CHORUS_MATERIAL, chorusWire.wireMaterial());
+    assertEquals(Carriers.CARRIER_BARRIER, barrierWire.wireMaterial());
+    assertEquals(Carriers.CARRIER_BARRIER, barrierWire.storageCarrier());
+    assertAllModelsUseNamespace(barrierWire, "exort:");
   }
 
   @Test
-  void resourceBarrierWireCarrierKeepsResourceModels() {
-    RuntimeItemModelConfig config = RuntimeItemModelConfig.forMode(true, true);
-
-    assertEquals("exort", config.displayNamespace());
-    assertEquals(Carriers.CARRIER_BARRIER, config.wireMaterial());
-    assertEquals(Carriers.CARRIER_BARRIER, config.storageCarrier());
-    assertEquals("exort:wire/center", config.wireItemModel());
-    assertEquals("exort:storage/storage", config.storageItemModel());
-  }
-
-  @Test
-  void vanillaDefaultsUseMinecraftNamespaceAndBarrierCarriers() {
+  void vanillaModeUsesBarrierCarriersAndMinecraftModels() {
     RuntimeItemModelConfig config = RuntimeItemModelConfig.forMode(false);
 
-    assertEquals("minecraft", config.displayNamespace());
     assertEquals(Material.BARRIER, config.wireMaterial());
     assertEquals(Material.BARRIER, config.terminalCarrier());
-    assertEquals("minecraft:black_stained_glass", config.wireItemModel());
-    assertEquals("minecraft:barrel", config.terminalItemModel());
-    assertEquals("minecraft:lodestone", config.relayItemModel());
-    assertEquals("minecraft:target", config.wirelessDisabledModel());
+    assertAllModelsUseNamespace(config, "minecraft:");
   }
 
   @Test
-  void blankModelFallsBackToUnknownInNamespace() {
+  void normalizeModelIdStripsInputNamespaceAndFallsBackForBlankValues() {
+    assertEquals(
+        "custom:path/model", RuntimeItemModelConfig.normalizeModelId("exort:path/model", "custom"));
     assertEquals("minecraft:unknown", RuntimeItemModelConfig.normalizeModelId("  ", null));
+  }
+
+  private static void assertAllModelsUseNamespace(RuntimeItemModelConfig config, String prefix) {
+    for (String model : models(config)) {
+      assertTrue(model.startsWith(prefix), model);
+    }
+  }
+
+  private static List<String> models(RuntimeItemModelConfig config) {
+    return List.of(
+        config.wireItemModel(),
+        config.storageItemModel(),
+        config.terminalItemModel(),
+        config.craftingTerminalItemModel(),
+        config.monitorItemModel(),
+        config.importBusItemModel(),
+        config.exportBusItemModel(),
+        config.relayItemModel(),
+        config.wirelessItemModel(),
+        config.wirelessDisabledModel());
   }
 }

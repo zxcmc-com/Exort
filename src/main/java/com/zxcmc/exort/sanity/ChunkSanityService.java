@@ -1,7 +1,7 @@
 package com.zxcmc.exort.sanity;
 
 import com.zxcmc.exort.debug.WorldEditDebugService;
-import com.zxcmc.exort.display.DisplayRefreshService;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import java.util.Objects;
 import java.util.function.Supplier;

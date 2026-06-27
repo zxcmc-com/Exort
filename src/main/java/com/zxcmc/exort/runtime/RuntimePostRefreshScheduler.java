@@ -1,7 +1,7 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.command.ExortGiveMenu;
-import com.zxcmc.exort.display.DisplayRefreshService;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.items.InventoryRefreshService;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.StorageMarker;

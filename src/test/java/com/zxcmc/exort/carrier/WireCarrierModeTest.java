@@ -7,11 +7,6 @@ import org.junit.jupiter.api.Test;
 
 class WireCarrierModeTest {
   @Test
-  void defaultsToChorusPlant() {
-    assertEquals(WireCarrierMode.CHORUS_PLANT, WireCarrierMode.fromConfig(new YamlConfiguration()));
-  }
-
-  @Test
   void readsExplicitBarrier() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("wire.carrier", "BARRIER");

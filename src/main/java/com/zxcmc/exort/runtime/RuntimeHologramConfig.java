@@ -1,6 +1,6 @@
 package com.zxcmc.exort.runtime;
 
-import com.zxcmc.exort.display.ItemHologramManager;
+import com.zxcmc.exort.display.device.ItemHologramManager;
 import java.util.Objects;
 
 public record RuntimeHologramConfig(

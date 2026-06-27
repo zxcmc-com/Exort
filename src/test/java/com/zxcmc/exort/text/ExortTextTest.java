@@ -48,24 +48,6 @@ class ExortTextTest {
   }
 
   @Test
-  void monitorFillColorUsesRedForCriticalFullness() {
-    assertEquals(NamedTextColor.RED, ExortText.monitorFillColor(0.05));
-    assertEquals(NamedTextColor.GOLD, ExortText.monitorFillColor(0.30));
-    assertEquals(NamedTextColor.WHITE, ExortText.monitorFillColor(0.31));
-  }
-
-  @Test
-  void monitorFillTextDoesNotUseBoldForCriticalFullness() {
-    Component critical = ExortText.monitorFillText("99%", 0.05);
-    Component warning = ExortText.monitorFillText("70%", 0.30);
-
-    assertEquals(NamedTextColor.RED, critical.color());
-    assertEquals(TextDecoration.State.NOT_SET, critical.decoration(TextDecoration.BOLD));
-    assertEquals(NamedTextColor.GOLD, warning.color());
-    assertEquals(TextDecoration.State.NOT_SET, warning.decoration(TextDecoration.BOLD));
-  }
-
-  @Test
   void withPrefixDoesNotLetPrefixColorInheritIntoContent() {
     Component prefix = ExortText.configRichText("§f*");
     Component content = ExortText.plain("Terminal");

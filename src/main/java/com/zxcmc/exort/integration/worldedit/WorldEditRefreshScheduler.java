@@ -3,7 +3,7 @@ package com.zxcmc.exort.integration.worldedit;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.debug.WorldEditDebugService;
-import com.zxcmc.exort.display.DisplayRefreshService;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;

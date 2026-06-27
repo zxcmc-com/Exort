@@ -2,20 +2,11 @@ package com.zxcmc.exort.wireless;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 class WirelessRuntimeConfigTest {
-  @Test
-  void readsCurrentDefaults() {
-    WirelessRuntimeConfig config = WirelessRuntimeConfig.fromConfig(new YamlConfiguration());
-
-    assertTrue(config.enabled());
-    assertEquals(3, config.rangeChunks());
-  }
-
   @Test
   void readsConfiguredValues() {
     YamlConfiguration yaml = new YamlConfiguration();

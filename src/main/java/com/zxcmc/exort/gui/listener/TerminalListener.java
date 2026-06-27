@@ -6,7 +6,7 @@ import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
+import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;

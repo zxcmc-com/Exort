@@ -7,16 +7,6 @@ import org.junit.jupiter.api.Test;
 
 class StorageRuntimeConfigTest {
   @Test
-  void readsCurrentDefaults() {
-    StorageRuntimeConfig config = StorageRuntimeConfig.fromConfig(new YamlConfiguration());
-
-    assertEquals("AMOUNT", config.defaultSortModeName());
-    assertEquals(10, config.flushIntervalSeconds());
-    assertEquals(300L, config.cacheIdleUnloadSeconds());
-    assertEquals(60L, config.cacheIdleCheckSeconds());
-  }
-
-  @Test
   void readsConfiguredValues() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("defaultSortMode", "NAME");

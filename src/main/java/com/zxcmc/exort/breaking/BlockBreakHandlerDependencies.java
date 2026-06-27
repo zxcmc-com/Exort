@@ -2,10 +2,10 @@ package com.zxcmc.exort.breaking;
 
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
-import com.zxcmc.exort.display.DisplayRefreshService;
-import com.zxcmc.exort.display.ItemHologramManager;
-import com.zxcmc.exort.display.MonitorDisplayManager;
-import com.zxcmc.exort.display.WireDisplayManager;
+import com.zxcmc.exort.display.device.ItemHologramManager;
+import com.zxcmc.exort.display.device.MonitorDisplayManager;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
+import com.zxcmc.exort.display.wire.WireDisplayManager;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;

@@ -1,8 +1,8 @@
 package com.zxcmc.exort.sanity;
 
 import com.zxcmc.exort.bus.BusService;
-import com.zxcmc.exort.display.DisplayRefreshService;
-import com.zxcmc.exort.display.ItemHologramManager;
+import com.zxcmc.exort.display.device.ItemHologramManager;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.db.Database;
 import java.util.Objects;
 import java.util.function.Supplier;

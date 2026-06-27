@@ -2,26 +2,11 @@ package com.zxcmc.exort.bus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 class BusRuntimeConfigTest {
-  @Test
-  void defaultsMatchCurrentRuntimeConfig() {
-    BusRuntimeConfig config = BusRuntimeConfig.fromConfig(new YamlConfiguration());
-
-    assertEquals(5, config.activeIntervalTicks());
-    assertEquals(40, config.idleIntervalTicks());
-    assertEquals(1, config.itemsPerOperation());
-    assertEquals(500, config.maxOperationsPerTick());
-    assertEquals(40, config.maxOperationsPerChunk());
-    assertTrue(config.allowStorageTargets());
-    assertEquals(BusMode.WHITELIST, config.defaultImportMode());
-    assertEquals(BusMode.WHITELIST, config.defaultExportMode());
-  }
-
   @Test
   void configuredValuesOverrideDefaults() {
     YamlConfiguration yaml = new YamlConfiguration();

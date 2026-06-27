@@ -1,9 +1,9 @@
 package com.zxcmc.exort.debug;
 
 import com.zxcmc.exort.bus.BusService;
-import com.zxcmc.exort.display.DisplayRefreshService;
-import com.zxcmc.exort.display.ItemHologramManager;
-import com.zxcmc.exort.display.MonitorDisplayManager;
+import com.zxcmc.exort.display.device.ItemHologramManager;
+import com.zxcmc.exort.display.device.MonitorDisplayManager;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.runtime.RuntimeMaterials;

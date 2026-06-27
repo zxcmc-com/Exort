@@ -29,7 +29,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
-import com.zxcmc.exort.display.DisplayTags;
+import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.items.listener.PickListener;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;

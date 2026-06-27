@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.3 — 2026-06-27
+- Reorganized Exort's internal package layout around semantic feature ownership for display services, breaking overlays, resource-pack export/hosting/provider integrations, placement helpers, relay listeners, wire placement, and WorldEdit/FAWE helpers, while keeping runtime behavior, config, DB, PDC keys, commands, and resource-pack paths unchanged.
+
 ## 0.17.2 — 2026-06-26
 - Exort blocks now use configurable plugin-side explosion handling from the `break.*.blastResistance` settings: wires, terminals, monitors, buses, relays, and storages use their own blast resistance values while vanilla carrier drops are suppressed and successful explosion breaks run through Exort's item-drop and display-cleanup logic.
 - Fixed destructive WorldEdit/FAWE edits such as `//regen` and `//set` so overwritten Exort blocks clear marker, runtime, display, bus, relay, and hologram state cleanly, while WorldEdit undo/redo can still restore and re-destroy the Exort state without orphan visuals.

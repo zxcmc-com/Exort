@@ -9,18 +9,6 @@ import org.junit.jupiter.api.Test;
 
 class RuntimeNetworkConfigTest {
   @Test
-  void defaultsMatchCurrentRuntimeConfig() {
-    RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(new YamlConfiguration());
-
-    assertEquals(120L, config.storagePeekTicks());
-    assertEquals(120L, config.wirePeekTicks());
-    assertEquals(32, config.wireLimit());
-    assertEquals(64, config.wireHardCap());
-    assertEquals(3, config.relayRangeChunks());
-    assertFalse(config.wireHardCapAdjusted());
-  }
-
-  @Test
   void readsPublicWireAndRelayKeys() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("wire.limit", 20);

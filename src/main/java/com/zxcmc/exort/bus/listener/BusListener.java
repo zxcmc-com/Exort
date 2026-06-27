@@ -3,7 +3,7 @@ package com.zxcmc.exort.bus.listener;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
+import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.marker.BusMarker;
 import java.util.function.Consumer;
 import org.bukkit.Material;

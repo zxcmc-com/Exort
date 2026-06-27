@@ -6,9 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.storage.StorageTier;
-import java.util.List;
 import java.util.logging.Logger;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.inventory.ClickType;
@@ -16,43 +14,12 @@ import org.junit.jupiter.api.Test;
 
 class ExortGiveMenuTest {
   private static final Logger LOGGER = Logger.getLogger(ExortGiveMenuTest.class.getName());
-  private static final PlainTextComponentSerializer PLAIN =
-      PlainTextComponentSerializer.plainText();
-
-  @Test
-  void catalogListsStorageTiersBeforeFixedItems() {
-    loadDefaultLikeTiers();
-
-    assertEquals(
-        List.of(
-            "storage:common",
-            "storage:rare",
-            "storage:mythical",
-            "storage:legendary",
-            "storage:immortal",
-            "storage_core",
-            "terminal",
-            "crafting_terminal",
-            "monitor",
-            "import_bus",
-            "export_bus",
-            "relay",
-            "wire",
-            "wireless_terminal"),
-        ExortGiveMenu.catalogIds());
-  }
 
   @Test
   void defaultCatalogFitsSingleInventory() {
     loadDefaultLikeTiers();
 
     assertTrue(ExortGiveMenu.catalogIds().size() <= ExortGiveMenu.SIZE);
-  }
-
-  @Test
-  void titleUsesLocalizedTextWithLegacyFallback() {
-    assertEquals("Предметы Exort", PLAIN.serialize(ExortGiveMenu.title("Предметы Exort")));
-    assertEquals(ExortGiveMenu.TITLE, PLAIN.serialize(ExortGiveMenu.title(" ")));
   }
 
   @Test

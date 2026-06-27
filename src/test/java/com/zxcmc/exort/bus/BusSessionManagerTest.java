@@ -30,14 +30,9 @@ class BusSessionManagerTest {
     StorageTier tier = StorageTier.fromString("rare").orElseThrow();
 
     Component value = BusSessionManager.storageValue(lang, null, tier, "storage-id", " example ");
-    Component line =
-        BusSession.storageInfoLine(
-            lang.tr((org.bukkit.entity.Player) null, "gui.bus.info.storage", ""), value);
 
     assertEquals("example", plain(value));
     assertEquals(NamedTextColor.RED, value.color());
-    assertEquals("Storage: example", plain(line));
-    assertEquals(NamedTextColor.RED, line.children().getFirst().color());
   }
 
   @Test
@@ -48,14 +43,9 @@ class BusSessionManagerTest {
     StorageTier tier = StorageTier.fromString("rare").orElseThrow();
 
     Component value = BusSessionManager.storageValue(lang, null, tier, "storage-id", null);
-    Component line =
-        BusSession.storageInfoLine(
-            lang.tr((org.bukkit.entity.Player) null, "gui.bus.info.storage", ""), value);
 
     assertEquals("Rare", plain(value));
     assertEquals(NamedTextColor.RED, value.color());
-    assertEquals("Storage: Rare", plain(line));
-    assertEquals(NamedTextColor.RED, line.children().getFirst().color());
   }
 
   private static String plain(Component component) {

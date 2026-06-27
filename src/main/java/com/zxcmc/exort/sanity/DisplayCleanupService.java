@@ -1,7 +1,7 @@
 package com.zxcmc.exort.sanity;
 
 import com.zxcmc.exort.carrier.Carriers;
-import com.zxcmc.exort.display.DisplayTags;
+import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;

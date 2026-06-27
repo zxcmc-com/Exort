@@ -1,15 +1,15 @@
 package com.zxcmc.exort.runtime;
 
-import com.zxcmc.exort.display.BusDisplayManager;
-import com.zxcmc.exort.display.DisplayCullingService;
-import com.zxcmc.exort.display.DisplayRefreshService;
-import com.zxcmc.exort.display.ExortBlockProxyService;
-import com.zxcmc.exort.display.ItemHologramManager;
-import com.zxcmc.exort.display.MonitorDisplayManager;
-import com.zxcmc.exort.display.RelayDisplayManager;
-import com.zxcmc.exort.display.StorageDisplayManager;
-import com.zxcmc.exort.display.TerminalDisplayManager;
-import com.zxcmc.exort.display.WireDisplayManager;
+import com.zxcmc.exort.display.culling.DisplayCullingService;
+import com.zxcmc.exort.display.device.BusDisplayManager;
+import com.zxcmc.exort.display.device.ItemHologramManager;
+import com.zxcmc.exort.display.device.MonitorDisplayManager;
+import com.zxcmc.exort.display.device.RelayDisplayManager;
+import com.zxcmc.exort.display.device.StorageDisplayManager;
+import com.zxcmc.exort.display.device.TerminalDisplayManager;
+import com.zxcmc.exort.display.proxy.ExortBlockProxyService;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
+import com.zxcmc.exort.display.wire.WireDisplayManager;
 
 public record RuntimeDisplayServices(
     ItemHologramManager hologramManager,

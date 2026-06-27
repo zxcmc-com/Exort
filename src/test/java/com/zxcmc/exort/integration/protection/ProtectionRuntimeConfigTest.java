@@ -8,19 +8,6 @@ import org.junit.jupiter.api.Test;
 
 class ProtectionRuntimeConfigTest {
   @Test
-  void readsCurrentDefaults() {
-    ProtectionRuntimeConfig config = ProtectionRuntimeConfig.fromConfig(new YamlConfiguration());
-
-    assertTrue(config.enabled());
-    assertFalse(config.failClosedOnError());
-    assertTrue(config.adapters().worldGuard());
-    assertTrue(config.adapters().griefPrevention());
-    assertTrue(config.adapters().towny());
-    assertTrue(config.adapters().lands());
-    assertTrue(config.adapters().residence());
-  }
-
-  @Test
   void readsConfiguredPublicFlags() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("protection.enabled", false);

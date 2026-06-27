@@ -9,7 +9,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
-import com.zxcmc.exort.display.DisplayCullingService;
+import com.zxcmc.exort.display.culling.DisplayCullingService;
 import com.zxcmc.exort.feedback.CommandFeedback;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.i18n.Lang;

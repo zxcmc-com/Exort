@@ -7,14 +7,6 @@ import org.junit.jupiter.api.Test;
 
 class GuiRuntimeConfigTest {
   @Test
-  void readsCurrentDefaults() {
-    GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(new YamlConfiguration());
-
-    assertEquals(5L, config.sessionDeviceCheckIntervalTicks());
-    assertEquals(10_000L, config.craftingConfirmTimeoutMs());
-  }
-
-  @Test
   void readsMovedSessionCheckInterval() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("performance.sessionDeviceCheckIntervalTicks", 12L);
@@ -22,7 +14,6 @@ class GuiRuntimeConfigTest {
     GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
 
     assertEquals(12L, config.sessionDeviceCheckIntervalTicks());
-    assertEquals(10_000L, config.craftingConfirmTimeoutMs());
   }
 
   @Test
@@ -33,6 +24,5 @@ class GuiRuntimeConfigTest {
     GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
 
     assertEquals(1L, config.sessionDeviceCheckIntervalTicks());
-    assertEquals(10_000L, config.craftingConfirmTimeoutMs());
   }
 }

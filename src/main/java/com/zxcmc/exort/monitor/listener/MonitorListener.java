@@ -5,7 +5,7 @@ import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
+import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.MonitorMarker;

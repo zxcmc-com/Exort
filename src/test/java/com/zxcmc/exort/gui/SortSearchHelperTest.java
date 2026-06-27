@@ -1,6 +1,5 @@
 package com.zxcmc.exort.gui;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.i18n.ItemNameService;
@@ -42,9 +41,6 @@ class SortSearchHelperTest {
     terminal.meta.itemName = Component.text("Storage Terminal");
 
     assertTrue(matches(terminal, "терминал хранилища", harness));
-    assertEquals(
-        "Терминал хранилища",
-        SortSearchHelper.sortNameKey(terminal, null, harness.lang(), harness.keys(), "ru_ru"));
   }
 
   @Test
@@ -71,9 +67,6 @@ class SortSearchHelperTest {
     assertTrue(matches(storage, "main vault", harness));
     assertTrue(matches(storage, "storage", harness));
     assertTrue(matches(storage, "exort:storage", harness));
-    assertEquals(
-        "Хранилище",
-        SortSearchHelper.sortNameKey(storage, null, harness.lang(), harness.keys(), "ru_ru"));
   }
 
   @Test

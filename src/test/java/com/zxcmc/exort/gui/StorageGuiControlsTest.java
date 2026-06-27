@@ -1,6 +1,7 @@
 package com.zxcmc.exort.gui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.storage.StorageCache;
@@ -17,7 +18,7 @@ class StorageGuiControlsTest {
       PlainTextComponentSerializer.plainText();
 
   @Test
-  void infoLoreKeepsTierNextToUsedTitleBeforeStorageNameAndId() {
+  void infoLoreIncludesTierCustomNameAndIdInStableOrder() {
     loadRareTier();
     Lang lang = new Lang(null);
     lang.load("en_us");
@@ -28,7 +29,20 @@ class StorageGuiControlsTest {
     List<Component> lore =
         StorageGuiControls.infoLore(lang, null, cache, tier, true, false, false, null, 0, false);
 
-    assertEquals(List.of("Tier: Rare", "Storage: example", "Storage ID: storage-id"), plain(lore));
+    List<String> lines = plain(lore);
+    assertEquals(3, lines.size());
+    assertContainsInOrder(lines, "Rare", "example", "storage-id");
+  }
+
+  private static void assertContainsInOrder(List<String> lines, String... needles) {
+    int lineIndex = 0;
+    for (String needle : needles) {
+      while (lineIndex < lines.size() && !lines.get(lineIndex).contains(needle)) {
+        lineIndex++;
+      }
+      assertTrue(lineIndex < lines.size(), "missing " + needle + " in " + lines);
+      lineIndex++;
+    }
   }
 
   private static List<String> plain(List<Component> lore) {

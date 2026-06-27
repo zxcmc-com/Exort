@@ -1,6 +1,6 @@
 package com.zxcmc.exort.runtime;
 
-import com.zxcmc.exort.display.MonitorDisplayManager;
+import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import java.util.Objects;
 
 public record RuntimeMonitorScreenConfig(

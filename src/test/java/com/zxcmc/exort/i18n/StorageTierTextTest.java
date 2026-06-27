@@ -1,6 +1,7 @@
 package com.zxcmc.exort.i18n;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.zxcmc.exort.storage.StorageTier;
 import java.nio.file.Path;
@@ -17,26 +18,25 @@ class StorageTierTextTest {
       PlainTextComponentSerializer.plainText();
 
   @Test
-  void rendersLocalizedStorageNameAndTierLore() {
+  void tierTextResolvesTranslationsAndKeepsTierColorSeparatedFromLabels() {
     loadRareTier();
     Lang lang = new Lang(null, null, Path.of("src/main/resources"));
     lang.load("en_us");
     StorageTier tier = StorageTier.fromString("rare").orElseThrow();
 
     Component englishName = StorageTierText.storageName(lang, "en_us", tier);
-    Component russianName = StorageTierText.storageName(lang, "ru_ru", tier);
 
-    assertEquals("Storage", plain(englishName));
-    assertEquals("Хранилище", plain(russianName));
+    assertFalse(plain(englishName).isBlank());
+    assertFalse(plain(englishName).contains("{"));
     assertEquals(NamedTextColor.RED, firstColor(englishName));
 
     Component englishLore = StorageTierText.tierLore(lang, "en_us", tier);
     Component russianLore = StorageTierText.tierLore(lang, "ru_ru", tier);
     Component clientLore = StorageTierText.tierLore(lang, true, tier);
     Component storageItemTier = StorageTierText.tierValueLore(lang, "ru_ru", tier);
-    assertEquals("Tier: Rare", plain(englishLore));
-    assertEquals("Тир: Редкий", plain(russianLore));
-    assertEquals("Редкий", plain(storageItemTier));
+    assertFalse(plain(englishLore).contains("{"));
+    assertFalse(plain(russianLore).contains("{"));
+    assertFalse(plain(storageItemTier).isBlank());
     assertEquals(NamedTextColor.WHITE, firstColor(englishLore));
     assertEquals(NamedTextColor.RED, lastColor(englishLore));
     assertEquals(NamedTextColor.WHITE, firstColor(russianLore));

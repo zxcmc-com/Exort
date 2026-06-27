@@ -2,7 +2,7 @@ package com.zxcmc.exort.wire.listener;
 
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.worldedit.WorldEditWandGuard;
+import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import java.util.Objects;
 import org.bukkit.Material;
