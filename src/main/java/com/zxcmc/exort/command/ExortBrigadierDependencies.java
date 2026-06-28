@@ -1,5 +1,6 @@
 package com.zxcmc.exort.command;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.LoadTestService;
 import com.zxcmc.exort.debug.PickDebugService;
@@ -103,5 +104,9 @@ public record ExortBrigadierDependencies(
 
   public WirelessTerminalService wirelessService() {
     return runtimeAccess.wirelessService();
+  }
+
+  public ChunkLoaderService chunkLoaderService() {
+    return runtimeAccess.chunkLoaderService();
   }
 }

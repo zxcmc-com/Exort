@@ -10,6 +10,7 @@ import com.zxcmc.exort.breaking.BreakType;
 import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -203,6 +204,7 @@ class ExortExplosionResolverTest {
     Block monitor = world.block(4, 64, 0, Material.BARRIER);
     Block bus = world.block(5, 64, 0, Material.BARRIER);
     Block relay = world.block(6, 64, 0, Material.BARRIER);
+    Block chunkLoader = world.block(7, 64, 0, Material.BARRIER);
     WireMarker.setWire(plugin, wire);
     StorageMarker.setRaw(plugin, storage, "storage-a", "common", 1024L, BlockFace.NORTH);
     StorageCoreMarker.set(plugin, core);
@@ -210,6 +212,7 @@ class ExortExplosionResolverTest {
     MonitorMarker.set(plugin, monitor, BlockFace.NORTH);
     BusMarker.set(plugin, bus, BusType.IMPORT, BlockFace.NORTH, BusMode.DISABLED);
     RelayMarker.set(plugin, relay);
+    ChunkLoaderMarker.set(plugin, chunkLoader, new UUID(0L, 7L), null, "Alex", 100L);
     ExortExplosionResolver resolver = resolver(Material.CHORUS_PLANT);
 
     assertAll(
@@ -219,7 +222,10 @@ class ExortExplosionResolverTest {
         () -> assertTarget(resolver, terminal, BreakType.TERMINAL, ExortBlastResistance.TERMINAL),
         () -> assertTarget(resolver, monitor, BreakType.MONITOR, ExortBlastResistance.MONITOR),
         () -> assertTarget(resolver, bus, BreakType.BUS, ExortBlastResistance.BUS),
-        () -> assertTarget(resolver, relay, BreakType.RELAY, ExortBlastResistance.RELAY));
+        () -> assertTarget(resolver, relay, BreakType.RELAY, ExortBlastResistance.RELAY),
+        () ->
+            assertTarget(
+                resolver, chunkLoader, BreakType.CHUNK_LOADER, ExortBlastResistance.CHUNK_LOADER));
   }
 
   private static void assertTarget(
@@ -258,6 +264,7 @@ class ExortExplosionResolverTest {
   private static RuntimeMaterials materials(Material wireMaterial) {
     return new RuntimeMaterials(
         wireMaterial,
+        Material.BARRIER,
         Material.BARRIER,
         Material.BARRIER,
         Material.BARRIER,

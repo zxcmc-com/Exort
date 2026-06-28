@@ -67,6 +67,7 @@ public final class ExortItemLocalizationService {
     boolean changed =
         switch (type) {
           case "storage" -> localizeStorage(meta, localizedPdc, language);
+          case "chunk_loader" -> localizeChunkLoader(meta, localizedPdc, language);
           case "wireless_terminal" -> localizeWireless(meta, localizedPdc, language);
           default ->
               CustomItemRegistry.fixedItem(type)
@@ -130,6 +131,20 @@ public final class ExortItemLocalizationService {
     }
     lore.add(StorageTierText.tierValueLore(lang, language, tier));
     return lore;
+  }
+
+  private boolean localizeChunkLoader(ItemMeta meta, PersistentDataContainer pdc, String language) {
+    meta.itemName(text(language, "item.chunk_loader"));
+    String id =
+        PdcValueSanitizer.uuidString(pdc.get(keys.chunkLoaderId(), PersistentDataType.STRING));
+    if (id == null || id.isBlank() || id.length() < STORAGE_ID_TAIL_LENGTH) {
+      meta.lore(null);
+      return true;
+    }
+    String tail = id.substring(id.length() - STORAGE_ID_TAIL_LENGTH);
+    meta.lore(
+        List.of(text(language, "lore.chunk_loader.id_tail", tail).color(NamedTextColor.GRAY)));
+    return true;
   }
 
   private boolean localizeWireless(ItemMeta meta, PersistentDataContainer pdc, String language) {

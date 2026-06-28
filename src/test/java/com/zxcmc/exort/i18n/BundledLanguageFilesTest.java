@@ -31,6 +31,7 @@ class BundledLanguageFilesTest {
           "item.terminal",
           "item.crafting_terminal",
           "item.wire",
+          "item.chunk_loader",
           "item.monitor",
           "item.import_bus",
           "item.export_bus",

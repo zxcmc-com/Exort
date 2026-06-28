@@ -3,6 +3,7 @@ package com.zxcmc.exort.sanity;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -28,6 +29,7 @@ public final class DisplayCleanupService {
   private static final String TYPE_MONITOR = "monitor";
   private static final String TYPE_BUS = "bus";
   private static final String TYPE_RELAY = "relay";
+  private static final String TYPE_CHUNK_LOADER = "chunk_loader";
   private static final String TYPE_MONITOR_ITEM = "monitor_item";
   private static final String TYPE_MONITOR_TEXT = "monitor_text";
   private static final String[] DISPLAY_TYPES =
@@ -38,11 +40,12 @@ public final class DisplayCleanupService {
         TYPE_MONITOR,
         TYPE_BUS,
         TYPE_RELAY,
+        TYPE_CHUNK_LOADER,
         TYPE_MONITOR_ITEM,
         TYPE_MONITOR_TEXT
       };
   private static final Set<String> MARKER_BACKED_DISPLAY_TYPES =
-      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS, TYPE_RELAY);
+      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS, TYPE_RELAY, TYPE_CHUNK_LOADER);
   private final Plugin plugin;
   private final Material wireCarrier;
   private final Material storageCarrier;
@@ -50,6 +53,7 @@ public final class DisplayCleanupService {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
 
   public DisplayCleanupService(
       Plugin plugin,
@@ -58,7 +62,8 @@ public final class DisplayCleanupService {
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material chunkLoaderCarrier) {
     this.plugin = plugin;
     this.wireCarrier = wireCarrier;
     this.storageCarrier = storageCarrier;
@@ -66,6 +71,7 @@ public final class DisplayCleanupService {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.chunkLoaderCarrier = chunkLoaderCarrier;
   }
 
   public void cleanupDisplays(Chunk chunk) {
@@ -168,6 +174,9 @@ public final class DisplayCleanupService {
       case TYPE_BUS -> Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
       case TYPE_RELAY ->
           Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+      case TYPE_CHUNK_LOADER ->
+          Carriers.matchesCarrier(block, chunkLoaderCarrier)
+              && ChunkLoaderMarker.isChunkLoader(plugin, block);
       default -> false;
     };
   }
@@ -178,7 +187,8 @@ public final class DisplayCleanupService {
         || isValidMarkerBackedBlock(block, TYPE_TERMINAL)
         || isValidMarkerBackedBlock(block, TYPE_MONITOR)
         || isValidMarkerBackedBlock(block, TYPE_BUS)
-        || isValidMarkerBackedBlock(block, TYPE_RELAY);
+        || isValidMarkerBackedBlock(block, TYPE_RELAY)
+        || isValidMarkerBackedBlock(block, TYPE_CHUNK_LOADER);
   }
 
   private void loadMonitorDisplayIds(Chunk chunk, Set<UUID> monitorItems, Set<UUID> monitorTexts) {

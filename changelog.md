@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0 — 2026-06-28
+- Added the Chunk Loader block: placed loaders keep a configurable square chunk radius loaded, persist active placements and UUID history in SQLite, rebuild plugin chunk tickets on reload/restart, and reconcile stale or missing marker records when chunks load.
+- Chunk Loaders now receive a UUID on first placement, preserve that UUID on survival break, reject duplicate active UUID placement, show their UUID in item lore and right-click bossbars, and give creative pick-block users a fresh unassigned item.
+- Added paginated `/exort debug chunkloaders active [page]` and `/exort debug chunkloaders all [page]` views with placer/status/last-seen details and clickable teleport coordinates for moderators.
+- Added readable Chunk Loader audit messages plus a dedicated rotated `plugins/Exort/logs/chunkloaders.log` file, covering placement, breaking, drops, pickups, removals, cleanup, `lost -> found` recovery, bidirectional external-inventory transfers, and hopper/automation movement.
+- Extended placement, custom breaking, blast handling, display refresh, resource-pack paths, VANILLA fallback visuals, pick-block behavior, and WorldEdit/FAWE marker handling to support Chunk Loaders.
+
 ## 0.17.3 — 2026-06-27
 - Reorganized Exort's internal package layout around semantic feature ownership for display services, breaking overlays, resource-pack export/hosting/provider integrations, placement helpers, relay listeners, wire placement, and WorldEdit/FAWE helpers, while keeping runtime behavior, config, DB, PDC keys, commands, and resource-pack paths unchanged.
 

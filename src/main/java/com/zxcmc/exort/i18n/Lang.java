@@ -338,6 +338,20 @@ public class Lang {
         "Network relays are too far apart. Limit: {0} chunks by Manhattan distance.");
     fallback.put("message.relay_linked", "Network relays linked.");
     fallback.put("message.relay_unlinked", "Network relay link removed.");
+    fallback.put(
+        "message.chunk_loader_duplicate",
+        "This Chunk Loader is already active at another position.");
+    fallback.put("message.debug_chunkloaders_empty", "No Chunk Loaders are registered.");
+    fallback.put(
+        "message.debug_chunkloaders_header",
+        "Active Chunk Loaders ({0}), radius {1}, page {2}/{3}:");
+    fallback.put(
+        "message.debug_chunkloaders_all_header", "Chunk Loader registry ({0}), page {1}/{2}:");
+    fallback.put("message.debug_chunkloaders_usage_header", "Chunk Loader debug:");
+    fallback.put("message.debug_chunkloaders_click", "Click to insert {0}");
+    fallback.put("message.usage_debug_chunkloaders", "list Chunk Loader registry");
+    fallback.put("message.usage_debug_chunkloaders_active", "list active Chunk Loaders");
+    fallback.put("message.usage_debug_chunkloaders_all", "list all registered Chunk Loader UUIDs");
     fallback.put("message.help_header", "Exort Storage Network commands:");
     fallback.put("message.version", "Exort Storage Network v{0} by phantomfighterxx");
     fallback.put("item.storage", "Storage");
@@ -346,6 +360,7 @@ public class Lang {
     fallback.put("item.crafting_terminal", "Crafting Terminal");
     fallback.put("item.wire", "Storage Wire");
     fallback.put("item.relay", "Network Relay");
+    fallback.put("item.chunk_loader", "Chunk Loader");
     fallback.put("item.monitor", "Storage Monitor");
     fallback.put("item.import_bus", "Import Bus");
     fallback.put("item.export_bus", "Export Bus");
@@ -359,9 +374,11 @@ public class Lang {
     fallback.put("relay.storage_multiple", "Storage: multiple connected");
     fallback.put("relay.storage_tail", "Storage: {0}");
     fallback.put("relay.storage_none", "Storage: none");
+    fallback.put("chunk_loader.status", "Chunk Loader UUID: {0}");
     fallback.put("lore.storage.tier", "Tier: {0}");
     fallback.put("lore.storage.capacity", "{0} / {1} ({2})");
     fallback.put("lore.storage.id_tail", "{0}");
+    fallback.put("lore.chunk_loader.id_tail", "{0}");
     fallback.put("lore.wireless_terminal.battery", "Battery: {0}%");
     fallback.put("lore.wireless_terminal.owner", "Owner: {0}");
     fallback.put("lore.wireless_terminal.not_linked", "Not linked");

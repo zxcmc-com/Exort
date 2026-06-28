@@ -2,6 +2,7 @@ package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.display.culling.DisplayCullingService;
 import com.zxcmc.exort.display.device.BusDisplayManager;
+import com.zxcmc.exort.display.device.ChunkLoaderDisplayManager;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.device.RelayDisplayManager;
@@ -19,6 +20,7 @@ public record RuntimeDisplayServices(
     MonitorDisplayManager monitorDisplayManager,
     BusDisplayManager busDisplayManager,
     RelayDisplayManager relayDisplayManager,
+    ChunkLoaderDisplayManager chunkLoaderDisplayManager,
     ExortBlockProxyService blockProxyService,
     DisplayCullingService displayCullingService,
     DisplayRefreshService displayRefreshService) {}

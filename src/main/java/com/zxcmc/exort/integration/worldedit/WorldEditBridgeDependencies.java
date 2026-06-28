@@ -1,6 +1,7 @@
 package com.zxcmc.exort.integration.worldedit;
 
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
@@ -20,6 +21,7 @@ public record WorldEditBridgeDependencies(
     Supplier<NetworkGraphCache> networkGraphCacheSource,
     Supplier<DisplayRefreshService> displayRefreshServiceSource,
     Supplier<BusService> busServiceSource,
+    Supplier<ChunkLoaderService> chunkLoaderServiceSource,
     Supplier<ItemHologramManager> hologramManagerSource,
     WorldEditBridgeMaterials materials,
     WorldEditBulkConfig bulkConfig) {
@@ -31,6 +33,7 @@ public record WorldEditBridgeDependencies(
     Objects.requireNonNull(networkGraphCacheSource, "networkGraphCacheSource");
     Objects.requireNonNull(displayRefreshServiceSource, "displayRefreshServiceSource");
     Objects.requireNonNull(busServiceSource, "busServiceSource");
+    Objects.requireNonNull(chunkLoaderServiceSource, "chunkLoaderServiceSource");
     Objects.requireNonNull(hologramManagerSource, "hologramManagerSource");
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(bulkConfig, "bulkConfig");
@@ -50,6 +53,10 @@ public record WorldEditBridgeDependencies(
 
   public BusService busService() {
     return busServiceSource.get();
+  }
+
+  public ChunkLoaderService chunkLoaderService() {
+    return chunkLoaderServiceSource.get();
   }
 
   public ItemHologramManager hologramManager() {
@@ -78,5 +85,9 @@ public record WorldEditBridgeDependencies(
 
   public Material relayCarrier() {
     return materials.relayCarrier();
+  }
+
+  public Material chunkLoaderCarrier() {
+    return materials.chunkLoaderCarrier();
   }
 }

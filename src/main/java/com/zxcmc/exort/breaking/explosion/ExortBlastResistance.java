@@ -9,6 +9,7 @@ final class ExortBlastResistance {
   public static final float MONITOR = 9.0F;
   public static final float BUS = 10.0F;
   public static final float RELAY = 50.0F;
+  public static final float CHUNK_LOADER = 50.0F;
   public static final float WIRE = 6.0F;
 
   private final float storage;
@@ -16,20 +17,28 @@ final class ExortBlastResistance {
   private final float monitor;
   private final float bus;
   private final float relay;
+  private final float chunkLoader;
   private final float wire;
 
   ExortBlastResistance(
-      float storage, float terminal, float monitor, float bus, float relay, float wire) {
+      float storage,
+      float terminal,
+      float monitor,
+      float bus,
+      float relay,
+      float chunkLoader,
+      float wire) {
     this.storage = sanitize(storage, STORAGE);
     this.terminal = sanitize(terminal, TERMINAL);
     this.monitor = sanitize(monitor, MONITOR);
     this.bus = sanitize(bus, BUS);
     this.relay = sanitize(relay, RELAY);
+    this.chunkLoader = sanitize(chunkLoader, CHUNK_LOADER);
     this.wire = sanitize(wire, WIRE);
   }
 
   static ExortBlastResistance defaults() {
-    return new ExortBlastResistance(STORAGE, TERMINAL, MONITOR, BUS, RELAY, WIRE);
+    return new ExortBlastResistance(STORAGE, TERMINAL, MONITOR, BUS, RELAY, CHUNK_LOADER, WIRE);
   }
 
   static ExortBlastResistance fromConfig(FileConfiguration config) {
@@ -42,6 +51,7 @@ final class ExortBlastResistance {
         configured(config, "break.monitor.blastResistance", MONITOR),
         configured(config, "break.bus.blastResistance", BUS),
         configured(config, "break.relay.blastResistance", RELAY),
+        configured(config, "break.chunkLoader.blastResistance", CHUNK_LOADER),
         configured(config, "break.wire.blastResistance", WIRE));
   }
 
@@ -52,6 +62,7 @@ final class ExortBlastResistance {
       case MONITOR -> monitor;
       case BUS -> bus;
       case RELAY -> relay;
+      case CHUNK_LOADER -> chunkLoader;
       case WIRE -> wire;
       default -> STORAGE;
     };

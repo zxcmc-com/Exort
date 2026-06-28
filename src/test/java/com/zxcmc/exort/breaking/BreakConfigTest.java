@@ -20,6 +20,7 @@ class BreakConfigTest {
         () -> assertHardness(bundled, "monitor", fallback.monitor()),
         () -> assertHardness(bundled, "bus", fallback.bus()),
         () -> assertHardness(bundled, "relay", fallback.relay()),
+        () -> assertHardness(bundled, "chunkLoader", fallback.chunkLoader()),
         () -> assertHardness(bundled, "wire", fallback.wire()));
   }
 

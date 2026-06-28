@@ -2,6 +2,7 @@ package com.zxcmc.exort.block;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -41,6 +42,10 @@ public final class ExortBlockClassifier {
     }
     if (Carriers.matchesCarrier(block, materials.relayCarrier())
         && RelayMarker.isRelay(plugin, block)) {
+      return true;
+    }
+    if (Carriers.matchesCarrier(block, materials.chunkLoaderCarrier())
+        && ChunkLoaderMarker.isChunkLoader(plugin, block)) {
       return true;
     }
     if (Carriers.matchesCarrier(block, materials.storageCarrier())

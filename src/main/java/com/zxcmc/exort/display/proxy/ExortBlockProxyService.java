@@ -6,6 +6,7 @@ import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.display.culling.DisplayCullingConfig;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -53,7 +54,8 @@ public final class ExortBlockProxyService implements Listener {
           "monitor_item",
           "monitor_text",
           DisplayTags.BUS_TAG,
-          "relay");
+          "relay",
+          "chunk_loader");
 
   private final JavaPlugin plugin;
   private final DisplayCullingConfig.BlockProxyConfig config;
@@ -63,6 +65,7 @@ public final class ExortBlockProxyService implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final BlockData terminalMonitorBusProxyData;
   private final BlockData storageProxyData;
   private final Map<UUID, PlayerState> playerStates = new HashMap<>();
@@ -83,7 +86,8 @@ public final class ExortBlockProxyService implements Listener {
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material chunkLoaderCarrier) {
     this.plugin = plugin;
     this.config =
         config == null ? DisplayCullingConfig.BlockProxyConfig.defaults() : config.normalized();
@@ -93,6 +97,7 @@ public final class ExortBlockProxyService implements Listener {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.chunkLoaderCarrier = chunkLoaderCarrier;
     this.terminalMonitorBusProxyData = createProxyData(ProxyVisual.TERMINAL_MONITOR_BUS);
     this.storageProxyData = createProxyData(ProxyVisual.STORAGE);
   }
@@ -602,6 +607,10 @@ public final class ExortBlockProxyService implements Listener {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
+      return ProxyVisual.TERMINAL_MONITOR_BUS;
+    }
+    if (Carriers.matchesCarrier(block, chunkLoaderCarrier)
+        && ChunkLoaderMarker.isChunkLoader(plugin, block)) {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     return null;

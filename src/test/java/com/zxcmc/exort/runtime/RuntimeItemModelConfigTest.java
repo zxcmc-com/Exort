@@ -52,6 +52,7 @@ class RuntimeItemModelConfigTest {
         config.importBusItemModel(),
         config.exportBusItemModel(),
         config.relayItemModel(),
+        config.chunkLoaderItemModel(),
         config.wirelessItemModel(),
         config.wirelessDisabledModel());
   }

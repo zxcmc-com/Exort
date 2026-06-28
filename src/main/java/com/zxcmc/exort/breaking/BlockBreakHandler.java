@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
@@ -17,6 +18,7 @@ import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -28,6 +30,7 @@ import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import org.bukkit.GameMode;
@@ -49,6 +52,7 @@ public final class BlockBreakHandler {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final ItemHologramManager hologramManager;
   private final WireDisplayManager wireDisplayManager;
   private final DisplayRefreshService displayRefreshService;
@@ -61,6 +65,7 @@ public final class BlockBreakHandler {
   private final Supplier<NetworkGraphCache> networkGraphCache;
   private final RegionProtection regionProtection;
   private final PlayerFeedback playerFeedback;
+  private final ChunkLoaderService chunkLoaderService;
 
   public BlockBreakHandler(BlockBreakHandlerDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -71,6 +76,7 @@ public final class BlockBreakHandler {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.hologramManager = dependencies.hologramManager();
     this.wireDisplayManager = dependencies.wireDisplayManager();
     this.displayRefreshService = dependencies.displayRefreshService();
@@ -86,6 +92,7 @@ public final class BlockBreakHandler {
     this.networkGraphCache = dependencies.networkGraphCache();
     this.regionProtection = dependencies.regionProtection();
     this.playerFeedback = dependencies.playerFeedback();
+    this.chunkLoaderService = dependencies.chunkLoaderService();
   }
 
   public enum BreakResult {
@@ -261,6 +268,33 @@ public final class BlockBreakHandler {
           displayRefreshService.refreshBlockAndNeighbors(peer);
           displayRefreshService.refreshNetworkFrom(peer);
         }
+      }
+      cleanupDisplays(block);
+      return BreakResult.BROKEN;
+    }
+
+    if (ChunkLoaderMarker.isChunkLoader(plugin, block)) {
+      if (!Carriers.matchesCarrier(block, chunkLoaderCarrier)) {
+        chunkLoaderService.cleanupAt(block, "break_wrong_carrier");
+        return BreakResult.BROKEN;
+      }
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
+      }
+      UUID loaderId =
+          ChunkLoaderMarker.get(plugin, block)
+              .map(ChunkLoaderMarker.Data::id)
+              .orElse(UUID.randomUUID());
+      playBreakParticles(block, BreakType.CHUNK_LOADER);
+      boolean dropItem = shouldDrop(player);
+      UUID droppedId = chunkLoaderService.breakLoader(player, block, dropItem).orElse(loaderId);
+      block.setType(Material.AIR);
+      if (dropItem) {
+        dropItemSafe(block, customItems.chunkLoaderItem(droppedId));
+      }
+      if (displayRefreshService != null) {
+        displayRefreshService.removeChunkLoaderDisplay(block);
+        displayRefreshService.refreshBlockAndNeighbors(block);
       }
       cleanupDisplays(block);
       return BreakResult.BROKEN;

@@ -2,6 +2,8 @@ package com.zxcmc.exort.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.zxcmc.exort.chunkloader.ChunkLoaderObservation;
+import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
 import com.zxcmc.exort.feedback.CommandFeedback;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -38,7 +40,46 @@ final class InventoryCommand {
       new ExortGiveMenu(
               dependencies::customItems,
               () -> dependencies.wirelessService().create(),
-              ExortGiveMenu.title(dependencies.lang().tr(player, "gui.give.title")))
+              ExortGiveMenu.title(dependencies.lang().tr(player, "gui.give.title")),
+              (actor, item) -> {
+                if (dependencies.customItems().isChunkLoader(item)) {
+                  dependencies
+                      .customItems()
+                      .chunkLoaderId(item)
+                      .ifPresent(
+                          id -> {
+                            ChunkLoaderObservation observation =
+                                ChunkLoaderObservation.atLocation(
+                                    id,
+                                    ChunkLoaderRegistryStatus.REMOVED,
+                                    actor.getLocation(),
+                                    actor,
+                                    "/exort inventory",
+                                    "/exort inventory");
+                            if (observation != null) {
+                              dependencies.database().recordChunkLoaderObservation(observation);
+                            }
+                          });
+                  dependencies
+                      .chunkLoaderService()
+                      .auditLogger()
+                      .logIssue(actor, actor, Math.max(1, item.getAmount()), "/exort inventory");
+                }
+              },
+              (actor, item) -> {
+                if (dependencies.customItems().isChunkLoader(item)) {
+                  dependencies
+                      .chunkLoaderService()
+                      .auditLogger()
+                      .logItemDestroy(
+                          actor,
+                          actor,
+                          dependencies.customItems().chunkLoaderId(item).orElse(null),
+                          Math.max(1, item.getAmount()),
+                          "/exort inventory",
+                          actor.getLocation());
+                }
+              })
           .open(player);
     } catch (IllegalStateException e) {
       ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to open Exort inventory menu", e);

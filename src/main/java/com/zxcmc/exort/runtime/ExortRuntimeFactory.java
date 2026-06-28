@@ -3,6 +3,11 @@ package com.zxcmc.exort.runtime;
 import com.zxcmc.exort.breaking.BreakAnimationSender;
 import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderAuditFileWriter;
+import com.zxcmc.exort.chunkloader.ChunkLoaderAuditLogger;
+import com.zxcmc.exort.chunkloader.ChunkLoaderConfig;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
+import com.zxcmc.exort.chunkloader.RotatingChunkLoaderAuditFileWriter;
 import com.zxcmc.exort.gui.CreativeTabOrder;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
@@ -49,7 +54,8 @@ public final class ExortRuntimeFactory {
             itemModels.terminalCarrier(),
             itemModels.monitorCarrier(),
             itemModels.busCarrier(),
-            itemModels.relayCarrier());
+            itemModels.relayCarrier(),
+            itemModels.chunkLoaderCarrier());
 
     loadStorageTiersConfig(deps);
     RuntimeNetworkConfig networkConfig = RuntimeNetworkConfig.fromConfig(deps.config());
@@ -68,6 +74,24 @@ public final class ExortRuntimeFactory {
     deps.stopReloadableRuntime().run();
     PacketEnhancements packetEnhancements =
         PacketEnhancementsFactory.tryCreate(deps.plugin(), deps.pickDebugFullSink());
+    ChunkLoaderConfig chunkLoaderConfig =
+        ChunkLoaderConfig.fromConfig(deps.config(), deps.plugin().getLogger());
+    ChunkLoaderAuditFileWriter chunkLoaderAuditFileWriter =
+        chunkLoaderConfig.audit().shouldWriteFile()
+            ? RotatingChunkLoaderAuditFileWriter.create(
+                deps.plugin().getDataFolder().toPath(),
+                chunkLoaderConfig.audit().file(),
+                deps.plugin().getLogger())
+            : ChunkLoaderAuditFileWriter.noop();
+    ChunkLoaderService chunkLoaderService =
+        new ChunkLoaderService(
+            deps.plugin(),
+            deps.database(),
+            materials.chunkLoaderCarrier(),
+            chunkLoaderConfig,
+            new ChunkLoaderAuditLogger(
+                deps.plugin().getLogger(), chunkLoaderConfig.audit(), chunkLoaderAuditFileWriter));
+    chunkLoaderService.start();
     BreakAnimationSender breakAnimationSender =
         RuntimeBreakAnimationSenders.create(
             deps.plugin(), deps.resourceMode(), itemModels.displayNamespace(), materials);
@@ -148,6 +172,7 @@ public final class ExortRuntimeFactory {
                 worldEditWandGuard,
                 deps.playerFeedback(),
                 breakAnimationSender,
+                chunkLoaderService,
                 packetEnhancements));
 
     boolean dialogSupported = detectDialogSupport(deps);
@@ -186,6 +211,7 @@ public final class ExortRuntimeFactory {
                 breakingServices.customBlockBreaker(),
                 breakingServices.breakHandler(),
                 breakingServices.breakSoundConfig(),
+                chunkLoaderService,
                 packetEnhancements,
                 deps.previousRecipeService(),
                 busRuntime,
@@ -214,6 +240,7 @@ public final class ExortRuntimeFactory {
             deps.networkGraphCache(),
             displayServices::displayRefreshService,
             busServices::busService,
+            () -> chunkLoaderService,
             displayServices::hologramManager,
             new WorldEditBridgeMaterials(
                 materials.wire(),
@@ -221,7 +248,8 @@ public final class ExortRuntimeFactory {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
-                materials.relayCarrier()),
+                materials.relayCarrier(),
+                materials.chunkLoaderCarrier()),
             WorldEditBulkConfig.fromConfig(deps.config()));
     WorldEditIntegration worldEditIntegration =
         WorldEditRuntimeBootstrap.register(
@@ -234,6 +262,7 @@ public final class ExortRuntimeFactory {
         langFuture,
         customItems,
         wirelessService,
+        chunkLoaderService,
         materials,
         networkConfig.wireLimit(),
         networkConfig.wireHardCap(),
@@ -304,6 +333,7 @@ public final class ExortRuntimeFactory {
         itemModels.importBusItemModel(),
         itemModels.exportBusItemModel(),
         itemModels.relayItemModel(),
+        itemModels.chunkLoaderItemModel(),
         itemModels.wirelessItemModel(),
         itemModels.wirelessDisabledModel(),
         VANILLA_NAMESPACE + ":target",

@@ -2,6 +2,7 @@ package com.zxcmc.exort.breaking;
 
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
@@ -26,6 +27,7 @@ public record BlockBreakHandlerDependencies(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    Material chunkLoaderCarrier,
     ItemHologramManager hologramManager,
     WireDisplayManager wireDisplayManager,
     DisplayRefreshService displayRefreshService,
@@ -37,7 +39,8 @@ public record BlockBreakHandlerDependencies(
     Supplier<BusService> busService,
     Supplier<NetworkGraphCache> networkGraphCache,
     RegionProtection regionProtection,
-    PlayerFeedback playerFeedback) {
+    PlayerFeedback playerFeedback,
+    ChunkLoaderService chunkLoaderService) {
   public BlockBreakHandlerDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(customItems, "customItems");
@@ -47,6 +50,7 @@ public record BlockBreakHandlerDependencies(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(sessionManager, "sessionManager");
     Objects.requireNonNull(monitorDisplayManager, "monitorDisplayManager");
@@ -55,5 +59,6 @@ public record BlockBreakHandlerDependencies(
     Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
+    Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");
   }
 }

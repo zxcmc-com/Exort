@@ -4,6 +4,7 @@ import com.zxcmc.exort.breaking.BlockBreakHandler;
 import com.zxcmc.exort.breaking.BreakSoundConfig;
 import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
@@ -35,7 +36,9 @@ public record BlockListenerDependencies(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    Material chunkLoaderCarrier,
     BlockBreakHandler breakHandler,
+    ChunkLoaderService chunkLoaderService,
     RegionProtection regionProtection,
     PlayerFeedback playerFeedback,
     Supplier<DisplayRefreshService> displayRefreshService,
@@ -58,7 +61,9 @@ public record BlockListenerDependencies(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
     Objects.requireNonNull(breakHandler, "breakHandler");
+    Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");

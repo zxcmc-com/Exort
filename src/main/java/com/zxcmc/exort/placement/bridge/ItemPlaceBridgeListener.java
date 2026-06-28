@@ -9,9 +9,11 @@ import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -73,8 +75,10 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
+  private final PlayerFeedback playerFeedback;
   private final Supplier<DisplayRefreshService> displayRefreshService;
   private final Supplier<ItemHologramManager> hologramManager;
   private final Supplier<MonitorDisplayManager> monitorDisplayManager;
@@ -85,6 +89,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final StorageTierSaver storageTierSaver;
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
+  private final ChunkLoaderService chunkLoaderService;
 
   public ItemPlaceBridgeListener(ItemPlaceBridgeDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -100,7 +105,9 @@ public class ItemPlaceBridgeListener implements Listener {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.regionProtection = dependencies.regionProtection();
+    this.playerFeedback = dependencies.playerFeedback();
     this.displayRefreshService = dependencies.displayRefreshService();
     this.hologramManager = dependencies.hologramManager();
     this.monitorDisplayManager = dependencies.monitorDisplayManager();
@@ -111,6 +118,7 @@ public class ItemPlaceBridgeListener implements Listener {
     this.storageTierSaver = dependencies.storageTierSaver();
     this.breakSoundConfig = dependencies.breakSoundConfig();
     this.busRuntimeConfig = dependencies.busRuntimeConfig();
+    this.chunkLoaderService = dependencies.chunkLoaderService();
     this.placementFailureHandler =
         new StoragePlacementFailureHandler(
             new StoragePlacementDependencies(
@@ -254,6 +262,25 @@ public class ItemPlaceBridgeListener implements Listener {
       placeRelay(target);
       finishPlacement(event, target, BreakType.RELAY);
       refreshRelayPlacement(target);
+      return;
+    }
+
+    // Chunk Loader
+    if (customItems.isChunkLoader(stack)) {
+      event.setCancelled(true);
+      if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), chunkLoaderCarrier))
+        return;
+      UUID loaderId = customItems.chunkLoaderId(stack).orElse(UUID.randomUUID());
+      if (!chunkLoaderService.canPlace(loaderId, target)) {
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
+        return;
+      }
+      if (!placeChunkLoader(event.getPlayer(), target, loaderId)) {
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
+        return;
+      }
+      finishPlacement(event, target, BreakType.CHUNK_LOADER);
+      refreshChunkLoaderPlacement(target);
     }
   }
 
@@ -407,6 +434,23 @@ public class ItemPlaceBridgeListener implements Listener {
     }
   }
 
+  private boolean placeChunkLoader(Player player, Block target, UUID loaderId) {
+    Carriers.applyCarrier(target, chunkLoaderCarrier);
+    if (chunkLoaderService.place(player, target, loaderId)) {
+      return true;
+    }
+    target.setType(Material.AIR, false);
+    return false;
+  }
+
+  private void refreshChunkLoaderPlacement(Block target) {
+    var refresh = displayRefreshService.get();
+    if (refresh != null) {
+      refresh.refreshChunkLoader(target);
+      refresh.refreshBlockAndNeighbors(target);
+    }
+  }
+
   private void invalidateNetwork(Block block) {
     var cache = networkGraphCache.get();
     if (cache != null) {
@@ -551,23 +595,25 @@ public class ItemPlaceBridgeListener implements Listener {
     if (item == null || item.getType() == Material.AIR) return false;
     if (player == null || player.getGameMode() != GameMode.CREATIVE) return true;
     if (!item.hasItemMeta()) return false;
-    return item.getItemMeta()
-        .getPersistentDataContainer()
-        .has(keys.storageId(), PersistentDataType.STRING);
+    PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+    return pdc.has(keys.storageId(), PersistentDataType.STRING)
+        || pdc.has(keys.chunkLoaderId(), PersistentDataType.STRING);
   }
 
   private void consume(PlayerInteractEvent event) {
     ItemStack hand = event.getPlayer().getInventory().getItem(event.getHand());
     if (hand == null) return;
-    boolean initialized =
-        hand.hasItemMeta()
-            && hand.getItemMeta()
-                .getPersistentDataContainer()
-                .has(keys.storageId(), PersistentDataType.STRING);
+    boolean initialized = hand.hasItemMeta() && hasPersistentItemId(hand);
     if (event.getPlayer().getGameMode() == GameMode.CREATIVE && !initialized) return;
     hand.setAmount(hand.getAmount() - 1);
     event.getPlayer().getInventory().setItem(event.getHand(), hand.getAmount() > 0 ? hand : null);
     event.getPlayer().updateInventory();
+  }
+
+  private boolean hasPersistentItemId(ItemStack item) {
+    PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+    return pdc.has(keys.storageId(), PersistentDataType.STRING)
+        || pdc.has(keys.chunkLoaderId(), PersistentDataType.STRING);
   }
 
   private BlockFace horizontalFacing(BlockFace face) {

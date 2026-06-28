@@ -9,7 +9,8 @@ public record WorldEditBridgeMaterials(
     Material terminalCarrier,
     Material monitorCarrier,
     Material busCarrier,
-    Material relayCarrier) {
+    Material relayCarrier,
+    Material chunkLoaderCarrier) {
   public WorldEditBridgeMaterials {
     Objects.requireNonNull(wire, "wire");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
@@ -17,5 +18,6 @@ public record WorldEditBridgeMaterials(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
   }
 }

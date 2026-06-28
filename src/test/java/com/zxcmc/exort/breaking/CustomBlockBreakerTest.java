@@ -103,7 +103,7 @@ class CustomBlockBreakerTest {
   private static CustomBlockBreaker breaker(Plugin plugin, Material wireMaterial) {
     BreakSettings settings = new BreakSettings(1.0, Set.of());
     BreakConfig breakConfig =
-        new BreakConfig(settings, settings, settings, settings, settings, settings);
+        new BreakConfig(settings, settings, settings, settings, settings, settings, settings);
     return new CustomBlockBreaker(
         plugin,
         RegionProtection.allowAll(),
@@ -113,6 +113,7 @@ class CustomBlockBreakerTest {
         null,
         BreakAnimationSender.NOOP,
         wireMaterial,
+        Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,

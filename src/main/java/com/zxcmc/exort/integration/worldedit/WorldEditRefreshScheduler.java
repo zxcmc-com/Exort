@@ -316,7 +316,8 @@ final class WorldEditRefreshScheduler {
         deps.terminalCarrier(),
         deps.monitorCarrier(),
         deps.busCarrier(),
-        deps.relayCarrier());
+        deps.relayCarrier(),
+        deps.chunkLoaderCarrier());
   }
 
   private MarkerSanityService newMarkerSanityService() {
@@ -332,7 +333,8 @@ final class WorldEditRefreshScheduler {
             deps.terminalCarrier(),
             deps.monitorCarrier(),
             deps.busCarrier(),
-            deps.relayCarrier()));
+            deps.relayCarrier(),
+            deps.chunkLoaderCarrier()));
   }
 
   private void updatePostQueueGauge() {

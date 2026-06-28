@@ -136,6 +136,7 @@ public final class BreakParticleSender implements BreakAnimationSender {
           case MONITOR -> "SMOOTH_STONE";
           case BUS -> busMaterial(block);
           case RELAY -> "LODESTONE";
+          case CHUNK_LOADER -> "RESPAWN_ANCHOR";
           case WIRE -> "BLACK_STAINED_GLASS";
           case STORAGE -> "VAULT";
           default -> "STONE";

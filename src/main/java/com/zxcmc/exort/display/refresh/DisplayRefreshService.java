@@ -3,6 +3,7 @@ package com.zxcmc.exort.display.refresh;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.display.device.BusDisplayManager;
+import com.zxcmc.exort.display.device.ChunkLoaderDisplayManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.device.RelayDisplayManager;
 import com.zxcmc.exort.display.device.StorageDisplayManager;
@@ -10,6 +11,7 @@ import com.zxcmc.exort.display.device.TerminalDisplayManager;
 import com.zxcmc.exort.display.proxy.ExortBlockProxyService;
 import com.zxcmc.exort.display.wire.WireDisplayManager;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
@@ -50,6 +52,7 @@ public final class DisplayRefreshService {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final Material storageCarrier;
   private final WireDisplayManager wireDisplayManager;
   private final StorageDisplayManager storageDisplayManager;
@@ -57,6 +60,7 @@ public final class DisplayRefreshService {
   private final MonitorDisplayManager monitorDisplayManager;
   private final BusDisplayManager busDisplayManager;
   private final RelayDisplayManager relayDisplayManager;
+  private final ChunkLoaderDisplayManager chunkLoaderDisplayManager;
   private final ExortBlockProxyService blockProxyService;
   private final Set<BlockKey> queuedBlocks = new HashSet<>();
   private final Set<ChunkKey> queuedChunks = new HashSet<>();
@@ -72,6 +76,7 @@ public final class DisplayRefreshService {
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material chunkLoaderCarrier,
       Material storageCarrier,
       WireDisplayManager wireDisplayManager,
       StorageDisplayManager storageDisplayManager,
@@ -79,6 +84,7 @@ public final class DisplayRefreshService {
       MonitorDisplayManager monitorDisplayManager,
       BusDisplayManager busDisplayManager,
       RelayDisplayManager relayDisplayManager,
+      ChunkLoaderDisplayManager chunkLoaderDisplayManager,
       ExortBlockProxyService blockProxyService) {
     this.plugin = plugin;
     this.wireHardCap = wireHardCap;
@@ -88,6 +94,7 @@ public final class DisplayRefreshService {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.chunkLoaderCarrier = chunkLoaderCarrier;
     this.storageCarrier = storageCarrier;
     this.wireDisplayManager = wireDisplayManager;
     this.storageDisplayManager = storageDisplayManager;
@@ -95,6 +102,7 @@ public final class DisplayRefreshService {
     this.monitorDisplayManager = monitorDisplayManager;
     this.busDisplayManager = busDisplayManager;
     this.relayDisplayManager = relayDisplayManager;
+    this.chunkLoaderDisplayManager = chunkLoaderDisplayManager;
     this.blockProxyService = blockProxyService;
   }
 
@@ -122,7 +130,7 @@ public final class DisplayRefreshService {
   }
 
   private void refreshChunkNow(Chunk chunk) {
-    boolean[] flags = new boolean[6];
+    boolean[] flags = new boolean[7];
     if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
     ChunkMarkerStore.forEachBlock(
         plugin,
@@ -134,6 +142,7 @@ public final class DisplayRefreshService {
           if (!flags[3] && MonitorMarker.isMonitor(plugin, block)) flags[3] = true;
           if (!flags[4] && BusMarker.isBus(plugin, block)) flags[4] = true;
           if (!flags[5] && RelayMarker.isRelay(plugin, block)) flags[5] = true;
+          if (!flags[6] && ChunkLoaderMarker.isChunkLoader(plugin, block)) flags[6] = true;
         });
     boolean hasWire = flags[0];
     boolean hasStorage = flags[1];
@@ -141,6 +150,7 @@ public final class DisplayRefreshService {
     boolean hasMonitor = flags[3];
     boolean hasBus = flags[4];
     boolean hasRelay = flags[5];
+    boolean hasChunkLoader = flags[6];
     if (hasWire && wireDisplayManager != null) {
       wireDisplayManager.refreshChunk(chunk);
     }
@@ -158,6 +168,9 @@ public final class DisplayRefreshService {
     }
     if (hasRelay && relayDisplayManager != null) {
       relayDisplayManager.refreshChunk(chunk);
+    }
+    if (hasChunkLoader && chunkLoaderDisplayManager != null) {
+      chunkLoaderDisplayManager.refreshChunk(chunk);
     }
     if (blockProxyService != null) {
       blockProxyService.refreshChunk(chunk);
@@ -178,6 +191,7 @@ public final class DisplayRefreshService {
     removeMonitorDisplay(block);
     removeBusDisplay(block);
     removeRelayDisplay(block);
+    removeChunkLoaderDisplay(block);
   }
 
   public void removeWireDisplay(Block block) {
@@ -216,6 +230,10 @@ public final class DisplayRefreshService {
     }
     if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
       refreshRelay(block);
+    }
+    if (Carriers.matchesCarrier(block, chunkLoaderCarrier)
+        && ChunkLoaderMarker.isChunkLoader(plugin, block)) {
+      refreshChunkLoader(block);
     }
     if (blockProxyService != null) {
       blockProxyService.refreshBlock(block);
@@ -454,6 +472,13 @@ public final class DisplayRefreshService {
     refreshProxyBlock(block);
   }
 
+  public void refreshChunkLoader(Block block) {
+    if (chunkLoaderDisplayManager != null) {
+      chunkLoaderDisplayManager.refresh(block);
+    }
+    refreshProxyBlock(block);
+  }
+
   public void removeStorageDisplay(Block block) {
     if (storageDisplayManager != null) {
       storageDisplayManager.removeDisplay(block);
@@ -485,6 +510,13 @@ public final class DisplayRefreshService {
   public void removeRelayDisplay(Block block) {
     if (relayDisplayManager != null) {
       relayDisplayManager.removeDisplay(block);
+    }
+    restoreProxyBlock(block);
+  }
+
+  public void removeChunkLoaderDisplay(Block block) {
+    if (chunkLoaderDisplayManager != null) {
+      chunkLoaderDisplayManager.removeDisplay(block);
     }
     restoreProxyBlock(block);
   }

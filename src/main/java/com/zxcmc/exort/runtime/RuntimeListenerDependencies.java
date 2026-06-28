@@ -6,6 +6,7 @@ import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.BusDisplayManager;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
@@ -71,6 +72,7 @@ public record RuntimeListenerDependencies(
     CustomBlockBreaker customBlockBreaker,
     BlockBreakHandler breakHandler,
     BreakSoundConfig breakSoundConfig,
+    ChunkLoaderService chunkLoaderService,
     PacketEnhancements packetEnhancements,
     RecipeService previousRecipeService,
     BusRuntimeConfig busRuntimeConfig,
@@ -107,6 +109,7 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(customBlockBreaker, "customBlockBreaker");
     Objects.requireNonNull(breakHandler, "breakHandler");
     Objects.requireNonNull(breakSoundConfig, "breakSoundConfig");
+    Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");
     Objects.requireNonNull(busRuntimeConfig, "busRuntimeConfig");
     Objects.requireNonNull(craftingConfig, "craftingConfig");
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");

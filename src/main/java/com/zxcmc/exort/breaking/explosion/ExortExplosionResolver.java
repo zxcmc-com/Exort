@@ -3,6 +3,7 @@ package com.zxcmc.exort.breaking.explosion;
 import com.zxcmc.exort.breaking.BreakType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
@@ -94,6 +95,10 @@ final class ExortExplosionResolver {
     if (Carriers.matchesCarrier(block, materials.relayCarrier())
         && RelayMarker.isRelay(plugin, block)) {
       return block(block, BreakType.RELAY);
+    }
+    if (Carriers.matchesCarrier(block, materials.chunkLoaderCarrier())
+        && ChunkLoaderMarker.isChunkLoader(plugin, block)) {
+      return block(block, BreakType.CHUNK_LOADER);
     }
     if (Carriers.matchesCarrier(block, materials.wire()) && WireMarker.isWire(plugin, block)) {
       return block(block, BreakType.WIRE);

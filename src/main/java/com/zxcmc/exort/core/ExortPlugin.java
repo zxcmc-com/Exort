@@ -8,6 +8,7 @@ import com.zxcmc.exort.breaking.overlay.DisplayBreakAnimationSender;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.carrier.WireCarrierMode;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.command.CommandRuntimeAccess;
 import com.zxcmc.exort.command.ExortBrigadier;
 import com.zxcmc.exort.command.ExortBrigadierDependencies;
@@ -110,6 +111,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private PlayerLocaleService playerLocaleService;
   private CustomItems customItems;
   private WirelessTerminalService wirelessService;
+  private ChunkLoaderService chunkLoaderService;
   private BossBarManager bossBarManager;
   private SearchDialogService searchDialogService;
   private InventoryRefreshService inventoryRefreshService;
@@ -475,10 +477,19 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     stopWorldEditIntegration();
     stopPlacementGuard();
     stopPacketEnhancements();
+    stopChunkLoaderService();
     if (customBlockBreaker != null) {
       customBlockBreaker.shutdown();
       customBlockBreaker = null;
     }
+  }
+
+  private void stopChunkLoaderService() {
+    if (chunkLoaderService == null) {
+      return;
+    }
+    chunkLoaderService.stop();
+    chunkLoaderService = null;
   }
 
   private void unregisterReloadableRuntimeListeners() {
@@ -576,6 +587,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private void applyRuntimeServices(ExortRuntimeServices services) {
     customItems = services.customItems();
     wirelessService = services.wirelessService();
+    chunkLoaderService = services.chunkLoaderService();
     RuntimeMaterials materials = services.materials();
     runtimeMaterials = materials;
     blockClassifier = new ExortBlockClassifier(this, materials);
@@ -973,7 +985,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     return new ExortBrigadierDependencies(
         this,
         lang,
-        new CommandRuntimeAccess(() -> customItems, () -> wirelessService),
+        new CommandRuntimeAccess(
+            () -> customItems, () -> wirelessService, () -> chunkLoaderService),
         keys,
         storageManager,
         database,

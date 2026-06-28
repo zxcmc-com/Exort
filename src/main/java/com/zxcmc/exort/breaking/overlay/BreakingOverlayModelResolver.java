@@ -22,7 +22,8 @@ public final class BreakingOverlayModelResolver {
       Material storageCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material chunkLoaderCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(wireCarrierMaterial, "wireCarrierMaterial");
     Objects.requireNonNull(terminalMaterial, "terminalMaterial");
@@ -30,6 +31,7 @@ public final class BreakingOverlayModelResolver {
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
   }
 
   public String modelKey(Block block, BreakType type) {
@@ -44,6 +46,7 @@ public final class BreakingOverlayModelResolver {
           "terminal/" + key(horizontalOrSouth(MonitorMarker.facing(plugin, block).orElse(null)));
       case BUS -> busKey(block);
       case RELAY -> "relay/relay";
+      case CHUNK_LOADER -> "chunkloader/chunkloader";
       case WIRE -> "wire/center";
       case NONE -> null;
     };

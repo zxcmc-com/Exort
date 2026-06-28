@@ -6,6 +6,7 @@ public enum BreakType {
   MONITOR,
   BUS,
   RELAY,
+  CHUNK_LOADER,
   WIRE,
   NONE
 }

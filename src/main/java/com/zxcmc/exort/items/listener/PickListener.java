@@ -5,6 +5,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -51,6 +52,7 @@ public final class PickListener implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final Map<UUID, RecentPick> recentPicks = new HashMap<>();
 
   public PickListener(
@@ -63,7 +65,8 @@ public final class PickListener implements Listener {
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material chunkLoaderCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.keys = Objects.requireNonNull(keys, "keys");
@@ -74,6 +77,7 @@ public final class PickListener implements Listener {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.chunkLoaderCarrier = chunkLoaderCarrier;
   }
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
@@ -153,6 +157,7 @@ public final class PickListener implements Listener {
     ItemStack desired = null;
     String type = null;
     String expectedTier = null;
+    boolean alwaysFresh = false;
     if (isTerminal(target)) {
       TerminalKind kind = TerminalMarker.kind(plugin, target);
       if (kind == TerminalKind.CRAFTING) {
@@ -181,6 +186,10 @@ public final class PickListener implements Listener {
     } else if (isRelay(target)) {
       desired = customItems.relayItem();
       type = "relay";
+    } else if (isChunkLoader(target)) {
+      desired = customItems.chunkLoaderItem();
+      type = "chunk_loader";
+      alwaysFresh = true;
     } else if (isStorage(target)) {
       var tierOpt = readTier(target);
       if (tierOpt.isEmpty()) return null;
@@ -194,13 +203,16 @@ public final class PickListener implements Listener {
     } else {
       return null;
     }
-    return new PickTarget(desired, type, expectedTier);
+    return new PickTarget(desired, type, expectedTier, alwaysFresh);
   }
 
   private void applyEventPick(PlayerPickItemEvent event, PickTarget pick) {
     Player player = event.getPlayer();
     int held = player.getInventory().getHeldItemSlot();
-    int existingSlot = findExisting(player.getInventory(), pick.type(), pick.expectedTier());
+    int existingSlot =
+        pick.alwaysFresh()
+            ? -1
+            : findExisting(player.getInventory(), pick.type(), pick.expectedTier());
     if (existingSlot >= 0) {
       if (existingSlot <= 8) {
         event.setSourceSlot(existingSlot);
@@ -250,7 +262,10 @@ public final class PickListener implements Listener {
 
   private void applyDirectPick(Player player, PickTarget pick, String source) {
     int held = player.getInventory().getHeldItemSlot();
-    int existingSlot = findExisting(player.getInventory(), pick.type(), pick.expectedTier());
+    int existingSlot =
+        pick.alwaysFresh()
+            ? -1
+            : findExisting(player.getInventory(), pick.type(), pick.expectedTier());
     if (existingSlot >= 0 && existingSlot <= 8) {
       player.getInventory().setHeldItemSlot(existingSlot);
       debug(
@@ -338,6 +353,11 @@ public final class PickListener implements Listener {
 
   private boolean isRelay(Block block) {
     return Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+  }
+
+  private boolean isChunkLoader(Block block) {
+    return Carriers.matchesCarrier(block, chunkLoaderCarrier)
+        && ChunkLoaderMarker.isChunkLoader(plugin, block);
   }
 
   private Optional<StorageTier> readTier(Block block) {
@@ -478,6 +498,16 @@ public final class PickListener implements Listener {
       builder.append("wire");
       any = true;
     }
+    if (RelayMarker.isRelay(plugin, block)) {
+      if (any) builder.append(",");
+      builder.append("relay");
+      any = true;
+    }
+    if (ChunkLoaderMarker.isChunkLoader(plugin, block)) {
+      if (any) builder.append(",");
+      builder.append("chunk_loader");
+      any = true;
+    }
     if (!any) {
       builder.append("none");
     }
@@ -496,5 +526,6 @@ public final class PickListener implements Listener {
 
   private record RecentPick(BlockKey block, int tick) {}
 
-  private record PickTarget(ItemStack item, String type, String expectedTier) {}
+  private record PickTarget(
+      ItemStack item, String type, String expectedTier, boolean alwaysFresh) {}
 }

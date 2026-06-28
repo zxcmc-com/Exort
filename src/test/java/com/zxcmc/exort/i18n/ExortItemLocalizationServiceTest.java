@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -133,6 +134,23 @@ class ExortItemLocalizationServiceTest {
     assertEquals("64 / 14,400 (0.4%)", lore(localized).getFirst());
     assertFalse(lore(localized).getLast().isBlank());
     assertEquals(NamedTextColor.RED, firstColor(localized.getItemMeta().lore().getLast()));
+  }
+
+  @Test
+  void localizesInitializedChunkLoaderLoreWithUuidTail() {
+    Harness harness = harness("en_us");
+    UUID id = UUID.fromString("00000000-0000-0000-0000-123456789abc");
+    TestItemStack item = item(Material.PAPER, 1);
+    item.meta.pdc.set(harness.keys.type(), "chunk_loader");
+    item.meta.pdc.set(harness.keys.chunkLoaderId(), id.toString());
+    item.meta.itemName = Component.text("Chunk Loader");
+
+    ItemStack localized = harness.service.localize(item, "ru_ru");
+
+    assertNotSame(item, localized);
+    assertEquals(List.of(), lore(item));
+    assertEquals(List.of("123456789abc"), lore(localized));
+    assertEquals(NamedTextColor.GRAY, firstColor(localized.getItemMeta().lore().getFirst()));
   }
 
   @Test
