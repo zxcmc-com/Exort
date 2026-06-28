@@ -61,6 +61,7 @@ final class BreakingModelGenerator {
     addTerminalVariants(entries, variants);
     addBusVariants(entries, variants);
     addRelayVariants(entries, variants);
+    addChunkLoaderVariants(entries, variants);
     addWireVariants(entries, variants);
 
     int added = addTerminalBreakingAtlas(entries);
@@ -103,6 +104,7 @@ final class BreakingModelGenerator {
         || entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
         || entries.containsKey(MODELS_ROOT + "bus/import.json")
         || entries.containsKey(MODELS_ROOT + "relay/relay.json")
+        || entries.containsKey(MODELS_ROOT + "chunkloader/chunkloader.json")
         || entries.containsKey(MODELS_ROOT + "wire/center.json");
   }
 
@@ -271,6 +273,18 @@ final class BreakingModelGenerator {
         new VariantSource(
             "relay/relay",
             readModel(entries, "relay/relay.json"),
+            identityTransform(),
+            FacePolicy.DEFAULT,
+            NO_TEXTURE_SIZES,
+            STAGE_COUNT));
+  }
+
+  private static void addChunkLoaderVariants(
+      Map<String, byte[]> entries, List<VariantSource> variants) {
+    variants.add(
+        new VariantSource(
+            "chunkloader/chunkloader",
+            readModel(entries, "chunkloader/chunkloader.json"),
             identityTransform(),
             FacePolicy.DEFAULT,
             NO_TEXTURE_SIZES,

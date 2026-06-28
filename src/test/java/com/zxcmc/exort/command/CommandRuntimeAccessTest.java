@@ -17,7 +17,7 @@ class CommandRuntimeAccessTest {
     WirelessTerminalService vanillaWireless = wirelessService(vanillaItems);
     AtomicReference<CustomItems> items = new AtomicReference<>(resourceItems);
     AtomicReference<WirelessTerminalService> wireless = new AtomicReference<>(resourceWireless);
-    CommandRuntimeAccess access = new CommandRuntimeAccess(items::get, wireless::get);
+    CommandRuntimeAccess access = new CommandRuntimeAccess(items::get, wireless::get, () -> null);
 
     assertSame(resourceItems, access.customItems());
     assertSame(resourceWireless, access.wirelessService());
@@ -31,14 +31,15 @@ class CommandRuntimeAccessTest {
 
   @Test
   void rejectsMissingRuntimeServiceAtUseSite() {
-    CommandRuntimeAccess access = new CommandRuntimeAccess(() -> null, () -> null);
+    CommandRuntimeAccess access = new CommandRuntimeAccess(() -> null, () -> null, () -> null);
 
     assertThrows(NullPointerException.class, access::customItems);
     assertThrows(NullPointerException.class, access::wirelessService);
+    assertThrows(NullPointerException.class, access::chunkLoaderService);
   }
 
   private static CustomItems customItems() {
-    return new CustomItems(null, null, "", "", "", "", "", "", "", "", "", "", "", false);
+    return new CustomItems(null, null, "", "", "", "", "", "", "", "", "", "", "", "", false);
   }
 
   private static WirelessTerminalService wirelessService(CustomItems customItems) {

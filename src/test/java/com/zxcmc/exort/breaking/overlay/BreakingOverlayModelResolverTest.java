@@ -7,6 +7,7 @@ import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
@@ -20,6 +21,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Logger;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
@@ -86,6 +88,17 @@ class BreakingOverlayModelResolverTest {
   }
 
   @Test
+  void chunkLoaderUsesDedicatedResourceModelKey() {
+    Plugin plugin = plugin();
+    BlockProbe chunkLoader = block(6, 64, 0);
+    ChunkLoaderMarker.set(plugin, chunkLoader.block, new UUID(0L, 6L), null, "Alex", 100L);
+
+    assertEquals(
+        "chunkloader/chunkloader",
+        resolver(plugin).modelKey(chunkLoader.block, BreakType.CHUNK_LOADER));
+  }
+
+  @Test
   void wireMasksUseSharedCenterModel() {
     Plugin plugin = plugin();
     BlockProbe wire = block(5, 64, 0);
@@ -103,7 +116,7 @@ class BreakingOverlayModelResolverTest {
 
   private static BreakingOverlayModelResolver resolver(Plugin plugin) {
     return new BreakingOverlayModelResolver(
-        plugin, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER);
+        plugin, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER, CARRIER);
   }
 
   private static BlockProbe block(int x, int y, int z) {

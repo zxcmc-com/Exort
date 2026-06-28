@@ -21,6 +21,8 @@ public final class CustomItemRegistry {
   public static final CustomItemIdentity EXPORT_BUS =
       new CustomItemIdentity("export_bus", "item.export_bus");
   public static final CustomItemIdentity RELAY = new CustomItemIdentity("relay", "item.relay");
+  public static final CustomItemIdentity CHUNK_LOADER =
+      new CustomItemIdentity("chunk_loader", "item.chunk_loader");
   public static final CustomItemIdentity WIRE = new CustomItemIdentity("wire", "item.wire");
   public static final CustomItemIdentity WIRELESS_TERMINAL =
       new CustomItemIdentity("wireless_terminal", "item.wireless_terminal");
@@ -34,6 +36,7 @@ public final class CustomItemRegistry {
           IMPORT_BUS,
           EXPORT_BUS,
           RELAY,
+          CHUNK_LOADER,
           WIRE,
           WIRELESS_TERMINAL);
   private static final Map<String, CustomItemIdentity> BY_ID =

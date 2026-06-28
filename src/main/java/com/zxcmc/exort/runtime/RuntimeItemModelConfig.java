@@ -12,6 +12,7 @@ public record RuntimeItemModelConfig(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    Material chunkLoaderCarrier,
     String wireItemModel,
     String storageItemModel,
     String terminalItemModel,
@@ -20,6 +21,7 @@ public record RuntimeItemModelConfig(
     String importBusItemModel,
     String exportBusItemModel,
     String relayItemModel,
+    String chunkLoaderItemModel,
     String wirelessItemModel,
     String wirelessDisabledModel) {
   private static final String VANILLA_NAMESPACE = "minecraft";
@@ -55,6 +57,7 @@ public record RuntimeItemModelConfig(
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
+        Carriers.CARRIER_BARRIER,
         normalizeModelId("wire/center", resourceNamespace),
         normalizeModelId("storage/storage", resourceNamespace),
         normalizeModelId("terminal/inventory", resourceNamespace),
@@ -63,6 +66,7 @@ public record RuntimeItemModelConfig(
         normalizeModelId("bus/import", resourceNamespace),
         normalizeModelId("bus/export", resourceNamespace),
         normalizeModelId("relay/relay", resourceNamespace),
+        normalizeModelId("chunkloader/chunkloader", resourceNamespace),
         normalizeModelId("terminal/wireless", resourceNamespace),
         normalizeModelId("terminal/wireless_disabled", resourceNamespace));
   }
@@ -70,6 +74,7 @@ public record RuntimeItemModelConfig(
   private static RuntimeItemModelConfig vanillaConfig() {
     return new RuntimeItemModelConfig(
         VANILLA_NAMESPACE,
+        Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
         Carriers.CARRIER_BARRIER,
@@ -84,6 +89,7 @@ public record RuntimeItemModelConfig(
         normalizeModelId("dispenser", VANILLA_NAMESPACE),
         normalizeModelId("dropper", VANILLA_NAMESPACE),
         normalizeModelId("lodestone", VANILLA_NAMESPACE),
+        normalizeModelId("respawn_anchor", VANILLA_NAMESPACE),
         normalizeModelId("target", VANILLA_NAMESPACE),
         normalizeModelId("target", VANILLA_NAMESPACE));
   }

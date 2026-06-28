@@ -6,6 +6,8 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.zxcmc.exort.chunkloader.ChunkLoaderRecord;
+import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryRecord;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
@@ -21,7 +23,9 @@ import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -31,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -44,6 +49,8 @@ final class DebugCommand {
   private static final String ARG_PLAYERS = "players";
   private static final String ARG_SECONDS = "seconds";
   private static final String ARG_VERBOSE_MODE = "verboseMode";
+  private static final String ARG_PAGE = "page";
+  private static final int CHUNK_LOADER_PAGE_SIZE = 15;
 
   private final ExortBrigadierDependencies dependencies;
   private final DebugCacheStatusRenderer cacheStatusRenderer;
@@ -193,6 +200,27 @@ final class DebugCommand {
             Commands.literal("protection")
                 .then(Commands.literal("status").executes(this::protectionStatus)))
         .then(
+            Commands.literal("chunkloaders")
+                .executes(this::debugChunkLoadersUsage)
+                .then(
+                    Commands.literal("active")
+                        .executes(ctx -> debugChunkLoadersActive(ctx, 1))
+                        .then(
+                            Commands.argument(ARG_PAGE, IntegerArgumentType.integer(1))
+                                .executes(
+                                    ctx ->
+                                        debugChunkLoadersActive(
+                                            ctx, IntegerArgumentType.getInteger(ctx, ARG_PAGE)))))
+                .then(
+                    Commands.literal("all")
+                        .executes(ctx -> debugChunkLoadersAll(ctx, 1))
+                        .then(
+                            Commands.argument(ARG_PAGE, IntegerArgumentType.integer(1))
+                                .executes(
+                                    ctx ->
+                                        debugChunkLoadersAll(
+                                            ctx, IntegerArgumentType.getInteger(ctx, ARG_PAGE))))))
+        .then(
             Commands.literal("storage")
                 .then(
                     Commands.argument(ARG_STORAGE_ID, StringArgumentType.word())
@@ -284,6 +312,10 @@ final class DebugCommand {
                 sender,
                 "/exort debug cache status <storageId|player>",
                 "message.usage_debug_cache"),
+            usageLine(
+                sender,
+                "/exort debug chunkloaders active|all [page]",
+                "message.usage_debug_chunkloaders"),
             usageLine(sender, "/exort debug protection status", "message.usage_debug_protection"),
             usageLine(
                 sender,
@@ -337,6 +369,235 @@ final class DebugCommand {
                     "message.debug_protection_status_runtime",
                     joinStatus(status.runtimeFailures())))));
     return 1;
+  }
+
+  private int debugChunkLoadersUsage(CommandContext<CommandSourceStack> context) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    CommandFeedback.sendBlock(
+        sender,
+        Component.text(tr(sender, "message.debug_chunkloaders_usage_header")),
+        List.of(
+            usageLine(
+                sender,
+                "/exort debug chunkloaders active [page]",
+                "message.usage_debug_chunkloaders_active"),
+            usageLine(
+                sender,
+                "/exort debug chunkloaders all [page]",
+                "message.usage_debug_chunkloaders_all")));
+    return 1;
+  }
+
+  private int debugChunkLoadersActive(CommandContext<CommandSourceStack> context, int page) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    int activeRadius = dependencies.chunkLoaderService().radius();
+    dependencies
+        .database()
+        .listChunkLoaders()
+        .whenComplete(
+            (records, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "read chunk loaders", err);
+                return;
+              }
+              List<ChunkLoaderRecord> sorted =
+                  records.stream()
+                      .sorted(
+                          Comparator.comparing(ChunkLoaderRecord::worldName)
+                              .thenComparingInt(ChunkLoaderRecord::x)
+                              .thenComparingInt(ChunkLoaderRecord::y)
+                              .thenComparingInt(ChunkLoaderRecord::z))
+                      .toList();
+              runSync(
+                  () -> {
+                    if (sorted.isEmpty()) {
+                      sendMessage(sender, tr(sender, "message.debug_chunkloaders_empty"));
+                      return;
+                    }
+                    CommandFeedback.sendBlock(
+                        sender,
+                        Component.text(
+                            tr(
+                                sender,
+                                "message.debug_chunkloaders_header",
+                                sorted.size(),
+                                activeRadius,
+                                clampedPage(page, sorted.size()),
+                                pageCount(sorted.size()))),
+                        pageItems(sorted, page).stream()
+                            .map(record -> chunkLoaderLine(sender, record, activeRadius))
+                            .toList());
+                  });
+            });
+    return 1;
+  }
+
+  private int debugChunkLoadersAll(CommandContext<CommandSourceStack> context, int page) {
+    if (!ensurePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    dependencies
+        .database()
+        .listChunkLoaderRegistry()
+        .whenComplete(
+            (records, err) -> {
+              if (err != null) {
+                sendAsyncFailure(sender, "read chunk loader registry", err);
+                return;
+              }
+              List<ChunkLoaderRegistryRecord> sorted =
+                  records.stream()
+                      .sorted(
+                          Comparator.comparingLong(ChunkLoaderRegistryRecord::createdAt)
+                              .reversed()
+                              .thenComparing(ChunkLoaderRegistryRecord::id))
+                      .toList();
+              runSync(
+                  () -> {
+                    if (sorted.isEmpty()) {
+                      sendMessage(sender, tr(sender, "message.debug_chunkloaders_empty"));
+                      return;
+                    }
+                    CommandFeedback.sendBlock(
+                        sender,
+                        Component.text(
+                            tr(
+                                sender,
+                                "message.debug_chunkloaders_all_header",
+                                sorted.size(),
+                                clampedPage(page, sorted.size()),
+                                pageCount(sorted.size()))),
+                        pageItems(sorted, page).stream()
+                            .map(record -> chunkLoaderRegistryLine(sender, record))
+                            .toList());
+                  });
+            });
+    return 1;
+  }
+
+  private Component chunkLoaderLine(
+      CommandSender sender, ChunkLoaderRecord record, int activeRadius) {
+    String tp = chunkLoaderTpCommand(record);
+    String coords = record.x() + ", " + record.y() + ", " + record.z();
+    String placer =
+        record.placedByName() == null || record.placedByName().isBlank()
+            ? "-"
+            : record.placedByName();
+    if (record.placedByUuid() != null) {
+      placer += " (" + record.placedByUuid() + ")";
+    }
+    return Component.text(record.id().toString(), NamedTextColor.GRAY)
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(Component.text(record.worldName(), NamedTextColor.AQUA))
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(
+            Component.text(coords, NamedTextColor.GREEN)
+                .clickEvent(ClickEvent.suggestCommand(tp))
+                .hoverEvent(
+                    net.kyori.adventure.text.event.HoverEvent.showText(
+                        Component.text(tr(sender, "message.debug_chunkloaders_click", tp)))))
+        .append(Component.text(" | r=" + activeRadius, NamedTextColor.YELLOW))
+        .append(Component.text(" | " + placer, NamedTextColor.WHITE));
+  }
+
+  private static String chunkLoaderTpCommand(ChunkLoaderRecord record) {
+    return "/minecraft:tp "
+        + (record.x() + 0.5D)
+        + " "
+        + (record.y() + 1)
+        + " "
+        + (record.z() + 0.5D);
+  }
+
+  private Component chunkLoaderRegistryLine(
+      CommandSender sender, ChunkLoaderRegistryRecord record) {
+    Component coords = registryCoords(sender, record);
+    String placer =
+        record.placedByName() == null || record.placedByName().isBlank()
+            ? "-"
+            : record.placedByName();
+    if (record.placedByUuid() != null) {
+      placer += " (" + record.placedByUuid() + ")";
+    }
+    String seenAt =
+        record.lastSeenAt() == null ? "-" : Instant.ofEpochSecond(record.lastSeenAt()).toString();
+    String source =
+        record.lastSource() == null || record.lastSource().isBlank() ? "-" : record.lastSource();
+    String reason =
+        record.lastReason() == null || record.lastReason().isBlank() ? "-" : record.lastReason();
+    return Component.text(record.id().toString(), NamedTextColor.GRAY)
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(Component.text(record.status().dbValue(), statusColor(record)))
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(coords)
+        .append(Component.text(" | seen " + seenAt, NamedTextColor.YELLOW))
+        .append(Component.text(" | " + source + "/" + reason, NamedTextColor.DARK_GRAY))
+        .append(Component.text(" | " + placer, NamedTextColor.WHITE));
+  }
+
+  private Component registryCoords(CommandSender sender, ChunkLoaderRegistryRecord record) {
+    if (!record.hasLastSeenLocation()) {
+      return Component.text("-", NamedTextColor.DARK_GRAY);
+    }
+    String coords =
+        formatCoord(record.lastSeenX())
+            + ", "
+            + formatCoord(record.lastSeenY())
+            + ", "
+            + formatCoord(record.lastSeenZ());
+    String tp = chunkLoaderRegistryTpCommand(record);
+    return Component.text(record.lastSeenWorldName() + " ", NamedTextColor.AQUA)
+        .append(
+            Component.text(coords, NamedTextColor.GREEN)
+                .clickEvent(ClickEvent.suggestCommand(tp))
+                .hoverEvent(
+                    net.kyori.adventure.text.event.HoverEvent.showText(
+                        Component.text(tr(sender, "message.debug_chunkloaders_click", tp)))));
+  }
+
+  private static NamedTextColor statusColor(ChunkLoaderRegistryRecord record) {
+    return switch (record.status()) {
+      case ACTIVE -> NamedTextColor.GREEN;
+      case ITEM -> NamedTextColor.AQUA;
+      case LOST -> NamedTextColor.YELLOW;
+      case REMOVED -> NamedTextColor.RED;
+    };
+  }
+
+  private static String chunkLoaderRegistryTpCommand(ChunkLoaderRegistryRecord record) {
+    if (!record.hasLastSeenLocation()) {
+      return "/minecraft:tp";
+    }
+    return "/minecraft:tp "
+        + record.lastSeenX()
+        + " "
+        + record.lastSeenY()
+        + " "
+        + record.lastSeenZ();
+  }
+
+  private static String formatCoord(Double value) {
+    return value == null ? "-" : String.format(Locale.ROOT, "%.2f", value);
+  }
+
+  private static <T> List<T> pageItems(List<T> items, int page) {
+    if (items == null || items.isEmpty()) {
+      return List.of();
+    }
+    int clamped = clampedPage(page, items.size());
+    int from = (clamped - 1) * CHUNK_LOADER_PAGE_SIZE;
+    int to = Math.min(items.size(), from + CHUNK_LOADER_PAGE_SIZE);
+    return items.subList(from, to);
+  }
+
+  private static int clampedPage(int page, int size) {
+    int pages = pageCount(size);
+    return Math.max(1, Math.min(page, pages));
+  }
+
+  private static int pageCount(int size) {
+    return Math.max(1, (size + CHUNK_LOADER_PAGE_SIZE - 1) / CHUNK_LOADER_PAGE_SIZE);
   }
 
   private Component usageLine(CommandSender sender, String command, String descriptionKey) {

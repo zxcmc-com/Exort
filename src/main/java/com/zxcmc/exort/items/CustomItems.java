@@ -12,6 +12,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -35,6 +36,7 @@ public class CustomItems {
   private final String importBusItemModel;
   private final String exportBusItemModel;
   private final String relayItemModel;
+  private final String chunkLoaderItemModel;
   private final String wirelessItemModel;
   private final String wirelessDisabledItemModel;
   private final String wirelessVanillaModel;
@@ -51,6 +53,7 @@ public class CustomItems {
       String importBusItemModel,
       String exportBusItemModel,
       String relayItemModel,
+      String chunkLoaderItemModel,
       String wirelessItemModel,
       String wirelessDisabledItemModel,
       String wirelessVanillaModel,
@@ -66,6 +69,7 @@ public class CustomItems {
     this.importBusItemModel = importBusItemModel == null ? "" : importBusItemModel;
     this.exportBusItemModel = exportBusItemModel == null ? "" : exportBusItemModel;
     this.relayItemModel = relayItemModel == null ? "" : relayItemModel;
+    this.chunkLoaderItemModel = chunkLoaderItemModel == null ? "" : chunkLoaderItemModel;
     this.wirelessItemModel = wirelessItemModel == null ? "" : wirelessItemModel;
     this.wirelessDisabledItemModel =
         wirelessDisabledItemModel == null ? "" : wirelessDisabledItemModel;
@@ -214,6 +218,27 @@ public class CustomItems {
     return item;
   }
 
+  public ItemStack chunkLoaderItem() {
+    return chunkLoaderItem(null);
+  }
+
+  public ItemStack chunkLoaderItem(UUID id) {
+    ItemStack item = new ItemStack(BASE_MATERIAL);
+    ItemMeta meta = item.getItemMeta();
+    if (meta != null) {
+      meta.itemName(lang.itemComponent(clientTranslations, "item.chunk_loader"));
+      ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
+      PersistentDataContainer pdc = meta.getPersistentDataContainer();
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.CHUNK_LOADER.id());
+      if (id != null) {
+        pdc.set(keys.chunkLoaderId(), PersistentDataType.STRING, id.toString());
+      }
+      applyChunkLoaderLore(meta, id);
+      item.setItemMeta(meta);
+    }
+    return item;
+  }
+
   public ItemStack wirelessTerminalItem(String owner, int charge) {
     ItemStack item = new ItemStack(Material.SHIELD);
     ItemMeta meta = item.getItemMeta();
@@ -315,6 +340,13 @@ public class CustomItems {
         stack.setItemMeta(meta);
         return true;
       }
+      case "chunk_loader" -> {
+        meta.itemName(lang.itemComponent(clientTranslations, "item.chunk_loader"));
+        applyChunkLoaderLore(meta, chunkLoaderId(stack).orElse(null));
+        ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
+        stack.setItemMeta(meta);
+        return true;
+      }
       case "wireless_terminal" -> {
         if (wirelessService == null) return false;
         return wirelessService.refreshAppearance(stack, inStorage);
@@ -337,6 +369,13 @@ public class CustomItems {
     PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
     String type = pdc.get(keys.type(), PersistentDataType.STRING);
     return "relay".equalsIgnoreCase(type);
+  }
+
+  public boolean isChunkLoader(ItemStack stack) {
+    if (stack == null || !stack.hasItemMeta()) return false;
+    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+    String type = pdc.get(keys.type(), PersistentDataType.STRING);
+    return "chunk_loader".equalsIgnoreCase(type);
   }
 
   public boolean isStorageCore(ItemStack stack) {
@@ -435,6 +474,24 @@ public class CustomItems {
                 .get(keys.storageId(), PersistentDataType.STRING)));
   }
 
+  public Optional<UUID> chunkLoaderId(ItemStack stack) {
+    if (stack == null || !stack.hasItemMeta()) return Optional.empty();
+    String raw =
+        PdcValueSanitizer.uuidString(
+            stack
+                .getItemMeta()
+                .getPersistentDataContainer()
+                .get(keys.chunkLoaderId(), PersistentDataType.STRING));
+    if (raw == null) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(UUID.fromString(raw));
+    } catch (IllegalArgumentException ignored) {
+      return Optional.empty();
+    }
+  }
+
   public Optional<String> storageDisplayName(ItemStack stack) {
     return StorageItemNameEditor.displayName(keys, stack);
   }
@@ -481,6 +538,20 @@ public class CustomItems {
     }
     lore.add(StorageTierText.tierValueLore(lang, clientTranslations, tier));
     meta.lore(lore);
+  }
+
+  private void applyChunkLoaderLore(ItemMeta meta, UUID id) {
+    if (id == null) {
+      meta.lore(null);
+      return;
+    }
+    String raw = id.toString();
+    String tail = raw.substring(Math.max(0, raw.length() - STORAGE_ID_TAIL_LENGTH));
+    meta.lore(
+        List.of(
+            lang.itemComponent(clientTranslations, "lore.chunk_loader.id_tail", tail)
+                .color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false)));
   }
 
   private String formatNumber(long value) {

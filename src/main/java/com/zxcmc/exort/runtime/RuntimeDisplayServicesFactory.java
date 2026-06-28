@@ -5,6 +5,7 @@ import com.zxcmc.exort.display.core.DisplayMetadataService;
 import com.zxcmc.exort.display.culling.DisplayCullingConfig;
 import com.zxcmc.exort.display.culling.DisplayCullingService;
 import com.zxcmc.exort.display.device.BusDisplayManager;
+import com.zxcmc.exort.display.device.ChunkLoaderDisplayManager;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.device.RelayDisplayManager;
@@ -89,6 +90,10 @@ public final class RuntimeDisplayServicesFactory {
     RelayDisplayManager relayDisplayManager =
         createRelayDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), relayDisplayManager::scanLoadedChunks);
+
+    ChunkLoaderDisplayManager chunkLoaderDisplayManager =
+        createChunkLoaderDisplayManager(deps, displayModels, metadataService);
+    Bukkit.getScheduler().runTask(deps.plugin(), chunkLoaderDisplayManager::scanLoadedChunks);
     Bukkit.getScheduler().runTask(deps.plugin(), metadataService::rebuildLoadedDisplays);
 
     ExortBlockProxyService blockProxyService =
@@ -100,7 +105,8 @@ public final class RuntimeDisplayServicesFactory {
             materials.terminalCarrier(),
             materials.monitorCarrier(),
             materials.busCarrier(),
-            materials.relayCarrier());
+            materials.relayCarrier(),
+            materials.chunkLoaderCarrier());
     blockProxyService.start();
 
     DisplayCullingService displayCullingService =
@@ -124,6 +130,7 @@ public final class RuntimeDisplayServicesFactory {
             materials.monitorCarrier(),
             materials.busCarrier(),
             materials.relayCarrier(),
+            materials.chunkLoaderCarrier(),
             materials.storageCarrier(),
             wireDisplayManager,
             storageDisplayManager,
@@ -131,6 +138,7 @@ public final class RuntimeDisplayServicesFactory {
             monitorDisplayManager,
             busDisplayManager,
             relayDisplayManager,
+            chunkLoaderDisplayManager,
             blockProxyService);
     registerSanityServices(deps, hologramManager, displayRefreshService);
 
@@ -142,6 +150,7 @@ public final class RuntimeDisplayServicesFactory {
         monitorDisplayManager,
         busDisplayManager,
         relayDisplayManager,
+        chunkLoaderDisplayManager,
         blockProxyService,
         displayCullingService,
         displayRefreshService);
@@ -314,6 +323,24 @@ public final class RuntimeDisplayServicesFactory {
         deps.lang().clientComponent(deps.resourceMode(), "item.relay"));
   }
 
+  private static ChunkLoaderDisplayManager createChunkLoaderDisplayManager(
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
+    RuntimeDisplayConfig display = RuntimeDisplayConfig.defaults();
+    return new ChunkLoaderDisplayManager(
+        deps.plugin(),
+        deps.materials().chunkLoaderCarrier(),
+        displayModels.chunkLoader(),
+        display.displayBaseMaterial(),
+        display.displayScale(),
+        display.offsetX(),
+        display.offsetY(),
+        display.offsetZ(),
+        metadataService,
+        deps.lang().clientComponent(deps.resourceMode(), "item.chunk_loader"));
+  }
+
   private static void registerSanityServices(
       RuntimeDisplayServicesDependencies deps,
       ItemHologramManager hologramManager,
@@ -329,7 +356,8 @@ public final class RuntimeDisplayServicesFactory {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
-                materials.relayCarrier()),
+                materials.relayCarrier(),
+                materials.chunkLoaderCarrier()),
             new MarkerSanityService(
                 new MarkerSanityDependencies(
                     deps.plugin(),
@@ -342,7 +370,8 @@ public final class RuntimeDisplayServicesFactory {
                     materials.terminalCarrier(),
                     materials.monitorCarrier(),
                     materials.busCarrier(),
-                    materials.relayCarrier())),
+                    materials.relayCarrier(),
+                    materials.chunkLoaderCarrier())),
             displayRefreshService,
             deps.worldEditDebugService(),
             deps.invalidateNetwork());

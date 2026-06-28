@@ -4,6 +4,8 @@ import com.zxcmc.exort.block.listener.BlockListener;
 import com.zxcmc.exort.block.listener.BlockListenerDependencies;
 import com.zxcmc.exort.breaking.explosion.ExortExplosionListener;
 import com.zxcmc.exort.bus.listener.BusListener;
+import com.zxcmc.exort.chunkloader.ChunkLoaderAuditListener;
+import com.zxcmc.exort.chunkloader.ChunkLoaderListener;
 import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
 import com.zxcmc.exort.gui.listener.TerminalListener;
@@ -46,6 +48,7 @@ public final class RuntimeListenerRegistrar {
     registerStorageAndWireListeners(deps);
     registerPickListener(deps);
     registerItemPlaceBridge(deps);
+    registerChunkLoaderAuditListener(deps);
     registerMonitorListener(deps);
     RightClickPlacementGuard placementGuard = registerPlacementGuard(deps, placementConfig);
     registerInventoryRefreshListener(deps);
@@ -76,7 +79,9 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                materials.chunkLoaderCarrier(),
                 deps.breakHandler(),
+                deps.chunkLoaderService(),
                 deps.regionProtection(),
                 deps.playerFeedback(),
                 deps.displayRefreshServiceSource(),
@@ -183,6 +188,15 @@ public final class RuntimeListenerRegistrar {
             materials.wire(),
             materials.storageCarrier(),
             materials.relayCarrier()));
+    register(
+        deps,
+        new ChunkLoaderListener(
+            deps.plugin(),
+            deps.regionProtection(),
+            deps.worldEditWandGuard(),
+            deps.bossBarManager(),
+            materials.chunkLoaderCarrier(),
+            deps.storagePeekTicks()));
   }
 
   private static void registerPickListener(RuntimeListenerDependencies deps) {
@@ -198,7 +212,8 @@ public final class RuntimeListenerRegistrar {
             materials.terminalCarrier(),
             materials.monitorCarrier(),
             materials.busCarrier(),
-            materials.relayCarrier());
+            materials.relayCarrier(),
+            materials.chunkLoaderCarrier());
     register(deps, pickListener);
     if (deps.packetEnhancements() != null) {
       deps.packetEnhancements().registerPickBridge(pickListener);
@@ -222,6 +237,7 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                materials.chunkLoaderCarrier(),
                 deps.regionProtection(),
                 deps.playerFeedback(),
                 deps.displayRefreshServiceSource(),
@@ -235,7 +251,18 @@ public final class RuntimeListenerRegistrar {
                     deps.database()
                         .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
                 () -> deps.breakSoundConfig(),
+                deps.chunkLoaderService(),
                 () -> deps.busRuntimeConfig())));
+  }
+
+  private static void registerChunkLoaderAuditListener(RuntimeListenerDependencies deps) {
+    register(
+        deps,
+        new ChunkLoaderAuditListener(
+            deps.plugin(),
+            deps.customItems(),
+            deps.database(),
+            deps.chunkLoaderService().auditLogger()));
   }
 
   private static void registerMonitorListener(RuntimeListenerDependencies deps) {
@@ -291,7 +318,8 @@ public final class RuntimeListenerRegistrar {
                 materials.terminalCarrier(),
                 materials.monitorCarrier(),
                 materials.busCarrier(),
-                materials.relayCarrier()),
+                materials.relayCarrier(),
+                materials.chunkLoaderCarrier()),
             placementGuardBackend,
             placementConfig.pollIntervalTicks(),
             placementConfig.targetRangeBlocks(),

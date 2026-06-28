@@ -12,7 +12,8 @@ public record RuntimeDisplayModelConfig(
     String monitorDisabled,
     String importBus,
     String exportBus,
-    String relay) {
+    String relay,
+    String chunkLoader) {
   public static RuntimeDisplayModelConfig forMode(boolean resourceMode, String namespace) {
     return resourceMode ? resourceConfig(namespace) : vanillaConfig(namespace);
   }
@@ -28,7 +29,8 @@ public record RuntimeDisplayModelConfig(
         normalizeModelId("terminal/monitor_disabled", namespace),
         normalizeModelId("bus/import", namespace),
         normalizeModelId("bus/export", namespace),
-        normalizeModelId("relay/relay", namespace));
+        normalizeModelId("relay/relay", namespace),
+        normalizeModelId("chunkloader/chunkloader", namespace));
   }
 
   private static RuntimeDisplayModelConfig vanillaConfig(String namespace) {
@@ -45,6 +47,7 @@ public record RuntimeDisplayModelConfig(
         normalizeModelId(monitor, namespace),
         normalizeModelId("dispenser", namespace),
         normalizeModelId("dropper", namespace),
-        normalizeModelId("lodestone", namespace));
+        normalizeModelId("lodestone", namespace),
+        normalizeModelId("respawn_anchor", namespace));
   }
 }

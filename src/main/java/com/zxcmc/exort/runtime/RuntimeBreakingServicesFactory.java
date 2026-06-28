@@ -24,6 +24,7 @@ public final class RuntimeBreakingServicesFactory {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                materials.chunkLoaderCarrier(),
                 deps.hologramManager(),
                 deps.wireDisplayManager(),
                 deps.displayRefreshService(),
@@ -35,7 +36,8 @@ public final class RuntimeBreakingServicesFactory {
                 deps.busService(),
                 deps.networkGraphCache(),
                 deps.regionProtection(),
-                deps.playerFeedback()));
+                deps.playerFeedback(),
+                deps.chunkLoaderService()));
     BreakConfig breakConfig = BreakConfig.fromConfig(deps.config(), deps.logger());
     BreakSoundConfig breakSoundConfig = BreakSoundConfig.defaults();
     CustomBlockBreaker customBlockBreaker =
@@ -52,7 +54,8 @@ public final class RuntimeBreakingServicesFactory {
             materials.terminalCarrier(),
             materials.monitorCarrier(),
             materials.busCarrier(),
-            materials.relayCarrier());
+            materials.relayCarrier(),
+            materials.chunkLoaderCarrier());
     registerCustomBreakingPackets(deps, customBlockBreaker);
     return new RuntimeBreakingServices(breakHandler, breakSoundConfig, customBlockBreaker);
   }

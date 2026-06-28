@@ -16,7 +16,8 @@ public final class ExortBlockTargetResolver {
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material chunkLoaderCarrier) {
     this.classifier =
         new ExortBlockClassifier(
             plugin,
@@ -26,7 +27,8 @@ public final class ExortBlockTargetResolver {
                 terminalCarrier,
                 monitorCarrier,
                 busCarrier,
-                relayCarrier));
+                relayCarrier,
+                chunkLoaderCarrier));
   }
 
   public boolean isExortBlock(Block block) {

@@ -5,6 +5,7 @@ import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -56,6 +57,7 @@ public final class CustomBlockBreaker
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final BreakSessionManager sessionManager = new BreakSessionManager();
   private final Map<UUID, DamageIntent> vanillaDamageIntents = new HashMap<>();
   private final Map<UUID, Long> rightClickTicks = new HashMap<>();
@@ -76,7 +78,8 @@ public final class CustomBlockBreaker
       Material terminalCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material chunkLoaderCarrier) {
     this(
         plugin,
         regionProtection,
@@ -91,6 +94,7 @@ public final class CustomBlockBreaker
         monitorCarrier,
         busCarrier,
         relayCarrier,
+        chunkLoaderCarrier,
         new ClientBreakSpeedSuppressor(plugin));
   }
 
@@ -108,6 +112,7 @@ public final class CustomBlockBreaker
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material chunkLoaderCarrier,
       ClientBreakSpeedSuppressor clientBreakSpeedSuppressor) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
@@ -124,6 +129,7 @@ public final class CustomBlockBreaker
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.chunkLoaderCarrier = chunkLoaderCarrier;
   }
 
   public void start() {
@@ -628,6 +634,10 @@ public final class CustomBlockBreaker
     if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
       return BreakType.RELAY;
     }
+    if (Carriers.matchesCarrier(block, chunkLoaderCarrier)
+        && ChunkLoaderMarker.isChunkLoader(plugin, block)) {
+      return BreakType.CHUNK_LOADER;
+    }
     if (Carriers.matchesCarrier(block, storageCarrier)
         && StorageMarker.get(plugin, block).isPresent()) {
       return BreakType.STORAGE;
@@ -648,6 +658,7 @@ public final class CustomBlockBreaker
       case MONITOR -> breakConfig.monitor();
       case BUS -> breakConfig.bus();
       case RELAY -> breakConfig.relay();
+      case CHUNK_LOADER -> breakConfig.chunkLoader();
       case WIRE -> breakConfig.wire();
       default -> breakConfig.storage();
     };

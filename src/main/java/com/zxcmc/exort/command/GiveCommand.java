@@ -130,6 +130,10 @@ final class GiveCommand {
                             amountArgument(
                                 ctx -> giveItem(ctx, amount(ctx), "item.relay", this::relay))))
                 .then(
+                    Commands.literal("chunk_loader")
+                        .executes(ctx -> giveChunkLoader(ctx, 1))
+                        .then(amountArgument(ctx -> giveChunkLoader(ctx, amount(ctx)))))
+                .then(
                     Commands.literal("wireless_terminal")
                         .executes(
                             ctx ->
@@ -171,6 +175,30 @@ final class GiveCommand {
                 "message.usage_give_storage"),
             usageLine(sender, "/exort give <player> <item> [amount]", "message.usage_give_item"),
             Component.text(dependencies.lang().tr(sender, "message.usage_give_items"))));
+    return 1;
+  }
+
+  private int giveChunkLoader(CommandContext<CommandSourceStack> context, int amount) {
+    if (!ensureGivePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    Player target = target(sender, context);
+    if (target == null) {
+      return 1;
+    }
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
+    String label = dependencies.lang().tr(sender, "item.chunk_loader");
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        CommandItemDelivery.deliver(
+            target, () -> dependencies.customItems().chunkLoaderItem(), giveAmount));
+    dependencies
+        .chunkLoaderService()
+        .auditLogger()
+        .logIssue(
+            sender instanceof Player player ? player : null, target, giveAmount, "/exort give");
     return 1;
   }
 

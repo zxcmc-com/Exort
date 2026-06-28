@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -28,6 +29,8 @@ public final class ExortGiveMenu implements InventoryHolder {
   private final Inventory inventory;
   private final Supplier<CustomItems> customItems;
   private final Supplier<ItemStack> wirelessTerminalFactory;
+  private final BiConsumer<Player, ItemStack> issueLogger;
+  private final BiConsumer<Player, ItemStack> destroyLogger;
 
   public ExortGiveMenu(
       CustomItems customItems, Supplier<ItemStack> wirelessTerminalFactory, Component title) {
@@ -38,9 +41,28 @@ public final class ExortGiveMenu implements InventoryHolder {
       Supplier<CustomItems> customItems,
       Supplier<ItemStack> wirelessTerminalFactory,
       Component title) {
+    this(customItems, wirelessTerminalFactory, title, (player, item) -> {});
+  }
+
+  public ExortGiveMenu(
+      Supplier<CustomItems> customItems,
+      Supplier<ItemStack> wirelessTerminalFactory,
+      Component title,
+      BiConsumer<Player, ItemStack> issueLogger) {
+    this(customItems, wirelessTerminalFactory, title, issueLogger, (player, item) -> {});
+  }
+
+  public ExortGiveMenu(
+      Supplier<CustomItems> customItems,
+      Supplier<ItemStack> wirelessTerminalFactory,
+      Component title,
+      BiConsumer<Player, ItemStack> issueLogger,
+      BiConsumer<Player, ItemStack> destroyLogger) {
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.wirelessTerminalFactory =
         Objects.requireNonNull(wirelessTerminalFactory, "wirelessTerminalFactory");
+    this.issueLogger = issueLogger == null ? (player, item) -> {} : issueLogger;
+    this.destroyLogger = destroyLogger == null ? (player, item) -> {} : destroyLogger;
     inventory = Bukkit.createInventory(this, SIZE, title == null ? Component.text(TITLE) : title);
     refreshCatalog();
   }
@@ -93,7 +115,8 @@ public final class ExortGiveMenu implements InventoryHolder {
     if (isEmpty(sample)) {
       return;
     }
-    ItemStack copy = oneItemCopy(sample);
+    ItemStack copy = copyForDelivery(sample);
+    issueLogger.accept(player, copy);
     if (event.isShiftClick()) {
       player.getInventory().addItem(copy);
       return;
@@ -165,6 +188,7 @@ public final class ExortGiveMenu implements InventoryHolder {
     items.add(oneItemCopy(customItems.exportBusItem()));
     items.add(oneItemCopy(customItems.wireItem()));
     items.add(oneItemCopy(customItems.relayItem()));
+    items.add(oneItemCopy(customItems.chunkLoaderItem()));
     items.add(oneItemCopy(wirelessTerminalFactory.get()));
     return List.copyOf(items);
   }
@@ -184,6 +208,7 @@ public final class ExortGiveMenu implements InventoryHolder {
       return;
     }
     int remaining = cursor.getAmount() - remove;
+    logDestroyed(event, cursor, remove);
     if (remaining <= 0) {
       event.getView().setCursor(null);
       return;
@@ -199,6 +224,7 @@ public final class ExortGiveMenu implements InventoryHolder {
     }
     ItemStack current = event.getCurrentItem();
     if (canDestroy(current)) {
+      logDestroyed(event, current, current.getAmount());
       event.setCurrentItem(null);
     }
   }
@@ -206,12 +232,30 @@ public final class ExortGiveMenu implements InventoryHolder {
   private boolean canDestroy(ItemStack item) {
     CustomItems items = currentCustomItems();
     boolean customItem = items.isCustomItem(item);
-    boolean hasStorageId = customItem && items.storageId(item).isPresent();
-    return canDestroyCustomItem(customItem, hasStorageId);
+    boolean hasPersistentId =
+        customItem && (items.storageId(item).isPresent() || items.chunkLoaderId(item).isPresent());
+    return canDestroyCustomItem(customItem, hasPersistentId);
   }
 
   private CustomItems currentCustomItems() {
     return Objects.requireNonNull(customItems.get(), "customItems");
+  }
+
+  private ItemStack copyForDelivery(ItemStack sample) {
+    CustomItems items = currentCustomItems();
+    if (items.isChunkLoader(sample)) {
+      return items.chunkLoaderItem();
+    }
+    return oneItemCopy(sample);
+  }
+
+  private void logDestroyed(InventoryClickEvent event, ItemStack stack, int amount) {
+    if (!(event.getWhoClicked() instanceof Player player) || isEmpty(stack) || amount <= 0) {
+      return;
+    }
+    ItemStack copy = stack.clone();
+    copy.setAmount(amount);
+    destroyLogger.accept(player, copy);
   }
 
   private static boolean isEmpty(ItemStack stack) {

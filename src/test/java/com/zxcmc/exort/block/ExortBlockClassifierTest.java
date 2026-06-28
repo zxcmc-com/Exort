@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -76,6 +77,7 @@ class ExortBlockClassifierTest {
     Block monitor = world.block(3, 64, 0, Material.BARRIER);
     Block bus = world.block(4, 64, 0, Material.BARRIER);
     Block relay = world.block(5, 64, 0, Material.BARRIER);
+    Block chunkLoader = world.block(6, 64, 0, Material.BARRIER);
 
     StorageMarker.setRaw(plugin, storage, "storage-a", "common", 1024L, BlockFace.NORTH);
     StorageCoreMarker.set(plugin, storageCore);
@@ -83,6 +85,7 @@ class ExortBlockClassifierTest {
     MonitorMarker.set(plugin, monitor, BlockFace.NORTH);
     BusMarker.set(plugin, bus, BusType.IMPORT, BlockFace.NORTH, BusMode.DISABLED);
     RelayMarker.set(plugin, relay);
+    ChunkLoaderMarker.set(plugin, chunkLoader, new UUID(0L, 6L), null, "Alex", 100L);
 
     assertAll(
         () -> assertTrue(classifier.isExortBlock(storage)),
@@ -91,12 +94,14 @@ class ExortBlockClassifierTest {
         () -> assertTrue(classifier.isExortBlock(monitor)),
         () -> assertTrue(classifier.isExortBlock(bus)),
         () -> assertTrue(classifier.isExortBlock(relay)),
+        () -> assertTrue(classifier.isExortBlock(chunkLoader)),
         () -> assertFalse(classifier.isExortChorusCarrier(storage)),
         () -> assertFalse(classifier.isExortChorusCarrier(storageCore)),
         () -> assertFalse(classifier.isExortChorusCarrier(terminal)),
         () -> assertFalse(classifier.isExortChorusCarrier(monitor)),
         () -> assertFalse(classifier.isExortChorusCarrier(bus)),
-        () -> assertFalse(classifier.isExortChorusCarrier(relay)));
+        () -> assertFalse(classifier.isExortChorusCarrier(relay)),
+        () -> assertFalse(classifier.isExortChorusCarrier(chunkLoader)));
   }
 
   @Test
@@ -111,6 +116,7 @@ class ExortBlockClassifierTest {
   private static RuntimeMaterials materials(Material wire) {
     return new RuntimeMaterials(
         wire,
+        Material.BARRIER,
         Material.BARRIER,
         Material.BARRIER,
         Material.BARRIER,

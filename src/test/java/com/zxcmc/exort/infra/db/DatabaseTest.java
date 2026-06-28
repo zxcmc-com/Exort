@@ -8,10 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderObservation;
+import com.zxcmc.exort.chunkloader.ChunkLoaderRecord;
+import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
 import java.io.File;
 import java.sql.DriverManager;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -25,6 +29,209 @@ import org.junit.jupiter.api.io.TempDir;
 
 class DatabaseTest {
   @TempDir java.nio.file.Path tempDir;
+
+  @Test
+  void chunkLoaderRecordsCanBeSavedListedReplacedByPositionAndDeleted() throws Exception {
+    File file = tempDir.resolve("chunk-loaders.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID worldId = new UUID(0L, 1L);
+      UUID firstId = new UUID(0L, 2L);
+      UUID secondId = new UUID(0L, 3L);
+      UUID placerId = new UUID(0L, 4L);
+      ChunkLoaderRecord first =
+          new ChunkLoaderRecord(
+              firstId,
+              worldId,
+              "minecraft:overworld",
+              "world",
+              10,
+              64,
+              -5,
+              0,
+              -1,
+              placerId,
+              "Alex",
+              1,
+              100L,
+              100L);
+      ChunkLoaderRecord second =
+          new ChunkLoaderRecord(
+              secondId,
+              worldId,
+              "minecraft:overworld",
+              "world",
+              10,
+              64,
+              -5,
+              0,
+              -1,
+              placerId,
+              "Alex",
+              2,
+              110L,
+              110L);
+
+      database.saveChunkLoader(first).get(5, TimeUnit.SECONDS);
+      assertEquals(List.of(first), database.listChunkLoaders().get(5, TimeUnit.SECONDS));
+      var registry = database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS);
+      assertEquals(1, registry.size());
+      assertEquals(firstId, registry.getFirst().id());
+      assertEquals(ChunkLoaderRegistryStatus.ACTIVE, registry.getFirst().status());
+
+      database.saveChunkLoader(second).get(5, TimeUnit.SECONDS);
+      assertEquals(List.of(second), database.listChunkLoaders().get(5, TimeUnit.SECONDS));
+
+      database
+          .deleteChunkLoaderAt(worldId, second.x(), second.y(), second.z())
+          .get(5, TimeUnit.SECONDS);
+      assertTrue(database.listChunkLoaders().get(5, TimeUnit.SECONDS).isEmpty());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void chunkLoaderRegistryTracksLostFoundAndRemovedTransitions() throws Exception {
+    File file = tempDir.resolve("chunk-loader-registry.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID worldId = new UUID(0L, 11L);
+      UUID loaderId = new UUID(0L, 12L);
+      UUID actorId = new UUID(0L, 13L);
+      ChunkLoaderRecord active =
+          new ChunkLoaderRecord(
+              loaderId,
+              worldId,
+              "minecraft:overworld",
+              "world",
+              1,
+              64,
+              2,
+              0,
+              0,
+              actorId,
+              "Alex",
+              1,
+              100L,
+              100L);
+
+      assertFalse(database.saveChunkLoader(active).get(5, TimeUnit.SECONDS));
+      assertFalse(
+          database
+              .recordChunkLoaderObservation(
+                  observation(
+                      loaderId,
+                      ChunkLoaderRegistryStatus.LOST,
+                      worldId,
+                      actorId,
+                      "creative_inventory",
+                      "creative_inventory",
+                      110L))
+              .get(5, TimeUnit.SECONDS));
+
+      assertTrue(
+          database
+              .recordChunkLoaderObservation(
+                  observation(
+                      loaderId,
+                      ChunkLoaderRegistryStatus.ITEM,
+                      worldId,
+                      actorId,
+                      "pickup",
+                      null,
+                      120L))
+              .get(5, TimeUnit.SECONDS));
+      assertFalse(
+          database
+              .recordChunkLoaderObservation(
+                  observation(
+                      loaderId,
+                      ChunkLoaderRegistryStatus.ITEM,
+                      worldId,
+                      actorId,
+                      "drop",
+                      null,
+                      130L))
+              .get(5, TimeUnit.SECONDS));
+
+      var item = database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS).getFirst();
+      assertEquals(ChunkLoaderRegistryStatus.ITEM, item.status());
+      assertEquals("drop", item.lastSource());
+      assertEquals(130L, item.lastSeenAt());
+
+      assertFalse(
+          database
+              .recordChunkLoaderObservation(
+                  observation(
+                      loaderId,
+                      ChunkLoaderRegistryStatus.REMOVED,
+                      worldId,
+                      actorId,
+                      "/clear",
+                      "/clear",
+                      140L))
+              .get(5, TimeUnit.SECONDS));
+      assertEquals(
+          ChunkLoaderRegistryStatus.REMOVED,
+          database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS).getFirst().status());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void chunkLoaderRegistryIsSeededFromExistingActiveRows() throws Exception {
+    File file = tempDir.resolve("chunk-loader-registry-migration.db").toFile();
+    UUID worldId = new UUID(0L, 21L);
+    UUID loaderId = new UUID(0L, 22L);
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+        var statement = connection.createStatement()) {
+      statement.execute(
+          """
+          CREATE TABLE chunk_loaders (
+              id TEXT PRIMARY KEY,
+              world TEXT NOT NULL,
+              world_key TEXT NOT NULL,
+              world_name TEXT NOT NULL,
+              x INTEGER NOT NULL,
+              y INTEGER NOT NULL,
+              z INTEGER NOT NULL,
+              chunk_x INTEGER NOT NULL,
+              chunk_z INTEGER NOT NULL,
+              placed_by_uuid TEXT NULL,
+              placed_by_name TEXT NOT NULL,
+              radius INTEGER NOT NULL,
+              created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL,
+              UNIQUE(world, x, y, z)
+          )
+          """);
+      statement.execute(
+          "INSERT INTO chunk_loaders(id, world, world_key, world_name, x, y, z, chunk_x,"
+              + " chunk_z, placed_by_uuid, placed_by_name, radius, created_at, updated_at)"
+              + " VALUES('"
+              + loaderId
+              + "', '"
+              + worldId
+              + "', 'minecraft:overworld', 'world', 5, 70, 6, 0, 0, NULL, 'unknown', 1,"
+              + " 100, 105)");
+    }
+
+    Database database = new Database();
+    database.init(file);
+    try {
+      var records = database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS);
+      assertEquals(1, records.size());
+      assertEquals(loaderId, records.getFirst().id());
+      assertEquals(ChunkLoaderRegistryStatus.ACTIVE, records.getFirst().status());
+      assertEquals(105L, records.getFirst().lastSeenAt());
+    } finally {
+      database.close();
+    }
+  }
 
   @Test
   void setStorageTierPersistsCapacitySnapshot() throws Exception {
@@ -484,6 +691,30 @@ class DatabaseTest {
       storage.setLong(5, now);
       storage.executeUpdate();
     }
+  }
+
+  private static ChunkLoaderObservation observation(
+      UUID loaderId,
+      ChunkLoaderRegistryStatus status,
+      UUID worldId,
+      UUID actorId,
+      String source,
+      String reason,
+      long observedAt) {
+    return new ChunkLoaderObservation(
+        loaderId,
+        status,
+        worldId,
+        "minecraft:overworld",
+        "world",
+        10.5D,
+        65.0D,
+        -2.5D,
+        actorId,
+        "Alex",
+        source,
+        reason,
+        observedAt);
   }
 
   private static final class CapturingHandler extends Handler {

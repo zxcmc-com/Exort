@@ -37,6 +37,7 @@ class RuntimeDisplayModelConfigTest {
         config.monitorDisabled(),
         config.importBus(),
         config.exportBus(),
-        config.relay());
+        config.relay(),
+        config.chunkLoader());
   }
 }

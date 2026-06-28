@@ -3,6 +3,7 @@ package com.zxcmc.exort.runtime;
 import com.zxcmc.exort.breaking.BreakAnimationSender;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
@@ -40,6 +41,7 @@ public record RuntimeBreakingServicesDependencies(
     WorldEditWandGuard worldEditWandGuard,
     PlayerFeedback playerFeedback,
     BreakAnimationSender breakAnimationSender,
+    ChunkLoaderService chunkLoaderService,
     PacketEnhancements packetEnhancements) {
   public RuntimeBreakingServicesDependencies {
     Objects.requireNonNull(plugin, "plugin");
@@ -60,5 +62,6 @@ public record RuntimeBreakingServicesDependencies(
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(breakAnimationSender, "breakAnimationSender");
+    Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");
   }
 }

@@ -100,6 +100,14 @@ public class BossBarManager {
     showCustom(player, title, 1.0, BarColor.BLUE, durationTicks, gen);
   }
 
+  public void showChunkLoaderStatus(UUID loaderId, Player player, long durationTicks) {
+    int gen = generations.compute(player.getUniqueId(), (id, val) -> val == null ? 1 : val + 1);
+    cancelRemoval(player.getUniqueId());
+    String title =
+        lang.tr(player, "chunk_loader.status", loaderId == null ? "unknown" : loaderId.toString());
+    showCustom(player, title, 1.0, BarColor.PURPLE, durationTicks, gen);
+  }
+
   public void showMonitorItem(
       String storageId, String itemKey, String itemName, Player player, long durationTicks) {
     int gen = generations.compute(player.getUniqueId(), (id, val) -> val == null ? 1 : val + 1);

@@ -13,6 +13,7 @@ public final class BreakSoundConfig {
   private final SoundProfile monitor;
   private final SoundProfile bus;
   private final SoundProfile relay;
+  private final SoundProfile chunkLoader;
   private final SoundProfile wire;
 
   private BreakSoundConfig(
@@ -23,6 +24,7 @@ public final class BreakSoundConfig {
       SoundProfile monitor,
       SoundProfile bus,
       SoundProfile relay,
+      SoundProfile chunkLoader,
       SoundProfile wire) {
     this.enabled = enabled;
     this.volume = volume;
@@ -31,6 +33,7 @@ public final class BreakSoundConfig {
     this.monitor = monitor;
     this.bus = bus;
     this.relay = relay;
+    this.chunkLoader = chunkLoader;
     this.wire = wire;
   }
 
@@ -72,6 +75,7 @@ public final class BreakSoundConfig {
       case MONITOR -> monitor;
       case BUS -> bus;
       case RELAY -> relay;
+      case CHUNK_LOADER -> chunkLoader;
       case WIRE -> wire;
       case STORAGE -> storage;
       default -> storage;
@@ -86,8 +90,10 @@ public final class BreakSoundConfig {
     SoundProfile monitor = profile("block.iron.hit", "block.iron.break", "block.iron.place");
     SoundProfile bus = profile("block.iron.hit", "block.iron.break", "block.iron.place");
     SoundProfile relay = profile("block.iron.hit", "block.iron.break", "block.iron.place");
+    SoundProfile chunkLoader = profile("block.iron.hit", "block.iron.break", "block.iron.place");
     SoundProfile wire = profile("block.glass.hit", "block.glass.break", "block.glass.place");
-    return new BreakSoundConfig(enabled, volume, storage, terminal, monitor, bus, relay, wire);
+    return new BreakSoundConfig(
+        enabled, volume, storage, terminal, monitor, bus, relay, chunkLoader, wire);
   }
 
   private static SoundProfile profile(String hitKey, String breakKey, String placeKey) {

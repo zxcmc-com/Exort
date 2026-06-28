@@ -36,6 +36,7 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
@@ -43,6 +44,7 @@ import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.worldedit.fawe.FaweExtentAccess;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
@@ -103,6 +105,7 @@ public final class WorldEditBridge implements Listener {
   private static final String SECTION_BUS = "bus";
   private static final String SECTION_MONITOR = "monitor";
   private static final String SECTION_RELAY = "relay";
+  private static final String SECTION_CHUNK_LOADER = "chunk_loader";
   private static final String SECTION_WIRE = "wire";
   private static final String SECTION_STORAGE_CORE = "storage_core";
   private static final String ORAXEN_PLUGIN_NAME = "Oraxen";
@@ -128,6 +131,9 @@ public final class WorldEditBridge implements Listener {
   private static final String FIELD_LINK_Z = "link_z";
   private static final String FIELD_FILTERS = "filters";
   private static final String FIELD_NBT_ID = "id";
+  private static final String FIELD_PLACED_BY_UUID = "placed_by_uuid";
+  private static final String FIELD_PLACED_BY_NAME = "placed_by_name";
+  private static final String FIELD_CREATED_AT = "created_at";
 
   private static final int BUS_FILTER_SLOTS = 10;
 
@@ -1537,6 +1543,10 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.relay() != null && !Carriers.matchesCarrier(block, deps.relayCarrier())) {
       return false;
     }
+    if (snapshot.chunkLoader() != null
+        && !Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
+      return false;
+    }
     if (snapshot.wire() && !Carriers.matchesCarrier(block, deps.wireMaterial())) {
       return false;
     }
@@ -1620,6 +1630,16 @@ public final class WorldEditBridge implements Listener {
             plugin, block, new RelayMarker.Link(link.worldId(), link.x(), link.y(), link.z()));
       }
     }
+    if (snapshot.chunkLoader() != null
+        && Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
+      ChunkLoaderData data = snapshot.chunkLoader();
+      ChunkLoaderMarker.set(
+          plugin, block, data.id(), data.placedByUuid(), data.placedByName(), data.createdAt());
+      ChunkLoaderService chunkLoaderService = deps.chunkLoaderService();
+      if (chunkLoaderService != null) {
+        chunkLoaderService.reconcileBlock(block);
+      }
+    }
     if (snapshot.wire() && Carriers.matchesCarrier(block, deps.wireMaterial())) {
       WireMarker.setWire(plugin, block);
     }
@@ -1644,6 +1664,14 @@ public final class WorldEditBridge implements Listener {
       deps.busService().unregisterBus(block);
     }
     unlinkExistingRelayForReplacement(plugin, block);
+    if (ChunkLoaderMarker.isChunkLoader(plugin, block)) {
+      ChunkLoaderService chunkLoaderService = deps.chunkLoaderService();
+      if (chunkLoaderService != null) {
+        chunkLoaderService.cleanupAt(block, "worldedit_replace");
+      } else {
+        ChunkLoaderMarker.clear(plugin, block);
+      }
+    }
   }
 
   static void unlinkExistingRelayForReplacement(Plugin plugin, Block block) {
@@ -1843,6 +1871,23 @@ public final class WorldEditBridge implements Listener {
       exort.put(SECTION_RELAY, relayTag.build());
       any = true;
     }
+    Optional<ChunkLoaderMarker.Data> chunkLoader = ChunkLoaderMarker.get(plugin, block);
+    if (chunkLoader.isPresent()) {
+      ChunkLoaderMarker.Data data = chunkLoader.get();
+      LinCompoundTag.Builder chunkLoaderTag = LinCompoundTag.builder();
+      chunkLoaderTag.putString(FIELD_ID, data.id().toString());
+      if (data.placedByUuid() != null) {
+        chunkLoaderTag.putString(FIELD_PLACED_BY_UUID, data.placedByUuid().toString());
+      }
+      if (data.placedByName() != null) {
+        chunkLoaderTag.putString(FIELD_PLACED_BY_NAME, data.placedByName());
+      }
+      if (data.createdAt() > 0L) {
+        chunkLoaderTag.putString(FIELD_CREATED_AT, Long.toString(data.createdAt()));
+      }
+      exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
+      any = true;
+    }
     if (WireMarker.isWire(plugin, block)) {
       LinCompoundTag.Builder wireTag = LinCompoundTag.builder();
       wireTag.putByte(FIELD_PRESENT, (byte) 1);
@@ -1911,6 +1956,10 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.relay() != null && !Carriers.matchesCarrier(block, deps.relayCarrier())) {
       return false;
     }
+    if (snapshot.chunkLoader() != null
+        && !Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
+      return false;
+    }
     return !snapshot.wire() || Carriers.matchesCarrier(block, deps.wireMaterial());
   }
 
@@ -1922,6 +1971,7 @@ public final class WorldEditBridge implements Listener {
         || type == deps.monitorCarrier()
         || type == deps.busCarrier()
         || type == deps.relayCarrier()
+        || type == deps.chunkLoaderCarrier()
         || type == deps.wireMaterial()
         || type == Carriers.CARRIER_BARRIER
         || type == Carriers.CHORUS_MATERIAL;
@@ -2009,6 +2059,23 @@ public final class WorldEditBridge implements Listener {
       exort.put(SECTION_RELAY, relayTag.build());
       any = true;
     }
+    if (snapshot.chunkLoader() != null) {
+      LinCompoundTag.Builder chunkLoaderTag = LinCompoundTag.builder();
+      chunkLoaderTag.putString(FIELD_ID, snapshot.chunkLoader().id().toString());
+      if (snapshot.chunkLoader().placedByUuid() != null) {
+        chunkLoaderTag.putString(
+            FIELD_PLACED_BY_UUID, snapshot.chunkLoader().placedByUuid().toString());
+      }
+      if (snapshot.chunkLoader().placedByName() != null) {
+        chunkLoaderTag.putString(FIELD_PLACED_BY_NAME, snapshot.chunkLoader().placedByName());
+      }
+      if (snapshot.chunkLoader().createdAt() > 0L) {
+        chunkLoaderTag.putString(
+            FIELD_CREATED_AT, Long.toString(snapshot.chunkLoader().createdAt()));
+      }
+      exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
+      any = true;
+    }
     if (snapshot.wire()) {
       LinCompoundTag.Builder wireTag = LinCompoundTag.builder();
       wireTag.putByte(FIELD_PRESENT, (byte) 1);
@@ -2062,6 +2129,16 @@ public final class WorldEditBridge implements Listener {
     return tag != null && tag.valueAsByte() == (byte) 1;
   }
 
+  private static UUID readUuid(LinCompoundTag root, String key) {
+    String raw = readString(root, key);
+    if (raw == null || raw.isBlank()) return null;
+    try {
+      return UUID.fromString(raw.trim());
+    } catch (IllegalArgumentException ignored) {
+      return null;
+    }
+  }
+
   private static long blockKey(int x, int y, int z) {
     return WorldEditMarkerMath.blockKey(x, y, z);
   }
@@ -2073,6 +2150,7 @@ public final class WorldEditBridge implements Listener {
     BusData bus = null;
     MonitorData monitor = null;
     RelayData relay = null;
+    ChunkLoaderData chunkLoader = null;
     boolean wire = false;
     boolean storageCore = false;
 
@@ -2119,6 +2197,18 @@ public final class WorldEditBridge implements Listener {
       relay = new RelayData(readRelayLink(relayTag));
     }
 
+    LinCompoundTag chunkLoaderTag = getCompound(exort, SECTION_CHUNK_LOADER);
+    if (chunkLoaderTag != null) {
+      UUID id = readUuid(chunkLoaderTag, FIELD_ID);
+      if (id != null) {
+        UUID placedByUuid = readUuid(chunkLoaderTag, FIELD_PLACED_BY_UUID);
+        String placedByName = readString(chunkLoaderTag, FIELD_PLACED_BY_NAME);
+        Long createdAt = readPositiveLongString(chunkLoaderTag, FIELD_CREATED_AT);
+        chunkLoader =
+            new ChunkLoaderData(id, placedByUuid, placedByName, createdAt == null ? 0L : createdAt);
+      }
+    }
+
     LinCompoundTag wireTag = getCompound(exort, SECTION_WIRE);
     if (wireTag != null) {
       wire = readPresent(wireTag, FIELD_PRESENT);
@@ -2134,11 +2224,13 @@ public final class WorldEditBridge implements Listener {
         && bus == null
         && monitor == null
         && relay == null
+        && chunkLoader == null
         && !wire
         && !storageCore) {
       return null;
     }
-    return new MarkerSnapshot(storage, terminal, bus, monitor, relay, wire, storageCore);
+    return new MarkerSnapshot(
+        storage, terminal, bus, monitor, relay, chunkLoader, wire, storageCore);
   }
 
   private static RelayLinkData readRelayLink(LinCompoundTag relayTag) {
@@ -2169,6 +2261,7 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.bus() != null) count++;
     if (snapshot.monitor() != null) count++;
     if (snapshot.relay() != null) count++;
+    if (snapshot.chunkLoader() != null) count++;
     if (snapshot.wire()) count++;
     return count;
   }
@@ -2182,6 +2275,7 @@ public final class WorldEditBridge implements Listener {
     appendSection(sections, snapshot.bus() != null, SECTION_BUS);
     appendSection(sections, snapshot.monitor() != null, SECTION_MONITOR);
     appendSection(sections, snapshot.relay() != null, SECTION_RELAY);
+    appendSection(sections, snapshot.chunkLoader() != null, SECTION_CHUNK_LOADER);
     appendSection(sections, snapshot.wire(), SECTION_WIRE);
     return sections.isEmpty() ? "none" : sections.toString();
   }
@@ -2942,6 +3036,8 @@ public final class WorldEditBridge implements Listener {
         material = bridge.deps.busCarrier();
       } else if (snapshot.relay() != null) {
         material = bridge.deps.relayCarrier();
+      } else if (snapshot.chunkLoader() != null) {
+        material = bridge.deps.chunkLoaderCarrier();
       } else if (snapshot.wire()) {
         material = bridge.deps.wireMaterial();
       }
@@ -2978,6 +3074,8 @@ public final class WorldEditBridge implements Listener {
         material = bridge.deps.busCarrier();
       } else if (snapshot.relay() != null) {
         material = bridge.deps.relayCarrier();
+      } else if (snapshot.chunkLoader() != null) {
+        material = bridge.deps.chunkLoaderCarrier();
       } else if (snapshot.wire()) {
         material = bridge.deps.wireMaterial();
       }
@@ -2995,6 +3093,7 @@ public final class WorldEditBridge implements Listener {
           || matchesMaterial(type, bridge.deps.monitorCarrier())
           || matchesMaterial(type, bridge.deps.busCarrier())
           || matchesMaterial(type, bridge.deps.relayCarrier())
+          || matchesMaterial(type, bridge.deps.chunkLoaderCarrier())
           || matchesMaterial(type, bridge.deps.wireMaterial());
     }
 
@@ -3377,6 +3476,9 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.relay() != null) {
       return deps.relayCarrier();
     }
+    if (snapshot.chunkLoader() != null) {
+      return deps.chunkLoaderCarrier();
+    }
     if (snapshot.wire()) {
       return deps.wireMaterial();
     }
@@ -3507,7 +3609,14 @@ public final class WorldEditBridge implements Listener {
                 snapshot.monitor().itemKey(),
                 snapshot.monitor().itemBlob());
     return new MarkerSnapshot(
-        storage, terminal, bus, monitor, snapshot.relay(), snapshot.wire(), snapshot.storageCore());
+        storage,
+        terminal,
+        bus,
+        monitor,
+        snapshot.relay(),
+        snapshot.chunkLoader(),
+        snapshot.wire(),
+        snapshot.storageCore());
   }
 
   private static MarkerSnapshot withStorageId(MarkerSnapshot snapshot, String storageId) {
@@ -3527,6 +3636,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.bus(),
         snapshot.monitor(),
         snapshot.relay(),
+        snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
   }
@@ -3541,6 +3651,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.bus(),
         snapshot.monitor(),
         snapshot.relay(),
+        snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
   }
@@ -3566,6 +3677,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.bus(),
         snapshot.monitor(),
         relay,
+        snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
   }

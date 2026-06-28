@@ -5,6 +5,7 @@ import com.zxcmc.exort.breaking.BreakSoundConfig;
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.culling.DisplayCullingService;
 import com.zxcmc.exort.display.device.BusDisplayManager;
 import com.zxcmc.exort.display.device.ItemHologramManager;
@@ -28,6 +29,7 @@ public record ExortRuntimeServices(
     CompletableFuture<ItemNameService.Status> itemNamesStatus,
     CustomItems customItems,
     WirelessTerminalService wirelessService,
+    ChunkLoaderService chunkLoaderService,
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,

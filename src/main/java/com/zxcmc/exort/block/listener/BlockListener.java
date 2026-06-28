@@ -10,14 +10,17 @@ import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.display.wire.WireDisplayManager;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
@@ -69,9 +72,12 @@ public class BlockListener implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material chunkLoaderCarrier;
   private final BlockBreakHandler breakHandler;
+  private final ChunkLoaderService chunkLoaderService;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
+  private final PlayerFeedback playerFeedback;
   private final Supplier<DisplayRefreshService> displayRefreshService;
   private final Supplier<MonitorDisplayManager> monitorDisplayManager;
   private final Supplier<BusService> busService;
@@ -96,8 +102,11 @@ public class BlockListener implements Listener {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.breakHandler = dependencies.breakHandler();
+    this.chunkLoaderService = dependencies.chunkLoaderService();
     this.regionProtection = dependencies.regionProtection();
+    this.playerFeedback = dependencies.playerFeedback();
     this.displayRefreshService = dependencies.displayRefreshService();
     this.monitorDisplayManager = dependencies.monitorDisplayManager();
     this.busService = dependencies.busService();
@@ -336,6 +345,33 @@ public class BlockListener implements Listener {
       return;
     }
 
+    if (customItems.isChunkLoader(event.getItemInHand())
+        && Carriers.matchesCarrier(block, chunkLoaderCarrier)) {
+      if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
+        event.setCancelled(true);
+        return;
+      }
+      UUID loaderId = customItems.chunkLoaderId(event.getItemInHand()).orElse(UUID.randomUUID());
+      if (!chunkLoaderService.canPlace(loaderId, block)) {
+        event.setCancelled(true);
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
+        return;
+      }
+      if (!chunkLoaderService.place(event.getPlayer(), block, loaderId)) {
+        event.setCancelled(true);
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
+        return;
+      }
+      consumeIfInitialized(event);
+      var refresh = displayRefreshService.get();
+      if (refresh != null) {
+        refresh.refreshChunkLoader(block);
+        refresh.refreshBlockAndNeighbors(block);
+      }
+      playPlaceSound(block, BreakType.CHUNK_LOADER);
+      return;
+    }
+
     Optional<StorageTier> tierOpt = customItems.tierFromItem(event.getItemInHand());
     if (tierOpt.isEmpty()) {
       if (customItems.isStorageCore(event.getItemInHand())) {
@@ -481,6 +517,9 @@ public class BlockListener implements Listener {
       if (RelayMarker.isRelay(plugin, b)) {
         return true;
       }
+      if (ChunkLoaderMarker.isChunkLoader(plugin, b)) {
+        return true;
+      }
     }
     return false;
   }
@@ -490,7 +529,8 @@ public class BlockListener implements Listener {
     if (inHand == null || !inHand.hasItemMeta()) return;
     if (event.getPlayer().getGameMode() != GameMode.CREATIVE) return;
     var pdc = inHand.getItemMeta().getPersistentDataContainer();
-    if (pdc.has(keys.storageId(), PersistentDataType.STRING)) {
+    if (pdc.has(keys.storageId(), PersistentDataType.STRING)
+        || pdc.has(keys.chunkLoaderId(), PersistentDataType.STRING)) {
       inHand.setAmount(inHand.getAmount() - 1);
       event.getPlayer().getInventory().setItem(event.getHand(), inHand);
     }
@@ -558,9 +598,9 @@ public class BlockListener implements Listener {
     if (item == null || item.getType() == Material.AIR) return false;
     if (player == null || player.getGameMode() != GameMode.CREATIVE) return true;
     if (!item.hasItemMeta()) return false;
-    return item.getItemMeta()
-        .getPersistentDataContainer()
-        .has(keys.storageId(), PersistentDataType.STRING);
+    var pdc = item.getItemMeta().getPersistentDataContainer();
+    return pdc.has(keys.storageId(), PersistentDataType.STRING)
+        || pdc.has(keys.chunkLoaderId(), PersistentDataType.STRING);
   }
 
   private BusMode defaultBusMode(boolean exportBus) {
