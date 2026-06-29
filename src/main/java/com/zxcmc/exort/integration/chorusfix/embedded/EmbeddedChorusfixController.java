@@ -6,6 +6,7 @@ import com.zxcmc.exort.integration.chorusfix.ChorusfixIntegration;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
@@ -20,6 +21,8 @@ public final class EmbeddedChorusfixController {
       "https://github.com/zxcmc-com/Chorusfix/releases/latest";
   public static final List<String> KNOWN_CHORUS_PROVIDER_PLUGINS =
       List.of("Nexo", "ItemsAdder", "Oraxen");
+  private static final String EMBEDDED_ENABLED_MESSAGE =
+      "[Chorusfix] Embedded Exort chorus handling enabled.";
 
   private final JavaPlugin plugin;
   private final Supplier<EmbeddedChorusfixConfig> config;
@@ -32,6 +35,9 @@ public final class EmbeddedChorusfixController {
   private ChorusUpdateListener listener;
   private EmbeddedChorusfixStatus status = EmbeddedChorusfixStatus.INACTIVE;
   private List<String> blockedProviders = List.of();
+  private final BlockedProviderWarningState blockedProviderWarningState =
+      new BlockedProviderWarningState();
+  private boolean embeddedEnabledLogged;
 
   public EmbeddedChorusfixController(
       JavaPlugin plugin,
@@ -80,12 +86,17 @@ public final class EmbeddedChorusfixController {
             paperChorusUpdatesDisabled.getAsBoolean(),
             wireMaterial.get(),
             providers);
-    blockedProviders = next == EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER ? providers : List.of();
+    blockedProviders =
+        next == EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER ? List.copyOf(providers) : List.of();
     status = next;
+    if (next != EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER) {
+      blockedProviderWarningState.reset();
+    }
+    if (next != EmbeddedChorusfixStatus.EMBEDDED) {
+      embeddedEnabledLogged = false;
+    }
     if (next == EmbeddedChorusfixStatus.EMBEDDED) {
       start(settings);
-    } else if (next == EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER) {
-      ExortLog.warn(blockedByProviderWarning(blockedProviders));
     }
     return status;
   }
@@ -109,6 +120,33 @@ public final class EmbeddedChorusfixController {
     return blockedProviders;
   }
 
+  public boolean announceEmbeddedIfActive() {
+    return announceEmbeddedIfActive(ExortLog::success);
+  }
+
+  boolean announceEmbeddedIfActive(Consumer<String> successConsumer) {
+    Objects.requireNonNull(successConsumer, "successConsumer");
+    if (status != EmbeddedChorusfixStatus.EMBEDDED || embeddedEnabledLogged) {
+      return false;
+    }
+    embeddedEnabledLogged = true;
+    successConsumer.accept(EMBEDDED_ENABLED_MESSAGE);
+    return true;
+  }
+
+  public boolean warnIfBlockedByProvider() {
+    return warnIfBlockedByProvider(ExortLog::warn);
+  }
+
+  boolean warnIfBlockedByProvider(Consumer<String> warningConsumer) {
+    Objects.requireNonNull(warningConsumer, "warningConsumer");
+    if (!blockedProviderWarningState.shouldWarn(status, blockedProviders)) {
+      return false;
+    }
+    warningConsumer.accept(blockedByProviderWarning(blockedProviders));
+    return true;
+  }
+
   public boolean isKnownProvider(String pluginName) {
     return KNOWN_CHORUS_PROVIDER_PLUGINS.contains(pluginName);
   }
@@ -120,7 +158,6 @@ public final class EmbeddedChorusfixController {
             plugin, settings, detector, new EmbeddedChorusfixRuntimeState(true));
     listener = new ChorusUpdateListener(updates);
     Bukkit.getPluginManager().registerEvents(listener, plugin);
-    ExortLog.success("[Chorusfix] Embedded Exort chorus handling enabled.");
   }
 
   static EmbeddedChorusfixStatus evaluate(
@@ -158,5 +195,26 @@ public final class EmbeddedChorusfixController {
   private static List<String> enabledKnownProvidersFromBukkit() {
     PluginManager manager = Bukkit.getPluginManager();
     return KNOWN_CHORUS_PROVIDER_PLUGINS.stream().filter(manager::isPluginEnabled).toList();
+  }
+
+  static final class BlockedProviderWarningState {
+    private List<String> warnedProviders = List.of();
+
+    boolean shouldWarn(EmbeddedChorusfixStatus status, List<String> providers) {
+      if (status != EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER) {
+        reset();
+        return false;
+      }
+      List<String> currentProviders = List.copyOf(providers);
+      if (currentProviders.isEmpty() || currentProviders.equals(warnedProviders)) {
+        return false;
+      }
+      warnedProviders = currentProviders;
+      return true;
+    }
+
+    void reset() {
+      warnedProviders = List.of();
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.zxcmc.exort.integration.chorusfix.embedded;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.carrier.Carriers;
@@ -62,6 +63,62 @@ final class EmbeddedChorusfixControllerTest {
     assertTrue(warning.contains("Nexo is enabled without the external Chorusfix plugin"));
     assertTrue(warning.contains(EmbeddedChorusfixController.CHORUSFIX_DOWNLOAD_URL));
     assertTrue(warning.contains("https://github.com/zxcmc-com/Chorusfix/releases/latest"));
+  }
+
+  @Test
+  void blockedProviderWarningStateEmitsOnceForCurrentProviders() {
+    var warnings = new EmbeddedChorusfixController.BlockedProviderWarningState();
+
+    assertTrue(warnings.shouldWarn(EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, List.of("Nexo")));
+    assertFalse(warnings.shouldWarn(EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, List.of("Nexo")));
+    assertTrue(
+        warnings.shouldWarn(
+            EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, List.of("Nexo", "Oraxen")));
+    assertFalse(
+        warnings.shouldWarn(
+            EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, List.of("Nexo", "Oraxen")));
+  }
+
+  @Test
+  void blockedProviderWarningStateResetsWhenExternalChorusfixTakesOver() {
+    var warnings = new EmbeddedChorusfixController.BlockedProviderWarningState();
+
+    assertTrue(warnings.shouldWarn(EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, List.of("Nexo")));
+    assertFalse(warnings.shouldWarn(EmbeddedChorusfixStatus.EXTERNAL, List.of()));
+    assertTrue(warnings.shouldWarn(EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, List.of("Nexo")));
+  }
+
+  @Test
+  void startupOrderWithExternalChorusfixAvoidsTransientProviderWarning() {
+    var warnings = new EmbeddedChorusfixController.BlockedProviderWarningState();
+    EmbeddedChorusfixConfig enabled = config(true);
+
+    EmbeddedChorusfixStatus embedded =
+        EmbeddedChorusfixController.evaluate(
+            enabled, false, true, Carriers.CHORUS_MATERIAL, List.of());
+    assertFalse(warnings.shouldWarn(embedded, List.of()));
+
+    EmbeddedChorusfixStatus providerLoadedBeforeChorusfix =
+        EmbeddedChorusfixController.evaluate(
+            enabled, false, true, Carriers.CHORUS_MATERIAL, List.of("Nexo"));
+    assertEquals(EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, providerLoadedBeforeChorusfix);
+
+    EmbeddedChorusfixStatus externalChorusfixLoaded =
+        EmbeddedChorusfixController.evaluate(
+            enabled, true, true, Carriers.CHORUS_MATERIAL, List.of("Nexo"));
+    assertFalse(warnings.shouldWarn(externalChorusfixLoaded, List.of()));
+  }
+
+  @Test
+  void finalProviderStateWithoutExternalChorusfixWarnsOnce() {
+    var warnings = new EmbeddedChorusfixController.BlockedProviderWarningState();
+    EmbeddedChorusfixStatus status =
+        EmbeddedChorusfixController.evaluate(
+            config(true), false, true, Carriers.CHORUS_MATERIAL, List.of("Nexo"));
+
+    assertEquals(EmbeddedChorusfixStatus.BLOCKED_BY_PROVIDER, status);
+    assertTrue(warnings.shouldWarn(status, List.of("Nexo")));
+    assertFalse(warnings.shouldWarn(status, List.of("Nexo")));
   }
 
   private static EmbeddedChorusfixConfig config(boolean enabled) {

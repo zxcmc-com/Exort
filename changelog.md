@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.2 — 2026-06-30
+- Chunk Loader RESOURCE model now uses a six-sided recessed core and outer frame.
+- Updated Chunk Loader RESOURCE breaking overlays: cracks now stay on the inner core during progress and reach the outer frame only in the final stages on every side.
+- Chunk Loader item names now use the `#FF55FF` display color.
+- Chorusfix startup warnings now wait for the final provider/external-plugin state, avoiding duplicate missing-Chorusfix messages while external resource-pack providers and Chorusfix finish enabling.
+
 ## 0.18.1 — 2026-06-29
 - Updated bundled runtime translations for Chunk Loader commands, item names, status text, and older leftover user-facing fallback strings across supported locales.
 

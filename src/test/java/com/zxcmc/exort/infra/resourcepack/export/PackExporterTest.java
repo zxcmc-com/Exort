@@ -94,6 +94,7 @@ class PackExporterTest {
       assertBreakingModelsAreValid(zip);
       assertTerminalAtlasShape(zip);
       assertBreakingAtlasReferences(zip);
+      assertChunkLoaderBreakingOverlayShape(zip);
     }
   }
 
@@ -209,6 +210,24 @@ class PackExporterTest {
     assertFalse(atlas.contains("\"resource\":\"exort:breaking/generated/\""));
   }
 
+  private static void assertChunkLoaderBreakingOverlayShape(ZipFile zip) throws IOException {
+    JsonObject early =
+        modelEntry(zip, "assets/exort/models/breaking/chunkloader/chunkloader/stage_0.json");
+    assertTrue(hasElementBounds(early, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertEquals(6, faceCountForBounds(early, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertFalse(hasElementBounds(early, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertFalse(early.getAsJsonObject("textures").has("1"));
+
+    JsonObject late =
+        modelEntry(zip, "assets/exort/models/breaking/chunkloader/chunkloader/stage_9.json");
+    assertTrue(hasElementBounds(late, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertEquals(6, faceCountForBounds(late, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertTrue(hasElementBounds(late, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertEquals(6, faceCountForBounds(late, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertEquals(
+        "exort:breaking/overlay/terminal", late.getAsJsonObject("textures").get("1").getAsString());
+  }
+
   private static void assertEntry(ZipFile zip, String name) {
     assertTrue(zip.getEntry(name) != null, "missing pack entry " + name);
   }
@@ -219,6 +238,10 @@ class PackExporterTest {
     return new String(zip.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8);
   }
 
+  private static JsonObject modelEntry(ZipFile zip, String name) throws IOException {
+    return JsonParser.parseString(readEntry(zip, name)).getAsJsonObject();
+  }
+
   private static BufferedImage readPng(ZipFile zip, String name) throws IOException {
     var entry = zip.getEntry(name);
     assertTrue(entry != null, "missing pack entry " + name);
@@ -226,6 +249,50 @@ class PackExporterTest {
         ImageIO.read(new ByteArrayInputStream(zip.getInputStream(entry).readAllBytes()));
     assertTrue(image != null, "invalid PNG pack entry " + name);
     return image;
+  }
+
+  private static boolean hasElementBounds(
+      JsonObject model, double[] expectedFrom, double[] expectedTo) {
+    for (JsonElement element : model.getAsJsonArray("elements")) {
+      JsonObject object = element.getAsJsonObject();
+      if (arraysEqual(expectedFrom, doubleArray(object.getAsJsonArray("from")))
+          && arraysEqual(expectedTo, doubleArray(object.getAsJsonArray("to")))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static int faceCountForBounds(
+      JsonObject model, double[] expectedFrom, double[] expectedTo) {
+    for (JsonElement element : model.getAsJsonArray("elements")) {
+      JsonObject object = element.getAsJsonObject();
+      if (arraysEqual(expectedFrom, doubleArray(object.getAsJsonArray("from")))
+          && arraysEqual(expectedTo, doubleArray(object.getAsJsonArray("to")))) {
+        return object.getAsJsonObject("faces").size();
+      }
+    }
+    return 0;
+  }
+
+  private static double[] doubleArray(JsonArray array) {
+    double[] result = new double[array.size()];
+    for (int i = 0; i < array.size(); i++) {
+      result[i] = array.get(i).getAsDouble();
+    }
+    return result;
+  }
+
+  private static boolean arraysEqual(double[] expected, double[] actual) {
+    if (expected.length != actual.length) {
+      return false;
+    }
+    for (int i = 0; i < expected.length; i++) {
+      if (Math.abs(expected[i] - actual[i]) > 0.000001) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static void assertAllFaceUvsInsideDestroySprite(JsonObject model, String entryName) {

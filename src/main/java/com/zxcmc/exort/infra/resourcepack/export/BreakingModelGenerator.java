@@ -121,6 +121,11 @@ final class BreakingModelGenerator {
     return generateModel(sourceModel, stage, transform, FacePolicy.TERMINAL_SCREEN_FRONT);
   }
 
+  static JsonObject generateChunkLoaderModel(
+      JsonObject sourceModel, int stage, Transform transform) {
+    return generateModel(sourceModel, stage, transform, FacePolicy.CHUNK_LOADER_ALL_SIDES);
+  }
+
   static JsonObject generateBusModel(
       JsonObject sourceModel, int stage, Transform transform, Map<String, byte[]> entries) {
     return generateModel(
@@ -153,7 +158,7 @@ final class BreakingModelGenerator {
 
     JsonObject textures = new JsonObject();
     textures.addProperty("0", overlayTexture(stage));
-    if (usesTerminalFrameAtlas(stage, facePolicy)) {
+    if (usesFrameAtlas(stage, facePolicy)) {
       textures.addProperty("1", terminalFrameOverlayTexture());
     }
     textures.addProperty("particle", overlayTexture(stage));
@@ -176,8 +181,11 @@ final class BreakingModelGenerator {
         elements.add(element);
       }
     }
-    if (usesTerminalFrameAtlas(stage, facePolicy)) {
-      JsonObject element = terminalFrameElement(stage, transform);
+    if (usesFrameAtlas(stage, facePolicy)) {
+      JsonObject element =
+          facePolicy == FacePolicy.CHUNK_LOADER_ALL_SIDES
+              ? chunkLoaderFrameElement(stage, transform)
+              : terminalFrameElement(stage, transform);
       if (element != null) {
         elements.add(element);
       }
@@ -187,7 +195,8 @@ final class BreakingModelGenerator {
   }
 
   private static int addTerminalBreakingAtlas(Map<String, byte[]> entries) {
-    if (!entries.containsKey(MODELS_ROOT + "terminal/inventory.json")) {
+    if (!entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
+        && !entries.containsKey(MODELS_ROOT + "chunkloader/chunkloader.json")) {
       return 0;
     }
     boolean added = !entries.containsKey(terminalFrameOverlayTexturePath());
@@ -286,7 +295,7 @@ final class BreakingModelGenerator {
             "chunkloader/chunkloader",
             readModel(entries, "chunkloader/chunkloader.json"),
             identityTransform(),
-            FacePolicy.DEFAULT,
+            FacePolicy.CHUNK_LOADER_ALL_SIDES,
             NO_TEXTURE_SIZES,
             STAGE_COUNT));
   }
@@ -314,6 +323,9 @@ final class BreakingModelGenerator {
           continue;
         }
         if (shouldSkipBusOverlayFace(entry.getKey(), sourceFrom, sourceTo, facePolicy)) {
+          continue;
+        }
+        if (shouldSkipChunkLoaderOverlayFace(sourceFrom, sourceTo, facePolicy)) {
           continue;
         }
         String targetFace = rotateFace(entry.getKey(), transform.rotation());
@@ -399,6 +411,11 @@ final class BreakingModelGenerator {
     return isBusNeckElement(sourceFrom, sourceTo) && !"north".equals(sourceFace);
   }
 
+  private static boolean shouldSkipChunkLoaderOverlayFace(
+      double[] sourceFrom, double[] sourceTo, FacePolicy policy) {
+    return policy == FacePolicy.CHUNK_LOADER_ALL_SIDES && isFullBlockElement(sourceFrom, sourceTo);
+  }
+
   private static boolean isBusTransitionElement(double[] from, double[] to) {
     return hasSortedDimensions(from, to, 2.0, 14.0, 14.0);
   }
@@ -409,6 +426,15 @@ final class BreakingModelGenerator {
 
   private static boolean isBusBodyElement(double[] from, double[] to) {
     return hasSortedDimensions(from, to, 12.0, 16.0, 16.0);
+  }
+
+  private static boolean isFullBlockElement(double[] from, double[] to) {
+    return Math.abs(from[0]) < COORDINATE_EPSILON
+        && Math.abs(from[1]) < COORDINATE_EPSILON
+        && Math.abs(from[2]) < COORDINATE_EPSILON
+        && Math.abs(to[0] - 16.0) < COORDINATE_EPSILON
+        && Math.abs(to[1] - 16.0) < COORDINATE_EPSILON
+        && Math.abs(to[2] - 16.0) < COORDINATE_EPSILON;
   }
 
   private static boolean hasSortedDimensions(
@@ -483,8 +509,11 @@ final class BreakingModelGenerator {
     return face;
   }
 
-  private static boolean usesTerminalFrameAtlas(int stage, FacePolicy facePolicy) {
-    return facePolicy == FacePolicy.TERMINAL_SCREEN_FRONT && stage >= TERMINAL_FRAME_FIRST_STAGE;
+  private static boolean usesFrameAtlas(int stage, FacePolicy facePolicy) {
+    return switch (facePolicy) {
+      case TERMINAL_SCREEN_FRONT, CHUNK_LOADER_ALL_SIDES -> stage >= TERMINAL_FRAME_FIRST_STAGE;
+      case DEFAULT, BUS -> false;
+    };
   }
 
   private static JsonObject terminalFrameElement(int stage, Transform transform) {
@@ -502,6 +531,28 @@ final class BreakingModelGenerator {
     source.addProperty("name", "terminal front frame");
     JsonObject faces = new JsonObject();
     faces.add(targetFace, faceJson(terminalFrameUv(stage), "#1"));
+    return targetElement(source, from, to, faces);
+  }
+
+  private static JsonObject chunkLoaderFrameElement(int stage, Transform transform) {
+    double[] sourceFrom = new double[] {0.0, 0.0, 0.0};
+    double[] sourceTo = new double[] {16.0, 16.0, 16.0};
+    double[][] bounds = transformBounds(sourceFrom, sourceTo, transform.rotation());
+    double[] from = bounds[0];
+    double[] to = bounds[1];
+
+    JsonObject source = new JsonObject();
+    source.addProperty("name", "chunk loader outer frame");
+    JsonObject faces = new JsonObject();
+    for (String sourceFace : List.of("north", "east", "south", "west", "up", "down")) {
+      String targetFace = rotateFace(sourceFace, transform.rotation());
+      if (isExternalFace(targetFace, from, to)) {
+        faces.add(targetFace, faceJson(terminalFrameUv(stage), "#1"));
+      }
+    }
+    if (faces.size() == 0) {
+      return null;
+    }
     return targetElement(source, from, to, faces);
   }
 
@@ -885,6 +936,7 @@ final class BreakingModelGenerator {
   private enum FacePolicy {
     DEFAULT,
     TERMINAL_SCREEN_FRONT,
+    CHUNK_LOADER_ALL_SIDES,
     BUS
   }
 
