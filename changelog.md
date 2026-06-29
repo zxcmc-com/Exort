@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.18.1 — 2026-06-29
+- Updated bundled runtime translations for Chunk Loader commands, item names, status text, and older leftover user-facing fallback strings across supported locales.
+
 ## 0.18.0 — 2026-06-28
 - Added the Chunk Loader block: placed loaders keep a configurable square chunk radius loaded, persist active placements and UUID history in SQLite, rebuild plugin chunk tickets on reload/restart, and reconcile stale or missing marker records when chunks load.
 - Chunk Loaders now receive a UUID on first placement, preserve that UUID on survival break, reject duplicate active UUID placement, show their UUID in item lore and right-click bossbars, and give creative pick-block users a fresh unassigned item.
