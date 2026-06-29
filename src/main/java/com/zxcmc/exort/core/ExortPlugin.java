@@ -178,6 +178,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     registerOraxenResourcePackIntegrationWatcher();
     reloadResourcePackService();
     registerBrigadierCommands();
+    scheduleEmbeddedChorusfixFinalLog();
   }
 
   private void prepareConfigFiles() {
@@ -424,6 +425,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (switchedToResourceMode && resourcePackService != null) {
       resourcePackService.requestSendOnlineWhenReady();
     }
+    scheduleEmbeddedChorusfixFinalLog();
     return future;
   }
 
@@ -678,6 +680,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private void refreshEmbeddedChorusfix() {
     if (embeddedChorusfix != null) {
       embeddedChorusfix.refresh();
+    }
+  }
+
+  private void scheduleEmbeddedChorusfixFinalLog() {
+    Bukkit.getScheduler().runTask(this, this::logEmbeddedChorusfixFinalState);
+  }
+
+  private void logEmbeddedChorusfixFinalState() {
+    if (embeddedChorusfix != null) {
+      embeddedChorusfix.announceEmbeddedIfActive();
+      embeddedChorusfix.warnIfBlockedByProvider();
     }
   }
 

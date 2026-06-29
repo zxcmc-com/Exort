@@ -226,7 +226,7 @@ public class CustomItems {
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(lang.itemComponent(clientTranslations, "item.chunk_loader"));
+      meta.itemName(chunkLoaderName());
       ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.CHUNK_LOADER.id());
@@ -341,7 +341,7 @@ public class CustomItems {
         return true;
       }
       case "chunk_loader" -> {
-        meta.itemName(lang.itemComponent(clientTranslations, "item.chunk_loader"));
+        meta.itemName(chunkLoaderName());
         applyChunkLoaderLore(meta, chunkLoaderId(stack).orElse(null));
         ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
         stack.setItemMeta(meta);
@@ -552,6 +552,11 @@ public class CustomItems {
             lang.itemComponent(clientTranslations, "lore.chunk_loader.id_tail", tail)
                 .color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false)));
+  }
+
+  private Component chunkLoaderName() {
+    return CustomItemText.chunkLoaderName(
+        lang.itemComponent(clientTranslations, "item.chunk_loader"));
   }
 
   private String formatNumber(long value) {

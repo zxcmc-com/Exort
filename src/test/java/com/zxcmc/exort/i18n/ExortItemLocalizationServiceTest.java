@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
 import java.lang.reflect.InvocationHandler;
@@ -150,6 +151,8 @@ class ExortItemLocalizationServiceTest {
     assertNotSame(item, localized);
     assertEquals(List.of(), lore(item));
     assertEquals(List.of("123456789abc"), lore(localized));
+    assertEquals(
+        CustomItemText.chunkLoaderNameColor(), firstColor(localized.getItemMeta().itemName()));
     assertEquals(NamedTextColor.GRAY, firstColor(localized.getItemMeta().lore().getFirst()));
   }
 

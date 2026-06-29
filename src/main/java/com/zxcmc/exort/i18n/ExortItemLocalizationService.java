@@ -1,6 +1,7 @@
 package com.zxcmc.exort.i18n;
 
 import com.zxcmc.exort.items.CustomItemRegistry;
+import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.items.StorageItemNameEditor;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -134,7 +135,7 @@ public final class ExortItemLocalizationService {
   }
 
   private boolean localizeChunkLoader(ItemMeta meta, PersistentDataContainer pdc, String language) {
-    meta.itemName(text(language, "item.chunk_loader"));
+    meta.itemName(CustomItemText.chunkLoaderName(text(language, "item.chunk_loader")));
     String id =
         PdcValueSanitizer.uuidString(pdc.get(keys.chunkLoaderId(), PersistentDataType.STRING));
     if (id == null || id.isBlank() || id.length() < STORAGE_ID_TAIL_LENGTH) {

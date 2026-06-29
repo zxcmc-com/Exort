@@ -19,11 +19,12 @@ class ChunkLoaderAuditLoggerTest {
             true,
             EnumSet.complementOf(EnumSet.of(ChunkLoaderAuditEvent.INVENTORY_MOVE)),
             ChunkLoaderAuditFileConfig.defaults());
-    ChunkLoaderAuditLogger logger =
-        new ChunkLoaderAuditLogger(Logger.getLogger("test"), config, writer);
     UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
-    logger.logInventoryTake(null, id, 1, "CHEST", null);
+    try (ChunkLoaderAuditLogger logger =
+        new ChunkLoaderAuditLogger(Logger.getLogger("test"), config, writer)) {
+      logger.logInventoryTake(null, id, 1, "CHEST", null);
+    }
 
     assertEquals(1, writer.lines.size());
     String line = writer.lines.getFirst();

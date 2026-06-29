@@ -66,6 +66,31 @@ class BreakingModelGeneratorTest {
   }
 
   @Test
+  void chunkLoaderPolicyKeepsInnerCubeAndAddsLateAllSideOuterFrame() {
+    JsonObject early =
+        BreakingModelGenerator.generateChunkLoaderModel(
+            chunkLoaderSourceModel(), 5, BreakingModelGenerator.identityTransform());
+
+    assertTrue(hasElementBounds(early, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertEquals(6, faceCountForBounds(early, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertFalse(hasElementBounds(early, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertUsesOnlyOverlayStageTexture(early, 5);
+
+    JsonObject late =
+        BreakingModelGenerator.generateChunkLoaderModel(
+            chunkLoaderSourceModel(), 9, BreakingModelGenerator.identityTransform());
+
+    assertTrue(hasElementBounds(late, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertEquals(6, faceCountForBounds(late, new double[] {2, 2, 2}, new double[] {14, 14, 14}));
+    assertTrue(hasElementBounds(late, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertEquals(6, faceCountForBounds(late, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
+    assertTrue(modelUsesTexture(late, "exort:breaking/overlay/9"));
+    assertTrue(modelUsesTexture(late, "exort:breaking/overlay/terminal"));
+    assertAllFaceUvsInsideDestroySprite(late);
+    assertFaceTexturesResolve(late);
+  }
+
+  @Test
   void busPolicyDropsTransitionShelfButKeepsConnectorAndBodyOverlay() throws IOException {
     JsonObject generated =
         BreakingModelGenerator.generateBusModel(
@@ -205,6 +230,48 @@ class BreakingModelGeneratorTest {
     return root;
   }
 
+  private static JsonObject chunkLoaderSourceModel() {
+    JsonObject root = new JsonObject();
+    JsonObject textures = new JsonObject();
+    textures.addProperty("0", "exort:block/terminal");
+    textures.addProperty("1", "exort:block/bus");
+    textures.addProperty("2", "exort:block/storage");
+    root.add("textures", textures);
+
+    JsonArray elements = new JsonArray();
+    elements.add(
+        element(
+            new double[] {2, 2, 2},
+            new double[] {14, 14, 14},
+            Map.of(
+                "north", "#1",
+                "east", "#1",
+                "south", "#1",
+                "west", "#1",
+                "up", "#1",
+                "down", "#1")));
+    elements.add(
+        element(
+            new double[] {0, 0, 0},
+            new double[] {16, 16, 16},
+            Map.of(
+                "north", "#0",
+                "east", "#0",
+                "south", "#0",
+                "west", "#0",
+                "up", "#0",
+                "down", "#0")));
+    elements.add(element(new double[] {0, 0, 0}, new double[] {16, 16, 1}, Map.of("south", "#2")));
+    elements.add(element(new double[] {0, 0, 0}, new double[] {1, 16, 16}, Map.of("east", "#2")));
+    elements.add(element(new double[] {0, 15, 0}, new double[] {16, 16, 16}, Map.of("down", "#2")));
+    elements.add(element(new double[] {0, 0, 0}, new double[] {16, 1, 16}, Map.of("up", "#2")));
+    elements.add(
+        element(new double[] {0, 0, 15}, new double[] {16, 16, 16}, Map.of("north", "#2")));
+    elements.add(element(new double[] {15, 0, 0}, new double[] {16, 16, 16}, Map.of("west", "#2")));
+    root.add("elements", elements);
+    return root;
+  }
+
   private static JsonObject element(double[] from, double[] to, Map<String, String> faceTextures) {
     JsonObject element = new JsonObject();
     element.add("from", array(from[0], from[1], from[2]));
@@ -270,6 +337,18 @@ class BreakingModelGeneratorTest {
       }
     }
     return false;
+  }
+
+  private static int faceCountForBounds(
+      JsonObject model, double[] expectedFrom, double[] expectedTo) {
+    for (JsonElement element : elements(model)) {
+      JsonObject object = element.getAsJsonObject();
+      if (arraysEqual(expectedFrom, doubleArray(object.getAsJsonArray("from")))
+          && arraysEqual(expectedTo, doubleArray(object.getAsJsonArray("to")))) {
+        return object.getAsJsonObject("faces").size();
+      }
+    }
+    return 0;
   }
 
   private static boolean modelUsesTexture(JsonObject model, String expected) {
