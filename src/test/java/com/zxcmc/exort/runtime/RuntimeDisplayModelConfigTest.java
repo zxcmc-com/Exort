@@ -1,5 +1,6 @@
 package com.zxcmc.exort.runtime;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -20,6 +21,16 @@ class RuntimeDisplayModelConfigTest {
     assertAllModelsUseNamespace(config, "minecraft:");
   }
 
+  @Test
+  void resourceModeUsesRelayStateModelIds() {
+    RuntimeDisplayModelConfig config = RuntimeDisplayModelConfig.forMode(true, "exort");
+
+    assertEquals("exort:relay/relay", config.relay());
+    assertEquals("exort:relay/green", config.relayGreen());
+    assertEquals("exort:relay/blue", config.relayBlue());
+    assertEquals("exort:relay/red", config.relayRed());
+  }
+
   private static void assertAllModelsUseNamespace(RuntimeDisplayModelConfig config, String prefix) {
     for (String model : models(config)) {
       assertTrue(model.startsWith(prefix), model);
@@ -38,6 +49,9 @@ class RuntimeDisplayModelConfigTest {
         config.importBus(),
         config.exportBus(),
         config.relay(),
+        config.relayGreen(),
+        config.relayBlue(),
+        config.relayRed(),
         config.chunkLoader());
   }
 }

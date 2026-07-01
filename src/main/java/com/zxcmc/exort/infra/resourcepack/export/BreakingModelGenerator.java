@@ -103,7 +103,7 @@ final class BreakingModelGenerator {
     return entries.containsKey(MODELS_ROOT + "storage/storage.json")
         || entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
         || entries.containsKey(MODELS_ROOT + "bus/import.json")
-        || entries.containsKey(MODELS_ROOT + "relay/relay.json")
+        || entries.containsKey(MODELS_ROOT + "relay/black.json")
         || entries.containsKey(MODELS_ROOT + "chunkloader/chunkloader.json")
         || entries.containsKey(MODELS_ROOT + "wire/center.json");
   }
@@ -281,7 +281,7 @@ final class BreakingModelGenerator {
     variants.add(
         new VariantSource(
             "relay/relay",
-            readModel(entries, "relay/relay.json"),
+            readModel(entries, "relay/black.json"),
             identityTransform(),
             FacePolicy.DEFAULT,
             NO_TEXTURE_SIZES,

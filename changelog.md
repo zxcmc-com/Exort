@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.3 — 2026-07-01
+- Network Relay RESOURCE model now uses a dedicated four-state relay texture atlas instead of the old texture, with the same texture applied to every side.
+- Network Relay now shows a black indicator when it is not connected to storage and has no usable relay peer, a green indicator when it is connected to storage and has a usable relay peer, a blue indicator when it is connected to storage but has no usable relay peer, and a red indicator during relay setup, when it has a usable relay peer but no storage connection, or when the network resolves to multiple storages.
+
 ## 0.18.2 — 2026-06-30
 - Chunk Loader RESOURCE model now uses a six-sided recessed core and outer frame.
 - Updated Chunk Loader RESOURCE breaking overlays: cracks now stay on the inner core during progress and reach the outer frame only in the final stages on every side.

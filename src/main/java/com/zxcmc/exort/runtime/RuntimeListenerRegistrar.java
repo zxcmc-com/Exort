@@ -187,7 +187,8 @@ public final class RuntimeListenerRegistrar {
             deps.relayRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
-            materials.relayCarrier()));
+            materials.relayCarrier(),
+            deps.relaySetupTracker()));
     register(
         deps,
         new ChunkLoaderListener(

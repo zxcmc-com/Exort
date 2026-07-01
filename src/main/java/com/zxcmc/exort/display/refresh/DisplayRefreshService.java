@@ -18,6 +18,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -62,6 +63,7 @@ public final class DisplayRefreshService {
   private final RelayDisplayManager relayDisplayManager;
   private final ChunkLoaderDisplayManager chunkLoaderDisplayManager;
   private final ExortBlockProxyService blockProxyService;
+  private final RelaySetupTracker relaySetupTracker;
   private final Set<BlockKey> queuedBlocks = new HashSet<>();
   private final Set<ChunkKey> queuedChunks = new HashSet<>();
   private final Set<BlockKey> queuedNetworkStarts = new HashSet<>();
@@ -85,7 +87,8 @@ public final class DisplayRefreshService {
       BusDisplayManager busDisplayManager,
       RelayDisplayManager relayDisplayManager,
       ChunkLoaderDisplayManager chunkLoaderDisplayManager,
-      ExortBlockProxyService blockProxyService) {
+      ExortBlockProxyService blockProxyService,
+      RelaySetupTracker relaySetupTracker) {
     this.plugin = plugin;
     this.wireHardCap = wireHardCap;
     this.relayRangeChunks = relayRangeChunks;
@@ -104,6 +107,7 @@ public final class DisplayRefreshService {
     this.relayDisplayManager = relayDisplayManager;
     this.chunkLoaderDisplayManager = chunkLoaderDisplayManager;
     this.blockProxyService = blockProxyService;
+    this.relaySetupTracker = relaySetupTracker;
   }
 
   public void refreshChunk(Chunk chunk) {
@@ -466,6 +470,13 @@ public final class DisplayRefreshService {
   }
 
   public void refreshRelay(Block block) {
+    boolean validRelay =
+        block != null
+            && Carriers.matchesCarrier(block, relayCarrier)
+            && RelayMarker.isRelay(plugin, block);
+    if (relaySetupTracker != null && !validRelay) {
+      relaySetupTracker.clearBlock(block);
+    }
     if (relayDisplayManager != null) {
       relayDisplayManager.refresh(block);
     }
@@ -508,6 +519,9 @@ public final class DisplayRefreshService {
   }
 
   public void removeRelayDisplay(Block block) {
+    if (relaySetupTracker != null) {
+      relaySetupTracker.clearBlock(block);
+    }
     if (relayDisplayManager != null) {
       relayDisplayManager.removeDisplay(block);
     }

@@ -6,6 +6,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -23,6 +24,7 @@ public record RuntimeDisplayServicesDependencies(
     RuntimeItemModelConfig itemModels,
     RuntimeHologramConfig hologramConfig,
     boolean resourceMode,
+    RelaySetupTracker relaySetupTracker,
     int wireLimit,
     int wireHardCap,
     int relayRangeChunks,
@@ -40,6 +42,7 @@ public record RuntimeDisplayServicesDependencies(
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(itemModels, "itemModels");
     Objects.requireNonNull(hologramConfig, "hologramConfig");
+    Objects.requireNonNull(relaySetupTracker, "relaySetupTracker");
     Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(invalidateNetwork, "invalidateNetwork");
