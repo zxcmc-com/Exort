@@ -8,6 +8,7 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderAuditLogger;
 import com.zxcmc.exort.chunkloader.ChunkLoaderConfig;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.chunkloader.RotatingChunkLoaderAuditFileWriter;
+import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.gui.CreativeTabOrder;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
@@ -26,6 +27,7 @@ import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.placement.PlacementGuardConfig;
 import com.zxcmc.exort.recipes.CraftingRulesConfig;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -102,6 +104,18 @@ public final class ExortRuntimeFactory {
     WorldEditWandGuard worldEditWandGuard = new KnownWorldEditWandGuard(deps.plugin());
 
     RuntimeServiceState state = new RuntimeServiceState();
+    RelaySetupTracker relaySetupTracker =
+        new RelaySetupTracker(
+            deps.plugin(),
+            RelaySetupTracker.DEFAULT_TTL_MS,
+            block -> {
+              DisplayRefreshService refresh = state.displayRefreshService;
+              if (refresh != null) {
+                refresh.refreshRelay(block);
+                refresh.refreshBlockAndNeighbors(block);
+                refresh.refreshNetworkFrom(block);
+              }
+            });
     RuntimeHologramConfig hologramConfig = RuntimeHologramConfig.forMode(deps.resourceMode());
     RuntimeDisplayServices displayServices =
         RuntimeDisplayServicesFactory.create(
@@ -116,6 +130,7 @@ public final class ExortRuntimeFactory {
                 itemModels,
                 hologramConfig,
                 deps.resourceMode(),
+                relaySetupTracker,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
                 networkConfig.relayRangeChunks(),
@@ -127,6 +142,7 @@ public final class ExortRuntimeFactory {
                     deps.networkGraphCache().get().invalidateAll();
                   }
                 }));
+    state.displayRefreshService = displayServices.displayRefreshService();
 
     BusRuntimeConfig busRuntime = BusRuntimeConfig.fromConfig(deps.config());
     RuntimeBusServices busServices =
@@ -196,6 +212,7 @@ public final class ExortRuntimeFactory {
                 deps.itemNameService(),
                 deps.inventoryRefreshService(),
                 materials,
+                relaySetupTracker,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
                 networkConfig.relayRangeChunks(),
@@ -263,6 +280,7 @@ public final class ExortRuntimeFactory {
         customItems,
         wirelessService,
         chunkLoaderService,
+        relaySetupTracker,
         materials,
         networkConfig.wireLimit(),
         networkConfig.wireHardCap(),
@@ -367,5 +385,6 @@ public final class ExortRuntimeFactory {
 
   private static final class RuntimeServiceState {
     private BusService busService;
+    private DisplayRefreshService displayRefreshService;
   }
 }

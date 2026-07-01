@@ -30,6 +30,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.recipes.CraftingRulesConfig;
 import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Objects;
@@ -57,6 +58,7 @@ public record RuntimeListenerDependencies(
     ItemNameService itemNameService,
     InventoryRefreshService inventoryRefreshService,
     RuntimeMaterials materials,
+    RelaySetupTracker relaySetupTracker,
     int wireLimit,
     int wireHardCap,
     int relayRangeChunks,
@@ -101,6 +103,7 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(itemNameService, "itemNameService");
     Objects.requireNonNull(inventoryRefreshService, "inventoryRefreshService");
     Objects.requireNonNull(materials, "materials");
+    Objects.requireNonNull(relaySetupTracker, "relaySetupTracker");
     Objects.requireNonNull(hologramManagerSource, "hologramManagerSource");
     Objects.requireNonNull(wireDisplayManager, "wireDisplayManager");
     Objects.requireNonNull(terminalDisplayManager, "terminalDisplayManager");

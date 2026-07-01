@@ -65,6 +65,7 @@ import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
 import com.zxcmc.exort.platform.RuntimeModeCoordinator;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.runtime.ExortRuntimeFactory;
 import com.zxcmc.exort.runtime.ExortRuntimeFactoryDependencies;
 import com.zxcmc.exort.runtime.ExortRuntimeServices;
@@ -144,6 +145,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
   private NexoResourcePackIntegration nexoResourcePackIntegration;
+  private RelaySetupTracker relaySetupTracker;
   private PacketEnhancements packetEnhancements;
   private RightClickPlacementGuard placementGuard;
   private EmbeddedChorusfixController embeddedChorusfix;
@@ -478,6 +480,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     stopEmbeddedChorusfix();
     stopWorldEditIntegration();
     stopPlacementGuard();
+    stopRelaySetupTracker();
     stopPacketEnhancements();
     stopChunkLoaderService();
     if (customBlockBreaker != null) {
@@ -492,6 +495,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
     chunkLoaderService.stop();
     chunkLoaderService = null;
+  }
+
+  private void stopRelaySetupTracker() {
+    if (relaySetupTracker == null) {
+      return;
+    }
+    relaySetupTracker.stop();
+    relaySetupTracker = null;
   }
 
   private void unregisterReloadableRuntimeListeners() {
@@ -590,6 +601,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     customItems = services.customItems();
     wirelessService = services.wirelessService();
     chunkLoaderService = services.chunkLoaderService();
+    relaySetupTracker = services.relaySetupTracker();
     RuntimeMaterials materials = services.materials();
     runtimeMaterials = materials;
     blockClassifier = new ExortBlockClassifier(this, materials);

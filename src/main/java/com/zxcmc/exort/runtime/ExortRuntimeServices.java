@@ -22,6 +22,7 @@ import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.concurrent.CompletableFuture;
 
@@ -30,6 +31,7 @@ public record ExortRuntimeServices(
     CustomItems customItems,
     WirelessTerminalService wirelessService,
     ChunkLoaderService chunkLoaderService,
+    RelaySetupTracker relaySetupTracker,
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,

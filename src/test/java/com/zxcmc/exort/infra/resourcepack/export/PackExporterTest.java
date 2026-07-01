@@ -95,6 +95,7 @@ class PackExporterTest {
       assertTerminalAtlasShape(zip);
       assertBreakingAtlasReferences(zip);
       assertChunkLoaderBreakingOverlayShape(zip);
+      assertRelayItemDefinitionModels(zip);
     }
   }
 
@@ -122,6 +123,14 @@ class PackExporterTest {
           "assets/exort/models/breaking/bus/export/down/stage_9.json",
           "assets/exort/items/breaking/bus/import/down/stage_0.json",
           "assets/exort/items/breaking/bus/export/down/stage_0.json",
+          "assets/exort/items/relay/relay.json",
+          "assets/exort/items/relay/green.json",
+          "assets/exort/items/relay/blue.json",
+          "assets/exort/items/relay/red.json",
+          "assets/exort/models/relay/black.json",
+          "assets/exort/models/relay/green.json",
+          "assets/exort/models/relay/blue.json",
+          "assets/exort/models/relay/red.json",
           "assets/exort/items/breaking/relay/relay/stage_0.json",
           "assets/exort/models/breaking/relay/relay/stage_9.json",
           "assets/exort/items/breaking/chunkloader/chunkloader/stage_0.json",
@@ -138,7 +147,8 @@ class PackExporterTest {
           "assets/exort/textures/breaking/overlay/terminal.png",
           "assets/exort/textures/breaking/particles/block.png",
           "assets/exort/textures/breaking/particles/storage.png",
-          "assets/exort/textures/breaking/particles/wire.png"
+          "assets/exort/textures/breaking/particles/wire.png",
+          "assets/exort/textures/block/relay.png"
         }) {
       assertEntry(zip, entry);
     }
@@ -198,6 +208,7 @@ class PackExporterTest {
     for (String resource :
         new String[] {
           "exort:block/wire",
+          "exort:block/relay",
           "exort:breaking/particles/block",
           "exort:breaking/particles/storage",
           "exort:breaking/particles/wire",
@@ -226,6 +237,19 @@ class PackExporterTest {
     assertEquals(6, faceCountForBounds(late, new double[] {0, 0, 0}, new double[] {16, 16, 16}));
     assertEquals(
         "exort:breaking/overlay/terminal", late.getAsJsonObject("textures").get("1").getAsString());
+  }
+
+  private static void assertRelayItemDefinitionModels(ZipFile zip) throws IOException {
+    assertItemDefinitionModel(zip, "assets/exort/items/relay/relay.json", "exort:relay/black");
+    assertItemDefinitionModel(zip, "assets/exort/items/relay/green.json", "exort:relay/green");
+    assertItemDefinitionModel(zip, "assets/exort/items/relay/blue.json", "exort:relay/blue");
+    assertItemDefinitionModel(zip, "assets/exort/items/relay/red.json", "exort:relay/red");
+  }
+
+  private static void assertItemDefinitionModel(ZipFile zip, String entryName, String expected)
+      throws IOException {
+    JsonObject item = JsonParser.parseString(readEntry(zip, entryName)).getAsJsonObject();
+    assertEquals(expected, item.getAsJsonObject("model").get("model").getAsString(), entryName);
   }
 
   private static void assertEntry(ZipFile zip, String name) {

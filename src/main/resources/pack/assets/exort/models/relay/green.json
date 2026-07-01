@@ -2,8 +2,8 @@
 	"format_version": "1.21.6",
 	"credit": "phantomfighterxx",
 	"textures": {
-		"0": "exort:block/storage",
-		"particle": "exort:block/storage"
+		"0": "exort:block/relay",
+		"particle": "exort:block/relay"
 	},
 	"elements": [
 		{

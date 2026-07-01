@@ -18,6 +18,7 @@ import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.display.wire.WireDisplayManager;
 import com.zxcmc.exort.i18n.ExortItemLocalizationService;
 import com.zxcmc.exort.integration.protocol.PacketLocalizationLevel;
+import com.zxcmc.exort.relay.RelayVisualStateResolver;
 import com.zxcmc.exort.sanity.ChunkSanityService;
 import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;
@@ -139,7 +140,8 @@ public final class RuntimeDisplayServicesFactory {
             busDisplayManager,
             relayDisplayManager,
             chunkLoaderDisplayManager,
-            blockProxyService);
+            blockProxyService,
+            deps.relaySetupTracker());
     registerSanityServices(deps, hologramManager, displayRefreshService);
 
     return new RuntimeDisplayServices(
@@ -310,17 +312,35 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
     RuntimeDisplayConfig relayDisplay = RuntimeDisplayConfig.defaults();
+    RuntimeMaterials materials = deps.materials();
+    RelayVisualStateResolver visualStateResolver =
+        deps.resourceMode()
+            ? new RelayVisualStateResolver(
+                deps.plugin(),
+                deps.keys(),
+                deps.relaySetupTracker(),
+                deps.wireLimit(),
+                deps.wireHardCap(),
+                deps.relayRangeChunks(),
+                materials.wire(),
+                materials.storageCarrier(),
+                materials.relayCarrier())
+            : null;
     return new RelayDisplayManager(
         deps.plugin(),
-        deps.materials().relayCarrier(),
+        materials.relayCarrier(),
         displayModels.relay(),
+        displayModels.relayGreen(),
+        displayModels.relayBlue(),
+        displayModels.relayRed(),
         relayDisplay.displayBaseMaterial(),
         relayDisplay.displayScale(),
         relayDisplay.offsetX(),
         relayDisplay.offsetY(),
         relayDisplay.offsetZ(),
         metadataService,
-        deps.lang().clientComponent(deps.resourceMode(), "item.relay"));
+        deps.lang().clientComponent(deps.resourceMode(), "item.relay"),
+        visualStateResolver);
   }
 
   private static ChunkLoaderDisplayManager createChunkLoaderDisplayManager(

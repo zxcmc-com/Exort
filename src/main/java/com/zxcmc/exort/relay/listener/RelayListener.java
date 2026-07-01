@@ -11,11 +11,9 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageDisplayName;
-import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -34,7 +32,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 public final class RelayListener implements Listener {
-  private static final long PENDING_TTL_MS = 60_000L;
   private static final BlockFace[] FACES = {
     BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST
   };
@@ -55,7 +52,7 @@ public final class RelayListener implements Listener {
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material relayCarrier;
-  private final Map<UUID, PendingRelay> pending = new ConcurrentHashMap<>();
+  private final RelaySetupTracker setupTracker;
 
   public RelayListener(
       Plugin plugin,
@@ -73,7 +70,8 @@ public final class RelayListener implements Listener {
       int relayRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      RelaySetupTracker setupTracker) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.regionProtection = Objects.requireNonNull(regionProtection, "regionProtection");
     this.worldEditWandGuard = Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
@@ -91,6 +89,7 @@ public final class RelayListener implements Listener {
     this.wireMaterial = Objects.requireNonNull(wireMaterial, "wireMaterial");
     this.storageCarrier = Objects.requireNonNull(storageCarrier, "storageCarrier");
     this.relayCarrier = Objects.requireNonNull(relayCarrier, "relayCarrier");
+    this.setupTracker = Objects.requireNonNull(setupTracker, "setupTracker");
   }
 
   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -119,23 +118,29 @@ public final class RelayListener implements Listener {
 
   @EventHandler
   public void onQuit(PlayerQuitEvent event) {
-    pending.remove(event.getPlayer().getUniqueId());
+    clearPending(event.getPlayer());
   }
 
   @EventHandler
   public void onWorldChange(PlayerChangedWorldEvent event) {
-    pending.remove(event.getPlayer().getUniqueId());
+    clearPending(event.getPlayer());
   }
 
   private void handleNormalClick(Player player, Block clicked) {
     if (RelayMarker.link(plugin, clicked).isPresent()) {
-      pending.remove(player.getUniqueId());
+      clearPending(player);
       showStatus(player, clicked);
       return;
     }
-    PendingRelay first = pending.get(player.getUniqueId());
-    if (first == null || first.expired() || !isRelay(first.block())) {
-      pending.put(player.getUniqueId(), new PendingRelay(clicked, System.currentTimeMillis()));
+    RelaySetupTracker.PendingRelay first =
+        setupTracker.pending(player.getUniqueId(), System.currentTimeMillis());
+    if (first == null || !isRelay(first.block())) {
+      Block previous =
+          setupTracker.select(player.getUniqueId(), clicked, System.currentTimeMillis());
+      if (previous != null && !sameBlock(previous, clicked)) {
+        refreshEndpoint(previous);
+      }
+      refreshEndpoint(clicked);
       playerFeedback.info(player, "message.relay_waiting");
       return;
     }
@@ -144,7 +149,7 @@ public final class RelayListener implements Listener {
       return;
     }
     if (!regionProtection.canUse(player, first.block())) {
-      pending.remove(player.getUniqueId());
+      clearPending(player);
       playerFeedback.error(player, "message.no_permission");
       return;
     }
@@ -158,7 +163,7 @@ public final class RelayListener implements Listener {
     }
     if (RelayMarker.link(plugin, first).isPresent()
         || RelayMarker.link(plugin, second).isPresent()) {
-      pending.remove(player.getUniqueId());
+      clearPending(player);
       playerFeedback.error(player, "message.relay_already_linked");
       return;
     }
@@ -167,7 +172,7 @@ public final class RelayListener implements Listener {
       return;
     }
     RelayMarker.link(plugin, first, second);
-    pending.remove(player.getUniqueId());
+    setupTracker.clearPlayer(player.getUniqueId());
     refreshEndpoint(first);
     refreshEndpoint(second);
     revalidateSessions.run();
@@ -177,7 +182,10 @@ public final class RelayListener implements Listener {
   private void unlink(Player player, Block block) {
     Block peer = RelayMarker.link(plugin, block).map(RelayMarker.Link::loadedBlock).orElse(null);
     RelayMarker.unlinkLoadedPair(plugin, block);
-    pending.remove(player.getUniqueId());
+    Block pendingBlock = setupTracker.clearPlayer(player.getUniqueId());
+    if (pendingBlock != null && !sameBlock(pendingBlock, block)) {
+      refreshEndpoint(pendingBlock);
+    }
     refreshEndpoint(block);
     if (peer != null && isRelay(peer)) {
       refreshEndpoint(peer);
@@ -234,6 +242,13 @@ public final class RelayListener implements Listener {
     refresh.refreshNetworkFrom(block);
   }
 
+  private void clearPending(Player player) {
+    Block pendingBlock = setupTracker.clearPlayer(player.getUniqueId());
+    if (pendingBlock != null) {
+      refreshEndpoint(pendingBlock);
+    }
+  }
+
   private boolean isRelay(Block block) {
     return block != null
         && Carriers.matchesCarrier(block, relayCarrier)
@@ -275,11 +290,5 @@ public final class RelayListener implements Listener {
     if (id == null || id.isBlank()) return "?";
     int start = Math.max(0, id.length() - 12);
     return id.substring(start);
-  }
-
-  private record PendingRelay(Block block, long createdMs) {
-    boolean expired() {
-      return System.currentTimeMillis() - createdMs > PENDING_TTL_MS;
-    }
   }
 }
