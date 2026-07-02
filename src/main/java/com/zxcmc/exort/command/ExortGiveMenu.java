@@ -1,5 +1,6 @@
 package com.zxcmc.exort.command;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
@@ -188,7 +189,9 @@ public final class ExortGiveMenu implements InventoryHolder {
     items.add(oneItemCopy(customItems.exportBusItem()));
     items.add(oneItemCopy(customItems.wireItem()));
     items.add(oneItemCopy(customItems.relayItem()));
-    items.add(oneItemCopy(customItems.chunkLoaderItem()));
+    for (ChunkLoaderType type : ChunkLoaderType.all()) {
+      items.add(oneItemCopy(customItems.chunkLoaderItem(type)));
+    }
     items.add(oneItemCopy(wirelessTerminalFactory.get()));
     return List.copyOf(items);
   }
@@ -244,7 +247,7 @@ public final class ExortGiveMenu implements InventoryHolder {
   private ItemStack copyForDelivery(ItemStack sample) {
     CustomItems items = currentCustomItems();
     if (items.isChunkLoader(sample)) {
-      return items.chunkLoaderItem();
+      return items.chunkLoaderItem(items.chunkLoaderType(sample));
     }
     return oneItemCopy(sample);
   }

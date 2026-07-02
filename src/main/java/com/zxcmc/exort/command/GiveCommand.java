@@ -7,6 +7,7 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.feedback.CommandFeedback;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.storage.StorageTier;
@@ -131,8 +132,30 @@ final class GiveCommand {
                                 ctx -> giveItem(ctx, amount(ctx), "item.relay", this::relay))))
                 .then(
                     Commands.literal("chunk_loader")
-                        .executes(ctx -> giveChunkLoader(ctx, 1))
-                        .then(amountArgument(ctx -> giveChunkLoader(ctx, amount(ctx)))))
+                        .executes(ctx -> giveChunkLoader(ctx, 1, ChunkLoaderType.CHUNK_LOADER))
+                        .then(
+                            amountArgument(
+                                ctx ->
+                                    giveChunkLoader(
+                                        ctx, amount(ctx), ChunkLoaderType.CHUNK_LOADER))))
+                .then(
+                    Commands.literal("personal_chunk_loader")
+                        .executes(
+                            ctx -> giveChunkLoader(ctx, 1, ChunkLoaderType.PERSONAL_CHUNK_LOADER))
+                        .then(
+                            amountArgument(
+                                ctx ->
+                                    giveChunkLoader(
+                                        ctx, amount(ctx), ChunkLoaderType.PERSONAL_CHUNK_LOADER))))
+                .then(
+                    Commands.literal("dormant_chunk_loader")
+                        .executes(
+                            ctx -> giveChunkLoader(ctx, 1, ChunkLoaderType.DORMANT_CHUNK_LOADER))
+                        .then(
+                            amountArgument(
+                                ctx ->
+                                    giveChunkLoader(
+                                        ctx, amount(ctx), ChunkLoaderType.DORMANT_CHUNK_LOADER))))
                 .then(
                     Commands.literal("wireless_terminal")
                         .executes(
@@ -173,27 +196,33 @@ final class GiveCommand {
                 sender,
                 "/exort give <player> storage <tier> [amount]",
                 "message.usage_give_storage"),
+            usageLine(
+                sender,
+                "/exort give <player> chunk_loader [amount]",
+                "message.usage_give_chunk_loader"),
             usageLine(sender, "/exort give <player> <item> [amount]", "message.usage_give_item"),
             Component.text(dependencies.lang().tr(sender, "message.usage_give_items"))));
     return 1;
   }
 
-  private int giveChunkLoader(CommandContext<CommandSourceStack> context, int amount) {
+  private int giveChunkLoader(
+      CommandContext<CommandSourceStack> context, int amount, ChunkLoaderType type) {
     if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
     Player target = target(sender, context);
     if (target == null) {
       return 1;
     }
+    ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
-    String label = dependencies.lang().tr(sender, "item.chunk_loader");
+    String label = dependencies.lang().tr(sender, safeType.translationKey());
     sendGiveResult(
         sender,
         target,
         label,
         giveAmount,
         CommandItemDelivery.deliver(
-            target, () -> dependencies.customItems().chunkLoaderItem(), giveAmount));
+            target, () -> dependencies.customItems().chunkLoaderItem(safeType), giveAmount));
     dependencies
         .chunkLoaderService()
         .auditLogger()
@@ -224,6 +253,12 @@ final class GiveCommand {
     return "/exort give "
         + Objects.requireNonNull(playerName, "playerName")
         + " storage <tier> [amount]";
+  }
+
+  static String chunkLoaderUsageCommand(String playerName) {
+    return "/exort give "
+        + Objects.requireNonNull(playerName, "playerName")
+        + " chunk_loader [amount]";
   }
 
   private int giveStorage(CommandContext<CommandSourceStack> context, int amount) {

@@ -60,7 +60,7 @@ public final class ChunkLoaderListener implements Listener {
         .ifPresent(
             data ->
                 bossBarManager.showChunkLoaderStatus(
-                    data.id(), event.getPlayer(), statusDurationTicks));
+                    data.type(), data.id(), event.getPlayer(), statusDurationTicks));
   }
 
   private boolean isChunkLoader(Block block) {

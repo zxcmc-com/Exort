@@ -1,5 +1,6 @@
 package com.zxcmc.exort.items;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
@@ -219,17 +220,26 @@ public class CustomItems {
   }
 
   public ItemStack chunkLoaderItem() {
-    return chunkLoaderItem(null);
+    return chunkLoaderItem(ChunkLoaderType.defaultType(), null);
   }
 
   public ItemStack chunkLoaderItem(UUID id) {
+    return chunkLoaderItem(ChunkLoaderType.defaultType(), id);
+  }
+
+  public ItemStack chunkLoaderItem(ChunkLoaderType type) {
+    return chunkLoaderItem(type, null);
+  }
+
+  public ItemStack chunkLoaderItem(ChunkLoaderType type, UUID id) {
+    ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     ItemStack item = new ItemStack(BASE_MATERIAL);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.itemName(chunkLoaderName());
+      meta.itemName(chunkLoaderName(safeType));
       ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
-      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.CHUNK_LOADER.id());
+      pdc.set(keys.type(), PersistentDataType.STRING, safeType.id());
       if (id != null) {
         pdc.set(keys.chunkLoaderId(), PersistentDataType.STRING, id.toString());
       }
@@ -340,8 +350,10 @@ public class CustomItems {
         stack.setItemMeta(meta);
         return true;
       }
-      case "chunk_loader" -> {
-        meta.itemName(chunkLoaderName());
+      case "chunk_loader", "personal_chunk_loader", "dormant_chunk_loader" -> {
+        ChunkLoaderType loaderType = chunkLoaderType(stack);
+        pdc.set(keys.type(), PersistentDataType.STRING, loaderType.id());
+        meta.itemName(chunkLoaderName(loaderType));
         applyChunkLoaderLore(meta, chunkLoaderId(stack).orElse(null));
         ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
         stack.setItemMeta(meta);
@@ -375,7 +387,7 @@ public class CustomItems {
     if (stack == null || !stack.hasItemMeta()) return false;
     PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
     String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "chunk_loader".equalsIgnoreCase(type);
+    return ChunkLoaderType.isChunkLoaderId(type);
   }
 
   public boolean isStorageCore(ItemStack stack) {
@@ -492,6 +504,13 @@ public class CustomItems {
     }
   }
 
+  public ChunkLoaderType chunkLoaderType(ItemStack stack) {
+    if (stack == null || !stack.hasItemMeta()) return ChunkLoaderType.defaultType();
+    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+    return ChunkLoaderType.fromNullableId(pdc.get(keys.type(), PersistentDataType.STRING))
+        .orElse(ChunkLoaderType.defaultType());
+  }
+
   public Optional<String> storageDisplayName(ItemStack stack) {
     return StorageItemNameEditor.displayName(keys, stack);
   }
@@ -554,9 +573,10 @@ public class CustomItems {
                 .decoration(TextDecoration.ITALIC, false)));
   }
 
-  private Component chunkLoaderName() {
+  private Component chunkLoaderName(ChunkLoaderType type) {
+    ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     return CustomItemText.chunkLoaderName(
-        lang.itemComponent(clientTranslations, "item.chunk_loader"));
+        lang.itemComponent(clientTranslations, safeType.translationKey()));
   }
 
   private String formatNumber(long value) {

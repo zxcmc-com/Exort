@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record ChunkLoaderRegistryRecord(
     UUID id,
+    ChunkLoaderType type,
     ChunkLoaderRegistryStatus status,
     UUID placedByUuid,
     String placedByName,
@@ -39,6 +40,7 @@ public record ChunkLoaderRegistryRecord(
     Long lastSeenAt) {
   public ChunkLoaderRegistryRecord {
     Objects.requireNonNull(id, "id");
+    type = type == null ? ChunkLoaderType.defaultType() : type;
     Objects.requireNonNull(status, "status");
     Objects.requireNonNull(firstWorldId, "firstWorldId");
     Objects.requireNonNull(lastPlacedWorldId, "lastPlacedWorldId");

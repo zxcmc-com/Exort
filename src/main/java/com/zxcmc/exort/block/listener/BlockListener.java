@@ -11,6 +11,7 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
@@ -352,12 +353,13 @@ public class BlockListener implements Listener {
         return;
       }
       UUID loaderId = customItems.chunkLoaderId(event.getItemInHand()).orElse(UUID.randomUUID());
+      ChunkLoaderType type = customItems.chunkLoaderType(event.getItemInHand());
       if (!chunkLoaderService.canPlace(loaderId, block)) {
         event.setCancelled(true);
         playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
         return;
       }
-      if (!chunkLoaderService.place(event.getPlayer(), block, loaderId)) {
+      if (!chunkLoaderService.place(event.getPlayer(), block, loaderId, type)) {
         event.setCancelled(true);
         playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
         return;

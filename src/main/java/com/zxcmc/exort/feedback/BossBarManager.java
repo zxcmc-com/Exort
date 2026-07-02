@@ -1,5 +1,6 @@
 package com.zxcmc.exort.feedback;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
@@ -101,10 +102,20 @@ public class BossBarManager {
   }
 
   public void showChunkLoaderStatus(UUID loaderId, Player player, long durationTicks) {
+    showChunkLoaderStatus(ChunkLoaderType.defaultType(), loaderId, player, durationTicks);
+  }
+
+  public void showChunkLoaderStatus(
+      ChunkLoaderType type, UUID loaderId, Player player, long durationTicks) {
     int gen = generations.compute(player.getUniqueId(), (id, val) -> val == null ? 1 : val + 1);
     cancelRemoval(player.getUniqueId());
+    ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     String title =
-        lang.tr(player, "chunk_loader.status", loaderId == null ? "unknown" : loaderId.toString());
+        lang.tr(
+            player,
+            "chunk_loader.status",
+            lang.tr(player, safeType.translationKey()),
+            loaderId == null ? "unknown" : loaderId.toString());
     showCustom(player, title, 1.0, BarColor.PURPLE, durationTicks, gen);
   }
 

@@ -8,6 +8,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRecord;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryRecord;
+import com.zxcmc.exort.chunkloader.ChunkLoaderRuntimeState;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.debug.PickDebugService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
@@ -480,6 +481,8 @@ final class DebugCommand {
       CommandSender sender, ChunkLoaderRecord record, int activeRadius) {
     String tp = chunkLoaderTpCommand(record);
     String coords = record.x() + ", " + record.y() + ", " + record.z();
+    ChunkLoaderRuntimeState runtimeState =
+        dependencies.chunkLoaderService().runtimeState(record.id());
     String placer =
         record.placedByName() == null || record.placedByName().isBlank()
             ? "-"
@@ -488,6 +491,10 @@ final class DebugCommand {
       placer += " (" + record.placedByUuid() + ")";
     }
     return Component.text(record.id().toString(), NamedTextColor.GRAY)
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(Component.text(record.type().id(), NamedTextColor.LIGHT_PURPLE))
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(Component.text(runtimeState.id(), runtimeStateColor(runtimeState)))
         .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
         .append(Component.text(record.worldName(), NamedTextColor.AQUA))
         .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
@@ -528,6 +535,8 @@ final class DebugCommand {
         record.lastReason() == null || record.lastReason().isBlank() ? "-" : record.lastReason();
     return Component.text(record.id().toString(), NamedTextColor.GRAY)
         .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+        .append(Component.text(record.type().id(), NamedTextColor.LIGHT_PURPLE))
+        .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
         .append(Component.text(record.status().dbValue(), statusColor(record)))
         .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
         .append(coords)
@@ -562,6 +571,15 @@ final class DebugCommand {
       case ITEM -> NamedTextColor.AQUA;
       case LOST -> NamedTextColor.YELLOW;
       case REMOVED -> NamedTextColor.RED;
+    };
+  }
+
+  private static NamedTextColor runtimeStateColor(ChunkLoaderRuntimeState state) {
+    return switch (state) {
+      case TICKETED -> NamedTextColor.GREEN;
+      case SLEEPING, OWNER_GRACE -> NamedTextColor.YELLOW;
+      case OWNER_OFFLINE, WORLD_UNAVAILABLE -> NamedTextColor.RED;
+      case REGISTERED, MISSING -> NamedTextColor.GRAY;
     };
   }
 

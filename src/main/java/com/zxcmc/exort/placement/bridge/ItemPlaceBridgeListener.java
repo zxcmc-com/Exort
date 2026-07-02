@@ -10,6 +10,7 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
@@ -271,11 +272,12 @@ public class ItemPlaceBridgeListener implements Listener {
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), chunkLoaderCarrier))
         return;
       UUID loaderId = customItems.chunkLoaderId(stack).orElse(UUID.randomUUID());
+      ChunkLoaderType type = customItems.chunkLoaderType(stack);
       if (!chunkLoaderService.canPlace(loaderId, target)) {
         playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
         return;
       }
-      if (!placeChunkLoader(event.getPlayer(), target, loaderId)) {
+      if (!placeChunkLoader(event.getPlayer(), target, loaderId, type)) {
         playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
         return;
       }
@@ -434,9 +436,10 @@ public class ItemPlaceBridgeListener implements Listener {
     }
   }
 
-  private boolean placeChunkLoader(Player player, Block target, UUID loaderId) {
+  private boolean placeChunkLoader(
+      Player player, Block target, UUID loaderId, ChunkLoaderType type) {
     Carriers.applyCarrier(target, chunkLoaderCarrier);
-    if (chunkLoaderService.place(player, target, loaderId)) {
+    if (chunkLoaderService.place(player, target, loaderId, type)) {
       return true;
     }
     target.setType(Material.AIR, false);

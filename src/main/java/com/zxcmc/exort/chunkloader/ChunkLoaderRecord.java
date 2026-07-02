@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 
 public record ChunkLoaderRecord(
     UUID id,
+    ChunkLoaderType type,
     UUID worldId,
     String worldKey,
     String worldName,
@@ -25,6 +26,7 @@ public record ChunkLoaderRecord(
     long updatedAt) {
   public ChunkLoaderRecord {
     Objects.requireNonNull(id, "id");
+    type = type == null ? ChunkLoaderType.defaultType() : type;
     Objects.requireNonNull(worldId, "worldId");
     worldKey = worldKey == null || worldKey.isBlank() ? worldId.toString() : worldKey;
     worldName = worldName == null || worldName.isBlank() ? worldKey : worldName;
@@ -32,10 +34,16 @@ public record ChunkLoaderRecord(
   }
 
   public static ChunkLoaderRecord placed(Block block, UUID id, Player player, int radius) {
+    return placed(block, id, player, radius, ChunkLoaderType.defaultType());
+  }
+
+  public static ChunkLoaderRecord placed(
+      Block block, UUID id, Player player, int radius, ChunkLoaderType type) {
     long now = Instant.now().getEpochSecond();
     return fromBlock(
         block,
         id,
+        type,
         player == null ? null : player.getUniqueId(),
         player == null ? null : player.getName(),
         radius,
@@ -51,11 +59,32 @@ public record ChunkLoaderRecord(
       int radius,
       long createdAt,
       long updatedAt) {
+    return fromBlock(
+        block,
+        id,
+        ChunkLoaderType.defaultType(),
+        placedByUuid,
+        placedByName,
+        radius,
+        createdAt,
+        updatedAt);
+  }
+
+  public static ChunkLoaderRecord fromBlock(
+      Block block,
+      UUID id,
+      ChunkLoaderType type,
+      UUID placedByUuid,
+      String placedByName,
+      int radius,
+      long createdAt,
+      long updatedAt) {
     Objects.requireNonNull(block, "block");
     World world = Objects.requireNonNull(block.getWorld(), "world");
     NamespacedKey key = world.getKey();
     return new ChunkLoaderRecord(
         id,
+        type,
         world.getUID(),
         key == null ? world.getUID().toString() : key.toString(),
         world.getName(),

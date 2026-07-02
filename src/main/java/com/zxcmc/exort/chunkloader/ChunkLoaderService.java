@@ -9,10 +9,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
@@ -27,10 +29,15 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 public final class ChunkLoaderService implements Listener {
+  private static final long PERSONAL_GRACE_TICKS = 5L * 60L * 20L;
+
   private final JavaPlugin plugin;
   private final Database database;
   private final Material carrier;
@@ -39,6 +46,8 @@ public final class ChunkLoaderService implements Listener {
   private final Map<UUID, ChunkLoaderRecord> byId = new HashMap<>();
   private final Map<BlockKey, UUID> byBlock = new HashMap<>();
   private final Map<TicketKey, Integer> ticketRefs = new HashMap<>();
+  private final Set<UUID> ticketedIds = new HashSet<>();
+  private final Map<UUID, BukkitTask> personalReleaseTasks = new HashMap<>();
   private boolean started;
 
   public ChunkLoaderService(
@@ -84,6 +93,10 @@ public final class ChunkLoaderService implements Listener {
       HandlerList.unregisterAll(this);
       started = false;
     }
+    for (BukkitTask task : personalReleaseTasks.values()) {
+      task.cancel();
+    }
+    personalReleaseTasks.clear();
     for (TicketKey key : List.copyOf(ticketRefs.keySet())) {
       World world = Bukkit.getWorld(key.worldId());
       if (world != null) {
@@ -91,6 +104,7 @@ public final class ChunkLoaderService implements Listener {
       }
     }
     ticketRefs.clear();
+    ticketedIds.clear();
     byId.clear();
     byBlock.clear();
     auditLogger.close();
@@ -117,18 +131,24 @@ public final class ChunkLoaderService implements Listener {
   }
 
   public boolean place(Player player, Block block, UUID id) {
+    return place(player, block, id, ChunkLoaderType.defaultType());
+  }
+
+  public boolean place(Player player, Block block, UUID id, ChunkLoaderType type) {
     if (!canPlace(id, block)) {
       return false;
     }
-    ChunkLoaderRecord record = ChunkLoaderRecord.placed(block, id, player, radius());
+    ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
+    ChunkLoaderRecord record = ChunkLoaderRecord.placed(block, id, player, radius(), safeType);
     ChunkLoaderMarker.set(
         plugin,
         block,
         id,
+        safeType,
         player == null ? null : player.getUniqueId(),
         player == null ? null : player.getName(),
         record.createdAt());
-    activate(record);
+    activate(record, true);
     Location foundLocation = block.getLocation().add(0.5D, 1.0D, 0.5D);
     database
         .saveChunkLoader(record)
@@ -166,6 +186,7 @@ public final class ChunkLoaderService implements Listener {
           ChunkLoaderRecord.fromBlock(
               block,
               id,
+              data.get().type(),
               data.get().placedByUuid(),
               data.get().placedByName(),
               radius(),
@@ -207,7 +228,11 @@ public final class ChunkLoaderService implements Listener {
       ChunkLoaderRecord record = byId.get(id);
       if (record == null) {
         long now = Instant.now().getEpochSecond();
-        record = ChunkLoaderRecord.fromBlock(block, id, null, null, radius(), now, now);
+        ChunkLoaderType type =
+            ChunkLoaderMarker.get(plugin, block)
+                .map(ChunkLoaderMarker.Data::type)
+                .orElse(ChunkLoaderType.defaultType());
+        record = ChunkLoaderRecord.fromBlock(block, id, type, null, null, radius(), now, now);
       }
       deactivate(id, block);
       database.deleteChunkLoader(id).exceptionally(this::logDeleteFailure);
@@ -259,12 +284,13 @@ public final class ChunkLoaderService implements Listener {
         ChunkLoaderRecord.fromBlock(
             block,
             data.id(),
+            data.type(),
             data.placedByUuid(),
             data.placedByName(),
             radius(),
             data.createdAt() > 0L ? data.createdAt() : now,
             now);
-    activate(restored);
+    activate(restored, true);
     Location foundLocation = block.getLocation().add(0.5D, 1.0D, 0.5D);
     database
         .saveChunkLoader(restored)
@@ -299,15 +325,39 @@ public final class ChunkLoaderService implements Listener {
     restoreMarkersInChunk(chunk);
   }
 
+  @EventHandler(priority = EventPriority.MONITOR)
+  public void onPlayerJoin(PlayerJoinEvent event) {
+    UUID playerId = event.getPlayer().getUniqueId();
+    for (ChunkLoaderRecord record : new ArrayList<>(byId.values())) {
+      if (record.type() != ChunkLoaderType.PERSONAL_CHUNK_LOADER) continue;
+      if (!playerId.equals(record.placedByUuid())) continue;
+      cancelPersonalRelease(record.id());
+      activateTickets(record);
+    }
+  }
+
+  @EventHandler(priority = EventPriority.MONITOR)
+  public void onPlayerQuit(PlayerQuitEvent event) {
+    UUID playerId = event.getPlayer().getUniqueId();
+    for (ChunkLoaderRecord record : new ArrayList<>(byId.values())) {
+      if (record.type() != ChunkLoaderType.PERSONAL_CHUNK_LOADER) continue;
+      if (!playerId.equals(record.placedByUuid())) continue;
+      if (!ticketedIds.contains(record.id())) continue;
+      schedulePersonalRelease(record);
+    }
+  }
+
   private void rebuildFromDatabase(List<ChunkLoaderRecord> records) {
     if (!plugin.isEnabled()) {
       return;
     }
     List<ChunkLoaderRecord> safeRecords = records == null ? List.of() : records;
     for (ChunkLoaderRecord record : safeRecords.stream().sorted(recordOrder()).toList()) {
-      activate(record);
       World world = Bukkit.getWorld(record.worldId());
-      if (world != null && world.isChunkLoaded(record.chunkX(), record.chunkZ())) {
+      boolean ownChunkLoaded =
+          world != null && world.isChunkLoaded(record.chunkX(), record.chunkZ());
+      activate(record, ownChunkLoaded);
+      if (ownChunkLoaded) {
         Block block = world.getBlockAt(record.x(), record.y(), record.z());
         validateRecord(record, block);
       }
@@ -327,6 +377,10 @@ public final class ChunkLoaderService implements Listener {
       if (record.chunkX() != chunk.getX() || record.chunkZ() != chunk.getZ()) continue;
       Block block = chunk.getWorld().getBlockAt(record.x(), record.y(), record.z());
       validateRecord(record, block);
+      ChunkLoaderRecord current = byId.get(record.id());
+      if (current != null && current.type() == ChunkLoaderType.DORMANT_CHUNK_LOADER) {
+        activateTickets(current);
+      }
     }
   }
 
@@ -356,7 +410,34 @@ public final class ChunkLoaderService implements Listener {
         });
   }
 
-  private void activate(ChunkLoaderRecord record) {
+  public ChunkLoaderRuntimeState runtimeState(UUID id) {
+    if (id == null) {
+      return ChunkLoaderRuntimeState.MISSING;
+    }
+    ChunkLoaderRecord record = byId.get(id);
+    if (record == null) {
+      return ChunkLoaderRuntimeState.MISSING;
+    }
+    if (record.type() == ChunkLoaderType.PERSONAL_CHUNK_LOADER
+        && personalReleaseTasks.containsKey(id)) {
+      return ChunkLoaderRuntimeState.OWNER_GRACE;
+    }
+    if (ticketedIds.contains(id)) {
+      return ChunkLoaderRuntimeState.TICKETED;
+    }
+    if (Bukkit.getWorld(record.worldId()) == null) {
+      return ChunkLoaderRuntimeState.WORLD_UNAVAILABLE;
+    }
+    if (record.type() == ChunkLoaderType.PERSONAL_CHUNK_LOADER) {
+      return ChunkLoaderRuntimeState.OWNER_OFFLINE;
+    }
+    if (record.type() == ChunkLoaderType.DORMANT_CHUNK_LOADER) {
+      return ChunkLoaderRuntimeState.SLEEPING;
+    }
+    return ChunkLoaderRuntimeState.REGISTERED;
+  }
+
+  private void activate(ChunkLoaderRecord record, boolean ownChunkLoaded) {
     if (record == null) {
       return;
     }
@@ -364,9 +445,12 @@ public final class ChunkLoaderService implements Listener {
     if (previous != null) {
       byBlock.remove(BlockKey.of(previous));
       releaseTickets(previous);
+      cancelPersonalRelease(previous.id());
     }
     byBlock.put(BlockKey.of(record), record.id());
-    addTickets(record);
+    if (shouldTicket(record, ownChunkLoaded)) {
+      activateTickets(record);
+    }
   }
 
   private void deactivate(UUID id, Block fallbackBlock) {
@@ -377,6 +461,7 @@ public final class ChunkLoaderService implements Listener {
       return;
     }
     ChunkLoaderRecord record = byId.remove(id);
+    cancelPersonalRelease(id);
     if (record != null) {
       byBlock.remove(BlockKey.of(record));
       releaseTickets(record);
@@ -387,11 +472,53 @@ public final class ChunkLoaderService implements Listener {
     }
   }
 
-  private void addTickets(ChunkLoaderRecord record) {
+  private boolean shouldTicket(ChunkLoaderRecord record, boolean ownChunkLoaded) {
+    return switch (record.type()) {
+      case CHUNK_LOADER -> true;
+      case PERSONAL_CHUNK_LOADER ->
+          record.placedByUuid() != null && Bukkit.getPlayer(record.placedByUuid()) != null;
+      case DORMANT_CHUNK_LOADER -> ownChunkLoaded;
+    };
+  }
+
+  private void schedulePersonalRelease(ChunkLoaderRecord record) {
+    cancelPersonalRelease(record.id());
+    BukkitTask task =
+        Bukkit.getScheduler()
+            .runTaskLater(
+                plugin,
+                () -> {
+                  personalReleaseTasks.remove(record.id());
+                  Player owner = Bukkit.getPlayer(record.placedByUuid());
+                  ChunkLoaderRecord current = byId.get(record.id());
+                  if (current == null || current.type() != ChunkLoaderType.PERSONAL_CHUNK_LOADER) {
+                    return;
+                  }
+                  if (owner != null && owner.isOnline()) {
+                    return;
+                  }
+                  releaseTickets(current);
+                },
+                PERSONAL_GRACE_TICKS);
+    personalReleaseTasks.put(record.id(), task);
+  }
+
+  private void cancelPersonalRelease(UUID id) {
+    BukkitTask task = personalReleaseTasks.remove(id);
+    if (task != null) {
+      task.cancel();
+    }
+  }
+
+  private void activateTickets(ChunkLoaderRecord record) {
+    if (record == null || ticketedIds.contains(record.id())) {
+      return;
+    }
     World world = Bukkit.getWorld(record.worldId());
     if (world == null) {
       return;
     }
+    ticketedIds.add(record.id());
     for (ChunkLoaderArea.ChunkCoord chunk :
         ChunkLoaderArea.square(record.chunkX(), record.chunkZ(), radius())) {
       TicketKey key = new TicketKey(record.worldId(), chunk.x(), chunk.z());
@@ -404,6 +531,9 @@ public final class ChunkLoaderService implements Listener {
   }
 
   private void releaseTickets(ChunkLoaderRecord record) {
+    if (record == null || !ticketedIds.remove(record.id())) {
+      return;
+    }
     World world = Bukkit.getWorld(record.worldId());
     for (ChunkLoaderArea.ChunkCoord chunk :
         ChunkLoaderArea.square(record.chunkX(), record.chunkZ(), radius())) {

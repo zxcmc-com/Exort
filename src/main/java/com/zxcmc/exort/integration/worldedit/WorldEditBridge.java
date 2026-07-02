@@ -37,6 +37,7 @@ import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
@@ -1634,7 +1635,13 @@ public final class WorldEditBridge implements Listener {
         && Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
       ChunkLoaderData data = snapshot.chunkLoader();
       ChunkLoaderMarker.set(
-          plugin, block, data.id(), data.placedByUuid(), data.placedByName(), data.createdAt());
+          plugin,
+          block,
+          data.id(),
+          data.type(),
+          data.placedByUuid(),
+          data.placedByName(),
+          data.createdAt());
       ChunkLoaderService chunkLoaderService = deps.chunkLoaderService();
       if (chunkLoaderService != null) {
         chunkLoaderService.reconcileBlock(block);
@@ -1876,6 +1883,7 @@ public final class WorldEditBridge implements Listener {
       ChunkLoaderMarker.Data data = chunkLoader.get();
       LinCompoundTag.Builder chunkLoaderTag = LinCompoundTag.builder();
       chunkLoaderTag.putString(FIELD_ID, data.id().toString());
+      chunkLoaderTag.putString(FIELD_TYPE, data.type().id());
       if (data.placedByUuid() != null) {
         chunkLoaderTag.putString(FIELD_PLACED_BY_UUID, data.placedByUuid().toString());
       }
@@ -2062,6 +2070,7 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.chunkLoader() != null) {
       LinCompoundTag.Builder chunkLoaderTag = LinCompoundTag.builder();
       chunkLoaderTag.putString(FIELD_ID, snapshot.chunkLoader().id().toString());
+      chunkLoaderTag.putString(FIELD_TYPE, snapshot.chunkLoader().type().id());
       if (snapshot.chunkLoader().placedByUuid() != null) {
         chunkLoaderTag.putString(
             FIELD_PLACED_BY_UUID, snapshot.chunkLoader().placedByUuid().toString());
@@ -2204,8 +2213,17 @@ public final class WorldEditBridge implements Listener {
         UUID placedByUuid = readUuid(chunkLoaderTag, FIELD_PLACED_BY_UUID);
         String placedByName = readString(chunkLoaderTag, FIELD_PLACED_BY_NAME);
         Long createdAt = readPositiveLongString(chunkLoaderTag, FIELD_CREATED_AT);
-        chunkLoader =
-            new ChunkLoaderData(id, placedByUuid, placedByName, createdAt == null ? 0L : createdAt);
+        Optional<ChunkLoaderType> type =
+            ChunkLoaderType.fromNullableId(readString(chunkLoaderTag, FIELD_TYPE));
+        if (type.isPresent()) {
+          chunkLoader =
+              new ChunkLoaderData(
+                  id,
+                  type.orElseThrow(),
+                  placedByUuid,
+                  placedByName,
+                  createdAt == null ? 0L : createdAt);
+        }
       }
     }
 

@@ -1,5 +1,6 @@
 package com.zxcmc.exort.i18n;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.items.StorageItemNameEditor;
@@ -68,7 +69,8 @@ public final class ExortItemLocalizationService {
     boolean changed =
         switch (type) {
           case "storage" -> localizeStorage(meta, localizedPdc, language);
-          case "chunk_loader" -> localizeChunkLoader(meta, localizedPdc, language);
+          case "chunk_loader", "personal_chunk_loader", "dormant_chunk_loader" ->
+              localizeChunkLoader(meta, localizedPdc, language);
           case "wireless_terminal" -> localizeWireless(meta, localizedPdc, language);
           default ->
               CustomItemRegistry.fixedItem(type)
@@ -135,7 +137,13 @@ public final class ExortItemLocalizationService {
   }
 
   private boolean localizeChunkLoader(ItemMeta meta, PersistentDataContainer pdc, String language) {
-    meta.itemName(CustomItemText.chunkLoaderName(text(language, "item.chunk_loader")));
+    ChunkLoaderType type =
+        ChunkLoaderType.fromId(pdc.get(keys.type(), PersistentDataType.STRING)).orElse(null);
+    if (type == null) {
+      return false;
+    }
+    pdc.set(keys.type(), PersistentDataType.STRING, type.id());
+    meta.itemName(CustomItemText.chunkLoaderName(text(language, type.translationKey())));
     String id =
         PdcValueSanitizer.uuidString(pdc.get(keys.chunkLoaderId(), PersistentDataType.STRING));
     if (id == null || id.isBlank() || id.length() < STORAGE_ID_TAIL_LENGTH) {
