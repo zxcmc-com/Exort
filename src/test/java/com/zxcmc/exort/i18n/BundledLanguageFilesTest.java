@@ -32,6 +32,8 @@ class BundledLanguageFilesTest {
           "item.crafting_terminal",
           "item.wire",
           "item.chunk_loader",
+          "item.personal_chunk_loader",
+          "item.dormant_chunk_loader",
           "item.monitor",
           "item.import_bus",
           "item.export_bus",
@@ -115,6 +117,19 @@ class BundledLanguageFilesTest {
       assertTrue(
           !english.get(key).equals(russian.get(key)),
           "ru_ru critical key still equals English fallback: " + key);
+    }
+  }
+
+  @Test
+  void giveItemListsUseFixedChunkLoaderIds() throws IOException {
+    for (String locale : checkedLocales()) {
+      String value = readRuntimeLang(locale).get("message.usage_give_items");
+      assertTrue(value.contains("chunk_loader"), locale + " missing base chunk loader id");
+      assertTrue(value.contains("personal_chunk_loader"), locale + " missing personal loader id");
+      assertTrue(value.contains("dormant_chunk_loader"), locale + " missing dormant loader id");
+      assertTrue(
+          !value.contains("chunk_loader <immortal|personal|dormant>"),
+          locale + " still uses old chunk loader variant syntax");
     }
   }
 

@@ -9,6 +9,7 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderObservation;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRecord;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryRecord;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.storage.StorageDisplayName;
@@ -153,6 +154,7 @@ public class Database implements AutoCloseable {
           """
               CREATE TABLE IF NOT EXISTS chunk_loaders (
                   id TEXT PRIMARY KEY,
+                  loader_type TEXT NOT NULL DEFAULT 'chunk_loader',
                   world TEXT NOT NULL,
                   world_key TEXT NOT NULL,
                   world_name TEXT NOT NULL,
@@ -173,6 +175,7 @@ public class Database implements AutoCloseable {
           """
               CREATE TABLE IF NOT EXISTS chunk_loader_registry (
                   id TEXT PRIMARY KEY,
+                  loader_type TEXT NOT NULL DEFAULT 'chunk_loader',
                   status TEXT NOT NULL,
                   placed_by_uuid TEXT NULL,
                   placed_by_name TEXT NOT NULL,
@@ -215,7 +218,6 @@ public class Database implements AutoCloseable {
     ensureColumn("storages", "sort_mode", "TEXT");
     ensureColumn("storages", "tier_max_items", "INTEGER");
     ensureColumn("storages", "display_name", "TEXT");
-    seedChunkLoaderRegistryFromActiveRows();
   }
 
   private void ensureColumn(String table, String column, String type) throws SQLException {
@@ -235,35 +237,6 @@ public class Database implements AutoCloseable {
       try (Statement stmt = connection.createStatement()) {
         stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
       }
-    }
-  }
-
-  private void seedChunkLoaderRegistryFromActiveRows() throws SQLException {
-    try (PreparedStatement ps =
-        connection.prepareStatement(
-            """
-            INSERT OR IGNORE INTO chunk_loader_registry(
-                id, status, placed_by_uuid, placed_by_name,
-                first_world, first_world_key, first_world_name, first_x, first_y, first_z,
-                first_chunk_x, first_chunk_z,
-                last_placed_world, last_placed_world_key, last_placed_world_name,
-                last_placed_x, last_placed_y, last_placed_z, last_placed_chunk_x, last_placed_chunk_z,
-                last_seen_world, last_seen_world_key, last_seen_world_name,
-                last_seen_x, last_seen_y, last_seen_z,
-                last_actor_uuid, last_actor_name, last_source, last_reason,
-                created_at, updated_at, last_seen_at
-            )
-            SELECT
-                id, 'active', placed_by_uuid, placed_by_name,
-                world, world_key, world_name, x, y, z, chunk_x, chunk_z,
-                world, world_key, world_name, x, y, z, chunk_x, chunk_z,
-                world, world_key, world_name,
-                x + 0.5, y + 1.0, z + 0.5,
-                placed_by_uuid, placed_by_name, 'migration', NULL,
-                created_at, updated_at, updated_at
-            FROM chunk_loaders
-            """)) {
-      ps.executeUpdate();
     }
   }
 
@@ -382,10 +355,11 @@ public class Database implements AutoCloseable {
             String sql =
                 """
                 INSERT INTO chunk_loaders(
-                    id, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
+                    id, loader_type, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
                     placed_by_uuid, placed_by_name, radius, created_at, updated_at
-                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
+                    loader_type = excluded.loader_type,
                     world = excluded.world,
                     world_key = excluded.world_key,
                     world_name = excluded.world_name,
@@ -463,7 +437,7 @@ public class Database implements AutoCloseable {
           List<ChunkLoaderRecord> records = new ArrayList<>();
           String sql =
               """
-              SELECT id, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
+              SELECT id, loader_type, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
                      placed_by_uuid, placed_by_name, radius, created_at, updated_at
               FROM chunk_loaders
               """;
@@ -490,7 +464,7 @@ public class Database implements AutoCloseable {
           List<ChunkLoaderRegistryRecord> records = new ArrayList<>();
           String sql =
               """
-              SELECT id, status, placed_by_uuid, placed_by_name,
+              SELECT id, loader_type, status, placed_by_uuid, placed_by_name,
                      first_world, first_world_key, first_world_name,
                      first_x, first_y, first_z, first_chunk_x, first_chunk_z,
                      last_placed_world, last_placed_world_key, last_placed_world_name,
@@ -620,6 +594,7 @@ public class Database implements AutoCloseable {
     String sql =
         """
         UPDATE chunk_loader_registry SET
+            loader_type = ?,
             status = ?,
             placed_by_uuid = COALESCE(placed_by_uuid, ?),
             placed_by_name = CASE
@@ -651,6 +626,7 @@ public class Database implements AutoCloseable {
         """;
     try (PreparedStatement ps = connection.prepareStatement(sql)) {
       int i = 1;
+      ps.setString(i++, record.type().id());
       ps.setString(i++, ChunkLoaderRegistryStatus.ACTIVE.dbValue());
       setNullableUuid(ps, i++, record.placedByUuid());
       ps.setString(i++, record.placedByName());
@@ -683,7 +659,7 @@ public class Database implements AutoCloseable {
     String sql =
         """
         INSERT INTO chunk_loader_registry(
-            id, status, placed_by_uuid, placed_by_name,
+            id, loader_type, status, placed_by_uuid, placed_by_name,
             first_world, first_world_key, first_world_name, first_x, first_y, first_z,
             first_chunk_x, first_chunk_z,
             last_placed_world, last_placed_world_key, last_placed_world_name,
@@ -692,11 +668,12 @@ public class Database implements AutoCloseable {
             last_seen_x, last_seen_y, last_seen_z,
             last_actor_uuid, last_actor_name, last_source, last_reason,
             created_at, updated_at, last_seen_at
-        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
     try (PreparedStatement ps = connection.prepareStatement(sql)) {
       int i = 1;
       ps.setString(i++, record.id().toString());
+      ps.setString(i++, record.type().id());
       ps.setString(i++, ChunkLoaderRegistryStatus.ACTIVE.dbValue());
       setNullableUuid(ps, i++, record.placedByUuid());
       ps.setString(i++, record.placedByName());
@@ -834,23 +811,24 @@ public class Database implements AutoCloseable {
 
   private void bindChunkLoader(PreparedStatement ps, ChunkLoaderRecord record) throws SQLException {
     ps.setString(1, record.id().toString());
-    ps.setString(2, record.worldId().toString());
-    ps.setString(3, record.worldKey());
-    ps.setString(4, record.worldName());
-    ps.setInt(5, record.x());
-    ps.setInt(6, record.y());
-    ps.setInt(7, record.z());
-    ps.setInt(8, record.chunkX());
-    ps.setInt(9, record.chunkZ());
+    ps.setString(2, record.type().id());
+    ps.setString(3, record.worldId().toString());
+    ps.setString(4, record.worldKey());
+    ps.setString(5, record.worldName());
+    ps.setInt(6, record.x());
+    ps.setInt(7, record.y());
+    ps.setInt(8, record.z());
+    ps.setInt(9, record.chunkX());
+    ps.setInt(10, record.chunkZ());
     if (record.placedByUuid() == null) {
-      ps.setNull(10, java.sql.Types.VARCHAR);
+      ps.setNull(11, java.sql.Types.VARCHAR);
     } else {
-      ps.setString(10, record.placedByUuid().toString());
+      ps.setString(11, record.placedByUuid().toString());
     }
-    ps.setString(11, record.placedByName());
-    ps.setInt(12, record.radius());
-    ps.setLong(13, record.createdAt());
-    ps.setLong(14, record.updatedAt());
+    ps.setString(12, record.placedByName());
+    ps.setInt(13, record.radius());
+    ps.setLong(14, record.createdAt());
+    ps.setLong(15, record.updatedAt());
   }
 
   private ChunkLoaderRecord readChunkLoader(ResultSet rs) throws SQLException {
@@ -859,6 +837,7 @@ public class Database implements AutoCloseable {
       UUID placer = placerRaw == null || placerRaw.isBlank() ? null : UUID.fromString(placerRaw);
       return new ChunkLoaderRecord(
           UUID.fromString(rs.getString("id")),
+          readChunkLoaderType(rs, "loader_type"),
           UUID.fromString(rs.getString("world")),
           rs.getString("world_key"),
           rs.getString("world_name"),
@@ -882,6 +861,7 @@ public class Database implements AutoCloseable {
     try {
       return new ChunkLoaderRegistryRecord(
           UUID.fromString(rs.getString("id")),
+          readChunkLoaderType(rs, "loader_type"),
           ChunkLoaderRegistryStatus.fromDb(rs.getString("status")),
           readUuid(rs, "placed_by_uuid"),
           rs.getString("placed_by_name"),
@@ -918,6 +898,13 @@ public class Database implements AutoCloseable {
       logWarning("Skipping invalid chunk loader registry row: " + e.getMessage());
       return null;
     }
+  }
+
+  private static ChunkLoaderType readChunkLoaderType(ResultSet rs, String column)
+      throws SQLException {
+    String raw = rs.getString(column);
+    return ChunkLoaderType.fromNullableId(raw)
+        .orElseThrow(() -> new IllegalArgumentException("Invalid chunk loader type: " + raw));
   }
 
   private static UUID readUuid(ResultSet rs, String column) throws SQLException {

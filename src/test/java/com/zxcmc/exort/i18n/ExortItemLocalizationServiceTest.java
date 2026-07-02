@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
@@ -142,7 +143,7 @@ class ExortItemLocalizationServiceTest {
     Harness harness = harness("en_us");
     UUID id = UUID.fromString("00000000-0000-0000-0000-123456789abc");
     TestItemStack item = item(Material.PAPER, 1);
-    item.meta.pdc.set(harness.keys.type(), "chunk_loader");
+    item.meta.pdc.set(harness.keys.type(), ChunkLoaderType.PERSONAL_CHUNK_LOADER.id());
     item.meta.pdc.set(harness.keys.chunkLoaderId(), id.toString());
     item.meta.itemName = Component.text("Chunk Loader");
 
@@ -150,10 +151,17 @@ class ExortItemLocalizationServiceTest {
 
     assertNotSame(item, localized);
     assertEquals(List.of(), lore(item));
+    assertEquals("Личный загрузчик чанков", plain(localized.getItemMeta().itemName()));
     assertEquals(List.of("123456789abc"), lore(localized));
     assertEquals(
         CustomItemText.chunkLoaderNameColor(), firstColor(localized.getItemMeta().itemName()));
     assertEquals(NamedTextColor.GRAY, firstColor(localized.getItemMeta().lore().getFirst()));
+    assertEquals(
+        ChunkLoaderType.PERSONAL_CHUNK_LOADER.id(),
+        localized
+            .getItemMeta()
+            .getPersistentDataContainer()
+            .get(harness.keys.type(), org.bukkit.persistence.PersistentDataType.STRING));
   }
 
   @Test

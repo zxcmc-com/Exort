@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +20,17 @@ import org.enginehub.linbus.tree.LinTagType;
 import org.junit.jupiter.api.Test;
 
 class WorldEditHistoryCarrierTest {
+  @Test
+  void chunkLoaderSnapshotDataDefaultsAndPreservesFixedType() {
+    UUID id = new UUID(0L, 42L);
+
+    assertEquals(
+        ChunkLoaderType.CHUNK_LOADER, new ChunkLoaderData(id, null, null, null, 100L).type());
+    assertEquals(
+        ChunkLoaderType.DORMANT_CHUNK_LOADER,
+        new ChunkLoaderData(id, ChunkLoaderType.DORMANT_CHUNK_LOADER, null, null, 100L).type());
+  }
+
   @Test
   void historyCarrierRootPreservesExortNbtForRedoReplay() {
     LinCompoundTag terminalTag =

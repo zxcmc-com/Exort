@@ -11,4 +11,11 @@ class GiveCommandTest {
         "/exort give phantomfighterxx storage <tier> [amount]",
         GiveCommand.storageUsageCommand("phantomfighterxx"));
   }
+
+  @Test
+  void chunkLoaderUsageCommandUsesFixedBaseId() {
+    assertEquals(
+        "/exort give phantomfighterxx chunk_loader [amount]",
+        GiveCommand.chunkLoaderUsageCommand("phantomfighterxx"));
+  }
 }

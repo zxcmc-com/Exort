@@ -358,7 +358,9 @@ public final class RuntimeDisplayServicesFactory {
         display.offsetY(),
         display.offsetZ(),
         metadataService,
-        deps.lang().clientComponent(deps.resourceMode(), "item.chunk_loader"));
+        deps.lang().clientComponent(deps.resourceMode(), "item.chunk_loader"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.personal_chunk_loader"),
+        deps.lang().clientComponent(deps.resourceMode(), "item.dormant_chunk_loader"));
   }
 
   private static void registerSanityServices(

@@ -1,5 +1,6 @@
 package com.zxcmc.exort.recipes;
 
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
@@ -410,7 +411,7 @@ public final class RecipeService {
     }
   }
 
-  private ItemStack resolveExortItem(String raw) {
+  ItemStack resolveExortItem(String raw) {
     if (raw == null) return null;
     String id = raw.trim().toLowerCase(Locale.ROOT);
     if (id.startsWith("exort:")) {
@@ -424,6 +425,11 @@ public final class RecipeService {
       case "import_bus" -> customItems.importBusItem();
       case "export_bus" -> customItems.exportBusItem();
       case "relay" -> customItems.relayItem();
+      case "chunk_loader" -> customItems.chunkLoaderItem(ChunkLoaderType.CHUNK_LOADER);
+      case "personal_chunk_loader" ->
+          customItems.chunkLoaderItem(ChunkLoaderType.PERSONAL_CHUNK_LOADER);
+      case "dormant_chunk_loader" ->
+          customItems.chunkLoaderItem(ChunkLoaderType.DORMANT_CHUNK_LOADER);
       case "wireless_terminal" ->
           wirelessService != null
               ? wirelessService.create()

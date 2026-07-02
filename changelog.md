@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.4 — 2026-07-02
+- Added Personal Chunk Loader and Dormant Chunk Loader as separate items alongside the existing Chunk Loader.
+- Chunk Loader keeps the existing always-loaded behavior, Personal Chunk Loader stays loaded while its owner is online with a five-minute offline grace period, and Dormant Chunk Loader starts sleeping after restart until its own chunk is loaded again.
+- Chunk Loader commands and recipe ids now use fixed item ids: `/exort give <player> chunk_loader [amount]`, `/exort give <player> personal_chunk_loader [amount]`, `/exort give <player> dormant_chunk_loader [amount]`, `exort:chunk_loader`, `exort:personal_chunk_loader`, and `exort:dormant_chunk_loader`.
+- Fixed placed Chunk Loader display names for Jade and similar block-inspection overlays so they show localized loader names.
+
 ## 0.18.3 — 2026-07-01
 - Network Relay RESOURCE model now uses a dedicated four-state relay texture atlas instead of the old texture, with the same texture applied to every side.
 - Network Relay now shows a black indicator when it is not connected to storage and has no usable relay peer, a green indicator when it is connected to storage and has a usable relay peer, a blue indicator when it is connected to storage but has no usable relay peer, and a red indicator during relay setup, when it has a usable relay peer but no storage connection, or when the network resolves to multiple storages.

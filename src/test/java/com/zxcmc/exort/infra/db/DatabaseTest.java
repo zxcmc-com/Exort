@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.chunkloader.ChunkLoaderObservation;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRecord;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import java.io.File;
 import java.sql.DriverManager;
 import java.time.Instant;
@@ -43,6 +44,7 @@ class DatabaseTest {
       ChunkLoaderRecord first =
           new ChunkLoaderRecord(
               firstId,
+              ChunkLoaderType.PERSONAL_CHUNK_LOADER,
               worldId,
               "minecraft:overworld",
               "world",
@@ -59,6 +61,7 @@ class DatabaseTest {
       ChunkLoaderRecord second =
           new ChunkLoaderRecord(
               secondId,
+              ChunkLoaderType.DORMANT_CHUNK_LOADER,
               worldId,
               "minecraft:overworld",
               "world",
@@ -78,6 +81,7 @@ class DatabaseTest {
       var registry = database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS);
       assertEquals(1, registry.size());
       assertEquals(firstId, registry.getFirst().id());
+      assertEquals(ChunkLoaderType.PERSONAL_CHUNK_LOADER, registry.getFirst().type());
       assertEquals(ChunkLoaderRegistryStatus.ACTIVE, registry.getFirst().status());
 
       database.saveChunkLoader(second).get(5, TimeUnit.SECONDS);
@@ -104,6 +108,7 @@ class DatabaseTest {
       ChunkLoaderRecord active =
           new ChunkLoaderRecord(
               loaderId,
+              ChunkLoaderType.PERSONAL_CHUNK_LOADER,
               worldId,
               "minecraft:overworld",
               "world",
@@ -158,6 +163,7 @@ class DatabaseTest {
               .get(5, TimeUnit.SECONDS));
 
       var item = database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS).getFirst();
+      assertEquals(ChunkLoaderType.PERSONAL_CHUNK_LOADER, item.type());
       assertEquals(ChunkLoaderRegistryStatus.ITEM, item.status());
       assertEquals("drop", item.lastSource());
       assertEquals(130L, item.lastSeenAt());
@@ -183,51 +189,28 @@ class DatabaseTest {
   }
 
   @Test
-  void chunkLoaderRegistryIsSeededFromExistingActiveRows() throws Exception {
-    File file = tempDir.resolve("chunk-loader-registry-migration.db").toFile();
+  void chunkLoaderRowsWithRemovedVariantIdsAreRejected() throws Exception {
+    File file = tempDir.resolve("chunk-loader-removed-variant.db").toFile();
     UUID worldId = new UUID(0L, 21L);
     UUID loaderId = new UUID(0L, 22L);
-    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
-        var statement = connection.createStatement()) {
-      statement.execute(
-          """
-          CREATE TABLE chunk_loaders (
-              id TEXT PRIMARY KEY,
-              world TEXT NOT NULL,
-              world_key TEXT NOT NULL,
-              world_name TEXT NOT NULL,
-              x INTEGER NOT NULL,
-              y INTEGER NOT NULL,
-              z INTEGER NOT NULL,
-              chunk_x INTEGER NOT NULL,
-              chunk_z INTEGER NOT NULL,
-              placed_by_uuid TEXT NULL,
-              placed_by_name TEXT NOT NULL,
-              radius INTEGER NOT NULL,
-              created_at INTEGER NOT NULL,
-              updated_at INTEGER NOT NULL,
-              UNIQUE(world, x, y, z)
-          )
-          """);
-      statement.execute(
-          "INSERT INTO chunk_loaders(id, world, world_key, world_name, x, y, z, chunk_x,"
-              + " chunk_z, placed_by_uuid, placed_by_name, radius, created_at, updated_at)"
-              + " VALUES('"
-              + loaderId
-              + "', '"
-              + worldId
-              + "', 'minecraft:overworld', 'world', 5, 70, 6, 0, 0, NULL, 'unknown', 1,"
-              + " 100, 105)");
-    }
 
     Database database = new Database();
     database.init(file);
     try {
-      var records = database.listChunkLoaderRegistry().get(5, TimeUnit.SECONDS);
-      assertEquals(1, records.size());
-      assertEquals(loaderId, records.getFirst().id());
-      assertEquals(ChunkLoaderRegistryStatus.ACTIVE, records.getFirst().status());
-      assertEquals(105L, records.getFirst().lastSeenAt());
+      try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+          var statement = connection.createStatement()) {
+        statement.execute(
+            "INSERT INTO chunk_loaders(id, loader_type, world, world_key, world_name, x, y, z,"
+                + " chunk_x, chunk_z, placed_by_uuid, placed_by_name, radius, created_at,"
+                + " updated_at) VALUES('"
+                + loaderId
+                + "', 'personal', '"
+                + worldId
+                + "', 'minecraft:overworld', 'world', 5, 70, 6, 0, 0, NULL, 'unknown',"
+                + " 1, 100, 105)");
+      }
+
+      assertTrue(database.listChunkLoaders().get(5, TimeUnit.SECONDS).isEmpty());
     } finally {
       database.close();
     }

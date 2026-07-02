@@ -2,6 +2,7 @@ package com.zxcmc.exort.items.listener;
 
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
@@ -187,8 +188,12 @@ public final class PickListener implements Listener {
       desired = customItems.relayItem();
       type = "relay";
     } else if (isChunkLoader(target)) {
-      desired = customItems.chunkLoaderItem();
-      type = "chunk_loader";
+      ChunkLoaderType loaderType =
+          ChunkLoaderMarker.get(plugin, target)
+              .map(ChunkLoaderMarker.Data::type)
+              .orElse(ChunkLoaderType.defaultType());
+      desired = customItems.chunkLoaderItem(loaderType);
+      type = loaderType.id();
       alwaysFresh = true;
     } else if (isStorage(target)) {
       var tierOpt = readTier(target);
