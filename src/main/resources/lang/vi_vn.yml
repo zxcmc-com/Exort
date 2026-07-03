@@ -241,7 +241,7 @@ relay:
   storage_tail: "Kho lưu trữ: {0}"
   storage_none: "Kho lưu trữ: không có"
 chunk_loader:
-  status: "UUID {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Bậc: {0}"

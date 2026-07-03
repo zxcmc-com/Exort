@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "start or stop probatio oneris"
   usage_give_header: "Give Exort res:"
   usage_give_storage: "give a quietum res by tier"
-  usage_give_chunk_loader: "give Pemuat Chunk"
+  usage_give_chunk_loader: "Da Pemuat Chunk"
   usage_give_item: "give a fixed Exort res"
   usage_give_items: "Res: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Pakai: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Quietum: {0}"
   storage_none: "Quietum: nihil"
 chunk_loader:
-  status: "UUID {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Gradus: {0}"

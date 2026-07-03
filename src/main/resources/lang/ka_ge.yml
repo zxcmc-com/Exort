@@ -241,7 +241,7 @@ relay:
   storage_tail: "საცავი: {0}"
   storage_none: "საცავი: არ არის"
 chunk_loader:
-  status: "{0}-ის UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "რანგი: {0}"

@@ -584,7 +584,7 @@ public class CustomItems {
   private Component chunkLoaderName(ChunkLoaderType type) {
     ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     return CustomItemText.chunkLoaderName(
-        lang.itemComponent(clientTranslations, safeType.translationKey()));
+        safeType, lang.itemComponent(clientTranslations, safeType.translationKey()));
   }
 
   private String chunkLoaderItemModel(ChunkLoaderType type) {

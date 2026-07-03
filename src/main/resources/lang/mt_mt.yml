@@ -241,7 +241,7 @@ relay:
   storage_tail: "Ħażna: {0}"
   storage_none: "Ħażna: xejn"
 chunk_loader:
-  status: "UUID ta' {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Livell: {0}"

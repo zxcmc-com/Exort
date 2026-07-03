@@ -241,7 +241,7 @@ relay:
   storage_tail: "Mirva: {0}"
   storage_none: "Mirva: hini ebet"
 chunk_loader:
-  status: "UUID ar {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Renk: {0}"

@@ -241,7 +241,7 @@ relay:
   storage_tail: "Poki: {0}"
   storage_none: "Poki: ala"
 chunk_loader:
-  status: "UUID {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "nanpa: {0}"

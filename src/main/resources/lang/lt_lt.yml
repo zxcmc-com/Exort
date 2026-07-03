@@ -241,7 +241,7 @@ relay:
   storage_tail: "Saugykla: {0}"
   storage_none: "Saugykla: nėra"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Pakopa: {0}"

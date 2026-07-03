@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.6 — 2026-07-03
+- Chunk Loader item and placed display names now use distinct colors for standard, Personal, and Dormant loaders.
+- Chunk Loader right-click status messages now show the localized loader name once followed by a generic `UUID:` label across bundled languages, and give-command help no longer mentions a variant argument.
+- Chunk Loader audit logs now include the loader type and correct loader name, record enable/disable and runtime ticket acquire/release events, and keep the default console output quieter while the dedicated audit file remains complete.
+
 ## 0.18.5 — 2026-07-03
 - Chunk Loaders can now be toggled in-world: Shift+RMB disables a placed loader, RMB re-enables a disabled loader, disabled loaders persist across restart and do not hold plugin chunk tickets, and Personal Chunk Loader toggles are limited to the owner or Exort admins.
 - Chunk Loader RESOURCE visuals now use separate active models for standard, Personal, and Dormant loaders plus a disabled model while keeping the existing breaking overlay model path.

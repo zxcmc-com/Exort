@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "pokreni ili zaustavi benchmark opterećenja"
   usage_give_header: "Davanje Exort predmeta:"
   usage_give_storage: "daj predmet skladišta po tieru"
-  usage_give_chunk_loader: "daj loader chunkova po varijanti"
+  usage_give_chunk_loader: "daj loader chunkova"
   usage_give_item: "daj fiksni Exort predmet"
   usage_give_items: "Predmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Upotreba: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Skladište: {0}"
   storage_none: "Skladište: nema"
 chunk_loader:
-  status: "{0}, UUID loadera chunkova: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Nivo: {0}"

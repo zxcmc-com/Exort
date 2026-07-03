@@ -3,7 +3,6 @@ package com.zxcmc.exort.chunkloader;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.UUID;
 
 final class ChunkLoaderAutomationDiff {
   private ChunkLoaderAutomationDiff() {}
@@ -27,27 +26,32 @@ final class ChunkLoaderAutomationDiff {
         destinationAfter == null ? ChunkLoaderItemSnapshot.empty() : destinationAfter;
 
     List<Result> result = new ArrayList<>();
-    for (UUID id :
-        moving.ids().stream().sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()) {
-      int remaining = Math.max(0, moving.count(id));
+    for (ChunkLoaderItemSnapshot.Key key : moving.keys().stream().sorted(keyOrder()).toList()) {
+      int remaining = Math.max(0, moving.count(key));
       int destinationGain =
-          Math.max(0, safeDestinationAfter.count(id) - safeDestinationBefore.count(id));
-      int sourceLoss = Math.max(0, safeSourceBefore.count(id) - safeSourceAfter.count(id));
+          Math.max(0, safeDestinationAfter.count(key) - safeDestinationBefore.count(key));
+      int sourceLoss = Math.max(0, safeSourceBefore.count(key) - safeSourceAfter.count(key));
       int moved =
           sourceLoss > 0
               ? Math.min(Math.min(remaining, sourceLoss), destinationGain)
               : Math.min(remaining, destinationGain);
       if (moved > 0) {
-        result.add(new Result(Action.MOVED, id, moved));
+        result.add(new Result(Action.MOVED, key.id(), key.type(), moved));
       }
       if (sourceLoss > 0) {
         int lost = Math.min(remaining, sourceLoss) - moved;
         if (lost > 0) {
-          result.add(new Result(Action.LOST, id, lost));
+          result.add(new Result(Action.LOST, key.id(), key.type(), lost));
         }
       }
     }
     return List.copyOf(result);
+  }
+
+  private static Comparator<ChunkLoaderItemSnapshot.Key> keyOrder() {
+    return Comparator.comparing(
+            ChunkLoaderItemSnapshot.Key::id, Comparator.nullsFirst(Comparator.naturalOrder()))
+        .thenComparing(key -> key.type().id());
   }
 
   enum Action {
@@ -55,5 +59,5 @@ final class ChunkLoaderAutomationDiff {
     LOST
   }
 
-  record Result(Action action, UUID id, int amount) {}
+  record Result(Action action, java.util.UUID id, ChunkLoaderType type, int amount) {}
 }

@@ -140,14 +140,19 @@ chunkLoader:
       path: logs/chunkloaders.log
       maxSizeBytes: 10485760
       maxFiles: 10
+    # Console event filters only. The dedicated file audit remains full while file.enabled is true.
     events:
       issue: true
-      craft: true
-      inventoryMove: true
-      drop: true
-      pickup: true
+      craft: false
+      inventoryMove: false
+      drop: false
+      pickup: false
       place: true
       break: true
+      enable: true
+      disable: true
+      ticketAcquire: false
+      ticketRelease: false
       destroy: true
       cleanup: true
 

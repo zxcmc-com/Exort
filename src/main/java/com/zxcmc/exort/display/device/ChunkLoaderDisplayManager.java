@@ -48,9 +48,15 @@ public final class ChunkLoaderDisplayManager extends BaseCarrierDisplayManager {
         offsetZ,
         metadataService,
         "chunk_loader");
-    this.chunkLoaderName = safeName(chunkLoaderName, "Chunk Loader");
-    this.personalChunkLoaderName = safeName(personalChunkLoaderName, "Personal Chunk Loader");
-    this.dormantChunkLoaderName = safeName(dormantChunkLoaderName, "Dormant Chunk Loader");
+    this.chunkLoaderName = safeName(ChunkLoaderType.CHUNK_LOADER, chunkLoaderName, "Chunk Loader");
+    this.personalChunkLoaderName =
+        safeName(
+            ChunkLoaderType.PERSONAL_CHUNK_LOADER,
+            personalChunkLoaderName,
+            "Personal Chunk Loader");
+    this.dormantChunkLoaderName =
+        safeName(
+            ChunkLoaderType.DORMANT_CHUNK_LOADER, dormantChunkLoaderName, "Dormant Chunk Loader");
     this.personalDisplayModelId = personalDisplayModelId;
     this.dormantDisplayModelId = dormantDisplayModelId;
     this.disabledDisplayModelId = disabledDisplayModelId;
@@ -109,8 +115,8 @@ public final class ChunkLoaderDisplayManager extends BaseCarrierDisplayManager {
     return ChunkLoaderMarker.get(plugin, block).orElse(null);
   }
 
-  private static Component safeName(Component name, String fallback) {
-    return CustomItemText.chunkLoaderName(name == null ? Component.text(fallback) : name)
+  private static Component safeName(ChunkLoaderType type, Component name, String fallback) {
+    return CustomItemText.chunkLoaderName(type, name == null ? Component.text(fallback) : name)
         .decoration(TextDecoration.ITALIC, false);
   }
 }

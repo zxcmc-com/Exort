@@ -241,7 +241,7 @@ relay:
   storage_tail: "Biltegia: {0}"
   storage_none: "Biltegia: bat ere ez"
 chunk_loader:
-  status: "{0} UUIDa: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Maila: {0}"

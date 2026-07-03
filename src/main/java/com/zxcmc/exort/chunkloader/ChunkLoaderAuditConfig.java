@@ -6,6 +6,16 @@ import org.bukkit.configuration.ConfigurationSection;
 
 public record ChunkLoaderAuditConfig(
     boolean enabled, EnumSet<ChunkLoaderAuditEvent> events, ChunkLoaderAuditFileConfig file) {
+  private static final EnumSet<ChunkLoaderAuditEvent> DEFAULT_CONSOLE_EVENTS =
+      EnumSet.of(
+          ChunkLoaderAuditEvent.ISSUE,
+          ChunkLoaderAuditEvent.PLACE,
+          ChunkLoaderAuditEvent.BREAK,
+          ChunkLoaderAuditEvent.ENABLE,
+          ChunkLoaderAuditEvent.DISABLE,
+          ChunkLoaderAuditEvent.DESTROY,
+          ChunkLoaderAuditEvent.CLEANUP);
+
   public ChunkLoaderAuditConfig(boolean enabled, EnumSet<ChunkLoaderAuditEvent> events) {
     this(enabled, events, ChunkLoaderAuditFileConfig.defaults());
   }
@@ -20,7 +30,8 @@ public record ChunkLoaderAuditConfig(
     EnumSet<ChunkLoaderAuditEvent> events = EnumSet.noneOf(ChunkLoaderAuditEvent.class);
     for (ChunkLoaderAuditEvent event : ChunkLoaderAuditEvent.values()) {
       String path = "chunkLoader.audit.events." + event.configKey();
-      if (config == null || config.getBoolean(path, true)) {
+      boolean defaultEnabled = DEFAULT_CONSOLE_EVENTS.contains(event);
+      if (config == null ? defaultEnabled : config.getBoolean(path, defaultEnabled)) {
         events.add(event);
       }
     }

@@ -241,7 +241,7 @@ relay:
   storage_tail: "Waihona: {0}"
   storage_none: "Waihona: ʻaʻohe"
 chunk_loader:
-  status: "{0} UUID hoʻouka chunk: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Papa: {0}"

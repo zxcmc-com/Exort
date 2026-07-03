@@ -140,6 +140,28 @@ class BundledLanguageFilesTest {
   }
 
   @Test
+  void giveChunkLoaderUsageDoesNotDescribeRemovedVariantArgument() throws IOException {
+    Pattern removedVariantWords =
+        Pattern.compile("(?i)\\b(variant|variante|kind|flavr|varijanti)\\b|варијант|wariant");
+    for (String locale : checkedLocales()) {
+      String value = readRuntimeLang(locale).get("message.usage_give_chunk_loader");
+      assertTrue(
+          !removedVariantWords.matcher(value).find(),
+          locale + " still describes the removed chunk loader variant argument");
+    }
+  }
+
+  @Test
+  void chunkLoaderStatusUsesSingleLoaderNameAndGenericUuidLabel() throws IOException {
+    for (String locale : checkedLocales()) {
+      assertEquals(
+          "{0}. UUID: {1}",
+          readRuntimeLang(locale).get("chunk_loader.status"),
+          locale + " has duplicated or reordered chunk loader status wording");
+    }
+  }
+
+  @Test
   void resourcePackLanguageFilesAreGeneratedAtExportTime() throws IOException {
     if (!Files.exists(PACK_LANG_DIR)) {
       return;

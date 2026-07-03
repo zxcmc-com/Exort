@@ -154,7 +154,8 @@ class ExortItemLocalizationServiceTest {
     assertEquals("Личный загрузчик чанков", plain(localized.getItemMeta().itemName()));
     assertEquals(List.of("123456789abc"), lore(localized));
     assertEquals(
-        CustomItemText.chunkLoaderNameColor(), firstColor(localized.getItemMeta().itemName()));
+        CustomItemText.chunkLoaderNameColor(ChunkLoaderType.PERSONAL_CHUNK_LOADER),
+        firstColor(localized.getItemMeta().itemName()));
     assertEquals(NamedTextColor.GRAY, firstColor(localized.getItemMeta().lore().getFirst()));
     assertEquals(
         ChunkLoaderType.PERSONAL_CHUNK_LOADER.id(),

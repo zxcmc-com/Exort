@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "start or stop load trial"
   usage_give_header: "Give Exort wares:"
   usage_give_storage: "give a storehouse ware by tier"
-  usage_give_chunk_loader: "bestow a Chunk Warden by kind"
+  usage_give_chunk_loader: "bestow a Chunk Warden"
   usage_give_item: "give a fixed Exort ware"
   usage_give_items: "Wares: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Use: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Storehouse: {0}"
   storage_none: "Storehouse: none"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Rank: {0}"

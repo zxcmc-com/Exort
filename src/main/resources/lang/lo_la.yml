@@ -241,7 +241,7 @@ relay:
   storage_tail: "ຄັງເກັບ: {0}"
   storage_none: "ຄັງເກັບ: ບໍ່ມີ"
 chunk_loader:
-  status: "UUID {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "ລະດັບ: {0}"

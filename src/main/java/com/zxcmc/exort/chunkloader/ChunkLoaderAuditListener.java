@@ -60,6 +60,11 @@ public final class ChunkLoaderAuditListener implements Listener {
           public Optional<UUID> chunkLoaderId(ItemStack stack) {
             return ChunkLoaderAuditListener.this.chunkLoaderId(stack);
           }
+
+          @Override
+          public ChunkLoaderType chunkLoaderType(ItemStack stack) {
+            return ChunkLoaderAuditListener.this.customItems.chunkLoaderType(stack);
+          }
         };
   }
 
@@ -71,6 +76,7 @@ public final class ChunkLoaderAuditListener implements Listener {
           ChunkLoaderAuditEvent.DROP,
           event.getPlayer(),
           chunkLoaderId(stack).orElse(null),
+          customItems.chunkLoaderType(stack),
           null,
           "amount=" + stack.getAmount());
       observeItem(
@@ -93,6 +99,7 @@ public final class ChunkLoaderAuditListener implements Listener {
           ChunkLoaderAuditEvent.PICKUP,
           player,
           chunkLoaderId(stack).orElse(null),
+          customItems.chunkLoaderType(stack),
           null,
           "amount=" + stack.getAmount());
       observeItem(stack, player, ChunkLoaderAuditEvent.PICKUP, "pickup", player.getLocation());
@@ -174,6 +181,7 @@ public final class ChunkLoaderAuditListener implements Listener {
         null,
         null,
         chunkLoaderId(stack).orElse(null),
+        customItems.chunkLoaderType(stack),
         stack.getAmount(),
         destroyReason(event.getCause(), damageCause),
         item.getLocation());
@@ -328,9 +336,15 @@ public final class ChunkLoaderAuditListener implements Listener {
     switch (transfer.direction()) {
       case INTO_EXTERNAL -> {
         auditLogger.logInventoryTransfer(
-            actor, transfer.id(), transfer.amount(), inventoryName, inventoryLocation);
+            actor,
+            transfer.id(),
+            transfer.type(),
+            transfer.amount(),
+            inventoryName,
+            inventoryLocation);
         observeId(
             transfer.id(),
+            transfer.type(),
             actor,
             ChunkLoaderAuditEvent.INVENTORY_MOVE,
             "inventory_into",
@@ -338,9 +352,15 @@ public final class ChunkLoaderAuditListener implements Listener {
       }
       case INTO_PLAYER -> {
         auditLogger.logInventoryTake(
-            actor, transfer.id(), transfer.amount(), inventoryName, inventoryLocation);
+            actor,
+            transfer.id(),
+            transfer.type(),
+            transfer.amount(),
+            inventoryName,
+            inventoryLocation);
         observeId(
             transfer.id(),
+            transfer.type(),
             actor,
             ChunkLoaderAuditEvent.INVENTORY_MOVE,
             "inventory_take",
@@ -348,7 +368,12 @@ public final class ChunkLoaderAuditListener implements Listener {
       }
       case LOST_FROM_EXTERNAL -> {
         auditLogger.logInventoryDisappearance(
-            actor, transfer.id(), transfer.amount(), inventoryName, inventoryLocation);
+            actor,
+            transfer.id(),
+            transfer.type(),
+            transfer.amount(),
+            inventoryName,
+            inventoryLocation);
         recordItemLoss(
             transfer.id(),
             ChunkLoaderRegistryStatus.LOST,
@@ -378,6 +403,7 @@ public final class ChunkLoaderAuditListener implements Listener {
         case MOVED -> {
           auditLogger.logAutomationTransfer(
               result.id(),
+              result.type(),
               result.amount(),
               sourceName,
               destinationName,
@@ -385,6 +411,7 @@ public final class ChunkLoaderAuditListener implements Listener {
               destinationLocation);
           observeId(
               result.id(),
+              result.type(),
               null,
               ChunkLoaderAuditEvent.INVENTORY_MOVE,
               "automation_move",
@@ -393,6 +420,7 @@ public final class ChunkLoaderAuditListener implements Listener {
         case LOST -> {
           auditLogger.logAutomationLoss(
               result.id(),
+              result.type(),
               result.amount(),
               sourceName,
               destinationName,
@@ -416,11 +444,12 @@ public final class ChunkLoaderAuditListener implements Listener {
       ChunkLoaderItemSnapshot after,
       String reason,
       ChunkLoaderRegistryStatus status) {
-    for (UUID id : before.ids()) {
-      int lost = before.count(id) - after.count(id);
+    for (ChunkLoaderItemSnapshot.Key key : before.keys()) {
+      int lost = before.count(key) - after.count(key);
       if (lost > 0) {
-        auditLogger.logItemDestroy(actor, target, id, lost, reason, target.getLocation());
-        recordItemLoss(id, status, target, reason, target.getLocation());
+        auditLogger.logItemDestroy(
+            actor, target, key.id(), key.type(), lost, reason, target.getLocation());
+        recordItemLoss(key.id(), status, target, reason, target.getLocation());
       }
     }
   }
@@ -431,11 +460,22 @@ public final class ChunkLoaderAuditListener implements Listener {
       ChunkLoaderAuditEvent event,
       String source,
       Location location) {
-    observeId(chunkLoaderId(stack).orElse(null), actor, event, source, location);
+    observeId(
+        chunkLoaderId(stack).orElse(null),
+        customItems.chunkLoaderType(stack),
+        actor,
+        event,
+        source,
+        location);
   }
 
   private void observeId(
-      UUID id, Player actor, ChunkLoaderAuditEvent event, String source, Location location) {
+      UUID id,
+      ChunkLoaderType type,
+      Player actor,
+      ChunkLoaderAuditEvent event,
+      String source,
+      Location location) {
     if (id == null || database == null) {
       return;
     }
@@ -453,7 +493,7 @@ public final class ChunkLoaderAuditListener implements Listener {
                 return;
               }
               PluginTasks.runSyncIfEnabled(
-                  plugin, () -> auditLogger.logFound(event, actor, id, source, location));
+                  plugin, () -> auditLogger.logFound(event, actor, id, type, source, location));
             });
   }
 

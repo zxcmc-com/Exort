@@ -227,7 +227,11 @@ final class GiveCommand {
         .chunkLoaderService()
         .auditLogger()
         .logIssue(
-            sender instanceof Player player ? player : null, target, giveAmount, "/exort give");
+            sender instanceof Player player ? player : null,
+            target,
+            giveAmount,
+            safeType,
+            "/exort give");
     return 1;
   }
 

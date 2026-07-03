@@ -174,10 +174,15 @@ public final class ChunkLoaderService implements Listener {
                     plugin,
                     () ->
                         auditLogger.logFound(
-                            ChunkLoaderAuditEvent.PLACE, player, id, "place", foundLocation));
+                            ChunkLoaderAuditEvent.PLACE,
+                            player,
+                            id,
+                            safeType,
+                            "place",
+                            foundLocation));
               }
             });
-    auditLogger.log(ChunkLoaderAuditEvent.PLACE, player, id, block);
+    auditLogger.log(ChunkLoaderAuditEvent.PLACE, player, id, safeType, block);
     return true;
   }
 
@@ -222,7 +227,7 @@ public final class ChunkLoaderService implements Listener {
               });
     }
     ChunkLoaderMarker.clear(plugin, block);
-    auditLogger.log(ChunkLoaderAuditEvent.BREAK, player, id, block);
+    auditLogger.log(ChunkLoaderAuditEvent.BREAK, player, id, record.type(), block);
     return Optional.of(id);
   }
 
@@ -270,11 +275,11 @@ public final class ChunkLoaderService implements Listener {
               return false;
             });
     auditLogger.log(
-        ChunkLoaderAuditEvent.CLEANUP,
+        enabled ? ChunkLoaderAuditEvent.ENABLE : ChunkLoaderAuditEvent.DISABLE,
         player,
         updated.id(),
-        block,
-        enabled ? "toggle_enabled" : "toggle_disabled");
+        updated.type(),
+        block);
     return enabled ? ToggleResult.ENABLED : ToggleResult.DISABLED;
   }
 
@@ -282,7 +287,10 @@ public final class ChunkLoaderService implements Listener {
     if (block == null || block.getWorld() == null) {
       return;
     }
-    UUID id = ChunkLoaderMarker.get(plugin, block).map(ChunkLoaderMarker.Data::id).orElse(null);
+    Optional<ChunkLoaderMarker.Data> marker = ChunkLoaderMarker.get(plugin, block);
+    UUID id = marker.map(ChunkLoaderMarker.Data::id).orElse(null);
+    ChunkLoaderType auditType =
+        marker.map(ChunkLoaderMarker.Data::type).orElse(ChunkLoaderType.defaultType());
     if (id == null) {
       id = byBlock.get(BlockKey.of(block));
     }
@@ -291,14 +299,12 @@ public final class ChunkLoaderService implements Listener {
       if (record == null) {
         long now = Instant.now().getEpochSecond();
         ChunkLoaderType type =
-            ChunkLoaderMarker.get(plugin, block)
-                .map(ChunkLoaderMarker.Data::type)
-                .orElse(ChunkLoaderType.defaultType());
-        boolean enabled =
-            ChunkLoaderMarker.get(plugin, block).map(ChunkLoaderMarker.Data::enabled).orElse(true);
+            marker.map(ChunkLoaderMarker.Data::type).orElse(ChunkLoaderType.defaultType());
+        boolean enabled = marker.map(ChunkLoaderMarker.Data::enabled).orElse(true);
         record =
             ChunkLoaderRecord.fromBlock(block, id, type, null, null, radius(), enabled, now, now);
       }
+      auditType = record.type();
       deactivate(id, block);
       database.deleteChunkLoader(id).exceptionally(this::logDeleteFailure);
       ChunkLoaderObservation observation =
@@ -319,7 +325,7 @@ public final class ChunkLoaderService implements Listener {
           .exceptionally(this::logDeleteFailure);
     }
     ChunkLoaderMarker.clear(plugin, block);
-    auditLogger.log(ChunkLoaderAuditEvent.CLEANUP, null, id, block, reason);
+    auditLogger.log(ChunkLoaderAuditEvent.CLEANUP, null, id, auditType, block, reason);
   }
 
   public void reconcileBlock(Block block) {
@@ -338,7 +344,8 @@ public final class ChunkLoaderService implements Listener {
     ChunkLoaderRecord existing = byId.get(data.id());
     if (existing != null && !existing.sameBlock(block)) {
       ChunkLoaderMarker.clear(plugin, block);
-      auditLogger.log(ChunkLoaderAuditEvent.CLEANUP, null, data.id(), block, "duplicate_marker");
+      auditLogger.log(
+          ChunkLoaderAuditEvent.CLEANUP, null, data.id(), data.type(), block, "duplicate_marker");
       return;
     }
     if (existing != null) {
@@ -374,11 +381,13 @@ public final class ChunkLoaderService implements Listener {
                             ChunkLoaderAuditEvent.PLACE,
                             null,
                             data.id(),
+                            data.type(),
                             "restore_from_marker",
                             foundLocation));
               }
             });
-    auditLogger.log(ChunkLoaderAuditEvent.CLEANUP, null, data.id(), block, "restore_from_marker");
+    auditLogger.log(
+        ChunkLoaderAuditEvent.CLEANUP, null, data.id(), data.type(), block, "restore_from_marker");
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -399,7 +408,7 @@ public final class ChunkLoaderService implements Listener {
       if (!record.enabled()) continue;
       if (!playerId.equals(record.placedByUuid())) continue;
       cancelPersonalRelease(record.id());
-      activateTickets(record);
+      activateTickets(record, "owner_join");
     }
   }
 
@@ -448,7 +457,7 @@ public final class ChunkLoaderService implements Listener {
       if (current != null
           && current.enabled()
           && current.type() == ChunkLoaderType.DORMANT_CHUNK_LOADER) {
-        activateTickets(current);
+        activateTickets(current, "chunk_load");
       }
     }
   }
@@ -572,7 +581,7 @@ public final class ChunkLoaderService implements Listener {
                   if (owner != null && owner.isOnline()) {
                     return;
                   }
-                  releaseTickets(current);
+                  releaseTickets(current, "owner_grace_expired");
                 },
                 PERSONAL_GRACE_TICKS);
     personalReleaseTasks.put(record.id(), task);
@@ -586,6 +595,10 @@ public final class ChunkLoaderService implements Listener {
   }
 
   private void activateTickets(ChunkLoaderRecord record) {
+    activateTickets(record, "runtime_ticket");
+  }
+
+  private void activateTickets(ChunkLoaderRecord record, String reason) {
     if (record == null || !record.enabled() || ticketedIds.contains(record.id())) {
       return;
     }
@@ -603,9 +616,14 @@ public final class ChunkLoaderService implements Listener {
       }
       ticketRefs.put(key, refs + 1);
     }
+    auditLogger.logTicket(ChunkLoaderAuditEvent.TICKET_ACQUIRE, record, reason);
   }
 
   private void releaseTickets(ChunkLoaderRecord record) {
+    releaseTickets(record, "runtime_ticket");
+  }
+
+  private void releaseTickets(ChunkLoaderRecord record, String reason) {
     if (record == null || !ticketedIds.remove(record.id())) {
       return;
     }
@@ -623,6 +641,7 @@ public final class ChunkLoaderService implements Listener {
         ticketRefs.put(key, refs - 1);
       }
     }
+    auditLogger.logTicket(ChunkLoaderAuditEvent.TICKET_RELEASE, record, reason);
   }
 
   private Void logDeleteFailure(Throwable err) {

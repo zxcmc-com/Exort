@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 final class ChunkLoaderInventoryDiff {
   private ChunkLoaderInventoryDiff() {}
@@ -24,30 +23,40 @@ final class ChunkLoaderInventoryDiff {
     ChunkLoaderItemSnapshot safePlayerAfter =
         playerAfter == null ? ChunkLoaderItemSnapshot.empty() : playerAfter;
 
-    Set<UUID> ids = new LinkedHashSet<>();
-    ids.addAll(safeExternalBefore.unionIds(safeExternalAfter));
-    ids.addAll(safePlayerBefore.unionIds(safePlayerAfter));
+    Set<ChunkLoaderItemSnapshot.Key> keys = new LinkedHashSet<>();
+    keys.addAll(safeExternalBefore.unionKeys(safeExternalAfter));
+    keys.addAll(safePlayerBefore.unionKeys(safePlayerAfter));
 
     List<Transfer> result = new ArrayList<>();
-    for (UUID id : ids.stream().sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()) {
-      int externalDelta = safeExternalAfter.count(id) - safeExternalBefore.count(id);
-      int playerDelta = safePlayerAfter.count(id) - safePlayerBefore.count(id);
+    for (ChunkLoaderItemSnapshot.Key key : keys.stream().sorted(keyOrder()).toList()) {
+      int externalDelta = safeExternalAfter.count(key) - safeExternalBefore.count(key);
+      int playerDelta = safePlayerAfter.count(key) - safePlayerBefore.count(key);
       if (externalDelta > 0 && playerDelta < 0) {
         result.add(
-            new Transfer(Direction.INTO_EXTERNAL, id, Math.min(externalDelta, -playerDelta)));
+            new Transfer(
+                Direction.INTO_EXTERNAL,
+                key.id(),
+                key.type(),
+                Math.min(externalDelta, -playerDelta)));
       } else if (externalDelta < 0) {
         int externalLoss = -externalDelta;
         int taken = playerDelta > 0 ? Math.min(externalLoss, playerDelta) : 0;
         if (taken > 0) {
-          result.add(new Transfer(Direction.INTO_PLAYER, id, taken));
+          result.add(new Transfer(Direction.INTO_PLAYER, key.id(), key.type(), taken));
         }
         int lost = externalLoss - taken;
         if (lost > 0) {
-          result.add(new Transfer(Direction.LOST_FROM_EXTERNAL, id, lost));
+          result.add(new Transfer(Direction.LOST_FROM_EXTERNAL, key.id(), key.type(), lost));
         }
       }
     }
     return List.copyOf(result);
+  }
+
+  private static Comparator<ChunkLoaderItemSnapshot.Key> keyOrder() {
+    return Comparator.comparing(
+            ChunkLoaderItemSnapshot.Key::id, Comparator.nullsFirst(Comparator.naturalOrder()))
+        .thenComparing(key -> key.type().id());
   }
 
   enum Direction {
@@ -56,5 +65,5 @@ final class ChunkLoaderInventoryDiff {
     LOST_FROM_EXTERNAL
   }
 
-  record Transfer(Direction direction, UUID id, int amount) {}
+  record Transfer(Direction direction, java.util.UUID id, ChunkLoaderType type, int amount) {}
 }

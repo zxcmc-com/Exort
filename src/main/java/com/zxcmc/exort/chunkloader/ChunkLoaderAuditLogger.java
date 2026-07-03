@@ -1,13 +1,15 @@
 package com.zxcmc.exort.chunkloader;
 
+import com.zxcmc.exort.items.CustomItemText;
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -19,6 +21,7 @@ import org.bukkit.entity.Player;
 
 public final class ChunkLoaderAuditLogger implements AutoCloseable {
   private static final TextColor EXORT_ORANGE = TextColor.color(0xFF9900);
+  private static final String ANSI_RESET = "\u001B[0m";
   private static final PlainTextComponentSerializer PLAIN =
       PlainTextComponentSerializer.plainText();
 
@@ -33,29 +36,43 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   public ChunkLoaderAuditLogger(
       Logger logger, ChunkLoaderAuditConfig config, ChunkLoaderAuditFileWriter fileWriter) {
     this.logger = logger;
-    this.config =
-        config == null
-            ? new ChunkLoaderAuditConfig(true, EnumSet.allOf(ChunkLoaderAuditEvent.class))
-            : config;
+    this.config = config == null ? ChunkLoaderAuditConfig.fromConfig(null) : config;
     this.fileWriter = fileWriter == null ? ChunkLoaderAuditFileWriter.noop() : fileWriter;
   }
 
   public void log(ChunkLoaderAuditEvent event, Player actor, UUID loaderId, Block block) {
-    log(event, actor, loaderId, block, null);
+    log(event, actor, loaderId, ChunkLoaderType.defaultType(), block, null);
   }
 
   public void log(
       ChunkLoaderAuditEvent event, Player actor, UUID loaderId, Block block, String detail) {
+    log(event, actor, loaderId, ChunkLoaderType.defaultType(), block, detail);
+  }
+
+  public void log(
+      ChunkLoaderAuditEvent event, Player actor, UUID loaderId, ChunkLoaderType type, Block block) {
+    log(event, actor, loaderId, type, block, null);
+  }
+
+  public void log(
+      ChunkLoaderAuditEvent event,
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      Block block,
+      String detail) {
     if (event == null) {
       return;
     }
+    ChunkLoaderType safeType = safeType(type);
     int amount = amountFromDetail(detail);
     if (shouldConsoleLog(event)) {
-      emitConsole(eventMessage(event, actor, loaderId, block, detail));
+      emitConsole(eventMessage(event, actor, loaderId, safeType, block, detail));
     }
     writeFile(
         fileAction(event),
         loaderId,
+        safeType,
         amount,
         actor,
         event == ChunkLoaderAuditEvent.CLEANUP ? "Exort" : "Console",
@@ -69,6 +86,12 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   }
 
   public void logIssue(Player actor, Player target, int amount, String source) {
+    logIssue(actor, target, amount, ChunkLoaderType.defaultType(), source);
+  }
+
+  public void logIssue(
+      Player actor, Player target, int amount, ChunkLoaderType type, String source) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.ISSUE)) {
       boolean inventoryIssue =
@@ -78,7 +101,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
               .append(actor(actor))
               .append(
                   Component.text(inventoryIssue ? " received " : " issued ", NamedTextColor.GRAY))
-              .append(chunkLoaderName(safeAmount, null));
+              .append(chunkLoaderName(safeAmount, safeType, null));
       if (!inventoryIssue && target != null) {
         message =
             message.append(Component.text(" to ", NamedTextColor.GRAY)).append(playerName(target));
@@ -90,6 +113,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         "issue",
         null,
+        safeType,
         safeAmount,
         actor,
         "Console",
@@ -104,13 +128,25 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
 
   public void logInventoryTransfer(
       Player actor, UUID loaderId, int amount, String destination, Location destinationLocation) {
+    logInventoryTransfer(
+        actor, loaderId, ChunkLoaderType.defaultType(), amount, destination, destinationLocation);
+  }
+
+  public void logInventoryTransfer(
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String destination,
+      Location destinationLocation) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.INVENTORY_MOVE)) {
       Component message =
           prefix()
               .append(actor(actor))
               .append(Component.text(" moved ", NamedTextColor.GRAY))
-              .append(chunkLoaderName(safeAmount, loaderId))
+              .append(chunkLoaderName(safeAmount, safeType, loaderId))
               .append(Component.text(" into ", NamedTextColor.GRAY))
               .append(Component.text(cleanDestination(destination), NamedTextColor.YELLOW));
       emitConsole(appendActorLocation(message, actor));
@@ -118,6 +154,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         "inventory_into",
         loaderId,
+        safeType,
         safeAmount,
         actor,
         "Console",
@@ -132,13 +169,25 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
 
   public void logInventoryTake(
       Player actor, UUID loaderId, int amount, String source, Location sourceLocation) {
+    logInventoryTake(
+        actor, loaderId, ChunkLoaderType.defaultType(), amount, source, sourceLocation);
+  }
+
+  public void logInventoryTake(
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String source,
+      Location sourceLocation) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.INVENTORY_MOVE)) {
       Component message =
           prefix()
               .append(actor(actor))
               .append(Component.text(" took ", NamedTextColor.GRAY))
-              .append(chunkLoaderName(safeAmount, loaderId))
+              .append(chunkLoaderName(safeAmount, safeType, loaderId))
               .append(Component.text(" from ", NamedTextColor.GRAY))
               .append(Component.text(cleanDestination(source), NamedTextColor.YELLOW));
       emitConsole(appendActorLocation(message, actor));
@@ -146,6 +195,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         "inventory_take",
         loaderId,
+        safeType,
         safeAmount,
         actor,
         "Console",
@@ -160,11 +210,23 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
 
   public void logInventoryDisappearance(
       Player actor, UUID loaderId, int amount, String source, Location sourceLocation) {
+    logInventoryDisappearance(
+        actor, loaderId, ChunkLoaderType.defaultType(), amount, source, sourceLocation);
+  }
+
+  public void logInventoryDisappearance(
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String source,
+      Location sourceLocation) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.DESTROY)) {
       Component message =
           prefix()
-              .append(chunkLoaderName(safeAmount, loaderId))
+              .append(chunkLoaderName(safeAmount, safeType, loaderId))
               .append(Component.text(" disappeared from ", NamedTextColor.GRAY))
               .append(Component.text(cleanDestination(source), NamedTextColor.YELLOW))
               .append(Component.text(" during inventory interaction", NamedTextColor.GRAY));
@@ -181,6 +243,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         "disappeared",
         loaderId,
+        safeType,
         safeAmount,
         actor,
         "Environment",
@@ -200,13 +263,32 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       String destination,
       Location sourceLocation,
       Location destinationLocation) {
+    logAutomationTransfer(
+        loaderId,
+        ChunkLoaderType.defaultType(),
+        amount,
+        source,
+        destination,
+        sourceLocation,
+        destinationLocation);
+  }
+
+  public void logAutomationTransfer(
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String source,
+      String destination,
+      Location sourceLocation,
+      Location destinationLocation) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.INVENTORY_MOVE)) {
       Component message =
           prefix()
               .append(environment())
               .append(Component.text(" moved ", NamedTextColor.GRAY))
-              .append(chunkLoaderName(safeAmount, loaderId))
+              .append(chunkLoaderName(safeAmount, safeType, loaderId))
               .append(Component.text(" from ", NamedTextColor.GRAY))
               .append(Component.text(cleanDestination(source), NamedTextColor.YELLOW))
               .append(Component.text(" to ", NamedTextColor.GRAY))
@@ -216,6 +298,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         "automation_move",
         loaderId,
+        safeType,
         safeAmount,
         null,
         "Environment",
@@ -235,11 +318,30 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       String destination,
       Location sourceLocation,
       Location destinationLocation) {
+    logAutomationLoss(
+        loaderId,
+        ChunkLoaderType.defaultType(),
+        amount,
+        source,
+        destination,
+        sourceLocation,
+        destinationLocation);
+  }
+
+  public void logAutomationLoss(
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String source,
+      String destination,
+      Location sourceLocation,
+      Location destinationLocation) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.DESTROY)) {
       Component message =
           prefix()
-              .append(chunkLoaderName(safeAmount, loaderId))
+              .append(chunkLoaderName(safeAmount, safeType, loaderId))
               .append(
                   Component.text(" disappeared during automation transfer", NamedTextColor.GRAY))
               .append(Component.text(" from ", NamedTextColor.GRAY))
@@ -251,6 +353,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         "automation_lost",
         loaderId,
+        safeType,
         safeAmount,
         null,
         "Environment",
@@ -269,15 +372,26 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       UUID loaderId,
       String source,
       Location location) {
+    logFound(controllingEvent, actor, loaderId, ChunkLoaderType.defaultType(), source, location);
+  }
+
+  public void logFound(
+      ChunkLoaderAuditEvent controllingEvent,
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      String source,
+      Location location) {
     if (loaderId == null || controllingEvent == null) {
       return;
     }
+    ChunkLoaderType safeType = safeType(type);
     if (shouldConsoleLog(controllingEvent)) {
       Component message =
           prefix()
               .append(actor == null ? environment() : playerName(actor))
               .append(Component.text(" found ", NamedTextColor.GRAY))
-              .append(chunkLoaderName(1, loaderId));
+              .append(chunkLoaderName(1, safeType, loaderId));
       message = appendSource(message, source);
       if (location != null && location.getWorld() != null) {
         message =
@@ -290,14 +404,39 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       emitConsole(appendActorLocation(message, actor));
     }
     writeFile(
-        "found", loaderId, 1, actor, "Environment", null, location, null, null, source, null, null);
+        "found",
+        loaderId,
+        safeType,
+        1,
+        actor,
+        "Environment",
+        null,
+        location,
+        null,
+        null,
+        source,
+        null,
+        null);
   }
 
   public void logItemDestroy(
       Player actor, Player target, UUID loaderId, int amount, String reason, Location location) {
+    logItemDestroy(
+        actor, target, loaderId, ChunkLoaderType.defaultType(), amount, reason, location);
+  }
+
+  public void logItemDestroy(
+      Player actor,
+      Player target,
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String reason,
+      Location location) {
+    ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.DESTROY)) {
-      Component message = itemLossStart(actor, target, loaderId, safeAmount, reason);
+      Component message = itemLossStart(actor, target, loaderId, safeType, safeAmount, reason);
       if (target != null && (actor == null || !actor.getUniqueId().equals(target.getUniqueId()))) {
         message =
             message
@@ -323,6 +462,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     writeFile(
         itemLossAction(reason),
         loaderId,
+        safeType,
         safeAmount,
         actor,
         target == null ? "Environment" : "Console",
@@ -335,6 +475,35 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
         reason);
   }
 
+  public void logTicket(ChunkLoaderAuditEvent event, ChunkLoaderRecord record, String reason) {
+    if (record == null
+        || (event != ChunkLoaderAuditEvent.TICKET_ACQUIRE
+            && event != ChunkLoaderAuditEvent.TICKET_RELEASE)) {
+      return;
+    }
+    ChunkLoaderType safeType = safeType(record.type());
+    if (shouldConsoleLog(event)) {
+      Component message =
+          prefix()
+              .append(Component.text("Exort", NamedTextColor.GOLD))
+              .append(Component.text(" " + action(event) + " ", NamedTextColor.GRAY))
+              .append(chunkLoaderName(1, safeType, record.id()))
+              .append(Component.text(" at ", NamedTextColor.GRAY))
+              .append(recordCoordinates(record))
+              .append(Component.text(", ", NamedTextColor.GRAY))
+              .append(Component.text(record.worldName(), NamedTextColor.GREEN));
+      if (reason != null && !reason.isBlank()) {
+        message =
+            message
+                .append(Component.text(" (reason: ", NamedTextColor.DARK_GRAY))
+                .append(Component.text(humanReason(reason), NamedTextColor.GRAY))
+                .append(Component.text(")", NamedTextColor.DARK_GRAY));
+      }
+      emitConsole(message);
+    }
+    writeRecordFile(fileAction(event), record, safeType, reason);
+  }
+
   private boolean shouldConsoleLog(ChunkLoaderAuditEvent event) {
     return logger != null && config.shouldLog(event);
   }
@@ -342,6 +511,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   private void writeFile(
       String action,
       UUID loaderId,
+      ChunkLoaderType type,
       int amount,
       Player actor,
       String fallbackActor,
@@ -355,13 +525,8 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     if (!config.shouldWriteFile()) {
       return;
     }
-    Map<String, String> fields = new LinkedHashMap<>();
-    fields.put("timestamp", Instant.now().toString());
-    fields.put("action", action == null || action.isBlank() ? "unknown" : action);
-    fields.put("uuid", loaderId == null ? "unassigned" : loaderId.toString());
-    fields.put("amount", Integer.toString(Math.max(1, amount)));
-    fields.put("actor", actor == null ? fallback(fallbackActor, "Environment") : actor.getName());
-    fields.put("actor_uuid", actor == null ? "-" : actor.getUniqueId().toString());
+    Map<String, String> fields =
+        baseFields(action, loaderId, type, Math.max(1, amount), actor, fallbackActor);
     fields.put("player_location", actor == null ? "-" : locationText(actor.getLocation()));
     fields.put("block_location", block == null ? "-" : blockLocationText(block));
     fields.put("event_location", locationText(eventLocation));
@@ -371,6 +536,43 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     fields.put("destination_location", locationText(destinationLocation));
     fields.put("reason", reason);
     fileWriter.write(formatFields(fields));
+  }
+
+  private void writeRecordFile(
+      String action, ChunkLoaderRecord record, ChunkLoaderType type, String reason) {
+    if (!config.shouldWriteFile()) {
+      return;
+    }
+    Map<String, String> fields = baseFields(action, record.id(), type, 1, null, "Exort");
+    fields.put("player_location", "-");
+    fields.put("block_location", recordBlockLocationText(record));
+    fields.put("event_location", recordEventLocationText(record));
+    fields.put("source", "runtime");
+    fields.put("source_location", "-");
+    fields.put("destination", "-");
+    fields.put("destination_location", "-");
+    fields.put("reason", reason);
+    fileWriter.write(formatFields(fields));
+  }
+
+  private static Map<String, String> baseFields(
+      String action,
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      Player actor,
+      String fallbackActor) {
+    ChunkLoaderType safeType = safeType(type);
+    Map<String, String> fields = new LinkedHashMap<>();
+    fields.put("timestamp", Instant.now().toString());
+    fields.put("action", action == null || action.isBlank() ? "unknown" : action);
+    fields.put("uuid", loaderId == null ? "unassigned" : loaderId.toString());
+    fields.put("type", safeType.id());
+    fields.put("name", plainChunkLoaderName(safeType));
+    fields.put("amount", Integer.toString(Math.max(1, amount)));
+    fields.put("actor", actor == null ? fallback(fallbackActor, "Environment") : actor.getName());
+    fields.put("actor_uuid", actor == null ? "-" : actor.getUniqueId().toString());
+    return fields;
   }
 
   private static String formatFields(Map<String, String> fields) {
@@ -398,7 +600,12 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   }
 
   private Component eventMessage(
-      ChunkLoaderAuditEvent event, Player actor, UUID loaderId, Block block, String detail) {
+      ChunkLoaderAuditEvent event,
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      Block block,
+      String detail) {
     Component message = prefix();
     if (event == ChunkLoaderAuditEvent.CLEANUP) {
       message = message.append(Component.text("Exort", NamedTextColor.GOLD));
@@ -408,7 +615,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     message =
         message
             .append(Component.text(" " + action(event) + " ", NamedTextColor.GRAY))
-            .append(chunkLoaderName(amountFromDetail(detail), loaderId));
+            .append(chunkLoaderName(amountFromDetail(detail), type, loaderId));
     if (block != null && block.getWorld() != null) {
       message =
           message
@@ -436,6 +643,10 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       case PICKUP -> "picked up";
       case PLACE -> "placed";
       case BREAK -> "broke";
+      case ENABLE -> "enabled";
+      case DISABLE -> "disabled";
+      case TICKET_ACQUIRE -> "loaded chunks for";
+      case TICKET_RELEASE -> "released chunks for";
       case DESTROY -> "lost";
       case CLEANUP -> "cleaned up";
     };
@@ -450,6 +661,10 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       case PICKUP -> "pickup";
       case PLACE -> "place";
       case BREAK -> "break";
+      case ENABLE -> "enable";
+      case DISABLE -> "disable";
+      case TICKET_ACQUIRE -> "ticket_acquire";
+      case TICKET_RELEASE -> "ticket_release";
       case DESTROY -> "lost";
       case CLEANUP -> "cleanup";
     };
@@ -478,14 +693,14 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   }
 
   private static Component itemLossStart(
-      Player actor, Player target, UUID loaderId, int amount, String reason) {
+      Player actor, Player target, UUID loaderId, ChunkLoaderType type, int amount, String reason) {
     if (actor == null && target == null && !isKnownPhysicalDestruction(reason)) {
-      return prefix().append(chunkLoaderName(amount, loaderId)).append(disappearedText());
+      return prefix().append(chunkLoaderName(amount, type, loaderId)).append(disappearedText());
     }
     return prefix()
         .append(destroyActor(actor, target))
         .append(Component.text(" " + itemLossAction(reason) + " ", NamedTextColor.GRAY))
-        .append(chunkLoaderName(amount, loaderId));
+        .append(chunkLoaderName(amount, type, loaderId));
   }
 
   private static Component disappearedText() {
@@ -523,11 +738,11 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
         .append(Component.text(" (" + player.getUniqueId() + ")", NamedTextColor.DARK_GRAY));
   }
 
-  private static Component chunkLoaderName(int amount, UUID loaderId) {
+  private static Component chunkLoaderName(int amount, ChunkLoaderType type, UUID loaderId) {
+    ChunkLoaderType safeType = safeType(type);
     Component component =
-        amount > 1
-            ? Component.text(amount + " Chunk Loaders", NamedTextColor.AQUA)
-            : Component.text("Chunk Loader", NamedTextColor.AQUA);
+        CustomItemText.chunkLoaderName(
+            safeType, Component.text(plainChunkLoaderName(safeType, amount)));
     if (loaderId != null) {
       component =
           component
@@ -535,6 +750,27 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
               .append(Component.text(loaderId.toString(), NamedTextColor.DARK_GRAY));
     }
     return component;
+  }
+
+  private static String plainChunkLoaderName(ChunkLoaderType type) {
+    return switch (safeType(type)) {
+      case PERSONAL_CHUNK_LOADER -> "Personal Chunk Loader";
+      case DORMANT_CHUNK_LOADER -> "Dormant Chunk Loader";
+      case CHUNK_LOADER -> "Chunk Loader";
+    };
+  }
+
+  private static String plainChunkLoaderName(ChunkLoaderType type, int amount) {
+    if (amount <= 1) {
+      return plainChunkLoaderName(type);
+    }
+    return amount
+        + " "
+        + switch (safeType(type)) {
+          case PERSONAL_CHUNK_LOADER -> "Personal Chunk Loaders";
+          case DORMANT_CHUNK_LOADER -> "Dormant Chunk Loaders";
+          case CHUNK_LOADER -> "Chunk Loaders";
+        };
   }
 
   private static Component appendSource(Component message, String source) {
@@ -563,6 +799,10 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   private static Component blockCoordinates(Block block) {
     return Component.text(
         block.getX() + " " + block.getY() + " " + block.getZ(), NamedTextColor.YELLOW);
+  }
+
+  private static Component recordCoordinates(ChunkLoaderRecord record) {
+    return Component.text(record.x() + " " + record.y() + " " + record.z(), NamedTextColor.YELLOW);
   }
 
   private static Component locationCoordinates(Location location) {
@@ -606,12 +846,52 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
         Bukkit.getConsoleSender().sendMessage(message);
         return;
       } catch (RuntimeException ignored) {
-        // Fall back to the plain logger below.
+        // Fall back to ANSI logger output below.
       }
     }
     if (logger != null) {
-      logger.info(PLAIN.serialize(message));
+      logger.info(ansiSerialize(message));
     }
+  }
+
+  static String ansiSerialize(Component message) {
+    if (message == null) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder();
+    appendAnsi(builder, message, null);
+    if (!builder.isEmpty()) {
+      builder.append(ANSI_RESET);
+    }
+    return builder.toString();
+  }
+
+  private static void appendAnsi(
+      StringBuilder builder, Component component, TextColor inheritedColor) {
+    TextColor explicitColor = component.color();
+    TextColor activeColor = explicitColor == null ? inheritedColor : explicitColor;
+    if (explicitColor != null) {
+      builder.append(ansiColor(explicitColor));
+    }
+    if (component instanceof TextComponent text) {
+      builder.append(text.content());
+    } else {
+      builder.append(PLAIN.serialize(component.children(List.of())));
+    }
+    for (Component child : component.children()) {
+      appendAnsi(builder, child, activeColor);
+    }
+    if (explicitColor != null) {
+      builder.append(inheritedColor == null ? ANSI_RESET : ansiColor(inheritedColor));
+    }
+  }
+
+  private static String ansiColor(TextColor color) {
+    int value = color.value();
+    int red = (value >> 16) & 0xFF;
+    int green = (value >> 8) & 0xFF;
+    int blue = value & 0xFF;
+    return "\u001B[38;2;" + red + ";" + green + ";" + blue + "m";
   }
 
   private static boolean isPrimaryThread() {
@@ -648,12 +928,30 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
         + block.getZ();
   }
 
+  private static String recordBlockLocationText(ChunkLoaderRecord record) {
+    return record.worldName() + " " + record.x() + " " + record.y() + " " + record.z();
+  }
+
+  private static String recordEventLocationText(ChunkLoaderRecord record) {
+    return record.worldName()
+        + " "
+        + format(record.x() + 0.5D)
+        + " "
+        + format(record.y() + 1.0D)
+        + " "
+        + format(record.z() + 0.5D);
+  }
+
   private static String fallback(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value;
   }
 
   private static String format(double value) {
     return String.format(Locale.ROOT, "%.2f", value);
+  }
+
+  private static ChunkLoaderType safeType(ChunkLoaderType type) {
+    return type == null ? ChunkLoaderType.defaultType() : type;
   }
 
   @Override

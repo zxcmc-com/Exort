@@ -241,7 +241,7 @@ relay:
   storage_tail: "Stokejo: {0}"
   storage_none: "Stokejo: neniu"
 chunk_loader:
-  status: "UUID de {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Nivelo: {0}"

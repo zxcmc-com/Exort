@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "Last-Benchmark startn oder stoppn"
   usage_give_header: "Exort-Items gebn:"
   usage_give_storage: "Speichä-Item nach Tier gebn"
-  usage_give_chunk_loader: "Chunk-Lader nach Variante gebn"
+  usage_give_chunk_loader: "Chunk-Lader gebn"
   usage_give_item: "festes Exort-Item gebn"
   usage_give_items: "Gegenstände: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Nutzung: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Speichä: {0}"
   storage_none: "Speichä: kee"
 chunk_loader:
-  status: "UUID von {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Rang: {0}"

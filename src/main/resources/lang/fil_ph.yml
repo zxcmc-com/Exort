@@ -241,7 +241,7 @@ relay:
   storage_tail: "Imbakan: {0}"
   storage_none: "Storage: wala"
 chunk_loader:
-  status: "UUID ng {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Antas: {0}"

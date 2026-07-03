@@ -23,7 +23,7 @@ message:
   invalid_terminal: "Sarnie úraica."
   only_player: "Tyalmor erinqua sina canwa polir."
   player_not_found: "Tyalmo úhírina."
-  command_click: "Tampa to insert {0}"
+  command_click: "Tampa caita {0}"
   give_unknown: "Úsina nat nossë."
   give_success: "Antaina {0}x {1} ana {2}."
   give_dropped: "{1} arma quanta; lantaina {0} nati hare."
@@ -42,7 +42,7 @@ message:
   debug_chunkloaders_header: "Panyainë Colindor Chunk ({0}), radius {1}, lemba {2}/{3}:"
   debug_chunkloaders_all_header: "Tecil Colindoron Chunk ({0}), lemba {1}/{2}:"
   debug_chunkloaders_usage_header: "Tirima Colindo Chunk:"
-  debug_chunkloaders_click: "Tampa to insert {0}"
+  debug_chunkloaders_click: "Tampa caita {0}"
   usage_debug_header: "Tirima and inspection:"
   usage_debug_player: "show active or last harmava of a tyalmo"
   usage_debug_storage: "open harmava by id or tyalmo last harmava"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Harmava: {0}"
   storage_none: "Harmava: munta"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Tyellë: {0}"

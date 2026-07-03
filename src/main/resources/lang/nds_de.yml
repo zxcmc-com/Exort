@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "Last-Benchmark starten oder stoppen"
   usage_give_header: "Exort-Items geven:"
   usage_give_storage: "en Spieker na Tier geven"
-  usage_give_chunk_loader: "en Chunk-Loader na Variant geven"
+  usage_give_chunk_loader: "en Chunk-Loader geven"
   usage_give_item: "en fast Exort-Item geven"
   usage_give_items: "Saken: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Bruuk: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Spieker: {0}"
   storage_none: "Spieker: keen"
 chunk_loader:
-  status: "{0}-UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Stufe: {0}"

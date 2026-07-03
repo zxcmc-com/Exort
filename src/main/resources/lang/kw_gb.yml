@@ -241,7 +241,7 @@ relay:
   storage_tail: "Gwithva: {0}"
   storage_none: "Gwithva: nyns eus"
 chunk_loader:
-  status: "UUID {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Nivel: {0}"

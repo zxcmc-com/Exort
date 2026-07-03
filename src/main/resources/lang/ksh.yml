@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "Last-Benchmark starte odder stoppe"
   usage_give_header: "Exort-Dinge jävve:"
   usage_give_storage: "ene Spiescher noh Tier jävve"
-  usage_give_chunk_loader: "ene Chunk-Loader noh Variant jävve"
+  usage_give_chunk_loader: "ene Chunk-Loader jävve"
   usage_give_item: "e fest Exort-Ding jävve"
   usage_give_items: "Jäjestänn: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Benotzung: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Spiescher: {0}"
   storage_none: "Spiescher: keiner"
 chunk_loader:
-  status: "{0}-UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Stuf: {0}"

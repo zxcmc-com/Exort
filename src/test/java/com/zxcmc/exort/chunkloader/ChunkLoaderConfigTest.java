@@ -24,13 +24,32 @@ class ChunkLoaderConfigTest {
   @Test
   void auditUsesPublicCamelCaseInventoryMoveKey() {
     YamlConfiguration config = new YamlConfiguration();
-    config.set("chunkLoader.audit.events.inventoryMove", false);
+    config.set("chunkLoader.audit.events.inventoryMove", true);
 
     ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(config);
 
-    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DESTROY));
+  }
+
+  @Test
+  void auditConsoleDefaultsStayQuietForNoisyEvents() {
+    ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(new YamlConfiguration());
+
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.ISSUE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.BREAK));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.ENABLE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DISABLE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DESTROY));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.CLEANUP));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.CRAFT));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.DROP));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.PICKUP));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.TICKET_ACQUIRE));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.TICKET_RELEASE));
   }
 
   @Test
@@ -51,7 +70,8 @@ class ChunkLoaderConfigTest {
     ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(config);
 
     assertFalse(audit.shouldWriteFile());
-    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
   }
 
   @Test

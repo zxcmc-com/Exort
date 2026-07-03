@@ -23,7 +23,7 @@ message:
   invalid_terminal: "terminal lughbeʼ."
   only_player: "raʼwIʼvam loʼlaH QujwIʼpuʼ neH."
   player_not_found: "QujwIʼ tuʼluʼbeʼ."
-  command_click: "YIwuq to insert {0}"
+  command_click: "{0} yIchelmeH yIwuq"
   give_unknown: "Doch Segh Sovbeʼluʼ."
   give_success: "{0}x {1} {2}vaD nobluʼ."
   give_dropped: "{1} tep tebluʼ; SumDaq {0} Doch pumluʼ."
@@ -42,7 +42,7 @@ message:
   debug_chunkloaders_header: "Chunk loadwIʼmey lanluʼbogh ({0}), radius {1}, nav {2}/{3}:"
   debug_chunkloaders_all_header: "Chunk loadwIʼ registry ({0}), nav {1}/{2}:"
   debug_chunkloaders_usage_header: "Chunk loadwIʼ Qagh nej:"
-  debug_chunkloaders_click: "YIwuq to insert {0}"
+  debug_chunkloaders_click: "{0} yIchelmeH yIwuq"
   usage_debug_header: "Qagh nej and inspection:"
   usage_debug_player: "show active or last Dochpol of a QujwIʼ"
   usage_debug_storage: "open Dochpol by id or QujwIʼ last Dochpol"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Dochpol: {0}"
   storage_none: "Dochpol: pagh"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "patlh: {0}"

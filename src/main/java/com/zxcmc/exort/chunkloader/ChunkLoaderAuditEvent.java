@@ -8,6 +8,10 @@ public enum ChunkLoaderAuditEvent {
   PICKUP,
   PLACE,
   BREAK,
+  ENABLE,
+  DISABLE,
+  TICKET_ACQUIRE,
+  TICKET_RELEASE,
   DESTROY,
   CLEANUP;
 
@@ -20,6 +24,10 @@ public enum ChunkLoaderAuditEvent {
       case PICKUP -> "pickup";
       case PLACE -> "place";
       case BREAK -> "break";
+      case ENABLE -> "enable";
+      case DISABLE -> "disable";
+      case TICKET_ACQUIRE -> "ticketAcquire";
+      case TICKET_RELEASE -> "ticketRelease";
       case DESTROY -> "destroy";
       case CLEANUP -> "cleanup";
     };

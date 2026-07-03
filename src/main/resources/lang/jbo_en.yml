@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "start or stop cipra junta"
   usage_give_header: "Give Exort dacti:"
   usage_give_storage: "give a sorcu dacti by tier"
-  usage_give_chunk_loader: "give a chunk cargau by klesi"
+  usage_give_chunk_loader: "dunda lo chunk cargau"
   usage_give_item: "give a fixed Exort dacti"
   usage_give_items: "dacti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "pilno: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Sorcu: {0}"
   storage_none: "Sorcu: no da"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "klesi: {0}"

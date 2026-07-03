@@ -386,7 +386,7 @@ public class Lang {
     fallback.put("relay.storage_multiple", "Storage: multiple connected");
     fallback.put("relay.storage_tail", "Storage: {0}");
     fallback.put("relay.storage_none", "Storage: none");
-    fallback.put("chunk_loader.status", "{0} UUID: {1}");
+    fallback.put("chunk_loader.status", "{0}. UUID: {1}");
     fallback.put("lore.storage.tier", "Tier: {0}");
     fallback.put("lore.storage.capacity", "{0} / {1} ({2})");
     fallback.put("lore.storage.id_tail", "{0}");

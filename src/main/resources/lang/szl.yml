@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "sztartnij abo zastow benchmark ôbciōnżynio"
   usage_give_header: "Dowaniy przedmiotōw Exort:"
   usage_give_storage: "dej przedmiot magazynu podle poziōmu"
-  usage_give_chunk_loader: "dej ładowarka chunkōw podle wariantu"
+  usage_give_chunk_loader: "dej ładowarka chunkōw"
   usage_give_item: "dej stały przedmiot Exort"
   usage_give_items: "Przedmioty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Użycie: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Magazyn: {0}"
   storage_none: "Magazyn: brak"
 chunk_loader:
-  status: "{0}, UUID ładowarki chunkōw: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Poziōm: {0}"

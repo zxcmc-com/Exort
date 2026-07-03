@@ -63,7 +63,12 @@ final class InventoryCommand {
                   dependencies
                       .chunkLoaderService()
                       .auditLogger()
-                      .logIssue(actor, actor, Math.max(1, item.getAmount()), "/exort inventory");
+                      .logIssue(
+                          actor,
+                          actor,
+                          Math.max(1, item.getAmount()),
+                          dependencies.customItems().chunkLoaderType(item),
+                          "/exort inventory");
                 }
               },
               (actor, item) -> {
@@ -75,6 +80,7 @@ final class InventoryCommand {
                           actor,
                           actor,
                           dependencies.customItems().chunkLoaderId(item).orElse(null),
+                          dependencies.customItems().chunkLoaderType(item),
                           Math.max(1, item.getAmount()),
                           "/exort inventory",
                           actor.getLocation());

@@ -143,7 +143,7 @@ public final class ExortItemLocalizationService {
       return false;
     }
     pdc.set(keys.type(), PersistentDataType.STRING, type.id());
-    meta.itemName(CustomItemText.chunkLoaderName(text(language, type.translationKey())));
+    meta.itemName(CustomItemText.chunkLoaderName(type, text(language, type.translationKey())));
     String id =
         PdcValueSanitizer.uuidString(pdc.get(keys.chunkLoaderId(), PersistentDataType.STRING));
     if (id == null || id.isBlank() || id.length() < STORAGE_ID_TAIL_LENGTH) {

@@ -241,7 +241,7 @@ relay:
   storage_tail: "Vuorkká: {0}"
   storage_none: "Vuorkká: ii mihkkege"
 chunk_loader:
-  status: "{0} Chunk-loader UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Dássi: {0}"

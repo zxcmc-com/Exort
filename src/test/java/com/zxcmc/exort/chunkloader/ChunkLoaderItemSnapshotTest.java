@@ -34,6 +34,13 @@ class ChunkLoaderItemSnapshotTest {
               ? Optional.ofNullable(test.id)
               : Optional.empty();
         }
+
+        @Override
+        public ChunkLoaderType chunkLoaderType(ItemStack stack) {
+          return stack instanceof TestItemStack test
+              ? test.loaderType
+              : ChunkLoaderType.defaultType();
+        }
       };
 
   @Test
@@ -51,13 +58,38 @@ class ChunkLoaderItemSnapshotTest {
     ChunkLoaderItemSnapshot snapshot =
         ChunkLoaderItemSnapshot.of(List.of(loader(null, 1)), RESOLVER);
 
-    assertEquals(1, snapshot.count(null));
+    assertEquals(1, snapshot.count((UUID) null));
+  }
+
+  @Test
+  void keepsUnassignedChunkLoaderTypesSeparate() {
+    ChunkLoaderItemSnapshot snapshot =
+        ChunkLoaderItemSnapshot.of(
+            List.of(
+                loader(null, ChunkLoaderType.PERSONAL_CHUNK_LOADER, 1),
+                loader(null, ChunkLoaderType.DORMANT_CHUNK_LOADER, 2)),
+            RESOLVER);
+
+    assertEquals(
+        1,
+        snapshot.count(
+            new ChunkLoaderItemSnapshot.Key(null, ChunkLoaderType.PERSONAL_CHUNK_LOADER)));
+    assertEquals(
+        2,
+        snapshot.count(
+            new ChunkLoaderItemSnapshot.Key(null, ChunkLoaderType.DORMANT_CHUNK_LOADER)));
+    assertEquals(3, snapshot.count((UUID) null));
   }
 
   private static TestItemStack loader(UUID id, int amount) {
+    return loader(id, ChunkLoaderType.defaultType(), amount);
+  }
+
+  private static TestItemStack loader(UUID id, ChunkLoaderType type, int amount) {
     TestItemStack stack = new TestItemStack(Material.PAPER, amount);
     stack.chunkLoader = true;
     stack.id = id;
+    stack.loaderType = type;
     return stack;
   }
 
@@ -116,20 +148,21 @@ class ChunkLoaderItemSnapshotTest {
   }
 
   private static final class TestItemStack extends ItemStack {
-    private final Material type;
+    private final Material material;
     private final int amount;
     private boolean chunkLoader;
     private UUID id;
+    private ChunkLoaderType loaderType = ChunkLoaderType.defaultType();
     private ItemMeta meta;
 
-    private TestItemStack(Material type, int amount) {
-      this.type = type;
+    private TestItemStack(Material material, int amount) {
+      this.material = material;
       this.amount = amount;
     }
 
     @Override
     public Material getType() {
-      return type;
+      return material;
     }
 
     @Override

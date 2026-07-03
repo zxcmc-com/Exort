@@ -23,7 +23,7 @@ message:
   invalid_terminal: "Terminal nai valid."
   only_player: "Solo spelare kan usa denna komand."
   player_not_found: "Spelare nai funnen."
-  command_click: "Klikka to insert {0}"
+  command_click: "Klikka ad instopön {0}"
   give_unknown: "Nekent itemo tipo."
   give_success: "Gav {0}x {1} til {2}."
   give_dropped: "{1} inventaro full; droppad {0} itemoj nära."
@@ -42,7 +42,7 @@ message:
   debug_chunkloaders_header: "Placerade Chunk-laddare ({0}), radius {1}, sida {2}/{3}:"
   debug_chunkloaders_all_header: "Chunk-laddare register ({0}), sida {1}/{2}:"
   debug_chunkloaders_usage_header: "Chunk-laddare debug:"
-  debug_chunkloaders_click: "Klikka to insert {0}"
+  debug_chunkloaders_click: "Klikka ad instopön {0}"
   usage_debug_header: "Debug och inspection:"
   usage_debug_player: "show active or last stokado of a spelare"
   usage_debug_storage: "open stokado by id or spelare last stokado"
@@ -56,7 +56,7 @@ message:
   usage_debug_benchmark: "start or stop loadtest"
   usage_give_header: "Give Exort itemoj:"
   usage_give_storage: "give a stokado itemo by tier"
-  usage_give_chunk_loader: "give a Chunk-laddare"
+  usage_give_chunk_loader: "ge en Chunk-laddare"
   usage_give_item: "give a fixed Exort itemo"
   usage_give_items: "Itemoj: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
   usage_reload: "Uso: /exort reload"
@@ -241,7 +241,7 @@ relay:
   storage_tail: "Stokado: {0}"
   storage_none: "Stokado: nai"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Nivå: {0}"

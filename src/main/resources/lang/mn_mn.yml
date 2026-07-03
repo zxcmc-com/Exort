@@ -241,7 +241,7 @@ relay:
   storage_tail: "Хадгалах сан: {0}"
   storage_none: "Хадгалах сан: байхгүй"
 chunk_loader:
-  status: "{0} UUID: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "Зэрэглэл: {0}"

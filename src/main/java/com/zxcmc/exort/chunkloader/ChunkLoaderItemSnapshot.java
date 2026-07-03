@@ -19,9 +19,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 final class ChunkLoaderItemSnapshot {
   private static final int MAX_NESTED_DEPTH = 4;
 
-  private final Map<UUID, Integer> counts;
+  private final Map<Key, Integer> counts;
 
-  private ChunkLoaderItemSnapshot(Map<UUID, Integer> counts) {
+  private ChunkLoaderItemSnapshot(Map<Key, Integer> counts) {
     this.counts = Collections.unmodifiableMap(new HashMap<>(counts));
   }
 
@@ -30,12 +30,20 @@ final class ChunkLoaderItemSnapshot {
   }
 
   static ChunkLoaderItemSnapshot ofCounts(Map<UUID, Integer> counts) {
+    Map<Key, Integer> keyed = new HashMap<>();
+    if (counts != null) {
+      counts.forEach((id, amount) -> keyed.put(new Key(id, ChunkLoaderType.defaultType()), amount));
+    }
+    return new ChunkLoaderItemSnapshot(keyed);
+  }
+
+  static ChunkLoaderItemSnapshot ofTypedCounts(Map<Key, Integer> counts) {
     return new ChunkLoaderItemSnapshot(counts == null ? Map.of() : counts);
   }
 
   static ChunkLoaderItemSnapshot of(Iterable<ItemStack> stacks, Resolver resolver) {
     Objects.requireNonNull(resolver, "resolver");
-    Map<UUID, Integer> counts = new HashMap<>();
+    Map<Key, Integer> counts = new HashMap<>();
     if (stacks != null) {
       for (ItemStack stack : stacks) {
         addStack(counts, stack, resolver, 0);
@@ -46,7 +54,7 @@ final class ChunkLoaderItemSnapshot {
 
   static ChunkLoaderItemSnapshot of(ItemStack stack, Resolver resolver) {
     Objects.requireNonNull(resolver, "resolver");
-    Map<UUID, Integer> counts = new HashMap<>();
+    Map<Key, Integer> counts = new HashMap<>();
     addStack(counts, stack, resolver, 0);
     return new ChunkLoaderItemSnapshot(counts);
   }
@@ -56,32 +64,53 @@ final class ChunkLoaderItemSnapshot {
   }
 
   int count(UUID id) {
-    return counts.getOrDefault(id, 0);
+    int total = 0;
+    for (Map.Entry<Key, Integer> entry : counts.entrySet()) {
+      if (Objects.equals(entry.getKey().id(), id)) {
+        total += entry.getValue();
+      }
+    }
+    return total;
+  }
+
+  int count(Key key) {
+    return counts.getOrDefault(key, 0);
   }
 
   Set<UUID> ids() {
+    Set<UUID> ids = new HashSet<>();
+    for (Key key : counts.keySet()) {
+      ids.add(key.id());
+    }
+    return ids;
+  }
+
+  Set<Key> keys() {
     return counts.keySet();
   }
 
-  Map<UUID, Integer> counts() {
+  Map<Key, Integer> counts() {
     return counts;
   }
 
-  Set<UUID> unionIds(ChunkLoaderItemSnapshot other) {
-    Set<UUID> result = new HashSet<>(ids());
+  Set<Key> unionKeys(ChunkLoaderItemSnapshot other) {
+    Set<Key> result = new HashSet<>(keys());
     if (other != null) {
-      result.addAll(other.ids());
+      result.addAll(other.keys());
     }
     return result;
   }
 
   private static void addStack(
-      Map<UUID, Integer> counts, ItemStack stack, Resolver resolver, int depth) {
+      Map<Key, Integer> counts, ItemStack stack, Resolver resolver, int depth) {
     if (stack == null || stack.getType() == Material.AIR || stack.getAmount() <= 0) {
       return;
     }
     if (resolver.isChunkLoader(stack)) {
-      counts.merge(resolver.chunkLoaderId(stack).orElse(null), stack.getAmount(), Integer::sum);
+      counts.merge(
+          new Key(resolver.chunkLoaderId(stack).orElse(null), resolver.chunkLoaderType(stack)),
+          stack.getAmount(),
+          Integer::sum);
     }
     if (depth >= MAX_NESTED_DEPTH || !stack.hasItemMeta()) {
       return;
@@ -106,5 +135,15 @@ final class ChunkLoaderItemSnapshot {
     boolean isChunkLoader(ItemStack stack);
 
     Optional<UUID> chunkLoaderId(ItemStack stack);
+
+    default ChunkLoaderType chunkLoaderType(ItemStack stack) {
+      return ChunkLoaderType.defaultType();
+    }
+  }
+
+  record Key(UUID id, ChunkLoaderType type) {
+    Key {
+      type = type == null ? ChunkLoaderType.defaultType() : type;
+    }
   }
 }

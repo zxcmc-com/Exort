@@ -241,7 +241,7 @@ relay:
   storage_tail: "คลัง: {0}"
   storage_none: "คลัง: ไม่มี"
 chunk_loader:
-  status: "UUID {0}: {1}"
+  status: "{0}. UUID: {1}"
 lore:
   storage:
     tier: "ระดับ: {0}"
