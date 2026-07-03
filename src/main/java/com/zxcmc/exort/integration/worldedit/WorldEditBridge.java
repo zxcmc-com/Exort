@@ -135,6 +135,7 @@ public final class WorldEditBridge implements Listener {
   private static final String FIELD_PLACED_BY_UUID = "placed_by_uuid";
   private static final String FIELD_PLACED_BY_NAME = "placed_by_name";
   private static final String FIELD_CREATED_AT = "created_at";
+  private static final String FIELD_ENABLED = "enabled";
 
   private static final int BUS_FILTER_SLOTS = 10;
 
@@ -1641,7 +1642,8 @@ public final class WorldEditBridge implements Listener {
           data.type(),
           data.placedByUuid(),
           data.placedByName(),
-          data.createdAt());
+          data.createdAt(),
+          data.enabled());
       ChunkLoaderService chunkLoaderService = deps.chunkLoaderService();
       if (chunkLoaderService != null) {
         chunkLoaderService.reconcileBlock(block);
@@ -1893,6 +1895,7 @@ public final class WorldEditBridge implements Listener {
       if (data.createdAt() > 0L) {
         chunkLoaderTag.putString(FIELD_CREATED_AT, Long.toString(data.createdAt()));
       }
+      chunkLoaderTag.putString(FIELD_ENABLED, Boolean.toString(data.enabled()));
       exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
       any = true;
     }
@@ -2082,6 +2085,7 @@ public final class WorldEditBridge implements Listener {
         chunkLoaderTag.putString(
             FIELD_CREATED_AT, Long.toString(snapshot.chunkLoader().createdAt()));
       }
+      chunkLoaderTag.putString(FIELD_ENABLED, Boolean.toString(snapshot.chunkLoader().enabled()));
       exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
       any = true;
     }
@@ -2136,6 +2140,11 @@ public final class WorldEditBridge implements Listener {
     if (root == null) return false;
     LinByteTag tag = root.findTag(key, LinTagType.byteTag());
     return tag != null && tag.valueAsByte() == (byte) 1;
+  }
+
+  private static boolean readEnabled(LinCompoundTag root) {
+    String raw = readString(root, FIELD_ENABLED);
+    return raw == null || raw.isBlank() || Boolean.parseBoolean(raw.trim());
   }
 
   private static UUID readUuid(LinCompoundTag root, String key) {
@@ -2222,7 +2231,8 @@ public final class WorldEditBridge implements Listener {
                   type.orElseThrow(),
                   placedByUuid,
                   placedByName,
-                  createdAt == null ? 0L : createdAt);
+                  createdAt == null ? 0L : createdAt,
+                  readEnabled(chunkLoaderTag));
         }
       }
     }

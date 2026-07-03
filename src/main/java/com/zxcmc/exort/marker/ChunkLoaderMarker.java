@@ -13,11 +13,17 @@ public final class ChunkLoaderMarker {
   private static final String FIELD_PLACED_BY_UUID = "placed_by_uuid";
   private static final String FIELD_PLACED_BY_NAME = "placed_by_name";
   private static final String FIELD_CREATED_AT = "created_at";
+  private static final String FIELD_ENABLED = "enabled";
 
   private ChunkLoaderMarker() {}
 
   public record Data(
-      UUID id, ChunkLoaderType type, UUID placedByUuid, String placedByName, long createdAt) {
+      UUID id,
+      ChunkLoaderType type,
+      UUID placedByUuid,
+      String placedByName,
+      long createdAt,
+      boolean enabled) {
     public Data {
       type = type == null ? ChunkLoaderType.defaultType() : type;
     }
@@ -36,6 +42,18 @@ public final class ChunkLoaderMarker {
       UUID placedByUuid,
       String placedByName,
       long createdAt) {
+    set(plugin, block, id, type, placedByUuid, placedByName, createdAt, true);
+  }
+
+  public static void set(
+      Plugin plugin,
+      Block block,
+      UUID id,
+      ChunkLoaderType type,
+      UUID placedByUuid,
+      String placedByName,
+      long createdAt,
+      boolean enabled) {
     if (id == null) return;
     ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, id.toString());
@@ -56,6 +74,7 @@ public final class ChunkLoaderMarker {
     } else {
       ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_CREATED_AT);
     }
+    ChunkMarkerStore.setByte(plugin, block, SECTION, FIELD_ENABLED, enabled ? (byte) 1 : (byte) 0);
   }
 
   public static Optional<Data> get(Plugin plugin, Block block) {
@@ -88,7 +107,12 @@ public final class ChunkLoaderMarker {
     String placedByName =
         ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_PLACED_BY_NAME).orElse(null);
     long createdAt = ChunkMarkerStore.getLong(plugin, block, SECTION, FIELD_CREATED_AT).orElse(0L);
-    return Optional.of(new Data(id, type.orElseThrow(), placedByUuid, placedByName, createdAt));
+    boolean enabled =
+        ChunkMarkerStore.getByte(plugin, block, SECTION, FIELD_ENABLED)
+            .map(value -> value != (byte) 0)
+            .orElse(true);
+    return Optional.of(
+        new Data(id, type.orElseThrow(), placedByUuid, placedByName, createdAt, enabled));
   }
 
   public static boolean isChunkLoader(Plugin plugin, Block block) {

@@ -38,6 +38,14 @@ import org.bukkit.scheduler.BukkitTask;
 public final class ChunkLoaderService implements Listener {
   private static final long PERSONAL_GRACE_TICKS = 5L * 60L * 20L;
 
+  public enum ToggleResult {
+    ENABLED,
+    DISABLED,
+    ALREADY_ENABLED,
+    ALREADY_DISABLED,
+    MISSING
+  }
+
   private final JavaPlugin plugin;
   private final Database database;
   private final Material carrier;
@@ -147,7 +155,8 @@ public final class ChunkLoaderService implements Listener {
         safeType,
         player == null ? null : player.getUniqueId(),
         player == null ? null : player.getName(),
-        record.createdAt());
+        record.createdAt(),
+        record.enabled());
     activate(record, true);
     Location foundLocation = block.getLocation().add(0.5D, 1.0D, 0.5D);
     database
@@ -190,6 +199,7 @@ public final class ChunkLoaderService implements Listener {
               data.get().placedByUuid(),
               data.get().placedByName(),
               radius(),
+              data.get().enabled(),
               data.get().createdAt() > 0L ? data.get().createdAt() : now,
               now);
     }
@@ -216,6 +226,58 @@ public final class ChunkLoaderService implements Listener {
     return Optional.of(id);
   }
 
+  public ToggleResult setEnabled(Player player, Block block, boolean enabled) {
+    Optional<ChunkLoaderMarker.Data> data = ChunkLoaderMarker.get(plugin, block);
+    if (data.isEmpty()) {
+      cleanupAt(block, "toggle_missing_marker");
+      return ToggleResult.MISSING;
+    }
+    long now = Instant.now().getEpochSecond();
+    UUID id = data.get().id();
+    ChunkLoaderRecord current = byId.get(id);
+    if (current == null) {
+      current =
+          ChunkLoaderRecord.fromBlock(
+              block,
+              id,
+              data.get().type(),
+              data.get().placedByUuid(),
+              data.get().placedByName(),
+              radius(),
+              data.get().enabled(),
+              data.get().createdAt() > 0L ? data.get().createdAt() : now,
+              now);
+    }
+    if (current.enabled() == enabled) {
+      return enabled ? ToggleResult.ALREADY_ENABLED : ToggleResult.ALREADY_DISABLED;
+    }
+    ChunkLoaderRecord updated = current.withEnabled(enabled, now);
+    ChunkLoaderMarker.set(
+        plugin,
+        block,
+        updated.id(),
+        updated.type(),
+        updated.placedByUuid(),
+        updated.placedByName(),
+        updated.createdAt(),
+        updated.enabled());
+    activate(updated, ownChunkLoaded(block));
+    database
+        .saveChunkLoader(updated)
+        .exceptionally(
+            err -> {
+              logSaveFailure(err);
+              return false;
+            });
+    auditLogger.log(
+        ChunkLoaderAuditEvent.CLEANUP,
+        player,
+        updated.id(),
+        block,
+        enabled ? "toggle_enabled" : "toggle_disabled");
+    return enabled ? ToggleResult.ENABLED : ToggleResult.DISABLED;
+  }
+
   public void cleanupAt(Block block, String reason) {
     if (block == null || block.getWorld() == null) {
       return;
@@ -232,7 +294,10 @@ public final class ChunkLoaderService implements Listener {
             ChunkLoaderMarker.get(plugin, block)
                 .map(ChunkLoaderMarker.Data::type)
                 .orElse(ChunkLoaderType.defaultType());
-        record = ChunkLoaderRecord.fromBlock(block, id, type, null, null, radius(), now, now);
+        boolean enabled =
+            ChunkLoaderMarker.get(plugin, block).map(ChunkLoaderMarker.Data::enabled).orElse(true);
+        record =
+            ChunkLoaderRecord.fromBlock(block, id, type, null, null, radius(), enabled, now, now);
       }
       deactivate(id, block);
       database.deleteChunkLoader(id).exceptionally(this::logDeleteFailure);
@@ -288,6 +353,7 @@ public final class ChunkLoaderService implements Listener {
             data.placedByUuid(),
             data.placedByName(),
             radius(),
+            data.enabled(),
             data.createdAt() > 0L ? data.createdAt() : now,
             now);
     activate(restored, true);
@@ -330,6 +396,7 @@ public final class ChunkLoaderService implements Listener {
     UUID playerId = event.getPlayer().getUniqueId();
     for (ChunkLoaderRecord record : new ArrayList<>(byId.values())) {
       if (record.type() != ChunkLoaderType.PERSONAL_CHUNK_LOADER) continue;
+      if (!record.enabled()) continue;
       if (!playerId.equals(record.placedByUuid())) continue;
       cancelPersonalRelease(record.id());
       activateTickets(record);
@@ -378,7 +445,9 @@ public final class ChunkLoaderService implements Listener {
       Block block = chunk.getWorld().getBlockAt(record.x(), record.y(), record.z());
       validateRecord(record, block);
       ChunkLoaderRecord current = byId.get(record.id());
-      if (current != null && current.type() == ChunkLoaderType.DORMANT_CHUNK_LOADER) {
+      if (current != null
+          && current.enabled()
+          && current.type() == ChunkLoaderType.DORMANT_CHUNK_LOADER) {
         activateTickets(current);
       }
     }
@@ -417,6 +486,9 @@ public final class ChunkLoaderService implements Listener {
     ChunkLoaderRecord record = byId.get(id);
     if (record == null) {
       return ChunkLoaderRuntimeState.MISSING;
+    }
+    if (!record.enabled()) {
+      return ChunkLoaderRuntimeState.DISABLED;
     }
     if (record.type() == ChunkLoaderType.PERSONAL_CHUNK_LOADER
         && personalReleaseTasks.containsKey(id)) {
@@ -473,6 +545,9 @@ public final class ChunkLoaderService implements Listener {
   }
 
   private boolean shouldTicket(ChunkLoaderRecord record, boolean ownChunkLoaded) {
+    if (!record.enabled()) {
+      return false;
+    }
     return switch (record.type()) {
       case CHUNK_LOADER -> true;
       case PERSONAL_CHUNK_LOADER ->
@@ -511,7 +586,7 @@ public final class ChunkLoaderService implements Listener {
   }
 
   private void activateTickets(ChunkLoaderRecord record) {
-    if (record == null || ticketedIds.contains(record.id())) {
+    if (record == null || !record.enabled() || ticketedIds.contains(record.id())) {
       return;
     }
     World world = Bukkit.getWorld(record.worldId());
@@ -558,6 +633,12 @@ public final class ChunkLoaderService implements Listener {
   private Void logSaveFailure(Throwable err) {
     plugin.getLogger().log(Level.WARNING, "Failed to save chunk loader record", unwrap(err));
     return null;
+  }
+
+  private boolean ownChunkLoaded(Block block) {
+    return block != null
+        && block.getWorld() != null
+        && block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4);
   }
 
   private Throwable unwrap(Throwable err) {

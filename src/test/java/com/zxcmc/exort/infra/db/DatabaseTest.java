@@ -56,6 +56,7 @@ class DatabaseTest {
               placerId,
               "Alex",
               1,
+              true,
               100L,
               100L);
       ChunkLoaderRecord second =
@@ -73,6 +74,7 @@ class DatabaseTest {
               placerId,
               "Alex",
               2,
+              false,
               110L,
               110L);
 
@@ -120,6 +122,7 @@ class DatabaseTest {
               actorId,
               "Alex",
               1,
+              true,
               100L,
               100L);
 
@@ -211,6 +214,57 @@ class DatabaseTest {
       }
 
       assertTrue(database.listChunkLoaders().get(5, TimeUnit.SECONDS).isEmpty());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void chunkLoaderRowsWithoutEnabledColumnDefaultToEnabled() throws Exception {
+    File file = tempDir.resolve("chunk-loader-enabled-default.db").toFile();
+    UUID worldId = new UUID(0L, 31L);
+    UUID loaderId = new UUID(0L, 32L);
+
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+        var statement = connection.createStatement()) {
+      statement.execute(
+          """
+          CREATE TABLE chunk_loaders (
+              id TEXT PRIMARY KEY,
+              loader_type TEXT NOT NULL DEFAULT 'chunk_loader',
+              world TEXT NOT NULL,
+              world_key TEXT NOT NULL,
+              world_name TEXT NOT NULL,
+              x INTEGER NOT NULL,
+              y INTEGER NOT NULL,
+              z INTEGER NOT NULL,
+              chunk_x INTEGER NOT NULL,
+              chunk_z INTEGER NOT NULL,
+              placed_by_uuid TEXT NULL,
+              placed_by_name TEXT NOT NULL,
+              radius INTEGER NOT NULL,
+              created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL,
+              UNIQUE(world, x, y, z)
+          )
+          """);
+      statement.execute(
+          "INSERT INTO chunk_loaders(id, loader_type, world, world_key, world_name, x, y, z,"
+              + " chunk_x, chunk_z, placed_by_uuid, placed_by_name, radius, created_at,"
+              + " updated_at) VALUES('"
+              + loaderId
+              + "', 'chunk_loader', '"
+              + worldId
+              + "', 'minecraft:overworld', 'world', 5, 70, 6, 0, 0, NULL, 'unknown',"
+              + " 1, 100, 105)");
+    }
+
+    Database database = new Database();
+    database.init(file);
+    try {
+      List<ChunkLoaderRecord> records = database.listChunkLoaders().get(5, TimeUnit.SECONDS);
+      assertEquals(1, records.size());
+      assertTrue(records.getFirst().enabled());
     } finally {
       database.close();
     }

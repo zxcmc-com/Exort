@@ -22,6 +22,8 @@ public record RuntimeItemModelConfig(
     String exportBusItemModel,
     String relayItemModel,
     String chunkLoaderItemModel,
+    String personalChunkLoaderItemModel,
+    String dormantChunkLoaderItemModel,
     String wirelessItemModel,
     String wirelessDisabledModel) {
   private static final String VANILLA_NAMESPACE = "minecraft";
@@ -66,7 +68,9 @@ public record RuntimeItemModelConfig(
         normalizeModelId("bus/import", resourceNamespace),
         normalizeModelId("bus/export", resourceNamespace),
         normalizeModelId("relay/relay", resourceNamespace),
-        normalizeModelId("chunkloader/chunkloader", resourceNamespace),
+        normalizeModelId("chunkloader/immortal", resourceNamespace),
+        normalizeModelId("chunkloader/mythical", resourceNamespace),
+        normalizeModelId("chunkloader/legendary", resourceNamespace),
         normalizeModelId("terminal/wireless", resourceNamespace),
         normalizeModelId("terminal/wireless_disabled", resourceNamespace));
   }
@@ -89,6 +93,8 @@ public record RuntimeItemModelConfig(
         normalizeModelId("dispenser", VANILLA_NAMESPACE),
         normalizeModelId("dropper", VANILLA_NAMESPACE),
         normalizeModelId("lodestone", VANILLA_NAMESPACE),
+        normalizeModelId("respawn_anchor", VANILLA_NAMESPACE),
+        normalizeModelId("respawn_anchor", VANILLA_NAMESPACE),
         normalizeModelId("respawn_anchor", VANILLA_NAMESPACE),
         normalizeModelId("target", VANILLA_NAMESPACE),
         normalizeModelId("target", VANILLA_NAMESPACE));

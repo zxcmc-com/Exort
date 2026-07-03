@@ -166,6 +166,7 @@ public class Database implements AutoCloseable {
                   placed_by_uuid TEXT NULL,
                   placed_by_name TEXT NOT NULL,
                   radius INTEGER NOT NULL,
+                  enabled INTEGER NOT NULL DEFAULT 1,
                   created_at INTEGER NOT NULL,
                   updated_at INTEGER NOT NULL,
                   UNIQUE(world, x, y, z)
@@ -218,6 +219,7 @@ public class Database implements AutoCloseable {
     ensureColumn("storages", "sort_mode", "TEXT");
     ensureColumn("storages", "tier_max_items", "INTEGER");
     ensureColumn("storages", "display_name", "TEXT");
+    ensureColumn("chunk_loaders", "enabled", "INTEGER NOT NULL DEFAULT 1");
   }
 
   private void ensureColumn(String table, String column, String type) throws SQLException {
@@ -356,8 +358,8 @@ public class Database implements AutoCloseable {
                 """
                 INSERT INTO chunk_loaders(
                     id, loader_type, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
-                    placed_by_uuid, placed_by_name, radius, created_at, updated_at
-                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    placed_by_uuid, placed_by_name, radius, enabled, created_at, updated_at
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     loader_type = excluded.loader_type,
                     world = excluded.world,
@@ -371,6 +373,7 @@ public class Database implements AutoCloseable {
                     placed_by_uuid = excluded.placed_by_uuid,
                     placed_by_name = excluded.placed_by_name,
                     radius = excluded.radius,
+                    enabled = excluded.enabled,
                     updated_at = excluded.updated_at
                 """;
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -438,7 +441,7 @@ public class Database implements AutoCloseable {
           String sql =
               """
               SELECT id, loader_type, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
-                     placed_by_uuid, placed_by_name, radius, created_at, updated_at
+                     placed_by_uuid, placed_by_name, radius, enabled, created_at, updated_at
               FROM chunk_loaders
               """;
           try (PreparedStatement ps = connection.prepareStatement(sql);
@@ -827,8 +830,9 @@ public class Database implements AutoCloseable {
     }
     ps.setString(12, record.placedByName());
     ps.setInt(13, record.radius());
-    ps.setLong(14, record.createdAt());
-    ps.setLong(15, record.updatedAt());
+    ps.setInt(14, record.enabled() ? 1 : 0);
+    ps.setLong(15, record.createdAt());
+    ps.setLong(16, record.updatedAt());
   }
 
   private ChunkLoaderRecord readChunkLoader(ResultSet rs) throws SQLException {
@@ -849,6 +853,7 @@ public class Database implements AutoCloseable {
           placer,
           rs.getString("placed_by_name"),
           rs.getInt("radius"),
+          rs.getInt("enabled") != 0,
           rs.getLong("created_at"),
           rs.getLong("updated_at"));
     } catch (IllegalArgumentException e) {

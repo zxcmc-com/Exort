@@ -30,6 +30,15 @@ class RuntimeItemModelConfigTest {
   }
 
   @Test
+  void resourceModeUsesChunkLoaderItemModelIdsByType() {
+    RuntimeItemModelConfig config = RuntimeItemModelConfig.forMode(true);
+
+    assertEquals("exort:chunkloader/immortal", config.chunkLoaderItemModel());
+    assertEquals("exort:chunkloader/mythical", config.personalChunkLoaderItemModel());
+    assertEquals("exort:chunkloader/legendary", config.dormantChunkLoaderItemModel());
+  }
+
+  @Test
   void normalizeModelIdStripsInputNamespaceAndFallsBackForBlankValues() {
     assertEquals(
         "custom:path/model", RuntimeItemModelConfig.normalizeModelId("exort:path/model", "custom"));
@@ -53,6 +62,8 @@ class RuntimeItemModelConfigTest {
         config.exportBusItemModel(),
         config.relayItemModel(),
         config.chunkLoaderItemModel(),
+        config.personalChunkLoaderItemModel(),
+        config.dormantChunkLoaderItemModel(),
         config.wirelessItemModel(),
         config.wirelessDisabledModel());
   }

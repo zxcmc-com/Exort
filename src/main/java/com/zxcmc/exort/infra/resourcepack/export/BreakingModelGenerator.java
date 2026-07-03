@@ -104,7 +104,7 @@ final class BreakingModelGenerator {
         || entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
         || entries.containsKey(MODELS_ROOT + "bus/import.json")
         || entries.containsKey(MODELS_ROOT + "relay/black.json")
-        || entries.containsKey(MODELS_ROOT + "chunkloader/chunkloader.json")
+        || entries.containsKey(MODELS_ROOT + "chunkloader/immortal.json")
         || entries.containsKey(MODELS_ROOT + "wire/center.json");
   }
 
@@ -196,7 +196,7 @@ final class BreakingModelGenerator {
 
   private static int addTerminalBreakingAtlas(Map<String, byte[]> entries) {
     if (!entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
-        && !entries.containsKey(MODELS_ROOT + "chunkloader/chunkloader.json")) {
+        && !entries.containsKey(MODELS_ROOT + "chunkloader/immortal.json")) {
       return 0;
     }
     boolean added = !entries.containsKey(terminalFrameOverlayTexturePath());
@@ -293,7 +293,7 @@ final class BreakingModelGenerator {
     variants.add(
         new VariantSource(
             "chunkloader/chunkloader",
-            readModel(entries, "chunkloader/chunkloader.json"),
+            readModel(entries, "chunkloader/immortal.json"),
             identityTransform(),
             FacePolicy.CHUNK_LOADER_ALL_SIDES,
             NO_TEXTURE_SIZES,

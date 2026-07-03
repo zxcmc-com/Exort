@@ -22,6 +22,7 @@ public record ChunkLoaderRecord(
     UUID placedByUuid,
     String placedByName,
     int radius,
+    boolean enabled,
     long createdAt,
     long updatedAt) {
   public ChunkLoaderRecord {
@@ -47,6 +48,7 @@ public record ChunkLoaderRecord(
         player == null ? null : player.getUniqueId(),
         player == null ? null : player.getName(),
         radius,
+        true,
         now,
         now);
   }
@@ -66,6 +68,7 @@ public record ChunkLoaderRecord(
         placedByUuid,
         placedByName,
         radius,
+        true,
         createdAt,
         updatedAt);
   }
@@ -77,6 +80,20 @@ public record ChunkLoaderRecord(
       UUID placedByUuid,
       String placedByName,
       int radius,
+      long createdAt,
+      long updatedAt) {
+    return fromBlock(
+        block, id, type, placedByUuid, placedByName, radius, true, createdAt, updatedAt);
+  }
+
+  public static ChunkLoaderRecord fromBlock(
+      Block block,
+      UUID id,
+      ChunkLoaderType type,
+      UUID placedByUuid,
+      String placedByName,
+      int radius,
+      boolean enabled,
       long createdAt,
       long updatedAt) {
     Objects.requireNonNull(block, "block");
@@ -96,6 +113,27 @@ public record ChunkLoaderRecord(
         placedByUuid,
         placedByName,
         radius,
+        enabled,
+        createdAt,
+        updatedAt);
+  }
+
+  public ChunkLoaderRecord withEnabled(boolean enabled, long updatedAt) {
+    return new ChunkLoaderRecord(
+        id,
+        type,
+        worldId,
+        worldKey,
+        worldName,
+        x,
+        y,
+        z,
+        chunkX,
+        chunkZ,
+        placedByUuid,
+        placedByName,
+        radius,
+        enabled,
         createdAt,
         updatedAt);
   }

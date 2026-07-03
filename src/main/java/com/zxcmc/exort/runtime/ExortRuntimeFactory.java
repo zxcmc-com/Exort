@@ -352,6 +352,8 @@ public final class ExortRuntimeFactory {
         itemModels.exportBusItemModel(),
         itemModels.relayItemModel(),
         itemModels.chunkLoaderItemModel(),
+        itemModels.personalChunkLoaderItemModel(),
+        itemModels.dormantChunkLoaderItemModel(),
         itemModels.wirelessItemModel(),
         itemModels.wirelessDisabledModel(),
         VANILLA_NAMESPACE + ":target",

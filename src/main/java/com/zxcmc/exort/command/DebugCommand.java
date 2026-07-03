@@ -579,7 +579,7 @@ final class DebugCommand {
       case TICKETED -> NamedTextColor.GREEN;
       case SLEEPING, OWNER_GRACE -> NamedTextColor.YELLOW;
       case OWNER_OFFLINE, WORLD_UNAVAILABLE -> NamedTextColor.RED;
-      case REGISTERED, MISSING -> NamedTextColor.GRAY;
+      case DISABLED, REGISTERED, MISSING -> NamedTextColor.GRAY;
     };
   }
 

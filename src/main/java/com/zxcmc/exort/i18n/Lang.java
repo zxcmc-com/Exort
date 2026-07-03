@@ -341,6 +341,15 @@ public class Lang {
     fallback.put(
         "message.chunk_loader_duplicate",
         "This Chunk Loader is already active at another position.");
+    fallback.put("message.chunk_loader_enabled", "Chunk Loader enabled.");
+    fallback.put("message.chunk_loader_disabled", "Chunk Loader disabled.");
+    fallback.put("message.chunk_loader_already_enabled", "This Chunk Loader is already enabled.");
+    fallback.put("message.chunk_loader_already_disabled", "This Chunk Loader is already disabled.");
+    fallback.put(
+        "message.chunk_loader_toggle_denied",
+        "Only the owner or a moderator can toggle this Personal Chunk Loader.");
+    fallback.put(
+        "message.chunk_loader_toggle_failed", "Failed to update Chunk Loader state. See console.");
     fallback.put("message.debug_chunkloaders_empty", "No Chunk Loaders are registered.");
     fallback.put(
         "message.debug_chunkloaders_header",

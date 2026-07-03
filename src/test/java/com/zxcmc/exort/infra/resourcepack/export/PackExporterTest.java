@@ -96,6 +96,8 @@ class PackExporterTest {
       assertBreakingAtlasReferences(zip);
       assertChunkLoaderBreakingOverlayShape(zip);
       assertRelayItemDefinitionModels(zip);
+      assertChunkLoaderItemDefinitionModels(zip);
+      assertChunkLoaderTextureAndModelUvs(zip);
     }
   }
 
@@ -133,6 +135,15 @@ class PackExporterTest {
           "assets/exort/models/relay/red.json",
           "assets/exort/items/breaking/relay/relay/stage_0.json",
           "assets/exort/models/breaking/relay/relay/stage_9.json",
+          "assets/exort/items/chunkloader/chunkloader.json",
+          "assets/exort/items/chunkloader/immortal.json",
+          "assets/exort/items/chunkloader/mythical.json",
+          "assets/exort/items/chunkloader/legendary.json",
+          "assets/exort/items/chunkloader/disabled.json",
+          "assets/exort/models/chunkloader/immortal.json",
+          "assets/exort/models/chunkloader/mythical.json",
+          "assets/exort/models/chunkloader/legendary.json",
+          "assets/exort/models/chunkloader/disabled.json",
           "assets/exort/items/breaking/chunkloader/chunkloader/stage_0.json",
           "assets/exort/models/breaking/chunkloader/chunkloader/stage_9.json",
           "assets/exort/items/breaking/wire/center/stage_0.json",
@@ -164,6 +175,7 @@ class PackExporterTest {
           "assets/exort/models/breaking/wire/center/stage_3.json",
           "assets/exort/items/chunk_loader/chunk_loader.json",
           "assets/exort/models/chunk_loader/chunk_loader.json",
+          "assets/exort/models/chunkloader/chunkloader.json",
           "assets/exort/items/breaking/chunk_loader/chunk_loader/stage_0.json",
           "assets/exort/models/breaking/chunk_loader/chunk_loader/stage_9.json",
           "assets/exort/textures/breaking/block.png",
@@ -244,6 +256,54 @@ class PackExporterTest {
     assertItemDefinitionModel(zip, "assets/exort/items/relay/green.json", "exort:relay/green");
     assertItemDefinitionModel(zip, "assets/exort/items/relay/blue.json", "exort:relay/blue");
     assertItemDefinitionModel(zip, "assets/exort/items/relay/red.json", "exort:relay/red");
+  }
+
+  private static void assertChunkLoaderItemDefinitionModels(ZipFile zip) throws IOException {
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/chunkloader/chunkloader.json", "exort:chunkloader/immortal");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/chunkloader/immortal.json", "exort:chunkloader/immortal");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/chunkloader/mythical.json", "exort:chunkloader/mythical");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/chunkloader/legendary.json", "exort:chunkloader/legendary");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/chunkloader/disabled.json", "exort:chunkloader/disabled");
+  }
+
+  private static void assertChunkLoaderTextureAndModelUvs(ZipFile zip) throws IOException {
+    BufferedImage texture = readPng(zip, "assets/exort/textures/block/chunkloader.png");
+    assertEquals(32, texture.getWidth());
+    assertEquals(32, texture.getHeight());
+    for (String model :
+        new String[] {
+          "disabled.json", "immortal.json", "legendary.json", "mythical.json",
+        }) {
+      assertChunkLoaderTextureUvsStayInsidePaddedContent(
+          modelEntry(zip, "assets/exort/models/chunkloader/" + model), model);
+    }
+  }
+
+  private static void assertChunkLoaderTextureUvsStayInsidePaddedContent(
+      JsonObject model, String entryName) {
+    for (JsonElement element : model.getAsJsonArray("elements")) {
+      JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
+      if (faces == null) {
+        continue;
+      }
+      for (var entry : faces.entrySet()) {
+        JsonObject face = entry.getValue().getAsJsonObject();
+        if (!"#3".equals(face.get("texture").getAsString())) {
+          continue;
+        }
+        for (JsonElement value : face.getAsJsonArray("uv")) {
+          double number = value.getAsDouble();
+          assertTrue(
+              number >= 2.0 && number <= 14.0,
+              () -> entryName + " " + entry.getKey() + " UV outside padded content: " + number);
+        }
+      }
+    }
   }
 
   private static void assertItemDefinitionModel(ZipFile zip, String entryName, String expected)

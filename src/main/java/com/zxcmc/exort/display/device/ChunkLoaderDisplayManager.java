@@ -17,11 +17,17 @@ public final class ChunkLoaderDisplayManager extends BaseCarrierDisplayManager {
   private final Component chunkLoaderName;
   private final Component personalChunkLoaderName;
   private final Component dormantChunkLoaderName;
+  private final String personalDisplayModelId;
+  private final String dormantDisplayModelId;
+  private final String disabledDisplayModelId;
 
   public ChunkLoaderDisplayManager(
       Plugin plugin,
       Material carrierMaterial,
       String displayModelId,
+      String personalDisplayModelId,
+      String dormantDisplayModelId,
+      String disabledDisplayModelId,
       Material displayBaseMaterial,
       double displayScale,
       double offsetX,
@@ -45,6 +51,9 @@ public final class ChunkLoaderDisplayManager extends BaseCarrierDisplayManager {
     this.chunkLoaderName = safeName(chunkLoaderName, "Chunk Loader");
     this.personalChunkLoaderName = safeName(personalChunkLoaderName, "Personal Chunk Loader");
     this.dormantChunkLoaderName = safeName(dormantChunkLoaderName, "Dormant Chunk Loader");
+    this.personalDisplayModelId = personalDisplayModelId;
+    this.dormantDisplayModelId = dormantDisplayModelId;
+    this.disabledDisplayModelId = disabledDisplayModelId;
   }
 
   @Override
@@ -56,6 +65,19 @@ public final class ChunkLoaderDisplayManager extends BaseCarrierDisplayManager {
   @Override
   protected void decorateMeta(ItemMeta meta, Block block) {
     meta.displayName(nameFor(block).decoration(TextDecoration.ITALIC, false));
+  }
+
+  @Override
+  protected String modelId(Block block) {
+    ChunkLoaderMarker.Data data = dataFor(block);
+    if (data != null && !data.enabled()) {
+      return disabledDisplayModelId;
+    }
+    return switch (data == null ? ChunkLoaderType.defaultType() : data.type()) {
+      case PERSONAL_CHUNK_LOADER -> personalDisplayModelId;
+      case DORMANT_CHUNK_LOADER -> dormantDisplayModelId;
+      case CHUNK_LOADER -> displayModelId;
+    };
   }
 
   @Override
@@ -79,9 +101,12 @@ public final class ChunkLoaderDisplayManager extends BaseCarrierDisplayManager {
   }
 
   private ChunkLoaderType typeFor(Block block) {
-    return ChunkLoaderMarker.get(plugin, block)
-        .map(ChunkLoaderMarker.Data::type)
-        .orElse(ChunkLoaderType.defaultType());
+    ChunkLoaderMarker.Data data = dataFor(block);
+    return data == null ? ChunkLoaderType.defaultType() : data.type();
+  }
+
+  private ChunkLoaderMarker.Data dataFor(Block block) {
+    return ChunkLoaderMarker.get(plugin, block).orElse(null);
   }
 
   private static Component safeName(Component name, String fallback) {

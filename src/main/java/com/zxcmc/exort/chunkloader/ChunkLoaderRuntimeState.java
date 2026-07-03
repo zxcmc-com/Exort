@@ -2,6 +2,7 @@ package com.zxcmc.exort.chunkloader;
 
 public enum ChunkLoaderRuntimeState {
   TICKETED("ticketed"),
+  DISABLED("disabled"),
   REGISTERED("registered"),
   SLEEPING("sleeping"),
   OWNER_GRACE("owner_grace"),

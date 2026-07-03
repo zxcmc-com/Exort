@@ -50,7 +50,13 @@ class BundledLanguageFilesTest {
           "gui.bus.info.exort_storage",
           "message.storage_load_failed",
           "message.storage_loading",
-          "message.operation_failed");
+          "message.operation_failed",
+          "message.chunk_loader_enabled",
+          "message.chunk_loader_disabled",
+          "message.chunk_loader_already_enabled",
+          "message.chunk_loader_already_disabled",
+          "message.chunk_loader_toggle_denied",
+          "message.chunk_loader_toggle_failed");
 
   @Test
   void everyPinnedMinecraftLocaleHasBundledRuntimeLanguageFile() throws IOException {

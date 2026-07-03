@@ -16,7 +16,10 @@ public record RuntimeDisplayModelConfig(
     String relayGreen,
     String relayBlue,
     String relayRed,
-    String chunkLoader) {
+    String chunkLoader,
+    String personalChunkLoader,
+    String dormantChunkLoader,
+    String disabledChunkLoader) {
   public static RuntimeDisplayModelConfig forMode(boolean resourceMode, String namespace) {
     return resourceMode ? resourceConfig(namespace) : vanillaConfig(namespace);
   }
@@ -36,7 +39,10 @@ public record RuntimeDisplayModelConfig(
         normalizeModelId("relay/green", namespace),
         normalizeModelId("relay/blue", namespace),
         normalizeModelId("relay/red", namespace),
-        normalizeModelId("chunkloader/chunkloader", namespace));
+        normalizeModelId("chunkloader/immortal", namespace),
+        normalizeModelId("chunkloader/mythical", namespace),
+        normalizeModelId("chunkloader/legendary", namespace),
+        normalizeModelId("chunkloader/disabled", namespace));
   }
 
   private static RuntimeDisplayModelConfig vanillaConfig(String namespace) {
@@ -57,6 +63,9 @@ public record RuntimeDisplayModelConfig(
         normalizeModelId("lodestone", namespace),
         normalizeModelId("lodestone", namespace),
         normalizeModelId("lodestone", namespace),
+        normalizeModelId("respawn_anchor", namespace),
+        normalizeModelId("respawn_anchor", namespace),
+        normalizeModelId("respawn_anchor", namespace),
         normalizeModelId("respawn_anchor", namespace));
   }
 }

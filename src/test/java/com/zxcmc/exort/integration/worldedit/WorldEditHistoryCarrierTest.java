@@ -26,9 +26,13 @@ class WorldEditHistoryCarrierTest {
 
     assertEquals(
         ChunkLoaderType.CHUNK_LOADER, new ChunkLoaderData(id, null, null, null, 100L).type());
+    assertTrue(new ChunkLoaderData(id, null, null, null, 100L).enabled());
     assertEquals(
         ChunkLoaderType.DORMANT_CHUNK_LOADER,
         new ChunkLoaderData(id, ChunkLoaderType.DORMANT_CHUNK_LOADER, null, null, 100L).type());
+    assertFalse(
+        new ChunkLoaderData(id, ChunkLoaderType.PERSONAL_CHUNK_LOADER, null, null, 100L, false)
+            .enabled());
   }
 
   @Test

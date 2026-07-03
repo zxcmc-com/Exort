@@ -195,7 +195,10 @@ public final class RuntimeListenerRegistrar {
             deps.plugin(),
             deps.regionProtection(),
             deps.worldEditWandGuard(),
+            deps.playerFeedback(),
             deps.bossBarManager(),
+            deps.chunkLoaderService(),
+            deps.displayRefreshServiceSource(),
             materials.chunkLoaderCarrier(),
             deps.storagePeekTicks()));
   }

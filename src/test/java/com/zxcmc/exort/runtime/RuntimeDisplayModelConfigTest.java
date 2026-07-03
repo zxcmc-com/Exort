@@ -31,6 +31,16 @@ class RuntimeDisplayModelConfigTest {
     assertEquals("exort:relay/red", config.relayRed());
   }
 
+  @Test
+  void resourceModeUsesChunkLoaderStateModelIds() {
+    RuntimeDisplayModelConfig config = RuntimeDisplayModelConfig.forMode(true, "exort");
+
+    assertEquals("exort:chunkloader/immortal", config.chunkLoader());
+    assertEquals("exort:chunkloader/mythical", config.personalChunkLoader());
+    assertEquals("exort:chunkloader/legendary", config.dormantChunkLoader());
+    assertEquals("exort:chunkloader/disabled", config.disabledChunkLoader());
+  }
+
   private static void assertAllModelsUseNamespace(RuntimeDisplayModelConfig config, String prefix) {
     for (String model : models(config)) {
       assertTrue(model.startsWith(prefix), model);
@@ -52,6 +62,9 @@ class RuntimeDisplayModelConfigTest {
         config.relayGreen(),
         config.relayBlue(),
         config.relayRed(),
-        config.chunkLoader());
+        config.chunkLoader(),
+        config.personalChunkLoader(),
+        config.dormantChunkLoader(),
+        config.disabledChunkLoader());
   }
 }

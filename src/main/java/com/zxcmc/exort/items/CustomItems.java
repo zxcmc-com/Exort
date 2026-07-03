@@ -38,6 +38,8 @@ public class CustomItems {
   private final String exportBusItemModel;
   private final String relayItemModel;
   private final String chunkLoaderItemModel;
+  private final String personalChunkLoaderItemModel;
+  private final String dormantChunkLoaderItemModel;
   private final String wirelessItemModel;
   private final String wirelessDisabledItemModel;
   private final String wirelessVanillaModel;
@@ -55,6 +57,8 @@ public class CustomItems {
       String exportBusItemModel,
       String relayItemModel,
       String chunkLoaderItemModel,
+      String personalChunkLoaderItemModel,
+      String dormantChunkLoaderItemModel,
       String wirelessItemModel,
       String wirelessDisabledItemModel,
       String wirelessVanillaModel,
@@ -71,6 +75,10 @@ public class CustomItems {
     this.exportBusItemModel = exportBusItemModel == null ? "" : exportBusItemModel;
     this.relayItemModel = relayItemModel == null ? "" : relayItemModel;
     this.chunkLoaderItemModel = chunkLoaderItemModel == null ? "" : chunkLoaderItemModel;
+    this.personalChunkLoaderItemModel =
+        personalChunkLoaderItemModel == null ? "" : personalChunkLoaderItemModel;
+    this.dormantChunkLoaderItemModel =
+        dormantChunkLoaderItemModel == null ? "" : dormantChunkLoaderItemModel;
     this.wirelessItemModel = wirelessItemModel == null ? "" : wirelessItemModel;
     this.wirelessDisabledItemModel =
         wirelessDisabledItemModel == null ? "" : wirelessDisabledItemModel;
@@ -237,7 +245,7 @@ public class CustomItems {
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
       meta.itemName(chunkLoaderName(safeType));
-      ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
+      ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel(safeType));
       PersistentDataContainer pdc = meta.getPersistentDataContainer();
       pdc.set(keys.type(), PersistentDataType.STRING, safeType.id());
       if (id != null) {
@@ -355,7 +363,7 @@ public class CustomItems {
         pdc.set(keys.type(), PersistentDataType.STRING, loaderType.id());
         meta.itemName(chunkLoaderName(loaderType));
         applyChunkLoaderLore(meta, chunkLoaderId(stack).orElse(null));
-        ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel);
+        ItemModelUtil.applyItemModel(meta, chunkLoaderItemModel(loaderType));
         stack.setItemMeta(meta);
         return true;
       }
@@ -577,6 +585,14 @@ public class CustomItems {
     ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     return CustomItemText.chunkLoaderName(
         lang.itemComponent(clientTranslations, safeType.translationKey()));
+  }
+
+  private String chunkLoaderItemModel(ChunkLoaderType type) {
+    return switch (type == null ? ChunkLoaderType.defaultType() : type) {
+      case PERSONAL_CHUNK_LOADER -> personalChunkLoaderItemModel;
+      case DORMANT_CHUNK_LOADER -> dormantChunkLoaderItemModel;
+      case CHUNK_LOADER -> chunkLoaderItemModel;
+    };
   }
 
   private String formatNumber(long value) {

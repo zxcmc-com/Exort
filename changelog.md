@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.5 — 2026-07-03
+- Chunk Loaders can now be toggled in-world: Shift+RMB disables a placed loader, RMB re-enables a disabled loader, disabled loaders persist across restart and do not hold plugin chunk tickets, and Personal Chunk Loader toggles are limited to the owner or Exort admins.
+- Chunk Loader RESOURCE visuals now use separate active models for standard, Personal, and Dormant loaders plus a disabled model while keeping the existing breaking overlay model path.
+- Added localized ActionBar feedback for Chunk Loader toggle results across bundled languages.
+
 ## 0.18.4 — 2026-07-02
 - Added Personal Chunk Loader and Dormant Chunk Loader as separate items alongside the existing Chunk Loader.
 - Chunk Loader keeps the existing always-loaded behavior, Personal Chunk Loader stays loaded while its owner is online with a five-minute offline grace period, and Dormant Chunk Loader starts sleeping after restart until its own chunk is loaded again.
