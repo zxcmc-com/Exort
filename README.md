@@ -18,10 +18,11 @@ With stunning visuals, immersive interfaces, and a gameplay experience that feel
 - **Automation**: import/export buses with filters and modes.
 - **Relays**: connect remote sections of the storage network.
 - **Wireless Terminal**: access the network within range using a charged item.
+- **Chunk Loaders**: keep chunks loaded, with always-on, owner-bound, and dormant variants for safer automation while players are away.
 
 ## Compatibility
 - **Server software**: Paper / Purpur
-- **Supported Minecraft**: 1.21.7-26.1.2
+- **Supported Minecraft**: 1.21.7-26.2
 - **Java**: 25 for Minecraft 26.1+ servers; Java 21 remains supported for the generated plugin bytecode and older 1.21.x servers.
 
 ## Installation
