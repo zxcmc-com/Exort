@@ -95,6 +95,8 @@ class LangTest {
             "message.mode_chorusfix_status_inactive",
             "message.mode_chorusfix_status_blocked_by_provider",
             "message.wire.hard_cap",
+            "message.relay_disabled",
+            "message.chunk_loader_feature_disabled",
             "message.chunk_loader_enabled",
             "message.chunk_loader_disabled",
             "message.chunk_loader_already_enabled",

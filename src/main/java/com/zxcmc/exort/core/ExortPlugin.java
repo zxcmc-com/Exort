@@ -124,6 +124,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private Material wireMaterial;
   private Material storageCarrier;
   private Material relayCarrier;
+  private Material relayTraversalCarrier;
   private Material terminalCarrier;
   private RuntimeMaterials runtimeMaterials;
   private ExortBlockClassifier blockClassifier;
@@ -258,7 +259,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> relayRangeChunks,
                 () -> wireMaterial,
                 () -> storageCarrier,
-                () -> relayCarrier,
+                () -> relayTraversalCarrier,
                 () -> terminalCarrier,
                 () -> GuiRuntimeConfig.fromConfig(getConfig()),
                 GuiOverlayConfig::defaults,
@@ -608,6 +609,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     wireMaterial = materials.wire();
     storageCarrier = materials.storageCarrier();
     relayCarrier = materials.relayCarrier();
+    relayTraversalCarrier = services.relayTraversalCarrier();
     terminalCarrier = materials.terminalCarrier();
     wireLimit = services.wireLimit();
     wireHardCap = services.wireHardCap();
@@ -641,6 +643,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
               services.monitorDisplayManager(),
               services.wireLimit(),
               services.wireHardCap(),
+              services.relayTraversalCarrier(),
               services.relayRangeChunks()));
     }
   }
@@ -1046,7 +1049,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> relayRangeChunks,
         () -> wireMaterial,
         () -> storageCarrier,
-        () -> relayCarrier,
+        () -> relayTraversalCarrier,
         this::currentProtectionStatus);
   }
 

@@ -20,6 +20,7 @@ public final class RelayVisualStateResolver {
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material relayCarrier;
+  private final Material relayTraversalCarrier;
 
   public RelayVisualStateResolver(
       Plugin plugin,
@@ -30,7 +31,8 @@ public final class RelayVisualStateResolver {
       int relayRangeChunks,
       Material wireMaterial,
       Material storageCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material relayTraversalCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.keys = Objects.requireNonNull(keys, "keys");
     this.setupTracker = setupTracker;
@@ -40,6 +42,7 @@ public final class RelayVisualStateResolver {
     this.wireMaterial = Objects.requireNonNull(wireMaterial, "wireMaterial");
     this.storageCarrier = Objects.requireNonNull(storageCarrier, "storageCarrier");
     this.relayCarrier = Objects.requireNonNull(relayCarrier, "relayCarrier");
+    this.relayTraversalCarrier = relayTraversalCarrier;
   }
 
   public RelayVisualState resolve(Block relay) {
@@ -75,6 +78,9 @@ public final class RelayVisualStateResolver {
   }
 
   private TerminalLinkFinder.StorageSearchResult findStorage(Block relay) {
+    if (relayTraversalCarrier == null) {
+      return new TerminalLinkFinder.StorageSearchResult(0, null);
+    }
     return TerminalLinkFinder.find(
         relay,
         keys,
@@ -83,7 +89,7 @@ public final class RelayVisualStateResolver {
         wireHardCap,
         wireMaterial,
         storageCarrier,
-        relayCarrier,
+        relayTraversalCarrier,
         relayRangeChunks);
   }
 

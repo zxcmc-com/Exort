@@ -25,6 +25,7 @@ import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.concurrent.CompletableFuture;
+import org.bukkit.Material;
 
 public record ExortRuntimeServices(
     CompletableFuture<ItemNameService.Status> itemNamesStatus,
@@ -33,6 +34,7 @@ public record ExortRuntimeServices(
     ChunkLoaderService chunkLoaderService,
     RelaySetupTracker relaySetupTracker,
     RuntimeMaterials materials,
+    Material relayTraversalCarrier,
     int wireLimit,
     int wireHardCap,
     int relayRangeChunks,

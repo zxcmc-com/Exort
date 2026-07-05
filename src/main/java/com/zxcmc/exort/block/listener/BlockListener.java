@@ -73,6 +73,7 @@ public class BlockListener implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final boolean relayEnabled;
   private final Material chunkLoaderCarrier;
   private final BlockBreakHandler breakHandler;
   private final ChunkLoaderService chunkLoaderService;
@@ -103,6 +104,7 @@ public class BlockListener implements Listener {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.relayEnabled = dependencies.relayEnabled();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.breakHandler = dependencies.breakHandler();
     this.chunkLoaderService = dependencies.chunkLoaderService();
@@ -312,6 +314,11 @@ public class BlockListener implements Listener {
 
     if (customItems.isRelay(event.getItemInHand())
         && Carriers.matchesCarrier(block, relayCarrier)) {
+      if (!relayEnabled) {
+        event.setCancelled(true);
+        playerFeedback.warn(event.getPlayer(), "message.relay_disabled");
+        return;
+      }
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
         event.setCancelled(true);
         return;
@@ -348,6 +355,11 @@ public class BlockListener implements Listener {
 
     if (customItems.isChunkLoader(event.getItemInHand())
         && Carriers.matchesCarrier(block, chunkLoaderCarrier)) {
+      if (!chunkLoaderService.isFeatureEnabled()) {
+        event.setCancelled(true);
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_feature_disabled");
+        return;
+      }
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
         event.setCancelled(true);
         return;

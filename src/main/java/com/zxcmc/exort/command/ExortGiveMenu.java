@@ -1,6 +1,7 @@
 package com.zxcmc.exort.command;
 
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
+import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
@@ -30,6 +31,7 @@ public final class ExortGiveMenu implements InventoryHolder {
   private final Inventory inventory;
   private final Supplier<CustomItems> customItems;
   private final Supplier<ItemStack> wirelessTerminalFactory;
+  private final Supplier<FeatureAccessConfig> featureAccess;
   private final BiConsumer<Player, ItemStack> issueLogger;
   private final BiConsumer<Player, ItemStack> destroyLogger;
 
@@ -59,9 +61,26 @@ public final class ExortGiveMenu implements InventoryHolder {
       Component title,
       BiConsumer<Player, ItemStack> issueLogger,
       BiConsumer<Player, ItemStack> destroyLogger) {
+    this(
+        customItems,
+        wirelessTerminalFactory,
+        title,
+        issueLogger,
+        destroyLogger,
+        FeatureAccessConfig::defaults);
+  }
+
+  public ExortGiveMenu(
+      Supplier<CustomItems> customItems,
+      Supplier<ItemStack> wirelessTerminalFactory,
+      Component title,
+      BiConsumer<Player, ItemStack> issueLogger,
+      BiConsumer<Player, ItemStack> destroyLogger,
+      Supplier<FeatureAccessConfig> featureAccess) {
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.wirelessTerminalFactory =
         Objects.requireNonNull(wirelessTerminalFactory, "wirelessTerminalFactory");
+    this.featureAccess = featureAccess == null ? FeatureAccessConfig::defaults : featureAccess;
     this.issueLogger = issueLogger == null ? (player, item) -> {} : issueLogger;
     this.destroyLogger = destroyLogger == null ? (player, item) -> {} : destroyLogger;
     inventory = Bukkit.createInventory(this, SIZE, title == null ? Component.text(TITLE) : title);
@@ -69,7 +88,8 @@ public final class ExortGiveMenu implements InventoryHolder {
   }
 
   public void refreshCatalog() {
-    List<ItemStack> items = catalogItems(currentCustomItems(), wirelessTerminalFactory);
+    List<ItemStack> items =
+        catalogItems(currentCustomItems(), wirelessTerminalFactory, currentFeatureAccess());
     validateCatalogSize(items.size());
     inventory.clear();
     for (int i = 0; i < items.size(); i++) {
@@ -139,11 +159,21 @@ public final class ExortGiveMenu implements InventoryHolder {
   }
 
   static List<String> catalogIds() {
+    return catalogIds(FeatureAccessConfig.defaults());
+  }
+
+  static List<String> catalogIds(FeatureAccessConfig featureAccess) {
+    FeatureAccessConfig access =
+        featureAccess == null ? FeatureAccessConfig.defaults() : featureAccess;
     List<String> ids = new ArrayList<>();
     for (StorageTier tier : StorageTier.allTiers()) {
       ids.add("storage:" + tier.key().toLowerCase(Locale.ROOT));
     }
-    ids.addAll(FIXED_ITEM_IDS);
+    for (String id : FIXED_ITEM_IDS) {
+      if (access.isCatalogVisible(id)) {
+        ids.add(id);
+      }
+    }
     validateCatalogSize(ids.size());
     return List.copyOf(ids);
   }
@@ -176,7 +206,11 @@ public final class ExortGiveMenu implements InventoryHolder {
   }
 
   private static List<ItemStack> catalogItems(
-      CustomItems customItems, Supplier<ItemStack> wirelessTerminalFactory) {
+      CustomItems customItems,
+      Supplier<ItemStack> wirelessTerminalFactory,
+      FeatureAccessConfig featureAccess) {
+    FeatureAccessConfig access =
+        featureAccess == null ? FeatureAccessConfig.defaults() : featureAccess;
     List<ItemStack> items = new ArrayList<>();
     for (StorageTier tier : StorageTier.allTiers()) {
       items.add(oneItemCopy(customItems.storageItem(tier, null)));
@@ -188,11 +222,17 @@ public final class ExortGiveMenu implements InventoryHolder {
     items.add(oneItemCopy(customItems.importBusItem()));
     items.add(oneItemCopy(customItems.exportBusItem()));
     items.add(oneItemCopy(customItems.wireItem()));
-    items.add(oneItemCopy(customItems.relayItem()));
-    for (ChunkLoaderType type : ChunkLoaderType.all()) {
-      items.add(oneItemCopy(customItems.chunkLoaderItem(type)));
+    if (access.isCatalogVisible("relay")) {
+      items.add(oneItemCopy(customItems.relayItem()));
     }
-    items.add(oneItemCopy(wirelessTerminalFactory.get()));
+    if (access.isCatalogVisible("chunk_loader")) {
+      for (ChunkLoaderType type : ChunkLoaderType.all()) {
+        items.add(oneItemCopy(customItems.chunkLoaderItem(type)));
+      }
+    }
+    if (access.isCatalogVisible("wireless_terminal")) {
+      items.add(oneItemCopy(wirelessTerminalFactory.get()));
+    }
     return List.copyOf(items);
   }
 
@@ -242,6 +282,11 @@ public final class ExortGiveMenu implements InventoryHolder {
 
   private CustomItems currentCustomItems() {
     return Objects.requireNonNull(customItems.get(), "customItems");
+  }
+
+  private FeatureAccessConfig currentFeatureAccess() {
+    FeatureAccessConfig access = featureAccess.get();
+    return access == null ? FeatureAccessConfig.defaults() : access;
   }
 
   private ItemStack copyForDelivery(ItemStack sample) {

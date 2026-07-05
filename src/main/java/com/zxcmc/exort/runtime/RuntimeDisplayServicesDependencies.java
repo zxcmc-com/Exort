@@ -10,6 +10,7 @@ import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
 import java.util.function.Supplier;
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -27,6 +28,7 @@ public record RuntimeDisplayServicesDependencies(
     RelaySetupTracker relaySetupTracker,
     int wireLimit,
     int wireHardCap,
+    Material relayTraversalCarrier,
     int relayRangeChunks,
     PacketEnhancements packetEnhancements,
     Supplier<WorldEditDebugService> worldEditDebugService,

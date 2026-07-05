@@ -125,11 +125,15 @@ wire:
 
 # Network Relay settings.
 relay:
+  # Enable Network Relay placement, interaction, recipes, catalog visibility, and network traversal.
+  enabled: true
   # Maximum chunk Manhattan distance between two linked network relay blocks.
   rangeChunks: 3
 
 # Chunk Loader settings.
 chunkLoader:
+  # Enable Chunk Loader placement, interaction, recipes, catalog visibility, and plugin chunk tickets.
+  enabled: true
   # Square radius in chunks around the loader. 1 keeps 3x3 chunks loaded.
   # Values outside 0..8 are clamped by Exort.
   radius: 1
@@ -143,10 +147,10 @@ chunkLoader:
     # Console event filters only. The dedicated file audit remains full while file.enabled is true.
     events:
       issue: true
-      craft: false
-      inventoryMove: false
-      drop: false
-      pickup: false
+      craft: true
+      inventoryMove: true
+      drop: true
+      pickup: true
       place: true
       break: true
       enable: true

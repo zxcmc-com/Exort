@@ -1,6 +1,7 @@
 package com.zxcmc.exort.recipes;
 
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
+import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
@@ -11,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -29,13 +31,30 @@ public final class RecipeService {
   private final JavaPlugin plugin;
   private final CustomItems customItems;
   private final WirelessTerminalService wirelessService;
+  private final Supplier<FeatureAccessConfig> featureAccess;
   private final List<NamespacedKey> registered = new ArrayList<>();
 
   public RecipeService(
       JavaPlugin plugin, CustomItems customItems, WirelessTerminalService wirelessService) {
+    this(
+        plugin,
+        customItems,
+        wirelessService,
+        () ->
+            plugin == null
+                ? FeatureAccessConfig.defaults()
+                : FeatureAccessConfig.fromConfig(plugin.getConfig()));
+  }
+
+  RecipeService(
+      JavaPlugin plugin,
+      CustomItems customItems,
+      WirelessTerminalService wirelessService,
+      Supplier<FeatureAccessConfig> featureAccess) {
     this.plugin = plugin;
     this.customItems = customItems;
     this.wirelessService = wirelessService;
+    this.featureAccess = featureAccess == null ? FeatureAccessConfig::defaults : featureAccess;
   }
 
   public void reload() {
@@ -332,6 +351,10 @@ public final class RecipeService {
     if (section == null) return null;
     String raw = section.getString("item");
     if (raw == null) return null;
+    if (!allowsRecipeResult(raw)) {
+      logSkip(raw, "feature is disabled");
+      return null;
+    }
     int amount = Math.max(1, section.getInt("amount", 1));
     ItemStack item = resolveExortItem(raw);
     if (item == null) {
@@ -444,6 +467,14 @@ public final class RecipeService {
         yield null;
       }
     };
+  }
+
+  boolean allowsRecipeResult(String raw) {
+    FeatureAccessConfig access = featureAccess.get();
+    if (access == null) {
+      access = FeatureAccessConfig.defaults();
+    }
+    return access.allowsRecipeResult(raw);
   }
 
   private void logSkip(String id, String reason) {

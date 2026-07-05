@@ -20,7 +20,7 @@ public final class RuntimeBusServicesFactory {
             deps.relayRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
-            materials.relayCarrier(),
+            deps.relayTraversalCarrier(),
             deps.renderStorage());
     BusService busService =
         new BusService(
@@ -45,7 +45,7 @@ public final class RuntimeBusServicesFactory {
             deps.relayRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
-            materials.relayCarrier(),
+            deps.relayTraversalCarrier(),
             deps.guiRuntimeConfig(),
             deps.guiOverlayConfig(),
             deps.itemNameService());

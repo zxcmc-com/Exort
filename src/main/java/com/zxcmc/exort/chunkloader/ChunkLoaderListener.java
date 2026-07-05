@@ -69,6 +69,11 @@ public final class ChunkLoaderListener implements Listener {
       playerFeedback.error(player, "message.no_permission");
       return;
     }
+    if (!chunkLoaderService.isFeatureEnabled()) {
+      consume(event);
+      playerFeedback.warn(player, "message.chunk_loader_feature_disabled");
+      return;
+    }
     ChunkLoaderMarker.Data data = marker.get();
     if (player.isSneaking()) {
       consume(event);

@@ -76,6 +76,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final boolean relayEnabled;
   private final Material chunkLoaderCarrier;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
@@ -106,6 +107,7 @@ public class ItemPlaceBridgeListener implements Listener {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.relayEnabled = dependencies.relayEnabled();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.regionProtection = dependencies.regionProtection();
     this.playerFeedback = dependencies.playerFeedback();
@@ -259,6 +261,10 @@ public class ItemPlaceBridgeListener implements Listener {
     // Network Relay
     if (customItems.isRelay(stack)) {
       event.setCancelled(true);
+      if (!relayEnabled) {
+        playerFeedback.warn(event.getPlayer(), "message.relay_disabled");
+        return;
+      }
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), relayCarrier)) return;
       placeRelay(target);
       finishPlacement(event, target, BreakType.RELAY);
@@ -269,6 +275,10 @@ public class ItemPlaceBridgeListener implements Listener {
     // Chunk Loader
     if (customItems.isChunkLoader(stack)) {
       event.setCancelled(true);
+      if (!chunkLoaderService.isFeatureEnabled()) {
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_feature_disabled");
+        return;
+      }
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), chunkLoaderCarrier))
         return;
       UUID loaderId = customItems.chunkLoaderId(stack).orElse(UUID.randomUUID());

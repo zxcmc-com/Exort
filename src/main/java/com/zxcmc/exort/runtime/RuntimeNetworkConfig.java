@@ -8,6 +8,7 @@ public record RuntimeNetworkConfig(
     long wirePeekTicks,
     int wireLimit,
     int wireHardCap,
+    boolean relayEnabled,
     int relayRangeChunks,
     boolean wireHardCapAdjusted) {
   private static final long TICKS_PER_SECOND = 20L;
@@ -23,9 +24,16 @@ public record RuntimeNetworkConfig(
     int hardCapRaw = config.getInt("wire.hardCap", Math.max(wireLimit * 2, wireLimit));
     boolean hardCapAdjusted = hardCapRaw < wireLimit;
     int wireHardCap = Math.max(wireLimit, hardCapRaw);
+    boolean relayEnabled = config.getBoolean("relay.enabled", true);
     int relayRangeChunks = Math.max(0, config.getInt("relay.rangeChunks", 3));
 
     return new RuntimeNetworkConfig(
-        storagePeekTicks, wirePeekTicks, wireLimit, wireHardCap, relayRangeChunks, hardCapAdjusted);
+        storagePeekTicks,
+        wirePeekTicks,
+        wireLimit,
+        wireHardCap,
+        relayEnabled,
+        relayRangeChunks,
+        hardCapAdjusted);
   }
 }

@@ -37,6 +37,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -59,8 +60,10 @@ public record RuntimeListenerDependencies(
     InventoryRefreshService inventoryRefreshService,
     RuntimeMaterials materials,
     RelaySetupTracker relaySetupTracker,
+    boolean relayEnabled,
     int wireLimit,
     int wireHardCap,
+    Material relayTraversalCarrier,
     int relayRangeChunks,
     ItemHologramManager hologramManager,
     Supplier<ItemHologramManager> hologramManagerSource,

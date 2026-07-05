@@ -53,6 +53,7 @@ public final class DisplayRefreshService {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material relayTraversalCarrier;
   private final Material chunkLoaderCarrier;
   private final Material storageCarrier;
   private final WireDisplayManager wireDisplayManager;
@@ -78,6 +79,7 @@ public final class DisplayRefreshService {
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material relayTraversalCarrier,
       Material chunkLoaderCarrier,
       Material storageCarrier,
       WireDisplayManager wireDisplayManager,
@@ -97,6 +99,7 @@ public final class DisplayRefreshService {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.relayTraversalCarrier = relayTraversalCarrier;
     this.chunkLoaderCarrier = chunkLoaderCarrier;
     this.storageCarrier = storageCarrier;
     this.wireDisplayManager = wireDisplayManager;
@@ -252,7 +255,7 @@ public final class DisplayRefreshService {
     boolean isWire =
         Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
     boolean isRelay =
-        Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+        Carriers.matchesCarrier(block, relayTraversalCarrier) && RelayMarker.isRelay(plugin, block);
     if (isWire || isRelay) {
       refreshFromNetworkNode(block, hardCap, wireMaterial);
       return;
@@ -262,7 +265,7 @@ public final class DisplayRefreshService {
       if (!isChunkLoaded(neighbor)) continue;
       if (Carriers.matchesCarrier(neighbor, wireMaterial) && WireMarker.isWire(plugin, neighbor)) {
         refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
-      } else if (Carriers.matchesCarrier(neighbor, relayCarrier)
+      } else if (Carriers.matchesCarrier(neighbor, relayTraversalCarrier)
           && RelayMarker.isRelay(plugin, neighbor)) {
         refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
       }
@@ -357,12 +360,14 @@ public final class DisplayRefreshService {
     visited.add(start);
     if (Carriers.matchesCarrier(start, wireMaterial) && WireMarker.isWire(plugin, start)) {
       budget.recordStartNode();
-    } else if (Carriers.matchesCarrier(start, relayCarrier) && RelayMarker.isRelay(plugin, start)) {
+    } else if (Carriers.matchesCarrier(start, relayTraversalCarrier)
+        && RelayMarker.isRelay(plugin, start)) {
       relays.add(start);
     }
     while (!queue.isEmpty()) {
       Block current = queue.poll();
-      if (Carriers.matchesCarrier(current, relayCarrier) && RelayMarker.isRelay(plugin, current)) {
+      if (Carriers.matchesCarrier(current, relayTraversalCarrier)
+          && RelayMarker.isRelay(plugin, current)) {
         Block peer = validRelayPeer(current);
         if (peer != null && !visited.contains(peer)) {
           if (!budget.tryVisitNextNode()) {
@@ -385,7 +390,8 @@ public final class DisplayRefreshService {
           queue.add(next);
           continue;
         }
-        if (Carriers.matchesCarrier(next, relayCarrier) && RelayMarker.isRelay(plugin, next)) {
+        if (Carriers.matchesCarrier(next, relayTraversalCarrier)
+            && RelayMarker.isRelay(plugin, next)) {
           if (!budget.tryVisitNextNode()) {
             continue;
           }
@@ -538,7 +544,8 @@ public final class DisplayRefreshService {
   private Block validRelayPeer(Block relay) {
     Block peer = RelayMarker.link(plugin, relay).map(RelayMarker.Link::loadedBlock).orElse(null);
     if (peer == null || !isChunkLoaded(peer)) return null;
-    if (!Carriers.matchesCarrier(peer, relayCarrier) || !RelayMarker.isRelay(plugin, peer)) {
+    if (!Carriers.matchesCarrier(peer, relayTraversalCarrier)
+        || !RelayMarker.isRelay(plugin, peer)) {
       return null;
     }
     if (RelayMarker.link(plugin, peer).filter(link -> link.sameBlock(relay)).isEmpty()) {

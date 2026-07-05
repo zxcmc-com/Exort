@@ -51,6 +51,8 @@ class BundledLanguageFilesTest {
           "message.storage_load_failed",
           "message.storage_loading",
           "message.operation_failed",
+          "message.relay_disabled",
+          "message.chunk_loader_feature_disabled",
           "message.chunk_loader_enabled",
           "message.chunk_loader_disabled",
           "message.chunk_loader_already_enabled",

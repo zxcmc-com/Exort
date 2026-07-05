@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.7 — 2026-07-05
+- Updated bundled RESOURCE textures for Chunk Loader, Network Relay, Storage, and Terminal blocks, and refined Network Relay state models to render color indicators over a shared base layer.
+- Added `relay.enabled` and `chunkLoader.enabled` feature flags, and extended `wireless.enabled` so disabled Relay, Chunk Loader, and Wireless Terminal features are hidden from default recipes and `/exort inventory` while `/exort give` remains an admin override.
+- Disabling Network Relays now blocks new placement and link/status interactions and removes existing relays from network traversal without deleting markers or WorldEdit/FAWE snapshot data; disabling Chunk Loaders blocks new placement/toggle/status interactions and suppresses plugin chunk tickets while preserving records, breaking, and cleanup.
+- Chunk Loader console audit defaults now log issue, craft, inventory movement, drop, pickup, place, break, enable, disable, destroy, and cleanup events by default, leaving only ticket acquire/release out of console output while the dedicated audit file remains complete.
+
 ## 0.18.6 — 2026-07-03
 - Chunk Loader item and placed display names now use distinct colors for standard, Personal, and Dormant loaders.
 - Chunk Loader right-click status messages now show the localized loader name once followed by a generic `UUID:` label across bundled languages, and give-command help no longer mentions a variant argument.

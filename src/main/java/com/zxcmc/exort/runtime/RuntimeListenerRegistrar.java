@@ -79,6 +79,7 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                deps.relayEnabled(),
                 materials.chunkLoaderCarrier(),
                 deps.breakHandler(),
                 deps.chunkLoaderService(),
@@ -120,7 +121,7 @@ public final class RuntimeListenerRegistrar {
             deps.relayRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
-            materials.relayCarrier(),
+            deps.relayTraversalCarrier(),
             materials.terminalCarrier()));
     register(
         deps,
@@ -188,6 +189,7 @@ public final class RuntimeListenerRegistrar {
             materials.wire(),
             materials.storageCarrier(),
             materials.relayCarrier(),
+            deps.relayEnabled(),
             deps.relaySetupTracker()));
     register(
         deps,
@@ -241,6 +243,7 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                deps.relayEnabled(),
                 materials.chunkLoaderCarrier(),
                 deps.regionProtection(),
                 deps.playerFeedback(),
@@ -285,7 +288,7 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.wire(),
                 materials.storageCarrier(),
-                materials.relayCarrier(),
+                deps.relayTraversalCarrier(),
                 deps::wireLimit,
                 deps::wireHardCap,
                 deps::relayRangeChunks,
@@ -416,7 +419,7 @@ public final class RuntimeListenerRegistrar {
                 deps.relayRangeChunks(),
                 materials.wire(),
                 materials.storageCarrier(),
-                materials.relayCarrier())));
+                deps.relayTraversalCarrier())));
     register(deps, new WirelessCraftListener(deps.wirelessService()));
   }
 

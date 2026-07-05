@@ -36,6 +36,7 @@ public record BlockListenerDependencies(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    boolean relayEnabled,
     Material chunkLoaderCarrier,
     BlockBreakHandler breakHandler,
     ChunkLoaderService chunkLoaderService,

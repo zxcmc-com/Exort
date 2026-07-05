@@ -9,6 +9,7 @@ import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.runtime.RuntimeMaterials;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
+import org.bukkit.Material;
 
 public record LoadTestRuntimeDependencies(
     StorageKeys keys,
@@ -21,6 +22,7 @@ public record LoadTestRuntimeDependencies(
     MonitorDisplayManager monitorDisplayManager,
     int wireLimit,
     int wireHardCap,
+    Material relayTraversalCarrier,
     int relayRangeChunks) {
   public LoadTestRuntimeDependencies {
     Objects.requireNonNull(keys, "keys");

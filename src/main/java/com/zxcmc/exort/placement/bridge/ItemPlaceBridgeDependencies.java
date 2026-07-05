@@ -33,6 +33,7 @@ public record ItemPlaceBridgeDependencies(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    boolean relayEnabled,
     Material chunkLoaderCarrier,
     RegionProtection regionProtection,
     PlayerFeedback playerFeedback,

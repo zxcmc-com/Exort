@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.zxcmc.exort.chunkloader.ChunkLoaderObservation;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
 import com.zxcmc.exort.feedback.CommandFeedback;
+import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -85,7 +86,8 @@ final class InventoryCommand {
                           "/exort inventory",
                           actor.getLocation());
                 }
-              })
+              },
+              () -> FeatureAccessConfig.fromConfig(dependencies.plugin().getConfig()))
           .open(player);
     } catch (IllegalStateException e) {
       ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to open Exort inventory menu", e);

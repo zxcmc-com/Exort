@@ -59,7 +59,7 @@ public final class RuntimeDisplayServicesFactory {
             deps.relayRangeChunks(),
             materials.wire(),
             materials.storageCarrier(),
-            materials.relayCarrier(),
+            deps.relayTraversalCarrier(),
             materials.terminalCarrier(),
             deps.hologramConfig().terminal(),
             deps.hologramConfig().storage(),
@@ -131,6 +131,7 @@ public final class RuntimeDisplayServicesFactory {
             materials.monitorCarrier(),
             materials.busCarrier(),
             materials.relayCarrier(),
+            deps.relayTraversalCarrier(),
             materials.chunkLoaderCarrier(),
             materials.storageCarrier(),
             wireDisplayManager,
@@ -245,7 +246,7 @@ public final class RuntimeDisplayServicesFactory {
         deps.relayRangeChunks(),
         materials.wire(),
         materials.storageCarrier(),
-        materials.relayCarrier(),
+        deps.relayTraversalCarrier(),
         deps.resourceMode());
   }
 
@@ -276,7 +277,7 @@ public final class RuntimeDisplayServicesFactory {
         deps.relayRangeChunks(),
         materials.wire(),
         materials.storageCarrier(),
-        materials.relayCarrier(),
+        deps.relayTraversalCarrier(),
         monitorScreens.item(),
         monitorScreens.block(),
         monitorScreens.thinBlock(),
@@ -324,7 +325,8 @@ public final class RuntimeDisplayServicesFactory {
                 deps.relayRangeChunks(),
                 materials.wire(),
                 materials.storageCarrier(),
-                materials.relayCarrier())
+                materials.relayCarrier(),
+                deps.relayTraversalCarrier())
             : null;
     return new RelayDisplayManager(
         deps.plugin(),

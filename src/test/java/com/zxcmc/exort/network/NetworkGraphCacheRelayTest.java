@@ -71,6 +71,23 @@ class NetworkGraphCacheRelayTest {
   }
 
   @Test
+  void disabledRelayTraversalDoesNotConnectLinkedRelays() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-graph-disabled", uuid(16));
+    Block terminal = world.block(0, 64, 0, CARRIER);
+    Block firstRelay = world.block(1, 64, 0, CARRIER);
+    Block secondRelay = world.block(64, 64, 0, CARRIER);
+    Block storage = world.block(65, 64, 0, CARRIER);
+    TerminalMarker.set(plugin, terminal);
+    RelayMarker.link(plugin, firstRelay, secondRelay);
+    StorageMarker.set(plugin, storage, "storage-a", tier);
+
+    TerminalLinkFinder.StorageSearchResult result =
+        NetworkGraphCache.scan(terminal, keys, plugin, 0, 16, WIRE, CARRIER, null, 4);
+
+    assertEquals(0, result.count());
+  }
+
+  @Test
   void scanUsesStorageMarkerFallbackWhenTierWasRemoved() {
     ConfigurationSection gold =
         config(Map.of("maxItems", 45L * 64L, "material", "minecraft:gold_block"));

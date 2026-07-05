@@ -70,7 +70,9 @@ public final class ChunkLoaderService implements Listener {
     this.config =
         config == null
             ? new ChunkLoaderConfig(
-                ChunkLoaderConfig.DEFAULT_RADIUS, ChunkLoaderAuditConfig.fromConfig(null))
+                ChunkLoaderConfig.DEFAULT_ENABLED,
+                ChunkLoaderConfig.DEFAULT_RADIUS,
+                ChunkLoaderAuditConfig.fromConfig(null))
             : config;
     this.auditLogger =
         auditLogger == null
@@ -120,6 +122,10 @@ public final class ChunkLoaderService implements Listener {
 
   public int radius() {
     return config.radius();
+  }
+
+  public boolean isFeatureEnabled() {
+    return config.enabled();
   }
 
   public ChunkLoaderAuditLogger auditLogger() {
@@ -499,6 +505,9 @@ public final class ChunkLoaderService implements Listener {
     if (!record.enabled()) {
       return ChunkLoaderRuntimeState.DISABLED;
     }
+    if (!config.enabled()) {
+      return ChunkLoaderRuntimeState.FEATURE_DISABLED;
+    }
     if (record.type() == ChunkLoaderType.PERSONAL_CHUNK_LOADER
         && personalReleaseTasks.containsKey(id)) {
       return ChunkLoaderRuntimeState.OWNER_GRACE;
@@ -554,6 +563,9 @@ public final class ChunkLoaderService implements Listener {
   }
 
   private boolean shouldTicket(ChunkLoaderRecord record, boolean ownChunkLoaded) {
+    if (!config.enabled()) {
+      return false;
+    }
     if (!record.enabled()) {
       return false;
     }
@@ -599,7 +611,10 @@ public final class ChunkLoaderService implements Listener {
   }
 
   private void activateTickets(ChunkLoaderRecord record, String reason) {
-    if (record == null || !record.enabled() || ticketedIds.contains(record.id())) {
+    if (!config.enabled()
+        || record == null
+        || !record.enabled()
+        || ticketedIds.contains(record.id())) {
       return;
     }
     World world = Bukkit.getWorld(record.worldId());

@@ -1,10 +1,12 @@
 package com.zxcmc.exort.recipes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
+import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.items.CustomItems;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,21 @@ class RecipeServiceTest {
     assertEquals(ChunkLoaderType.DORMANT_CHUNK_LOADER, customItems.lastType);
 
     assertNull(service.resolveExortItem("exort:chunk_loader:personal"));
+  }
+
+  @Test
+  void featureFlagsRejectDisabledRecipeResultsWithoutDisablingItemFactories() {
+    RecordingCustomItems customItems = new RecordingCustomItems();
+    RecipeService service =
+        new RecipeService(
+            null, customItems, null, () -> new FeatureAccessConfig(false, false, false));
+
+    assertFalse(service.allowsRecipeResult("exort:relay"));
+    assertFalse(service.allowsRecipeResult("chunk_loader"));
+    assertFalse(service.allowsRecipeResult("personal_chunk_loader"));
+    assertFalse(service.allowsRecipeResult("dormant_chunk_loader"));
+    assertFalse(service.allowsRecipeResult("wireless_terminal"));
+    assertNotNull(service.resolveExortItem("chunk_loader"));
   }
 
   private static final class RecordingCustomItems extends CustomItems {

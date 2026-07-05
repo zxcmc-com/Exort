@@ -578,7 +578,7 @@ final class DebugCommand {
     return switch (state) {
       case TICKETED -> NamedTextColor.GREEN;
       case SLEEPING, OWNER_GRACE -> NamedTextColor.YELLOW;
-      case OWNER_OFFLINE, WORLD_UNAVAILABLE -> NamedTextColor.RED;
+      case FEATURE_DISABLED, OWNER_OFFLINE, WORLD_UNAVAILABLE -> NamedTextColor.RED;
       case DISABLED, REGISTERED, MISSING -> NamedTextColor.GRAY;
     };
   }

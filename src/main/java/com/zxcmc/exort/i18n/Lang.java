@@ -338,9 +338,13 @@ public class Lang {
         "Network relays are too far apart. Limit: {0} chunks by Manhattan distance.");
     fallback.put("message.relay_linked", "Network relays linked.");
     fallback.put("message.relay_unlinked", "Network relay link removed.");
+    fallback.put("message.relay_disabled", "Network Relays are disabled by server configuration.");
     fallback.put(
         "message.chunk_loader_duplicate",
         "This Chunk Loader is already active at another position.");
+    fallback.put(
+        "message.chunk_loader_feature_disabled",
+        "Chunk Loaders are disabled by server configuration.");
     fallback.put("message.chunk_loader_enabled", "Chunk Loader enabled.");
     fallback.put("message.chunk_loader_disabled", "Chunk Loader disabled.");
     fallback.put("message.chunk_loader_already_enabled", "This Chunk Loader is already enabled.");

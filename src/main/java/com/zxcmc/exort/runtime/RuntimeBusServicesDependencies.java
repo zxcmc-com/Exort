@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public record RuntimeBusServicesDependencies(
@@ -28,6 +29,7 @@ public record RuntimeBusServicesDependencies(
     RuntimeMaterials materials,
     int wireLimit,
     int wireHardCap,
+    Material relayTraversalCarrier,
     int relayRangeChunks,
     BusRuntimeConfig busRuntime,
     BooleanSupplier resourceMode,

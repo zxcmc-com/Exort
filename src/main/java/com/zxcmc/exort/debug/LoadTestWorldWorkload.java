@@ -335,7 +335,7 @@ final class LoadTestWorldWorkload {
               dependencies.wireHardCap(),
               dependencies.materials().wire(),
               dependencies.materials().storageCarrier(),
-              dependencies.materials().relayCarrier(),
+              dependencies.relayTraversalCarrier(),
               dependencies.relayRangeChunks());
       operations++;
     }

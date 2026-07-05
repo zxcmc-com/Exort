@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.logging.Logger;
 import org.bukkit.Material;
@@ -20,6 +21,21 @@ class ExortGiveMenuTest {
     loadDefaultLikeTiers();
 
     assertTrue(ExortGiveMenu.catalogIds().size() <= ExortGiveMenu.SIZE);
+  }
+
+  @Test
+  void catalogHidesDisabledFeatureItems() {
+    loadDefaultLikeTiers();
+
+    var ids = ExortGiveMenu.catalogIds(new FeatureAccessConfig(false, false, false));
+
+    assertFalse(ids.contains("relay"));
+    assertFalse(ids.contains("chunk_loader"));
+    assertFalse(ids.contains("personal_chunk_loader"));
+    assertFalse(ids.contains("dormant_chunk_loader"));
+    assertFalse(ids.contains("wireless_terminal"));
+    assertTrue(ids.contains("wire"));
+    assertTrue(ids.contains("terminal"));
   }
 
   @Test

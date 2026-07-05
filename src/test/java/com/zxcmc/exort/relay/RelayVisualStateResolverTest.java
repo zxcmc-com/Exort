@@ -105,6 +105,15 @@ class RelayVisualStateResolverTest {
   }
 
   @Test
+  void disabledTraversalDoesNotShowRelayAsConnectedToStorage() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-visual-disabled", uuid(9));
+    Block relay = relay(world, 0, 64, 0);
+    storage(world, 1, 64, 0, "storage-a");
+
+    assertEquals(RelayVisualState.BLACK, resolver(null).resolve(relay, 1_000L));
+  }
+
+  @Test
   void unloadedPeerIsNotCountedAsWorkingLink() {
     BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-visual-unloaded", uuid(7));
     Block relay = relay(world, 0, 64, 0);
@@ -129,8 +138,12 @@ class RelayVisualStateResolverTest {
   }
 
   private RelayVisualStateResolver resolver() {
+    return resolver(CARRIER);
+  }
+
+  private RelayVisualStateResolver resolver(Material relayTraversalCarrier) {
     return new RelayVisualStateResolver(
-        plugin, keys, setupTracker, 0, 16, 4, WIRE, CARRIER, CARRIER);
+        plugin, keys, setupTracker, 0, 16, 4, WIRE, CARRIER, CARRIER, relayTraversalCarrier);
   }
 
   private Block relay(BukkitTestDoubles.TestWorld world, int x, int y, int z) {

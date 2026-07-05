@@ -13,14 +13,23 @@ class RuntimeNetworkConfigTest {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("wire.limit", 20);
     yaml.set("wire.hardCap", 50);
+    yaml.set("relay.enabled", false);
     yaml.set("relay.rangeChunks", 8);
 
     RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
 
     assertEquals(20, config.wireLimit());
     assertEquals(50, config.wireHardCap());
+    assertFalse(config.relayEnabled());
     assertEquals(8, config.relayRangeChunks());
     assertFalse(config.wireHardCapAdjusted());
+  }
+
+  @Test
+  void relayEnabledDefaultsTrue() {
+    RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(new YamlConfiguration());
+
+    assertTrue(config.relayEnabled());
   }
 
   @Test

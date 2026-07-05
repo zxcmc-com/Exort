@@ -22,6 +22,16 @@ class ChunkLoaderConfigTest {
   }
 
   @Test
+  void enabledDefaultsTrueAndReadsPublicKey() {
+    YamlConfiguration config = new YamlConfiguration();
+    assertTrue(ChunkLoaderConfig.fromConfig(config, null).enabled());
+
+    config.set("chunkLoader.enabled", false);
+
+    assertFalse(ChunkLoaderConfig.fromConfig(config, null).enabled());
+  }
+
+  @Test
   void auditUsesPublicCamelCaseInventoryMoveKey() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("chunkLoader.audit.events.inventoryMove", true);
@@ -34,20 +44,20 @@ class ChunkLoaderConfigTest {
   }
 
   @Test
-  void auditConsoleDefaultsStayQuietForNoisyEvents() {
+  void auditConsoleDefaultsLogPlayerFacingEventsExceptTicketNoise() {
     ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(new YamlConfiguration());
 
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.ISSUE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.CRAFT));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DROP));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PICKUP));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.BREAK));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.ENABLE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DISABLE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DESTROY));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.CLEANUP));
-    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.CRAFT));
-    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
-    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.DROP));
-    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.PICKUP));
     assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.TICKET_ACQUIRE));
     assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.TICKET_RELEASE));
   }
@@ -71,7 +81,7 @@ class ChunkLoaderConfigTest {
 
     assertFalse(audit.shouldWriteFile());
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
-    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
   }
 
   @Test

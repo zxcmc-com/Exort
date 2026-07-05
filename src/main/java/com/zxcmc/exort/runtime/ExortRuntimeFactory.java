@@ -68,6 +68,7 @@ public final class ExortRuntimeFactory {
     if (deps.networkGraphCache().get() != null) {
       deps.networkGraphCache().get().invalidateAll();
     }
+    var relayTraversalCarrier = networkConfig.relayEnabled() ? materials.relayCarrier() : null;
 
     CustomItems customItems = createCustomItems(deps, itemModels);
     WirelessTerminalService wirelessService = createWirelessService(deps, customItems);
@@ -133,6 +134,7 @@ public final class ExortRuntimeFactory {
                 relaySetupTracker,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
+                relayTraversalCarrier,
                 networkConfig.relayRangeChunks(),
                 packetEnhancements,
                 deps.worldEditDebugService(),
@@ -159,6 +161,7 @@ public final class ExortRuntimeFactory {
                 materials,
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
+                relayTraversalCarrier,
                 networkConfig.relayRangeChunks(),
                 busRuntime,
                 () -> deps.resourceMode(),
@@ -213,8 +216,10 @@ public final class ExortRuntimeFactory {
                 deps.inventoryRefreshService(),
                 materials,
                 relaySetupTracker,
+                networkConfig.relayEnabled(),
                 networkConfig.wireLimit(),
                 networkConfig.wireHardCap(),
+                relayTraversalCarrier,
                 networkConfig.relayRangeChunks(),
                 displayServices.hologramManager(),
                 () -> displayServices.hologramManager(),
@@ -282,6 +287,7 @@ public final class ExortRuntimeFactory {
         chunkLoaderService,
         relaySetupTracker,
         materials,
+        relayTraversalCarrier,
         networkConfig.wireLimit(),
         networkConfig.wireHardCap(),
         networkConfig.relayRangeChunks(),

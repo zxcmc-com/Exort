@@ -26,7 +26,6 @@ public record BusEngineDependencies(
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
-    Objects.requireNonNull(relayCarrier, "relayCarrier");
     Objects.requireNonNull(storageRenderer, "storageRenderer");
   }
 

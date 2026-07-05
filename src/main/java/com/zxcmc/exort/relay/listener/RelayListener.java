@@ -52,6 +52,7 @@ public final class RelayListener implements Listener {
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material relayCarrier;
+  private final boolean featureEnabled;
   private final RelaySetupTracker setupTracker;
 
   public RelayListener(
@@ -71,6 +72,7 @@ public final class RelayListener implements Listener {
       Material wireMaterial,
       Material storageCarrier,
       Material relayCarrier,
+      boolean featureEnabled,
       RelaySetupTracker setupTracker) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.regionProtection = Objects.requireNonNull(regionProtection, "regionProtection");
@@ -89,6 +91,7 @@ public final class RelayListener implements Listener {
     this.wireMaterial = Objects.requireNonNull(wireMaterial, "wireMaterial");
     this.storageCarrier = Objects.requireNonNull(storageCarrier, "storageCarrier");
     this.relayCarrier = Objects.requireNonNull(relayCarrier, "relayCarrier");
+    this.featureEnabled = featureEnabled;
     this.setupTracker = Objects.requireNonNull(setupTracker, "setupTracker");
   }
 
@@ -103,6 +106,12 @@ public final class RelayListener implements Listener {
     if (!regionProtection.canUse(player, block)) {
       event.setCancelled(true);
       playerFeedback.error(player, "message.no_permission");
+      return;
+    }
+    if (!featureEnabled) {
+      consume(event);
+      clearPending(player);
+      playerFeedback.warn(player, "message.relay_disabled");
       return;
     }
     if (player.isSneaking()) {
