@@ -24,6 +24,7 @@ import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.placement.bridge.ItemPlaceBridgeDependencies;
 import com.zxcmc.exort.placement.bridge.ItemPlaceBridgeListener;
 import com.zxcmc.exort.recipes.CraftingRules;
+import com.zxcmc.exort.recipes.RecipeDiscoveryListener;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.recipes.listener.CraftBlockerListener;
 import com.zxcmc.exort.relay.listener.RelayListener;
@@ -394,7 +395,11 @@ public final class RuntimeListenerRegistrar {
     register(deps, new CraftBlockerListener(craftingRules));
     RecipeService recipeService =
         new RecipeService(deps.plugin(), deps.customItems(), deps.wirelessService());
+    RecipeDiscoveryListener discoveryListener =
+        new RecipeDiscoveryListener(deps.plugin(), recipeService);
+    register(deps, discoveryListener);
     recipeService.reload();
+    discoveryListener.discoverForOnlinePlayers();
     return new RecipeRegistration(craftingRules, recipeService);
   }
 

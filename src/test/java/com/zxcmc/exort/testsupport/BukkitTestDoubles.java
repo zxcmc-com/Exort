@@ -13,13 +13,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
+import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Server;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.MultipleFacing;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.plugin.Plugin;
@@ -68,6 +71,8 @@ public final class BukkitTestDoubles {
                   case "getBukkitVersion" -> "test";
                   case "getMinecraftVersion" -> "test";
                   case "getLogger" -> LOGGER;
+                  case "getConsoleSender" -> consoleSender();
+                  case "getTag" -> getTag(args);
                   case "isPrimaryThread" -> true;
                   case "toString" -> "server(ExortTest)";
                   case "hashCode" -> System.identityHashCode(proxy);
@@ -83,6 +88,45 @@ public final class BukkitTestDoubles {
     }
   }
 
+  @SuppressWarnings("unchecked")
+  private static <T extends Keyed> Tag<T> getTag(Object[] args) {
+    if (args == null || args.length < 3) {
+      return null;
+    }
+    if (!"items".equals(args[0])
+        || !(args[1] instanceof NamespacedKey key)
+        || args[2] != Material.class) {
+      return null;
+    }
+    Set<Material> values =
+        switch (key.toString()) {
+          case "minecraft:planks" ->
+              Set.of(Material.OAK_PLANKS, Material.SPRUCE_PLANKS, Material.BIRCH_PLANKS);
+          default -> null;
+        };
+    if (values == null) {
+      return null;
+    }
+    return (Tag<T>) tag(key, values);
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static Tag<Material> tag(NamespacedKey key, Set<Material> values) {
+    return (Tag<Material>)
+        proxy(
+            (Class) Tag.class,
+            (proxy, method, args) ->
+                switch (method.getName()) {
+                  case "getKey" -> key;
+                  case "isTagged" -> values.contains(args[0]);
+                  case "getValues" -> values;
+                  case "toString" -> "tag(" + key + ")";
+                  case "hashCode" -> System.identityHashCode(proxy);
+                  case "equals" -> args != null && args.length == 1 && proxy == args[0];
+                  default -> defaultValue(method.getReturnType());
+                });
+  }
+
   private static World getWorld(Object key) {
     if (key instanceof UUID uid) {
       TestWorld world = WORLDS.get(uid);
@@ -96,6 +140,21 @@ public final class BukkitTestDoubles {
           .orElse(null);
     }
     return null;
+  }
+
+  private static ConsoleCommandSender consoleSender() {
+    return proxy(
+        ConsoleCommandSender.class,
+        (proxy, method, args) ->
+            switch (method.getName()) {
+              case "sendMessage" -> null;
+              case "getName" -> "Console";
+              case "isOp" -> true;
+              case "toString" -> "console(ExortTest)";
+              case "hashCode" -> System.identityHashCode(proxy);
+              case "equals" -> args != null && args.length == 1 && proxy == args[0];
+              default -> defaultValue(method.getReturnType());
+            });
   }
 
   public static Object defaultValue(Class<?> returnType) {

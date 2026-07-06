@@ -123,7 +123,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private int relayRangeChunks;
   private Material wireMaterial;
   private Material storageCarrier;
-  private Material relayCarrier;
   private Material relayTraversalCarrier;
   private Material terminalCarrier;
   private RuntimeMaterials runtimeMaterials;
@@ -608,7 +607,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     blockClassifier = new ExortBlockClassifier(this, materials);
     wireMaterial = materials.wire();
     storageCarrier = materials.storageCarrier();
-    relayCarrier = materials.relayCarrier();
     relayTraversalCarrier = services.relayTraversalCarrier();
     terminalCarrier = materials.terminalCarrier();
     wireLimit = services.wireLimit();

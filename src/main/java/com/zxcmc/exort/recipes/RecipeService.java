@@ -8,10 +8,13 @@ import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -19,12 +22,21 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.inventory.BlastingRecipe;
+import org.bukkit.inventory.CampfireRecipe;
+import org.bukkit.inventory.CookingRecipe;
+import org.bukkit.inventory.CraftingRecipe;
+import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.inventory.SmithingTransformRecipe;
+import org.bukkit.inventory.SmokingRecipe;
+import org.bukkit.inventory.StonecuttingRecipe;
+import org.bukkit.inventory.recipe.CookingBookCategory;
+import org.bukkit.inventory.recipe.CraftingBookCategory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class RecipeService {
@@ -32,7 +44,9 @@ public final class RecipeService {
   private final CustomItems customItems;
   private final WirelessTerminalService wirelessService;
   private final Supplier<FeatureAccessConfig> featureAccess;
+  private final ChoiceFactory choiceFactory;
   private final List<NamespacedKey> registered = new ArrayList<>();
+  private final List<RecipeDiscoveryEntry> discoveryEntries = new ArrayList<>();
 
   public RecipeService(
       JavaPlugin plugin, CustomItems customItems, WirelessTerminalService wirelessService) {
@@ -51,10 +65,20 @@ public final class RecipeService {
       CustomItems customItems,
       WirelessTerminalService wirelessService,
       Supplier<FeatureAccessConfig> featureAccess) {
+    this(plugin, customItems, wirelessService, featureAccess, ChoiceFactory.bukkit());
+  }
+
+  RecipeService(
+      JavaPlugin plugin,
+      CustomItems customItems,
+      WirelessTerminalService wirelessService,
+      Supplier<FeatureAccessConfig> featureAccess,
+      ChoiceFactory choiceFactory) {
     this.plugin = plugin;
     this.customItems = customItems;
     this.wirelessService = wirelessService;
     this.featureAccess = featureAccess == null ? FeatureAccessConfig::defaults : featureAccess;
+    this.choiceFactory = choiceFactory == null ? ChoiceFactory.bukkit() : choiceFactory;
   }
 
   public void reload() {
@@ -68,21 +92,12 @@ public final class RecipeService {
     int loaded = 0;
     int skipped = 0;
 
-    var shaped = config.getConfigurationSection("shaped");
-    if (shaped != null) {
-      var result = registerShaped(shaped);
-      loaded += result.loaded;
-      skipped += result.skipped;
-    }
-    var shapeless = config.getConfigurationSection("shapeless");
-    if (shapeless != null) {
-      var result = registerShapeless(shapeless);
-      loaded += result.loaded;
-      skipped += result.skipped;
-    }
-    var smithing = config.getConfigurationSection("smithing");
-    if (smithing != null) {
-      var result = registerSmithing(smithing);
+    for (RecipeSectionHandler handler : recipeSectionHandlers()) {
+      ConfigurationSection section = config.getConfigurationSection(handler.name());
+      if (section == null) {
+        continue;
+      }
+      Result result = handler.loader().apply(section);
       loaded += result.loaded;
       skipped += result.skipped;
     }
@@ -97,6 +112,7 @@ public final class RecipeService {
       Bukkit.removeRecipe(key);
     }
     registered.clear();
+    discoveryEntries.clear();
   }
 
   private File ensureFile() {
@@ -105,6 +121,26 @@ public final class RecipeService {
       plugin.saveResource("recipes.yml", false);
     }
     return file;
+  }
+
+  private List<RecipeSectionHandler> recipeSectionHandlers() {
+    return List.of(
+        new RecipeSectionHandler("shaped", this::registerShaped),
+        new RecipeSectionHandler("shapeless", this::registerShapeless),
+        new RecipeSectionHandler("smithing", this::registerSmithing),
+        new RecipeSectionHandler(
+            CookingRecipeType.FURNACE.section(),
+            section -> registerCooking(section, CookingRecipeType.FURNACE)),
+        new RecipeSectionHandler(
+            CookingRecipeType.BLASTING.section(),
+            section -> registerCooking(section, CookingRecipeType.BLASTING)),
+        new RecipeSectionHandler(
+            CookingRecipeType.SMOKING.section(),
+            section -> registerCooking(section, CookingRecipeType.SMOKING)),
+        new RecipeSectionHandler(
+            CookingRecipeType.CAMPFIRE.section(),
+            section -> registerCooking(section, CookingRecipeType.CAMPFIRE)),
+        new RecipeSectionHandler("stonecutting", this::registerStonecutting));
   }
 
   private Result registerShaped(ConfigurationSection section) {
@@ -185,6 +221,7 @@ public final class RecipeService {
         continue;
       }
       boolean ok = true;
+      List<String> ingredientIds = new ArrayList<>();
       Set<Character> provided = new HashSet<>();
       for (String symbol : ingredients.getKeys(false)) {
         if (symbol == null || symbol.length() != 1) {
@@ -207,6 +244,9 @@ public final class RecipeService {
           ok = false;
           break;
         }
+        if (used.contains(ch)) {
+          ingredientIds.add(raw);
+        }
         provided.add(ch);
       }
       if (ok && !provided.containsAll(used)) {
@@ -223,7 +263,12 @@ public final class RecipeService {
         skipped++;
         continue;
       }
+      if (!applyCraftingMetadata(recipe, id, shaped)) {
+        skipped++;
+        continue;
+      }
       if (registerRecipe(id, key, shaped)) {
+        registerDiscoveryEntry(id, key, recipe, ingredientIds);
         loaded++;
       } else {
         skipped++;
@@ -265,6 +310,7 @@ public final class RecipeService {
       }
       ShapelessRecipe shapeless = new ShapelessRecipe(key, resultItem);
       boolean ok = true;
+      List<String> ingredientIds = new ArrayList<>();
       for (String raw : ingredients) {
         RecipeChoice choice = resolveChoice(raw);
         if (choice == null) {
@@ -277,13 +323,19 @@ public final class RecipeService {
           ok = false;
           break;
         }
+        ingredientIds.add(raw);
       }
       if (!ok) {
         logSkip(id, "invalid ingredients");
         skipped++;
         continue;
       }
+      if (!applyCraftingMetadata(recipe, id, shapeless)) {
+        skipped++;
+        continue;
+      }
       if (registerRecipe(id, key, shapeless)) {
+        registerDiscoveryEntry(id, key, recipe, ingredientIds);
         loaded++;
       } else {
         skipped++;
@@ -306,11 +358,10 @@ public final class RecipeService {
         skipped++;
         continue;
       }
-      RecipeChoice template = resolveChoice(recipe.getString("template"));
-      RecipeChoice base = resolveChoice(recipe.getString("base"));
-      RecipeChoice addition = resolveChoice(recipe.getString("addition"));
+      RecipeChoice template = resolveSingleChoice(recipe, "template", id);
+      RecipeChoice base = resolveSingleChoice(recipe, "base", id);
+      RecipeChoice addition = resolveSingleChoice(recipe, "addition", id);
       if (template == null || base == null || addition == null) {
-        logSkip(id, "invalid smithing ingredients");
         skipped++;
         continue;
       }
@@ -321,8 +372,103 @@ public final class RecipeService {
         continue;
       }
       SmithingTransformRecipe smithing =
-          new SmithingTransformRecipe(key, resultItem, template, base, addition);
+          new SmithingTransformRecipe(
+              key, resultItem, template, base, addition, resolveCopyDataComponents(recipe));
       if (registerRecipe(id, key, smithing)) {
+        registerDiscoveryEntry(
+            id,
+            key,
+            recipe,
+            List.of(
+                recipe.getString("template"),
+                recipe.getString("base"),
+                recipe.getString("addition")));
+        loaded++;
+      } else {
+        skipped++;
+      }
+    }
+    return new Result(loaded, skipped);
+  }
+
+  private Result registerCooking(ConfigurationSection section, CookingRecipeType type) {
+    int loaded = 0;
+    int skipped = 0;
+    for (String id : section.getKeys(false)) {
+      ConfigurationSection recipe = section.getConfigurationSection(id);
+      if (recipe == null) {
+        skipped++;
+        continue;
+      }
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      if (resultItem == null) {
+        skipped++;
+        continue;
+      }
+      RecipeChoice input = resolveSingleChoice(recipe, "input", id);
+      if (input == null) {
+        skipped++;
+        continue;
+      }
+      float experience = resolveExperience(recipe, id);
+      if (Float.isNaN(experience)) {
+        skipped++;
+        continue;
+      }
+      int cookingTime = resolveCookingTime(recipe, type.defaultCookingTime(), id);
+      if (cookingTime <= 0) {
+        skipped++;
+        continue;
+      }
+      NamespacedKey key = recipeKey(id);
+      if (key == null) {
+        logSkip(id, "invalid recipe key");
+        skipped++;
+        continue;
+      }
+      CookingRecipe<?> cooking = type.create(key, resultItem, input, experience, cookingTime);
+      if (!applyCookingMetadata(recipe, id, cooking)) {
+        skipped++;
+        continue;
+      }
+      if (registerRecipe(id, key, cooking)) {
+        registerDiscoveryEntry(id, key, recipe, List.of(recipe.getString("input")));
+        loaded++;
+      } else {
+        skipped++;
+      }
+    }
+    return new Result(loaded, skipped);
+  }
+
+  private Result registerStonecutting(ConfigurationSection section) {
+    int loaded = 0;
+    int skipped = 0;
+    for (String id : section.getKeys(false)) {
+      ConfigurationSection recipe = section.getConfigurationSection(id);
+      if (recipe == null) {
+        skipped++;
+        continue;
+      }
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      if (resultItem == null) {
+        skipped++;
+        continue;
+      }
+      RecipeChoice input = resolveSingleChoice(recipe, "input", id);
+      if (input == null) {
+        skipped++;
+        continue;
+      }
+      NamespacedKey key = recipeKey(id);
+      if (key == null) {
+        logSkip(id, "invalid recipe key");
+        skipped++;
+        continue;
+      }
+      StonecuttingRecipe stonecutting = new StonecuttingRecipe(key, resultItem, input);
+      if (registerRecipe(id, key, stonecutting)) {
+        registerDiscoveryEntry(id, key, recipe, List.of(recipe.getString("input")));
         loaded++;
       } else {
         skipped++;
@@ -340,14 +486,71 @@ public final class RecipeService {
       if (key == null) key = recipeKey(raw);
       if (key == null) continue;
       if (Bukkit.removeRecipe(key)) {
-        registered.remove(key);
+        NamespacedKey removedKey = key;
+        registered.remove(removedKey);
+        discoveryEntries.removeIf(entry -> entry.key().equals(removedKey));
         removed++;
       }
     }
     return removed;
   }
 
-  private ItemStack resolveResult(ConfigurationSection section) {
+  List<RecipeDiscoveryEntry> discoveryEntries() {
+    return List.copyOf(discoveryEntries);
+  }
+
+  private void registerDiscoveryEntry(
+      String id, NamespacedKey key, ConfigurationSection recipe, List<String> ingredientIds) {
+    List<String> unlockIds = resolveUnlockIds(recipe, ingredientIds);
+    if (unlockIds.isEmpty()) {
+      logDiscoverySkip(id, "no unlock triggers");
+      return;
+    }
+    List<RecipeChoice> unlockChoices = new ArrayList<>();
+    for (String raw : unlockIds) {
+      RecipeChoice choice = resolveChoice(raw);
+      if (choice == null) {
+        logDiscoverySkip(id, "invalid unlock trigger '" + raw + "'");
+        return;
+      }
+      unlockChoices.add(choice);
+    }
+    discoveryEntries.add(new RecipeDiscoveryEntry(key, unlockChoices));
+  }
+
+  List<String> resolveUnlockIds(ConfigurationSection recipe, List<String> ingredientIds) {
+    Objects.requireNonNull(ingredientIds, "ingredientIds");
+    if (recipe != null && recipe.contains("unlock")) {
+      Object rawUnlock = recipe.get("unlock");
+      if (!(rawUnlock instanceof List<?> rawList)) {
+        return List.of();
+      }
+      List<String> result = new ArrayList<>();
+      for (Object value : rawList) {
+        if (!(value instanceof String raw) || raw.isBlank()) {
+          return List.of();
+        }
+        result.add(raw.trim());
+      }
+      return result;
+    }
+    List<String> exortIngredients =
+        ingredientIds.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(RecipeService::isExortIngredientId)
+            .toList();
+    if (!exortIngredients.isEmpty()) {
+      return exortIngredients;
+    }
+    return ingredientIds.stream()
+        .filter(Objects::nonNull)
+        .map(String::trim)
+        .filter(raw -> !raw.isBlank())
+        .toList();
+  }
+
+  ItemStack resolveResult(ConfigurationSection section) {
     if (section == null) return null;
     String raw = section.getString("item");
     if (raw == null) return null;
@@ -368,6 +571,126 @@ public final class RecipeService {
     }
     item.setAmount(amount);
     return item;
+  }
+
+  RecipeChoice resolveSingleChoice(ConfigurationSection section, String field, String recipeId) {
+    if (section == null) {
+      logSkip(recipeId, "missing recipe section");
+      return null;
+    }
+    String raw = section.getString(field);
+    if (raw == null || raw.isBlank()) {
+      logSkip(recipeId, "missing " + field);
+      return null;
+    }
+    RecipeChoice choice = resolveChoice(raw);
+    if (choice == null) {
+      logSkip(recipeId, "invalid " + field + " ingredient");
+    }
+    return choice;
+  }
+
+  float resolveExperience(ConfigurationSection section, String recipeId) {
+    Object raw = section == null ? null : section.get("experience");
+    double experience;
+    if (raw == null) {
+      experience = 0.0D;
+    } else if (raw instanceof Number number) {
+      experience = number.doubleValue();
+    } else {
+      logSkip(recipeId, "experience must be a non-negative finite number");
+      return Float.NaN;
+    }
+    if (!Double.isFinite(experience) || experience < 0.0D || experience > Float.MAX_VALUE) {
+      logSkip(recipeId, "experience must be a non-negative finite number");
+      return Float.NaN;
+    }
+    return (float) experience;
+  }
+
+  int resolveCookingTime(ConfigurationSection section, int defaultTicks, String recipeId) {
+    Object raw = section == null ? null : section.get("cookingTime");
+    double cookingTime;
+    if (raw == null) {
+      cookingTime = defaultTicks;
+    } else if (raw instanceof Number number) {
+      cookingTime = number.doubleValue();
+    } else {
+      logSkip(recipeId, "cookingTime must be a positive integer");
+      return -1;
+    }
+    if (!Double.isFinite(cookingTime)
+        || cookingTime <= 0.0D
+        || cookingTime > Integer.MAX_VALUE
+        || cookingTime % 1.0D != 0.0D) {
+      logSkip(recipeId, "cookingTime must be a positive integer");
+      return -1;
+    }
+    return (int) cookingTime;
+  }
+
+  private boolean applyCraftingMetadata(
+      ConfigurationSection section, String recipeId, CraftingRecipe recipe) {
+    String group = section.getString("group");
+    if (group != null && !group.isBlank()) {
+      recipe.setGroup(group.trim());
+    }
+    CraftingBookCategory category = parseCraftingCategory(section.getString("category"));
+    if (category == null) {
+      logSkip(recipeId, "unknown crafting category '" + section.getString("category") + "'");
+      return false;
+    }
+    recipe.setCategory(category);
+    return true;
+  }
+
+  private boolean applyCookingMetadata(
+      ConfigurationSection section, String recipeId, CookingRecipe<?> recipe) {
+    String group = section.getString("group");
+    if (group != null && !group.isBlank()) {
+      recipe.setGroup(group.trim());
+    }
+    CookingBookCategory category = parseCookingCategory(section.getString("category"));
+    if (category == null) {
+      logSkip(recipeId, "unknown cooking category '" + section.getString("category") + "'");
+      return false;
+    }
+    recipe.setCategory(category);
+    return true;
+  }
+
+  static CraftingBookCategory parseCraftingCategory(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return CraftingBookCategory.MISC;
+    }
+    return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+      case "building" -> CraftingBookCategory.BUILDING;
+      case "redstone" -> CraftingBookCategory.REDSTONE;
+      case "equipment" -> CraftingBookCategory.EQUIPMENT;
+      case "misc" -> CraftingBookCategory.MISC;
+      default -> null;
+    };
+  }
+
+  static CookingBookCategory parseCookingCategory(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return CookingBookCategory.MISC;
+    }
+    return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+      case "food" -> CookingBookCategory.FOOD;
+      case "blocks" -> CookingBookCategory.BLOCKS;
+      case "misc" -> CookingBookCategory.MISC;
+      default -> null;
+    };
+  }
+
+  static boolean resolveCopyDataComponents(ConfigurationSection section) {
+    return section != null && section.getBoolean("copyDataComponents", false);
+  }
+
+  static int defaultCookingTime(String sectionName) {
+    CookingRecipeType type = CookingRecipeType.fromSection(sectionName);
+    return type == null ? -1 : type.defaultCookingTime();
   }
 
   private NamespacedKey recipeKey(String raw) {
@@ -393,7 +716,7 @@ public final class RecipeService {
     }
   }
 
-  private RecipeChoice resolveChoice(String raw) {
+  RecipeChoice resolveChoice(String raw) {
     if (raw == null) return null;
     String id = raw.trim();
     if (id.isEmpty()) return null;
@@ -402,16 +725,55 @@ public final class RecipeService {
       if (key == null) return null;
       Tag<Material> tag = Bukkit.getTag("items", key, Material.class);
       if (tag == null) return null;
-      return new RecipeChoice.MaterialChoice(tag.getValues().toArray(new Material[0]));
+      return materialChoice(tag.getValues());
     }
     if (id.toLowerCase(Locale.ROOT).startsWith("exort:")) {
       ItemStack exortItem = resolveExortItem(id);
       if (exortItem == null) return null;
-      return new RecipeChoice.ExactChoice(exortItem);
+      return exactChoice(exortItem);
     }
     Material material = resolveMaterial(id);
     if (material == null) return null;
-    return new RecipeChoice.MaterialChoice(material);
+    return materialChoice(material);
+  }
+
+  RecipeChoice materialChoice(Material material) {
+    return choiceFactory.material(material);
+  }
+
+  RecipeChoice materialChoice(Collection<Material> materials) {
+    return choiceFactory.materials(materials);
+  }
+
+  RecipeChoice exactChoice(ItemStack item) {
+    return choiceFactory.exact(item);
+  }
+
+  interface ChoiceFactory {
+    RecipeChoice material(Material material);
+
+    RecipeChoice materials(Collection<Material> materials);
+
+    RecipeChoice exact(ItemStack item);
+
+    static ChoiceFactory bukkit() {
+      return new ChoiceFactory() {
+        @Override
+        public RecipeChoice material(Material material) {
+          return new RecipeChoice.MaterialChoice(material);
+        }
+
+        @Override
+        public RecipeChoice materials(Collection<Material> materials) {
+          return new RecipeChoice.MaterialChoice(materials.toArray(new Material[0]));
+        }
+
+        @Override
+        public RecipeChoice exact(ItemStack item) {
+          return new RecipeChoice.ExactChoice(item);
+        }
+      };
+    }
   }
 
   private Material resolveMaterial(String raw) {
@@ -481,5 +843,78 @@ public final class RecipeService {
     ExortLog.warn("Skipped recipe '" + id + "': " + reason);
   }
 
+  private void logDiscoverySkip(String id, String reason) {
+    ExortLog.warn("Recipe discovery disabled for '" + id + "': " + reason);
+  }
+
+  private static boolean isExortIngredientId(String raw) {
+    return raw != null && raw.trim().toLowerCase(Locale.ROOT).startsWith("exort:");
+  }
+
+  private record RecipeSectionHandler(String name, Function<ConfigurationSection, Result> loader) {}
+
   private record Result(int loaded, int skipped) {}
+
+  private enum CookingRecipeType {
+    FURNACE("furnace", 200) {
+      @Override
+      CookingRecipe<?> create(
+          NamespacedKey key, ItemStack result, RecipeChoice input, float experience, int time) {
+        return new FurnaceRecipe(key, result, input, experience, time);
+      }
+    },
+    BLASTING("blasting", 100) {
+      @Override
+      CookingRecipe<?> create(
+          NamespacedKey key, ItemStack result, RecipeChoice input, float experience, int time) {
+        return new BlastingRecipe(key, result, input, experience, time);
+      }
+    },
+    SMOKING("smoking", 100) {
+      @Override
+      CookingRecipe<?> create(
+          NamespacedKey key, ItemStack result, RecipeChoice input, float experience, int time) {
+        return new SmokingRecipe(key, result, input, experience, time);
+      }
+    },
+    CAMPFIRE("campfire", 600) {
+      @Override
+      CookingRecipe<?> create(
+          NamespacedKey key, ItemStack result, RecipeChoice input, float experience, int time) {
+        return new CampfireRecipe(key, result, input, experience, time);
+      }
+    };
+
+    private final String section;
+    private final int defaultCookingTime;
+
+    CookingRecipeType(String section, int defaultCookingTime) {
+      this.section = section;
+      this.defaultCookingTime = defaultCookingTime;
+    }
+
+    private String section() {
+      return section;
+    }
+
+    private int defaultCookingTime() {
+      return defaultCookingTime;
+    }
+
+    private static CookingRecipeType fromSection(String section) {
+      if (section == null) {
+        return null;
+      }
+      String normalized = section.trim().toLowerCase(Locale.ROOT);
+      for (CookingRecipeType type : values()) {
+        if (type.section.equals(normalized)) {
+          return type;
+        }
+      }
+      return null;
+    }
+
+    abstract CookingRecipe<?> create(
+        NamespacedKey key, ItemStack result, RecipeChoice input, float experience, int time);
+  }
 }

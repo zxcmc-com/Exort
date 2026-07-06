@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.8 — 2026-07-06
+- Exort recipes now support vanilla-like recipe book discovery through `unlock` triggers in `recipes.yml`, so players can see newly relevant Exort recipes after obtaining key vanilla or Exort ingredients.
+- Extended `recipes.yml` support with furnace, blasting, smoking, campfire, and stonecutting recipe sections, plus recipe group/category metadata and safe smithing `copyDataComponents: false` behavior by default.
+
 ## 0.18.7 — 2026-07-05
 - Updated bundled RESOURCE textures for Chunk Loader, Network Relay, Storage, and Terminal blocks, and refined Network Relay state models to render color indicators over a shared base layer.
 - Added `relay.enabled` and `chunkLoader.enabled` feature flags, and extended `wireless.enabled` so disabled Relay, Chunk Loader, and Wireless Terminal features are hidden from default recipes and `/exort inventory` while `/exort give` remains an admin override.

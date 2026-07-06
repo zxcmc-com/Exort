@@ -24,6 +24,9 @@ class DefaultRecipesValidationTest {
           "export_bus",
           "relay",
           "wire",
+          "chunk_loader",
+          "personal_chunk_loader",
+          "dormant_chunk_loader",
           "wireless_terminal");
 
   @Test
@@ -35,6 +38,11 @@ class DefaultRecipesValidationTest {
     validateShaped(recipes.getConfigurationSection("shaped"), tiers);
     validateShapeless(recipes.getConfigurationSection("shapeless"), tiers);
     validateSmithing(recipes.getConfigurationSection("smithing"), tiers);
+    validateCooking(recipes.getConfigurationSection("furnace"), tiers);
+    validateCooking(recipes.getConfigurationSection("blasting"), tiers);
+    validateCooking(recipes.getConfigurationSection("smoking"), tiers);
+    validateCooking(recipes.getConfigurationSection("campfire"), tiers);
+    validateStonecutting(recipes.getConfigurationSection("stonecutting"), tiers);
   }
 
   @Test
@@ -45,6 +53,11 @@ class DefaultRecipesValidationTest {
     assertNoStorageResults(recipes.getConfigurationSection("shaped"));
     assertNoStorageResults(recipes.getConfigurationSection("shapeless"));
     assertNoStorageResults(recipes.getConfigurationSection("smithing"));
+    assertNoStorageResultsIfPresent(recipes.getConfigurationSection("furnace"));
+    assertNoStorageResultsIfPresent(recipes.getConfigurationSection("blasting"));
+    assertNoStorageResultsIfPresent(recipes.getConfigurationSection("smoking"));
+    assertNoStorageResultsIfPresent(recipes.getConfigurationSection("campfire"));
+    assertNoStorageResultsIfPresent(recipes.getConfigurationSection("stonecutting"));
   }
 
   private static void assertNoStorageResults(ConfigurationSection section) {
@@ -57,12 +70,20 @@ class DefaultRecipesValidationTest {
     }
   }
 
+  private static void assertNoStorageResultsIfPresent(ConfigurationSection section) {
+    if (section != null) {
+      assertNoStorageResults(section);
+    }
+  }
+
   private static void validateShaped(ConfigurationSection shaped, Set<String> tiers) {
     assertNotNull(shaped, "missing shaped section");
     for (String id : shaped.getKeys(false)) {
       ConfigurationSection recipe = shaped.getConfigurationSection(id);
       assertNotNull(recipe, id);
       validateResult(recipe.getConfigurationSection("result"), tiers, id);
+      validateCraftingMetadata(recipe, id);
+      validateUnlock(recipe, tiers, id);
       List<String> shape = recipe.getStringList("shape");
       assertFalse(shape.isEmpty(), id + " shape is empty");
       assertTrue(shape.size() <= 3, id + " shape is taller than 3");
@@ -93,6 +114,8 @@ class DefaultRecipesValidationTest {
       ConfigurationSection recipe = shapeless.getConfigurationSection(id);
       assertNotNull(recipe, id);
       validateResult(recipe.getConfigurationSection("result"), tiers, id);
+      validateCraftingMetadata(recipe, id);
+      validateUnlock(recipe, tiers, id);
       List<String> ingredients = recipe.getStringList("ingredients");
       assertTrue(
           !ingredients.isEmpty() && ingredients.size() <= 9, id + " ingredients must be 1..9");
@@ -108,16 +131,109 @@ class DefaultRecipesValidationTest {
       ConfigurationSection recipe = smithing.getConfigurationSection(id);
       assertNotNull(recipe, id);
       validateResult(recipe.getConfigurationSection("result"), tiers, id);
+      validateUnlock(recipe, tiers, id);
       validateIngredientId(recipe.getString("template"), tiers, id + ":template");
       validateIngredientId(recipe.getString("base"), tiers, id + ":base");
       validateIngredientId(recipe.getString("addition"), tiers, id + ":addition");
+      if (recipe.contains("copyDataComponents")) {
+        assertTrue(
+            recipe.get("copyDataComponents") instanceof Boolean,
+            id + " copyDataComponents must be boolean");
+      }
+    }
+  }
+
+  private static void validateCooking(ConfigurationSection cooking, Set<String> tiers) {
+    if (cooking == null) {
+      return;
+    }
+    for (String id : cooking.getKeys(false)) {
+      ConfigurationSection recipe = cooking.getConfigurationSection(id);
+      assertNotNull(recipe, id);
+      validateResult(recipe.getConfigurationSection("result"), tiers, id);
+      validateUnlock(recipe, tiers, id);
+      validateIngredientId(recipe.getString("input"), tiers, id + ":input");
+      Object rawExperience = recipe.get("experience");
+      assertTrue(
+          rawExperience == null || rawExperience instanceof Number,
+          id + " experience must be numeric");
+      double experience = rawExperience instanceof Number number ? number.doubleValue() : 0.0D;
+      assertTrue(
+          Double.isFinite(experience) && experience >= 0.0D,
+          id + " experience must be non-negative finite number");
+      if (recipe.contains("cookingTime")) {
+        Object rawCookingTime = recipe.get("cookingTime");
+        assertTrue(rawCookingTime instanceof Number, id + " cookingTime must be numeric");
+        double cookingTime = ((Number) rawCookingTime).doubleValue();
+        assertTrue(
+            Double.isFinite(cookingTime)
+                && cookingTime > 0.0D
+                && cookingTime <= Integer.MAX_VALUE
+                && cookingTime % 1.0D == 0.0D,
+            id + " cookingTime must be a positive integer");
+      }
+      validateCookingMetadata(recipe, id);
+    }
+  }
+
+  private static void validateStonecutting(ConfigurationSection stonecutting, Set<String> tiers) {
+    if (stonecutting == null) {
+      return;
+    }
+    for (String id : stonecutting.getKeys(false)) {
+      ConfigurationSection recipe = stonecutting.getConfigurationSection(id);
+      assertNotNull(recipe, id);
+      validateResult(recipe.getConfigurationSection("result"), tiers, id);
+      validateUnlock(recipe, tiers, id);
+      validateIngredientId(recipe.getString("input"), tiers, id + ":input");
+      validateGroup(recipe, id);
     }
   }
 
   private static void validateResult(ConfigurationSection result, Set<String> tiers, String id) {
     assertNotNull(result, id + " result missing");
-    validateIngredientId(result.getString("item"), tiers, id + ":result");
+    String item = result.getString("item");
+    assertNotNull(item, id + " result item missing");
+    assertTrue(
+        item.trim().toLowerCase().startsWith("exort:"), id + " result must be an Exort item");
+    validateIngredientId(item, tiers, id + ":result");
     assertTrue(result.getInt("amount", 1) > 0, id + " result amount must be positive");
+  }
+
+  private static void validateCraftingMetadata(ConfigurationSection recipe, String id) {
+    validateGroup(recipe, id);
+    assertNotNull(
+        RecipeService.parseCraftingCategory(recipe.getString("category")),
+        id + " unknown crafting category");
+  }
+
+  private static void validateCookingMetadata(ConfigurationSection recipe, String id) {
+    validateGroup(recipe, id);
+    assertNotNull(
+        RecipeService.parseCookingCategory(recipe.getString("category")),
+        id + " unknown cooking category");
+  }
+
+  private static void validateGroup(ConfigurationSection recipe, String id) {
+    if (recipe.contains("group")) {
+      Object group = recipe.get("group");
+      assertTrue(group instanceof String, id + " group must be string");
+      assertFalse(((String) group).isBlank(), id + " group must not be blank");
+    }
+  }
+
+  private static void validateUnlock(ConfigurationSection recipe, Set<String> tiers, String id) {
+    if (!recipe.contains("unlock")) {
+      return;
+    }
+    Object rawUnlock = recipe.get("unlock");
+    assertTrue(rawUnlock instanceof List<?>, id + " unlock must be a list");
+    List<?> unlocks = (List<?>) rawUnlock;
+    assertFalse(unlocks.isEmpty(), id + " unlock must not be empty");
+    for (Object raw : unlocks) {
+      assertTrue(raw instanceof String, id + " unlock entries must be strings");
+      validateIngredientId((String) raw, tiers, id + ":unlock");
+    }
   }
 
   private static void validateIngredientId(String raw, Set<String> tiers, String context) {

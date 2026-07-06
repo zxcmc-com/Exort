@@ -3,6 +3,8 @@ shaped:
     result:
       item: exort:storage_core
       amount: 1
+    unlock:
+      - minecraft:shulker_box
     shape:
       - "ABA"
       - "BCB"
@@ -16,6 +18,8 @@ shaped:
     result:
       item: exort:terminal
       amount: 1
+    unlock:
+      - exort:wire
     shape:
       - "ABA"
       - "CDC"
@@ -31,6 +35,8 @@ shaped:
     result:
       item: exort:crafting_terminal
       amount: 1
+    unlock:
+      - exort:terminal
     shape:
       - "_A_"
       - "_B_"
@@ -44,6 +50,8 @@ shaped:
     result:
       item: exort:monitor
       amount: 1
+    unlock:
+      - exort:terminal
     shape:
       - "_A_"
       - "_B_"
@@ -57,6 +65,8 @@ shaped:
     result:
       item: exort:import_bus
       amount: 1
+    unlock:
+      - exort:wire
     shape:
       - "_A_"
       - "_B_"
@@ -70,6 +80,8 @@ shaped:
     result:
       item: exort:export_bus
       amount: 1
+    unlock:
+      - exort:wire
     shape:
       - "_A_"
       - "_B_"
@@ -83,6 +95,8 @@ shaped:
     result:
       item: exort:relay
       amount: 2
+    unlock:
+      - exort:wire
     shape:
       - "ABA"
       - "CDC"
@@ -98,6 +112,8 @@ shapeless:
     result:
       item: exort:wire
       amount: 2
+    unlock:
+      - minecraft:redstone
     ingredients:
       - minecraft:glass
       - minecraft:copper_ingot
@@ -114,6 +130,8 @@ smithing:
     result:
       item: exort:wireless_terminal
       amount: 1
+    unlock:
+      - exort:terminal
     template: minecraft:netherite_upgrade_smithing_template
     base: exort:terminal
     addition: minecraft:echo_shard
