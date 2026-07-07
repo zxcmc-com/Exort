@@ -28,13 +28,13 @@ public class WirelessTerminalService {
   private final WirelessLoreService loreService;
 
   public WirelessTerminalService(
-      Lang lang, StorageKeys keys, CustomItems customItems, boolean enabled, int rangeChunks) {
+      Lang lang, StorageKeys keys, CustomItems customItems, boolean enabled, int rangeBlocks) {
     this.keys = keys;
     this.customItems = customItems;
     this.enabled = enabled;
     this.chargeService = new WirelessChargeService(keys);
     this.bindService = new WirelessBindService(keys);
-    this.accessService = new WirelessAccessService(bindService, rangeChunks);
+    this.accessService = new WirelessAccessService(bindService);
     this.loreService = new WirelessLoreService(lang, customItems);
   }
 
@@ -98,10 +98,6 @@ public class WirelessTerminalService {
   public boolean isLinked(ItemStack stack) {
     if (!isWireless(stack)) return false;
     return accessService.isLinked(stack);
-  }
-
-  public boolean inRange(Location storage, Location playerLoc) {
-    return accessService.inRange(storage, playerLoc);
   }
 
   public Location storageLocation(ItemStack stack) {

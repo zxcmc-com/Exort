@@ -76,6 +76,8 @@ import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.io.File;
 import java.lang.reflect.Constructor;
@@ -112,6 +114,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private PlayerLocaleService playerLocaleService;
   private CustomItems customItems;
   private WirelessTerminalService wirelessService;
+  private WirelessTransmitterService wirelessTransmitterService;
+  private TransmitterSessionManager transmitterSessionManager;
   private ChunkLoaderService chunkLoaderService;
   private BossBarManager bossBarManager;
   private SearchDialogService searchDialogService;
@@ -249,6 +253,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> bossBarManager,
                 () -> playerFeedback,
                 () -> wirelessService,
+                () -> wirelessTransmitterService,
                 () -> busService,
                 () -> craftingRules,
                 () -> resourceMode,
@@ -441,6 +446,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       busSessionManager.shutdown();
       busSessionManager = null;
     }
+    if (transmitterSessionManager != null) {
+      transmitterSessionManager.shutdown();
+      transmitterSessionManager = null;
+    }
   }
 
   public void reloadResourcePackService() {
@@ -480,6 +489,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     stopEmbeddedChorusfix();
     stopWorldEditIntegration();
     stopPlacementGuard();
+    if (transmitterSessionManager != null) {
+      transmitterSessionManager.shutdown();
+      transmitterSessionManager = null;
+    }
     stopRelaySetupTracker();
     stopPacketEnhancements();
     stopChunkLoaderService();
@@ -600,6 +613,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private void applyRuntimeServices(ExortRuntimeServices services) {
     customItems = services.customItems();
     wirelessService = services.wirelessService();
+    wirelessTransmitterService = services.wirelessTransmitterService();
+    transmitterSessionManager = services.transmitterSessionManager();
     chunkLoaderService = services.chunkLoaderService();
     relaySetupTracker = services.relaySetupTracker();
     RuntimeMaterials materials = services.materials();

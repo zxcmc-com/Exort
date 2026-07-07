@@ -33,6 +33,7 @@ class ExortGiveMenuTest {
     assertFalse(ids.contains("chunk_loader"));
     assertFalse(ids.contains("personal_chunk_loader"));
     assertFalse(ids.contains("dormant_chunk_loader"));
+    assertFalse(ids.contains("transmitter"));
     assertFalse(ids.contains("wireless_terminal"));
     assertTrue(ids.contains("wire"));
     assertTrue(ids.contains("terminal"));

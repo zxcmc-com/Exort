@@ -17,6 +17,7 @@ public final class BreakConfig {
   private final BreakSettings monitor;
   private final BreakSettings bus;
   private final BreakSettings relay;
+  private final BreakSettings transmitter;
   private final BreakSettings chunkLoader;
   private final BreakSettings wire;
 
@@ -26,6 +27,7 @@ public final class BreakConfig {
       BreakSettings monitor,
       BreakSettings bus,
       BreakSettings relay,
+      BreakSettings transmitter,
       BreakSettings chunkLoader,
       BreakSettings wire) {
     this.storage = storage;
@@ -33,6 +35,7 @@ public final class BreakConfig {
     this.monitor = monitor;
     this.bus = bus;
     this.relay = relay;
+    this.transmitter = transmitter;
     this.chunkLoader = chunkLoader;
     this.wire = wire;
   }
@@ -57,6 +60,10 @@ public final class BreakConfig {
     return relay;
   }
 
+  public BreakSettings transmitter() {
+    return transmitter;
+  }
+
   public BreakSettings chunkLoader() {
     return chunkLoader;
   }
@@ -72,6 +79,7 @@ public final class BreakConfig {
         load(config, logger, "break.monitor", 12.0, defaultTerminalTools()),
         load(config, logger, "break.bus", 14.0, defaultTerminalTools()),
         load(config, logger, "break.relay", 16.0, defaultTerminalTools()),
+        load(config, logger, "break.transmitter", 16.0, defaultTerminalTools()),
         load(config, logger, "break.chunkLoader", 16.0, defaultTerminalTools()),
         load(config, logger, "break.wire", 2.0, defaultWireTools()));
   }

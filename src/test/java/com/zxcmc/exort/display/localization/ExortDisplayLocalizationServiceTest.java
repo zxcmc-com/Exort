@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import com.zxcmc.exort.display.core.DisplayEntityIndex;
 import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.Locale;
@@ -66,19 +67,7 @@ class ExortDisplayLocalizationServiceTest {
 
   private static World world() {
     UUID worldId = UUID.randomUUID();
-    InvocationHandler handler =
-        (proxy, method, args) -> {
-          return switch (method.getName()) {
-            case "getUID" -> worldId;
-            case "getName" -> "world";
-            default -> defaultValue(method.getReturnType());
-          };
-        };
-    return (World)
-        Proxy.newProxyInstance(
-            ExortDisplayLocalizationServiceTest.class.getClassLoader(),
-            new Class<?>[] {World.class},
-            handler);
+    return BukkitTestDoubles.world("display-localization-" + worldId, worldId).world();
   }
 
   private static Player player(String locale) {

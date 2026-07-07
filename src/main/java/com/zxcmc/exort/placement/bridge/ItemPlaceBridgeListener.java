@@ -25,6 +25,7 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.placement.storage.StoragePlacementDependencies;
@@ -35,6 +36,7 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wire.placement.WirePlacementLimitGuard;
 import com.zxcmc.exort.wire.placement.WireWaterFlowRefresh;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -77,6 +79,9 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Material busCarrier;
   private final Material relayCarrier;
   private final boolean relayEnabled;
+  private final Material transmitterCarrier;
+  private final boolean wirelessEnabled;
+  private final WirelessTransmitterService wirelessTransmitterService;
   private final Material chunkLoaderCarrier;
   private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
@@ -108,6 +113,9 @@ public class ItemPlaceBridgeListener implements Listener {
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
     this.relayEnabled = dependencies.relayEnabled();
+    this.transmitterCarrier = dependencies.transmitterCarrier();
+    this.wirelessEnabled = dependencies.wirelessEnabled();
+    this.wirelessTransmitterService = dependencies.wirelessTransmitterService();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.regionProtection = dependencies.regionProtection();
     this.playerFeedback = dependencies.playerFeedback();
@@ -269,6 +277,21 @@ public class ItemPlaceBridgeListener implements Listener {
       placeRelay(target);
       finishPlacement(event, target, BreakType.RELAY);
       refreshRelayPlacement(target);
+      return;
+    }
+
+    // Wireless Transmitter
+    if (customItems.isTransmitter(stack)) {
+      event.setCancelled(true);
+      if (!wirelessEnabled) {
+        playerFeedback.warn(event.getPlayer(), "message.wireless.disabled");
+        return;
+      }
+      if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), transmitterCarrier))
+        return;
+      placeTransmitter(target);
+      finishPlacement(event, target, BreakType.TRANSMITTER);
+      refreshTransmitterPlacement(target);
       return;
     }
 
@@ -441,6 +464,22 @@ public class ItemPlaceBridgeListener implements Listener {
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshRelay(target);
+      refresh.refreshBlockAndNeighbors(target);
+      refresh.refreshNetworkFrom(target);
+    }
+  }
+
+  private void placeTransmitter(Block target) {
+    Carriers.applyCarrier(target, transmitterCarrier);
+    TransmitterMarker.set(plugin, target);
+    wirelessTransmitterService.register(target);
+  }
+
+  private void refreshTransmitterPlacement(Block target) {
+    invalidateNetwork(target);
+    var refresh = displayRefreshService.get();
+    if (refresh != null) {
+      refresh.refreshTransmitter(target);
       refresh.refreshBlockAndNeighbors(target);
       refresh.refreshNetworkFrom(target);
     }

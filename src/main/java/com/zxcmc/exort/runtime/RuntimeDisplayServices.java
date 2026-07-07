@@ -8,6 +8,7 @@ import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.device.RelayDisplayManager;
 import com.zxcmc.exort.display.device.StorageDisplayManager;
 import com.zxcmc.exort.display.device.TerminalDisplayManager;
+import com.zxcmc.exort.display.device.TransmitterDisplayManager;
 import com.zxcmc.exort.display.proxy.ExortBlockProxyService;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.display.wire.WireDisplayManager;
@@ -20,6 +21,7 @@ public record RuntimeDisplayServices(
     MonitorDisplayManager monitorDisplayManager,
     BusDisplayManager busDisplayManager,
     RelayDisplayManager relayDisplayManager,
+    TransmitterDisplayManager transmitterDisplayManager,
     ChunkLoaderDisplayManager chunkLoaderDisplayManager,
     ExortBlockProxyService blockProxyService,
     DisplayCullingService displayCullingService,

@@ -984,16 +984,22 @@ public class Database implements AutoCloseable {
     try {
       executor.execute(
           () -> {
+            T result = null;
+            Throwable failure = null;
             try {
-              future.complete(PerfStats.measure(PerfStats.Area.STORAGE_DB, task));
+              result = PerfStats.measure(PerfStats.Area.STORAGE_DB, task);
             } catch (Throwable thrown) {
-              Throwable failure = unwrapCompletion(thrown);
+              failure = unwrapCompletion(thrown);
               if (!(failure instanceof SQLException)) {
                 log(Level.SEVERE, "Async database task failed: " + action, failure);
               }
-              future.completeExceptionally(failure);
             } finally {
               decrementQueueDepth();
+            }
+            if (failure == null) {
+              future.complete(result);
+            } else {
+              future.completeExceptionally(failure);
             }
           });
     } catch (RejectedExecutionException error) {

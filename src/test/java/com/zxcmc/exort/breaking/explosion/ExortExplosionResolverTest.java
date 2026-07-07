@@ -269,6 +269,7 @@ class ExortExplosionResolverTest {
         Material.BARRIER,
         Material.BARRIER,
         Material.BARRIER,
+        Material.BARRIER,
         Material.BARRIER);
   }
 

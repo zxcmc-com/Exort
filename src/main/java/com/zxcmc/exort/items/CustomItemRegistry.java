@@ -21,6 +21,8 @@ public final class CustomItemRegistry {
   public static final CustomItemIdentity EXPORT_BUS =
       new CustomItemIdentity("export_bus", "item.export_bus");
   public static final CustomItemIdentity RELAY = new CustomItemIdentity("relay", "item.relay");
+  public static final CustomItemIdentity TRANSMITTER =
+      new CustomItemIdentity("transmitter", "item.transmitter");
   public static final CustomItemIdentity CHUNK_LOADER =
       new CustomItemIdentity("chunk_loader", "item.chunk_loader");
   public static final CustomItemIdentity PERSONAL_CHUNK_LOADER =
@@ -40,6 +42,7 @@ public final class CustomItemRegistry {
           IMPORT_BUS,
           EXPORT_BUS,
           RELAY,
+          TRANSMITTER,
           CHUNK_LOADER,
           PERSONAL_CHUNK_LOADER,
           DORMANT_CHUNK_LOADER,

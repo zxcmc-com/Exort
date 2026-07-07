@@ -6,6 +6,7 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.platform.PlayerInteractionRange;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import org.bukkit.Location;
@@ -84,7 +85,9 @@ final class GuiSessionValidator {
   }
 
   WirelessValidationResult wirelessValidation(
-      AbstractStorageSession session, WirelessTerminalService wirelessService) {
+      AbstractStorageSession session,
+      WirelessTerminalService wirelessService,
+      WirelessTransmitterService transmitterService) {
     Player player = session.getViewer();
     if (player == null || !player.isOnline()) {
       return new WirelessValidationResult(player, null, true);
@@ -99,11 +102,12 @@ final class GuiSessionValidator {
     if (anchor == null || !anchor.isWorldLoaded()) {
       return new WirelessValidationResult(player, "message.wireless.missing_storage", false);
     }
-    if (!wirelessService.inRange(anchor, player.getLocation())) {
-      return new WirelessValidationResult(player, "message.wireless.out_of_range", false);
-    }
     if (!hasLiveStorageAnchor(session.getStorageId(), anchor)) {
       return new WirelessValidationResult(player, "message.wireless.missing_storage", false);
+    }
+    if (transmitterService == null
+        || !transmitterService.hasCoverage(session.getStorageId(), player.getLocation())) {
+      return new WirelessValidationResult(player, "message.wireless.out_of_range", false);
     }
     return WirelessValidationResult.valid();
   }

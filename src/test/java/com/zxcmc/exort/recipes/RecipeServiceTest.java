@@ -77,7 +77,9 @@ class RecipeServiceTest {
     assertFalse(service.allowsRecipeResult("chunk_loader"));
     assertFalse(service.allowsRecipeResult("personal_chunk_loader"));
     assertFalse(service.allowsRecipeResult("dormant_chunk_loader"));
+    assertFalse(service.allowsRecipeResult("transmitter"));
     assertFalse(service.allowsRecipeResult("wireless_terminal"));
+    assertNotNull(service.resolveExortItem("transmitter"));
     assertNotNull(service.resolveExortItem("chunk_loader"));
   }
 
@@ -205,12 +207,17 @@ class RecipeServiceTest {
     private ChunkLoaderType lastType;
 
     private RecordingCustomItems() {
-      super(null, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
+      super(null, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
     }
 
     @Override
     public ItemStack chunkLoaderItem(ChunkLoaderType type) {
       lastType = type;
+      return new TestItemStack();
+    }
+
+    @Override
+    public ItemStack transmitterItem() {
       return new TestItemStack();
     }
 

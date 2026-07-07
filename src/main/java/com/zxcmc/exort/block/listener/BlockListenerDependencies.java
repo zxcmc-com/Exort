@@ -16,6 +16,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.placement.storage.StorageTierSaver;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -37,6 +38,9 @@ public record BlockListenerDependencies(
     Material busCarrier,
     Material relayCarrier,
     boolean relayEnabled,
+    Material transmitterCarrier,
+    boolean wirelessEnabled,
+    WirelessTransmitterService wirelessTransmitterService,
     Material chunkLoaderCarrier,
     BlockBreakHandler breakHandler,
     ChunkLoaderService chunkLoaderService,
@@ -62,6 +66,8 @@ public record BlockListenerDependencies(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(transmitterCarrier, "transmitterCarrier");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
     Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
     Objects.requireNonNull(breakHandler, "breakHandler");
     Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");

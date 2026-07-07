@@ -10,6 +10,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -29,6 +30,7 @@ public record SessionManagerDependencies(
     Supplier<BossBarManager> bossBarManager,
     Supplier<PlayerFeedback> playerFeedback,
     Supplier<WirelessTerminalService> wirelessService,
+    Supplier<WirelessTransmitterService> wirelessTransmitterService,
     Supplier<BusService> busService,
     Supplier<CraftingRules> craftingRules,
     BooleanSupplier resourceMode,
@@ -54,6 +56,7 @@ public record SessionManagerDependencies(
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(wirelessService, "wirelessService");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(craftingRules, "craftingRules");
     Objects.requireNonNull(resourceMode, "resourceMode");

@@ -6,6 +6,7 @@ record MarkerSnapshot(
     BusData bus,
     MonitorData monitor,
     RelayData relay,
+    boolean transmitter,
     ChunkLoaderData chunkLoader,
     boolean wire,
     boolean storageCore) {
@@ -15,8 +16,20 @@ record MarkerSnapshot(
       BusData bus,
       MonitorData monitor,
       RelayData relay,
+      ChunkLoaderData chunkLoader,
       boolean wire,
       boolean storageCore) {
-    this(storage, terminal, bus, monitor, relay, null, wire, storageCore);
+    this(storage, terminal, bus, monitor, relay, false, chunkLoader, wire, storageCore);
+  }
+
+  MarkerSnapshot(
+      StorageData storage,
+      TerminalData terminal,
+      BusData bus,
+      MonitorData monitor,
+      RelayData relay,
+      boolean wire,
+      boolean storageCore) {
+    this(storage, terminal, bus, monitor, relay, false, null, wire, storageCore);
   }
 }

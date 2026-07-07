@@ -60,7 +60,7 @@ message:
   usage_give_storage: "tier로 저장소 아이템 지급"
   usage_give_chunk_loader: "청크 로더 지급"
   usage_give_item: "고정 Exort 아이템 지급"
-  usage_give_items: "아이템: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
+  usage_give_items: "아이템: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
   usage_reload: "사용법: /exort reload"
   unknown_subcommand: "알 수 없는 하위 명령입니다."
   help_header: "Exort Storage Network 명령:"
@@ -212,6 +212,10 @@ message:
     empty: "무선 터미널의 충전이 없습니다."
     bound: "무선 터미널이 연결되었습니다."
     self_store: "무선 터미널을 자기 자신 안에 저장할 수 없습니다."
+    transmitter_inactive: "Wireless Transmitter is not connected to exactly one storage."
+    no_terminal_in_hand: "Hold a Wireless Terminal in main hand or off-hand."
+    transmitter_slot_occupied: "Wireless Transmitter terminal slot is occupied."
+    transmitter_terminal_only: "Only a Wireless Terminal can be placed in this slot."
 debug:
   mode:
     read: "읽기 전용"
@@ -230,6 +234,7 @@ item:
   import_bus: "가져오기 버스"
   export_bus: "내보내기 버스"
   wireless_terminal: "무선 터미널"
+  transmitter: "Wireless Transmitter"
 tier:
   common: "보통"
   rare: "희귀"
@@ -310,6 +315,33 @@ gui:
       cancel: "취소"
   monitor:
     item: "{0}: {1}"
+  transmitter:
+    title: "Wireless Transmitter"
+    status:
+      item: "Network Status"
+      active: "Network: online"
+      storage: "Storage: {0}"
+      range: "Range: {0} blocks"
+      covered: "Player is covered"
+      not_covered: "Player is outside this transmitter range"
+      missing: "Transmitter block is missing"
+      no_storage: "Storage: none"
+      multiple: "Storage: multiple connected"
+      disabled: "Transmitter: disabled"
+    bind:
+      item: "Bind Wireless Terminal"
+      hint: "Click while holding a Wireless Terminal"
+    mode:
+      charge_only: "Mode: Charge Only"
+      bind: "Mode: Bind"
+      disabled: "Mode: Disabled"
+      hint: "Click to switch mode"
+      charge_only_lore: "Inserted terminal charges here only."
+      bind_lore: "Inserted terminal links to this transmitter's storage and charges here."
+      disabled_lore: "Wireless coverage is disabled; inserted terminal still charges."
+    slot:
+      terminal_empty: "Terminal slot: empty"
+      terminal_present: "Terminal slot: occupied"
   bus:
     import_title: "가져오기 버스"
     export_title: "내보내기 버스"

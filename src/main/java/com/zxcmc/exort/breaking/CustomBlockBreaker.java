@@ -11,6 +11,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import io.papermc.paper.event.player.PlayerArmSwingEvent;
 import java.util.HashMap;
@@ -57,6 +58,7 @@ public final class CustomBlockBreaker
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material transmitterCarrier;
   private final Material chunkLoaderCarrier;
   private final BreakSessionManager sessionManager = new BreakSessionManager();
   private final Map<UUID, DamageIntent> vanillaDamageIntents = new HashMap<>();
@@ -79,6 +81,7 @@ public final class CustomBlockBreaker
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material transmitterCarrier,
       Material chunkLoaderCarrier) {
     this(
         plugin,
@@ -94,6 +97,7 @@ public final class CustomBlockBreaker
         monitorCarrier,
         busCarrier,
         relayCarrier,
+        transmitterCarrier,
         chunkLoaderCarrier,
         new ClientBreakSpeedSuppressor(plugin));
   }
@@ -112,6 +116,7 @@ public final class CustomBlockBreaker
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material transmitterCarrier,
       Material chunkLoaderCarrier,
       ClientBreakSpeedSuppressor clientBreakSpeedSuppressor) {
     this.plugin = plugin;
@@ -129,6 +134,7 @@ public final class CustomBlockBreaker
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.transmitterCarrier = transmitterCarrier;
     this.chunkLoaderCarrier = chunkLoaderCarrier;
   }
 
@@ -634,6 +640,10 @@ public final class CustomBlockBreaker
     if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
       return BreakType.RELAY;
     }
+    if (Carriers.matchesCarrier(block, transmitterCarrier)
+        && TransmitterMarker.isTransmitter(plugin, block)) {
+      return BreakType.TRANSMITTER;
+    }
     if (Carriers.matchesCarrier(block, chunkLoaderCarrier)
         && ChunkLoaderMarker.isChunkLoader(plugin, block)) {
       return BreakType.CHUNK_LOADER;
@@ -658,6 +668,7 @@ public final class CustomBlockBreaker
       case MONITOR -> breakConfig.monitor();
       case BUS -> breakConfig.bus();
       case RELAY -> breakConfig.relay();
+      case TRANSMITTER -> breakConfig.transmitter();
       case CHUNK_LOADER -> breakConfig.chunkLoader();
       case WIRE -> breakConfig.wire();
       default -> breakConfig.storage();

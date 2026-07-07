@@ -34,6 +34,7 @@ import com.zxcmc.exort.wire.listener.WireListenerDependencies;
 import com.zxcmc.exort.wireless.listener.WirelessCraftListener;
 import com.zxcmc.exort.wireless.listener.WirelessListener;
 import com.zxcmc.exort.wireless.listener.WirelessListenerDependencies;
+import com.zxcmc.exort.wireless.transmitter.TransmitterListener;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 
@@ -81,6 +82,9 @@ public final class RuntimeListenerRegistrar {
                 materials.busCarrier(),
                 materials.relayCarrier(),
                 deps.relayEnabled(),
+                materials.transmitterCarrier(),
+                deps.wirelessService().isEnabled(),
+                deps.wirelessTransmitterService(),
                 materials.chunkLoaderCarrier(),
                 deps.breakHandler(),
                 deps.chunkLoaderService(),
@@ -140,7 +144,10 @@ public final class RuntimeListenerRegistrar {
     register(
         deps,
         new InventoryEvents(
-            deps.sessionManager(), deps.busSessionManager(), deps.authenticationGate()));
+            deps.sessionManager(),
+            deps.busSessionManager(),
+            deps.transmitterSessionManager(),
+            deps.authenticationGate()));
     register(
         deps,
         new SearchDialogListener(deps.sessionManager(), deps.searchDialogService(), deps.plugin()));
@@ -220,6 +227,7 @@ public final class RuntimeListenerRegistrar {
             materials.monitorCarrier(),
             materials.busCarrier(),
             materials.relayCarrier(),
+            materials.transmitterCarrier(),
             materials.chunkLoaderCarrier());
     register(deps, pickListener);
     if (deps.packetEnhancements() != null) {
@@ -245,6 +253,9 @@ public final class RuntimeListenerRegistrar {
                 materials.busCarrier(),
                 materials.relayCarrier(),
                 deps.relayEnabled(),
+                materials.transmitterCarrier(),
+                deps.wirelessService().isEnabled(),
+                deps.wirelessTransmitterService(),
                 materials.chunkLoaderCarrier(),
                 deps.regionProtection(),
                 deps.playerFeedback(),
@@ -327,6 +338,7 @@ public final class RuntimeListenerRegistrar {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                materials.transmitterCarrier(),
                 materials.chunkLoaderCarrier()),
             placementGuardBackend,
             placementConfig.pollIntervalTicks(),
@@ -405,26 +417,33 @@ public final class RuntimeListenerRegistrar {
 
   private static void registerWirelessListeners(RuntimeListenerDependencies deps) {
     RuntimeMaterials materials = deps.materials();
+    register(deps, deps.wirelessTransmitterService());
+    register(
+        deps,
+        new TransmitterListener(
+            deps.plugin(),
+            deps.wirelessTransmitterService(),
+            deps.wirelessService(),
+            deps.transmitterSessionManager(),
+            materials.transmitterCarrier(),
+            deps.regionProtection(),
+            deps.authenticationGate(),
+            deps.playerFeedback()));
     register(
         deps,
         new WirelessListener(
             new WirelessListenerDependencies(
                 deps.plugin(),
                 deps.wirelessService(),
+                deps.wirelessTransmitterService(),
                 deps.storageManager(),
                 deps.customItems(),
                 deps.regionProtection(),
                 deps.authenticationGate(),
-                deps.bossBarManager(),
                 deps.playerFeedback(),
                 deps.sessionManager(),
-                deps.keys(),
-                deps.wireLimit(),
-                deps.wireHardCap(),
-                deps.relayRangeChunks(),
-                materials.wire(),
                 materials.storageCarrier(),
-                deps.relayTraversalCarrier())));
+                materials.transmitterCarrier())));
     register(deps, new WirelessCraftListener(deps.wirelessService()));
   }
 

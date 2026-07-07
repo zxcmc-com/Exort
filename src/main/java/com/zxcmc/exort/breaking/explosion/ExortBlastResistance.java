@@ -9,6 +9,7 @@ final class ExortBlastResistance {
   public static final float MONITOR = 9.0F;
   public static final float BUS = 10.0F;
   public static final float RELAY = 50.0F;
+  public static final float TRANSMITTER = 50.0F;
   public static final float CHUNK_LOADER = 50.0F;
   public static final float WIRE = 6.0F;
 
@@ -17,6 +18,7 @@ final class ExortBlastResistance {
   private final float monitor;
   private final float bus;
   private final float relay;
+  private final float transmitter;
   private final float chunkLoader;
   private final float wire;
 
@@ -26,6 +28,7 @@ final class ExortBlastResistance {
       float monitor,
       float bus,
       float relay,
+      float transmitter,
       float chunkLoader,
       float wire) {
     this.storage = sanitize(storage, STORAGE);
@@ -33,12 +36,14 @@ final class ExortBlastResistance {
     this.monitor = sanitize(monitor, MONITOR);
     this.bus = sanitize(bus, BUS);
     this.relay = sanitize(relay, RELAY);
+    this.transmitter = sanitize(transmitter, TRANSMITTER);
     this.chunkLoader = sanitize(chunkLoader, CHUNK_LOADER);
     this.wire = sanitize(wire, WIRE);
   }
 
   static ExortBlastResistance defaults() {
-    return new ExortBlastResistance(STORAGE, TERMINAL, MONITOR, BUS, RELAY, CHUNK_LOADER, WIRE);
+    return new ExortBlastResistance(
+        STORAGE, TERMINAL, MONITOR, BUS, RELAY, TRANSMITTER, CHUNK_LOADER, WIRE);
   }
 
   static ExortBlastResistance fromConfig(FileConfiguration config) {
@@ -51,6 +56,7 @@ final class ExortBlastResistance {
         configured(config, "break.monitor.blastResistance", MONITOR),
         configured(config, "break.bus.blastResistance", BUS),
         configured(config, "break.relay.blastResistance", RELAY),
+        configured(config, "break.transmitter.blastResistance", TRANSMITTER),
         configured(config, "break.chunkLoader.blastResistance", CHUNK_LOADER),
         configured(config, "break.wire.blastResistance", WIRE));
   }
@@ -62,6 +68,7 @@ final class ExortBlastResistance {
       case MONITOR -> monitor;
       case BUS -> bus;
       case RELAY -> relay;
+      case TRANSMITTER -> transmitter;
       case CHUNK_LOADER -> chunkLoader;
       case WIRE -> wire;
       default -> STORAGE;

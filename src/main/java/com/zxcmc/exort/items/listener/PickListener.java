@@ -13,6 +13,7 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTier;
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
@@ -53,6 +54,7 @@ public final class PickListener implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material transmitterCarrier;
   private final Material chunkLoaderCarrier;
   private final Map<UUID, RecentPick> recentPicks = new HashMap<>();
 
@@ -67,6 +69,7 @@ public final class PickListener implements Listener {
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material transmitterCarrier,
       Material chunkLoaderCarrier) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.customItems = Objects.requireNonNull(customItems, "customItems");
@@ -78,6 +81,7 @@ public final class PickListener implements Listener {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.transmitterCarrier = transmitterCarrier;
     this.chunkLoaderCarrier = chunkLoaderCarrier;
   }
 
@@ -187,6 +191,9 @@ public final class PickListener implements Listener {
     } else if (isRelay(target)) {
       desired = customItems.relayItem();
       type = "relay";
+    } else if (isTransmitter(target)) {
+      desired = customItems.transmitterItem();
+      type = "transmitter";
     } else if (isChunkLoader(target)) {
       ChunkLoaderType loaderType =
           ChunkLoaderMarker.get(plugin, target)
@@ -358,6 +365,11 @@ public final class PickListener implements Listener {
 
   private boolean isRelay(Block block) {
     return Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+  }
+
+  private boolean isTransmitter(Block block) {
+    return Carriers.matchesCarrier(block, transmitterCarrier)
+        && TransmitterMarker.isTransmitter(plugin, block);
   }
 
   private boolean isChunkLoader(Block block) {

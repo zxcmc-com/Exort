@@ -60,7 +60,7 @@ message:
   usage_give_storage: "выдать хранилище по тиру"
   usage_give_chunk_loader: "выдать загрузчик чанков"
   usage_give_item: "выдать фиксированный предмет Exort"
-  usage_give_items: "Предметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
+  usage_give_items: "Предметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
   usage_reload: "Использование: /exort reload"
   unknown_subcommand: "Неизвестная подкоманда."
   help_header: "Команды Exort Storage Network:"
@@ -212,6 +212,10 @@ message:
     empty: "Беспроводной терминал разряжен."
     bound: "Беспроводной терминал привязан."
     self_store: "Нельзя положить беспроводной терминал сам в себя."
+    transmitter_inactive: "Передатчик не подключен ровно к одному хранилищу."
+    no_terminal_in_hand: "Возьмите беспроводной терминал в основную или вторую руку."
+    transmitter_slot_occupied: "Слот терминала передатчика уже занят."
+    transmitter_terminal_only: "В этот слот можно положить только беспроводной терминал."
 debug:
   mode:
     read: "только чтение"
@@ -230,6 +234,7 @@ item:
   import_bus: "Шина импорта"
   export_bus: "Шина экспорта"
   wireless_terminal: "Беспроводной терминал"
+  transmitter: "Беспроводной передатчик"
 tier:
   common: "Обычный"
   rare: "Редкий"
@@ -310,6 +315,33 @@ gui:
       cancel: "Отмена"
   monitor:
     item: "{0}: {1}"
+  transmitter:
+    title: "Беспроводной передатчик"
+    status:
+      item: "Статус сети"
+      active: "Сеть: активна"
+      storage: "Хранилище: {0}"
+      range: "Радиус: {0} блоков"
+      covered: "Игрок в зоне покрытия"
+      not_covered: "Игрок вне радиуса этого передатчика"
+      missing: "Блок передатчика не найден"
+      no_storage: "Хранилище: нет"
+      multiple: "Хранилище: подключено несколько"
+      disabled: "Передатчик: отключён"
+    bind:
+      item: "Привязать беспроводной терминал"
+      hint: "Кликните, держа беспроводной терминал"
+    mode:
+      charge_only: "Режим: только зарядка"
+      bind: "Режим: привязка"
+      disabled: "Режим: отключён"
+      hint: "Нажмите для переключения режима"
+      charge_only_lore: "Вставленный терминал только заряжается здесь."
+      bind_lore: "Вставленный терминал привязывается к хранилищу этого передатчика и заряжается здесь."
+      disabled_lore: "Беспроводное покрытие отключено; вставленный терминал продолжает заряжаться."
+    slot:
+      terminal_empty: "Слот терминала: пусто"
+      terminal_present: "Слот терминала: занят"
   bus:
     import_title: "Шина импорта"
     export_title: "Шина экспорта"

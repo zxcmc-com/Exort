@@ -10,6 +10,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.runtime.RuntimeMaterials;
 import java.util.Collection;
@@ -95,6 +96,10 @@ final class ExortExplosionResolver {
     if (Carriers.matchesCarrier(block, materials.relayCarrier())
         && RelayMarker.isRelay(plugin, block)) {
       return block(block, BreakType.RELAY);
+    }
+    if (Carriers.matchesCarrier(block, materials.transmitterCarrier())
+        && TransmitterMarker.isTransmitter(plugin, block)) {
+      return block(block, BreakType.TRANSMITTER);
     }
     if (Carriers.matchesCarrier(block, materials.chunkLoaderCarrier())
         && ChunkLoaderMarker.isChunkLoader(plugin, block)) {

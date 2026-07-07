@@ -13,6 +13,8 @@ import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -27,6 +29,9 @@ public record BlockBreakHandlerDependencies(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    Material transmitterCarrier,
+    WirelessTransmitterService wirelessTransmitterService,
+    TransmitterSessionManager transmitterSessionManager,
     Material chunkLoaderCarrier,
     ItemHologramManager hologramManager,
     WireDisplayManager wireDisplayManager,
@@ -50,6 +55,9 @@ public record BlockBreakHandlerDependencies(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(transmitterCarrier, "transmitterCarrier");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
+    Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(sessionManager, "sessionManager");

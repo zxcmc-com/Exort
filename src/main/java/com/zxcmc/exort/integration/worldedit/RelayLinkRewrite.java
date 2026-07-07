@@ -66,6 +66,7 @@ final class RelayLinkRewrite {
         snapshot.bus(),
         snapshot.monitor(),
         relay,
+        snapshot.transmitter(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());

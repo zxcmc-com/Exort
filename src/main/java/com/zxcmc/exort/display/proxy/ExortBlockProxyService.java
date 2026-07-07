@@ -14,6 +14,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import io.papermc.paper.event.packet.PlayerChunkLoadEvent;
 import io.papermc.paper.event.packet.PlayerChunkUnloadEvent;
 import io.papermc.paper.math.Position;
@@ -55,6 +56,7 @@ public final class ExortBlockProxyService implements Listener {
           "monitor_text",
           DisplayTags.BUS_TAG,
           "relay",
+          "transmitter",
           "chunk_loader");
 
   private final JavaPlugin plugin;
@@ -65,6 +67,7 @@ public final class ExortBlockProxyService implements Listener {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material transmitterCarrier;
   private final Material chunkLoaderCarrier;
   private final BlockData terminalMonitorBusProxyData;
   private final BlockData storageProxyData;
@@ -87,6 +90,7 @@ public final class ExortBlockProxyService implements Listener {
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material transmitterCarrier,
       Material chunkLoaderCarrier) {
     this.plugin = plugin;
     this.config =
@@ -97,6 +101,7 @@ public final class ExortBlockProxyService implements Listener {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.transmitterCarrier = transmitterCarrier;
     this.chunkLoaderCarrier = chunkLoaderCarrier;
     this.terminalMonitorBusProxyData = createProxyData(ProxyVisual.TERMINAL_MONITOR_BUS);
     this.storageProxyData = createProxyData(ProxyVisual.STORAGE);
@@ -607,6 +612,10 @@ public final class ExortBlockProxyService implements Listener {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     if (Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block)) {
+      return ProxyVisual.TERMINAL_MONITOR_BUS;
+    }
+    if (Carriers.matchesCarrier(block, transmitterCarrier)
+        && TransmitterMarker.isTransmitter(plugin, block)) {
       return ProxyVisual.TERMINAL_MONITOR_BUS;
     }
     if (Carriers.matchesCarrier(block, chunkLoaderCarrier)

@@ -33,6 +33,8 @@ import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -49,6 +51,8 @@ public record RuntimeListenerDependencies(
     StorageKeys keys,
     CustomItems customItems,
     WirelessTerminalService wirelessService,
+    WirelessTransmitterService wirelessTransmitterService,
+    TransmitterSessionManager transmitterSessionManager,
     RegionProtection regionProtection,
     AuthenticationGate authenticationGate,
     WorldEditWandGuard worldEditWandGuard,
@@ -96,6 +100,8 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(customItems, "customItems");
     Objects.requireNonNull(wirelessService, "wirelessService");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
+    Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(authenticationGate, "authenticationGate");
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");

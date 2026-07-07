@@ -47,7 +47,7 @@ public record FeatureAccessConfig(
     return switch (id) {
       case "relay" -> Feature.RELAY;
       case "chunk_loader", "personal_chunk_loader", "dormant_chunk_loader" -> Feature.CHUNK_LOADER;
-      case "wireless_terminal" -> Feature.WIRELESS;
+      case "transmitter", "wireless_terminal" -> Feature.WIRELESS;
       default -> Feature.NONE;
     };
   }

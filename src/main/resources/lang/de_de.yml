@@ -60,7 +60,7 @@ message:
   usage_give_storage: "einen Speichergegenstand nach Tier geben"
   usage_give_chunk_loader: "einen Chunk-Loader geben"
   usage_give_item: "einen festen Exort-Gegenstand geben"
-  usage_give_items: "Gegenstände: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
+  usage_give_items: "Gegenstände: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
   usage_reload: "Verwendung: /exort reload"
   unknown_subcommand: "Unbekannter Unterbefehl."
   help_header: "Exort Storage Network-Befehle:"
@@ -212,6 +212,10 @@ message:
     empty: "Drahtloses Terminal ist entladen."
     bound: "Drahtloses Terminal verbunden."
     self_store: "Ein drahtloses Terminal kann nicht in sich selbst gespeichert werden."
+    transmitter_inactive: "Wireless Transmitter is not connected to exactly one storage."
+    no_terminal_in_hand: "Hold a Wireless Terminal in main hand or off-hand."
+    transmitter_slot_occupied: "Wireless Transmitter terminal slot is occupied."
+    transmitter_terminal_only: "Only a Wireless Terminal can be placed in this slot."
 debug:
   mode:
     read: "nur Lesen"
@@ -230,6 +234,7 @@ item:
   import_bus: "Importbus"
   export_bus: "Exportbus"
   wireless_terminal: "Drahtloses Terminal"
+  transmitter: "Wireless Transmitter"
 tier:
   common: "Gewöhnlich"
   rare: "Selten"
@@ -310,6 +315,33 @@ gui:
       cancel: "Abbrechen"
   monitor:
     item: "{0}: {1}"
+  transmitter:
+    title: "Wireless Transmitter"
+    status:
+      item: "Network Status"
+      active: "Network: online"
+      storage: "Storage: {0}"
+      range: "Range: {0} blocks"
+      covered: "Player is covered"
+      not_covered: "Player is outside this transmitter range"
+      missing: "Transmitter block is missing"
+      no_storage: "Storage: none"
+      multiple: "Storage: multiple connected"
+      disabled: "Transmitter: disabled"
+    bind:
+      item: "Bind Wireless Terminal"
+      hint: "Click while holding a Wireless Terminal"
+    mode:
+      charge_only: "Mode: Charge Only"
+      bind: "Mode: Bind"
+      disabled: "Mode: Disabled"
+      hint: "Click to switch mode"
+      charge_only_lore: "Inserted terminal charges here only."
+      bind_lore: "Inserted terminal links to this transmitter's storage and charges here."
+      disabled_lore: "Wireless coverage is disabled; inserted terminal still charges."
+    slot:
+      terminal_empty: "Terminal slot: empty"
+      terminal_present: "Terminal slot: occupied"
   bus:
     import_title: "Importbus"
     export_title: "Exportbus"

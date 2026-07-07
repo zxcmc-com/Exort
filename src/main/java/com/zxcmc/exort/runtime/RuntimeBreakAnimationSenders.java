@@ -81,7 +81,7 @@ public final class RuntimeBreakAnimationSenders {
             switch (type) {
               case WIRE -> wire;
               case STORAGE -> storage;
-              case TERMINAL, MONITOR, BUS, RELAY, CHUNK_LOADER -> terminalMonitorBus;
+              case TERMINAL, MONITOR, BUS, RELAY, TRANSMITTER, CHUNK_LOADER -> terminalMonitorBus;
               case NONE -> fallback;
             },
         type -> shouldShowResourceStageParticles(wireMaterial, type));

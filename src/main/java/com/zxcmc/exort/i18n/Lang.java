@@ -368,12 +368,25 @@ public class Lang {
     fallback.put("message.usage_give_chunk_loader", "give a chunk loader");
     fallback.put("message.help_header", "Exort Storage Network commands:");
     fallback.put("message.version", "Exort Storage Network v{0} by phantomfighterxx");
+    fallback.put(
+        "message.wireless.transmitter_inactive",
+        "Wireless Transmitter is not connected to exactly one storage.");
+    fallback.put(
+        "message.wireless.no_terminal_in_hand",
+        "Hold a Wireless Terminal in main hand or off-hand.");
+    fallback.put(
+        "message.wireless.transmitter_slot_occupied",
+        "Wireless Transmitter terminal slot is occupied.");
+    fallback.put(
+        "message.wireless.transmitter_terminal_only",
+        "Only a Wireless Terminal can be placed in this slot.");
     fallback.put("item.storage", "Storage");
     fallback.put("item.storage_core", "Storage Core");
     fallback.put("item.terminal", "Storage Terminal");
     fallback.put("item.crafting_terminal", "Crafting Terminal");
     fallback.put("item.wire", "Storage Wire");
     fallback.put("item.relay", "Network Relay");
+    fallback.put("item.transmitter", "Wireless Transmitter");
     fallback.put("item.chunk_loader", "Chunk Loader");
     fallback.put("item.personal_chunk_loader", "Personal Chunk Loader");
     fallback.put("item.dormant_chunk_loader", "Dormant Chunk Loader");
@@ -391,6 +404,32 @@ public class Lang {
     fallback.put("relay.storage_tail", "Storage: {0}");
     fallback.put("relay.storage_none", "Storage: none");
     fallback.put("chunk_loader.status", "{0}. UUID: {1}");
+    fallback.put("gui.transmitter.title", "Wireless Transmitter");
+    fallback.put("gui.transmitter.status.item", "Network Status");
+    fallback.put("gui.transmitter.status.active", "Network: online");
+    fallback.put("gui.transmitter.status.storage", "Storage: {0}");
+    fallback.put("gui.transmitter.status.range", "Range: {0} blocks");
+    fallback.put("gui.transmitter.status.covered", "Player is covered");
+    fallback.put("gui.transmitter.status.not_covered", "Player is outside this transmitter range");
+    fallback.put("gui.transmitter.status.missing", "Transmitter block is missing");
+    fallback.put("gui.transmitter.status.no_storage", "Storage: none");
+    fallback.put("gui.transmitter.status.multiple", "Storage: multiple connected");
+    fallback.put("gui.transmitter.status.disabled", "Transmitter: disabled");
+    fallback.put("gui.transmitter.bind.item", "Bind Wireless Terminal");
+    fallback.put("gui.transmitter.bind.hint", "Click while holding a Wireless Terminal");
+    fallback.put("gui.transmitter.mode.charge_only", "Mode: Charge Only");
+    fallback.put("gui.transmitter.mode.bind", "Mode: Bind");
+    fallback.put("gui.transmitter.mode.disabled", "Mode: Disabled");
+    fallback.put("gui.transmitter.mode.hint", "Click to switch mode");
+    fallback.put("gui.transmitter.mode.charge_only_lore", "Inserted terminal charges here only.");
+    fallback.put(
+        "gui.transmitter.mode.bind_lore",
+        "Inserted terminal links to this transmitter's storage and charges here.");
+    fallback.put(
+        "gui.transmitter.mode.disabled_lore",
+        "Wireless coverage is disabled; inserted terminal still charges.");
+    fallback.put("gui.transmitter.slot.terminal_empty", "Terminal slot: empty");
+    fallback.put("gui.transmitter.slot.terminal_present", "Terminal slot: occupied");
     fallback.put("lore.storage.tier", "Tier: {0}");
     fallback.put("lore.storage.capacity", "{0} / {1} ({2})");
     fallback.put("lore.storage.id_tail", "{0}");

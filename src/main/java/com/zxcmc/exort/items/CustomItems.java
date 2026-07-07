@@ -37,6 +37,7 @@ public class CustomItems {
   private final String importBusItemModel;
   private final String exportBusItemModel;
   private final String relayItemModel;
+  private final String transmitterItemModel;
   private final String chunkLoaderItemModel;
   private final String personalChunkLoaderItemModel;
   private final String dormantChunkLoaderItemModel;
@@ -56,6 +57,7 @@ public class CustomItems {
       String importBusItemModel,
       String exportBusItemModel,
       String relayItemModel,
+      String transmitterItemModel,
       String chunkLoaderItemModel,
       String personalChunkLoaderItemModel,
       String dormantChunkLoaderItemModel,
@@ -74,6 +76,7 @@ public class CustomItems {
     this.importBusItemModel = importBusItemModel == null ? "" : importBusItemModel;
     this.exportBusItemModel = exportBusItemModel == null ? "" : exportBusItemModel;
     this.relayItemModel = relayItemModel == null ? "" : relayItemModel;
+    this.transmitterItemModel = transmitterItemModel == null ? "" : transmitterItemModel;
     this.chunkLoaderItemModel = chunkLoaderItemModel == null ? "" : chunkLoaderItemModel;
     this.personalChunkLoaderItemModel =
         personalChunkLoaderItemModel == null ? "" : personalChunkLoaderItemModel;
@@ -227,6 +230,19 @@ public class CustomItems {
     return item;
   }
 
+  public ItemStack transmitterItem() {
+    ItemStack item = new ItemStack(BASE_MATERIAL);
+    ItemMeta meta = item.getItemMeta();
+    if (meta != null) {
+      meta.itemName(lang.itemComponent(clientTranslations, "item.transmitter"));
+      ItemModelUtil.applyItemModel(meta, transmitterItemModel);
+      PersistentDataContainer pdc = meta.getPersistentDataContainer();
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.TRANSMITTER.id());
+      item.setItemMeta(meta);
+    }
+    return item;
+  }
+
   public ItemStack chunkLoaderItem() {
     return chunkLoaderItem(ChunkLoaderType.defaultType(), null);
   }
@@ -358,6 +374,12 @@ public class CustomItems {
         stack.setItemMeta(meta);
         return true;
       }
+      case "transmitter" -> {
+        meta.itemName(lang.itemComponent(clientTranslations, "item.transmitter"));
+        ItemModelUtil.applyItemModel(meta, transmitterItemModel);
+        stack.setItemMeta(meta);
+        return true;
+      }
       case "chunk_loader", "personal_chunk_loader", "dormant_chunk_loader" -> {
         ChunkLoaderType loaderType = chunkLoaderType(stack);
         pdc.set(keys.type(), PersistentDataType.STRING, loaderType.id());
@@ -389,6 +411,13 @@ public class CustomItems {
     PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
     String type = pdc.get(keys.type(), PersistentDataType.STRING);
     return "relay".equalsIgnoreCase(type);
+  }
+
+  public boolean isTransmitter(ItemStack stack) {
+    if (stack == null || !stack.hasItemMeta()) return false;
+    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+    String type = pdc.get(keys.type(), PersistentDataType.STRING);
+    return "transmitter".equalsIgnoreCase(type);
   }
 
   public boolean isChunkLoader(ItemStack stack) {

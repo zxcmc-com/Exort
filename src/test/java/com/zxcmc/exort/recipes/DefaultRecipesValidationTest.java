@@ -23,6 +23,7 @@ class DefaultRecipesValidationTest {
           "import_bus",
           "export_bus",
           "relay",
+          "transmitter",
           "wire",
           "chunk_loader",
           "personal_chunk_loader",

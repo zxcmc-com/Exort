@@ -16,6 +16,8 @@ import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -41,6 +43,8 @@ public record RuntimeBreakingServicesDependencies(
     WorldEditWandGuard worldEditWandGuard,
     PlayerFeedback playerFeedback,
     BreakAnimationSender breakAnimationSender,
+    WirelessTransmitterService wirelessTransmitterService,
+    TransmitterSessionManager transmitterSessionManager,
     ChunkLoaderService chunkLoaderService,
     PacketEnhancements packetEnhancements) {
   public RuntimeBreakingServicesDependencies {
@@ -62,6 +66,8 @@ public record RuntimeBreakingServicesDependencies(
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(breakAnimationSender, "breakAnimationSender");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
+    Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");
   }
 }

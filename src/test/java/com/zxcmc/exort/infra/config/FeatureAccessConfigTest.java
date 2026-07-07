@@ -15,6 +15,7 @@ class FeatureAccessConfigTest {
     assertTrue(config.isCatalogVisible("chunk_loader"));
     assertTrue(config.isCatalogVisible("personal_chunk_loader"));
     assertTrue(config.isCatalogVisible("dormant_chunk_loader"));
+    assertTrue(config.isCatalogVisible("transmitter"));
     assertTrue(config.isCatalogVisible("wireless_terminal"));
   }
 
@@ -31,6 +32,7 @@ class FeatureAccessConfigTest {
     assertFalse(config.allowsRecipeResult("chunk_loader"));
     assertFalse(config.allowsRecipeResult("personal_chunk_loader"));
     assertFalse(config.allowsRecipeResult("dormant_chunk_loader"));
+    assertFalse(config.allowsRecipeResult("transmitter"));
     assertFalse(config.allowsRecipeResult("wireless_terminal"));
     assertTrue(config.allowsRecipeResult("wire"));
     assertTrue(config.allowsRecipeResult("storage:common"));

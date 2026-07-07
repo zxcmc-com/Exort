@@ -810,6 +810,7 @@ public final class RecipeService {
       case "import_bus" -> customItems.importBusItem();
       case "export_bus" -> customItems.exportBusItem();
       case "relay" -> customItems.relayItem();
+      case "transmitter" -> customItems.transmitterItem();
       case "chunk_loader" -> customItems.chunkLoaderItem(ChunkLoaderType.CHUNK_LOADER);
       case "personal_chunk_loader" ->
           customItems.chunkLoaderItem(ChunkLoaderType.PERSONAL_CHUNK_LOADER);

@@ -317,6 +317,7 @@ final class WorldEditRefreshScheduler {
         deps.monitorCarrier(),
         deps.busCarrier(),
         deps.relayCarrier(),
+        deps.transmitterCarrier(),
         deps.chunkLoaderCarrier());
   }
 
@@ -327,6 +328,8 @@ final class WorldEditRefreshScheduler {
             deps.displayRefreshService(),
             deps::hologramManager,
             deps::busService,
+            deps::wirelessTransmitterService,
+            deps::transmitterSessionManager,
             deps.database(),
             deps.wireMaterial(),
             deps.storageCarrier(),
@@ -334,6 +337,7 @@ final class WorldEditRefreshScheduler {
             deps.monitorCarrier(),
             deps.busCarrier(),
             deps.relayCarrier(),
+            deps.transmitterCarrier(),
             deps.chunkLoaderCarrier()));
   }
 

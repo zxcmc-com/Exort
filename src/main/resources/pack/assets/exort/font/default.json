@@ -28,6 +28,15 @@
             ]
         },
         {
+            "type": "bitmap",
+            "file": "exort:gui/transmitter.png",
+            "height": 256,
+            "ascent": 13,
+            "chars": [
+                "ἣ"
+            ]
+        },
+        {
             "type": "reference",
             "id": "exort:shift"
         }

@@ -6,6 +6,7 @@ import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -23,7 +24,8 @@ final class WireConnectionModelResolver {
       Material storageCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material transmitterCarrier) {
     int mask = 0;
     for (BlockFace face : WireModelKeys.CONNECTION_FACES) {
       if (isConnected(
@@ -35,7 +37,8 @@ final class WireConnectionModelResolver {
           storageCarrier,
           monitorCarrier,
           busCarrier,
-          relayCarrier)) {
+          relayCarrier,
+          transmitterCarrier)) {
         mask |= WireModelKeys.bit(face);
       }
     }
@@ -51,7 +54,8 @@ final class WireConnectionModelResolver {
       Material storageCarrier,
       Material monitorCarrier,
       Material busCarrier,
-      Material relayCarrier) {
+      Material relayCarrier,
+      Material transmitterCarrier) {
     Block neighbor = wire.getRelative(face);
     if (neighbor == null) return false;
     if (Carriers.matchesCarrier(neighbor, wireCarrierMaterial)
@@ -70,6 +74,7 @@ final class WireConnectionModelResolver {
           plugin, neighbor, face.getOppositeFace(), terminalMaterial, monitorCarrier, busCarrier);
     }
     if (isRelay(plugin, neighbor, relayCarrier)) return true;
+    if (isTransmitter(plugin, neighbor, transmitterCarrier)) return true;
     return false;
   }
 
@@ -93,6 +98,11 @@ final class WireConnectionModelResolver {
 
   private static boolean isRelay(Plugin plugin, Block block, Material relayCarrier) {
     return Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+  }
+
+  private static boolean isTransmitter(Plugin plugin, Block block, Material transmitterCarrier) {
+    return Carriers.matchesCarrier(block, transmitterCarrier)
+        && TransmitterMarker.isTransmitter(plugin, block);
   }
 
   private static boolean isFrontFace(

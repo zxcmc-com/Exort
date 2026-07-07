@@ -15,7 +15,10 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -31,6 +34,8 @@ public final class MarkerSanityService {
   private final DisplayRefreshService displayRefreshService;
   private final Supplier<ItemHologramManager> hologramManager;
   private final Supplier<BusService> busService;
+  private final Supplier<WirelessTransmitterService> wirelessTransmitterService;
+  private final Supplier<TransmitterSessionManager> transmitterSessionManager;
   private final Database database;
   private final Material wireCarrier;
   private final Material storageCarrier;
@@ -38,6 +43,7 @@ public final class MarkerSanityService {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material transmitterCarrier;
   private final Material chunkLoaderCarrier;
 
   public MarkerSanityService(MarkerSanityDependencies dependencies) {
@@ -45,6 +51,8 @@ public final class MarkerSanityService {
     this.displayRefreshService = dependencies.displayRefreshService();
     this.hologramManager = dependencies.hologramManager();
     this.busService = dependencies.busService();
+    this.wirelessTransmitterService = dependencies.wirelessTransmitterService();
+    this.transmitterSessionManager = dependencies.transmitterSessionManager();
     this.database = dependencies.database();
     this.wireCarrier = dependencies.wireCarrier();
     this.storageCarrier = dependencies.storageCarrier();
@@ -52,6 +60,7 @@ public final class MarkerSanityService {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.transmitterCarrier = dependencies.transmitterCarrier();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
   }
 
@@ -147,6 +156,17 @@ public final class MarkerSanityService {
               cleanupInvalidRelayLink(block);
             }
           }
+          if (TransmitterMarker.isTransmitter(plugin, block)
+              && !Carriers.matchesCarrier(block, transmitterCarrier)) {
+            if (Carriers.isBarrier(block)) {
+              migrateTransmitterCarrier(block);
+            } else {
+              dropStoredTransmitterTerminal(block);
+              TransmitterMarker.clear(plugin, block);
+              unregisterTransmitter(block);
+              displayRefreshService.removeTransmitterDisplay(block);
+            }
+          }
           if (ChunkLoaderMarker.isChunkLoader(plugin, block)
               && !Carriers.matchesCarrier(block, chunkLoaderCarrier)) {
             if (Carriers.isBarrier(block)) {
@@ -226,6 +246,7 @@ public final class MarkerSanityService {
     boolean hadMonitor = MonitorMarker.isMonitor(plugin, block);
     boolean hadBus = BusMarker.isBus(plugin, block);
     boolean hadRelay = RelayMarker.isRelay(plugin, block);
+    boolean hadTransmitter = TransmitterMarker.isTransmitter(plugin, block);
     boolean hadChunkLoader = ChunkLoaderMarker.isChunkLoader(plugin, block);
     boolean hadWire = WireMarker.isWire(plugin, block);
     boolean validOrMigratableCarrier = validOrMigratableCarrier(block, hadWire);
@@ -236,6 +257,7 @@ public final class MarkerSanityService {
         hadMonitor,
         hadBus,
         hadRelay,
+        hadTransmitter,
         hadChunkLoader,
         hadWire,
         validOrMigratableCarrier);
@@ -262,6 +284,11 @@ public final class MarkerSanityService {
       RelayMarker.unlinkLoadedPair(plugin, block);
       displayRefreshService.removeRelayDisplay(block);
     }
+    if (state.hadTransmitter()) {
+      dropStoredTransmitterTerminal(block);
+      unregisterTransmitter(block);
+      displayRefreshService.removeTransmitterDisplay(block);
+    }
     if (state.hadChunkLoader()) {
       displayRefreshService.removeChunkLoaderDisplay(block);
     }
@@ -278,6 +305,7 @@ public final class MarkerSanityService {
         || Carriers.matchesCarrier(block, monitorCarrier)
         || Carriers.matchesCarrier(block, busCarrier)
         || Carriers.matchesCarrier(block, relayCarrier)
+        || Carriers.matchesCarrier(block, transmitterCarrier)
         || Carriers.matchesCarrier(block, chunkLoaderCarrier);
   }
 
@@ -316,8 +344,12 @@ public final class MarkerSanityService {
     boolean hadMonitor = MonitorMarker.isMonitor(plugin, block);
     boolean hadBus = BusMarker.isBus(plugin, block);
     boolean hadRelay = RelayMarker.isRelay(plugin, block);
+    boolean hadTransmitter = TransmitterMarker.isTransmitter(plugin, block);
     boolean hadChunkLoader = ChunkLoaderMarker.isChunkLoader(plugin, block);
 
+    if (hadTransmitter) {
+      dropStoredTransmitterTerminal(block);
+    }
     removeTaggedDisplaysAt(block);
     StorageMarker.clear(plugin, block);
     StorageCoreMarker.clear(plugin, block);
@@ -326,6 +358,7 @@ public final class MarkerSanityService {
     BusMarker.clear(plugin, block);
     RelayMarker.unlinkLoadedPair(plugin, block);
     RelayMarker.clear(plugin, block);
+    TransmitterMarker.clear(plugin, block);
     ChunkLoaderMarker.clear(plugin, block);
     WireMarker.setWire(plugin, block);
     Carriers.applyCarrier(block, wireCarrier);
@@ -347,6 +380,10 @@ public final class MarkerSanityService {
     }
     if (hadRelay) {
       displayRefreshService.removeRelayDisplay(block);
+    }
+    if (hadTransmitter) {
+      unregisterTransmitter(block);
+      displayRefreshService.removeTransmitterDisplay(block);
     }
     if (hadChunkLoader) {
       displayRefreshService.removeChunkLoaderDisplay(block);
@@ -400,6 +437,34 @@ public final class MarkerSanityService {
     Carriers.applyCarrier(block, relayCarrier);
     displayRefreshService.refreshRelay(block);
     displayRefreshService.refreshNetworkFrom(block);
+  }
+
+  private void migrateTransmitterCarrier(Block block) {
+    Carriers.applyCarrier(block, transmitterCarrier);
+    registerTransmitter(block);
+    displayRefreshService.refreshTransmitter(block);
+    displayRefreshService.refreshNetworkFrom(block);
+  }
+
+  private void registerTransmitter(Block block) {
+    WirelessTransmitterService service = wirelessTransmitterService.get();
+    if (service != null) {
+      service.register(block);
+    }
+  }
+
+  private void unregisterTransmitter(Block block) {
+    WirelessTransmitterService service = wirelessTransmitterService.get();
+    if (service != null) {
+      service.unregister(block);
+    }
+  }
+
+  private void dropStoredTransmitterTerminal(Block block) {
+    TransmitterSessionManager manager = transmitterSessionManager.get();
+    if (manager != null) {
+      manager.dropStoredTerminal(block);
+    }
   }
 
   private void migrateChunkLoaderCarrier(Block block) {
@@ -494,6 +559,7 @@ public final class MarkerSanityService {
       boolean hadMonitor,
       boolean hadBus,
       boolean hadRelay,
+      boolean hadTransmitter,
       boolean hadChunkLoader,
       boolean hadWire,
       boolean validOrMigratableCarrier) {
@@ -504,6 +570,7 @@ public final class MarkerSanityService {
           || hadMonitor
           || hadBus
           || hadRelay
+          || hadTransmitter
           || hadChunkLoader
           || hadWire;
     }

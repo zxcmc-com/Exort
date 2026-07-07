@@ -61,6 +61,7 @@ final class BreakingModelGenerator {
     addTerminalVariants(entries, variants);
     addBusVariants(entries, variants);
     addRelayVariants(entries, variants);
+    addTransmitterVariants(entries, variants);
     addChunkLoaderVariants(entries, variants);
     addWireVariants(entries, variants);
 
@@ -104,6 +105,7 @@ final class BreakingModelGenerator {
         || entries.containsKey(MODELS_ROOT + "terminal/inventory.json")
         || entries.containsKey(MODELS_ROOT + "bus/import.json")
         || entries.containsKey(MODELS_ROOT + "relay/black.json")
+        || entries.containsKey(MODELS_ROOT + "transmitter/transmitter.json")
         || entries.containsKey(MODELS_ROOT + "chunkloader/immortal.json")
         || entries.containsKey(MODELS_ROOT + "wire/center.json");
   }
@@ -296,6 +298,18 @@ final class BreakingModelGenerator {
             readModel(entries, "chunkloader/immortal.json"),
             identityTransform(),
             FacePolicy.CHUNK_LOADER_ALL_SIDES,
+            NO_TEXTURE_SIZES,
+            STAGE_COUNT));
+  }
+
+  private static void addTransmitterVariants(
+      Map<String, byte[]> entries, List<VariantSource> variants) {
+    variants.add(
+        new VariantSource(
+            "transmitter/transmitter",
+            readModel(entries, "transmitter/transmitter.json"),
+            identityTransform(),
+            FacePolicy.DEFAULT,
             NO_TEXTURE_SIZES,
             STAGE_COUNT));
   }

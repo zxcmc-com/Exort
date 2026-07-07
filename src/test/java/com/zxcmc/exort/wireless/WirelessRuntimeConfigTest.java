@@ -11,21 +11,21 @@ class WirelessRuntimeConfigTest {
   void readsConfiguredValues() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("wireless.enabled", false);
-    yaml.set("wireless.rangeChunks", 7);
+    yaml.set("wireless.rangeBlocks", 96);
 
     WirelessRuntimeConfig config = WirelessRuntimeConfig.fromConfig(yaml);
 
     assertFalse(config.enabled());
-    assertEquals(7, config.rangeChunks());
+    assertEquals(96, config.rangeBlocks());
   }
 
   @Test
   void clampsNegativeRange() {
     YamlConfiguration yaml = new YamlConfiguration();
-    yaml.set("wireless.rangeChunks", -2);
+    yaml.set("wireless.rangeBlocks", -2);
 
     WirelessRuntimeConfig config = WirelessRuntimeConfig.fromConfig(yaml);
 
-    assertEquals(0, config.rangeChunks());
+    assertEquals(0, config.rangeBlocks());
   }
 }

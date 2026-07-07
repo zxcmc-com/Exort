@@ -46,6 +46,7 @@ public final class BreakingOverlayModelResolver {
           "terminal/" + key(horizontalOrSouth(MonitorMarker.facing(plugin, block).orElse(null)));
       case BUS -> busKey(block);
       case RELAY -> "relay/relay";
+      case TRANSMITTER -> "transmitter/transmitter";
       case CHUNK_LOADER -> "chunkloader/chunkloader";
       case WIRE -> "wire/center";
       case NONE -> null;

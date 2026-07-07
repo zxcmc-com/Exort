@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.9 — 2026-07-07
+- Added Wireless Transmitter as the Exort wireless access point block/item, with RESOURCE and VANILLA visuals, a RESOURCE GUI texture, a recipe, `/exort give transmitter`, `/exort inventory` support, pick-block output, custom breaking, explosion handling, display refresh, and WorldEdit/FAWE marker preservation.
+- The Wireless Transmitter GUI now provides Charge Only, Bind, and Disabled modes; terminals keep charging in every mode, while Disabled mode removes the transmitter from wireless coverage.
+- Wireless Terminals now bind through the Wireless Transmitter GUI and open only when their linked storage is covered by at least one already loaded active transmitter in the same world, using horizontal block range from transmitters instead of direct storage, terminal, or monitor range.
+- Stored Wireless Terminals inside Wireless Transmitters are protected against loss and duplication: the terminal slot persists across GUI close, chunk unload, and restart; normal breaks or explosions drop the terminal; destructive WorldEdit/FAWE cleanup removes it without drops, and copied transmitters do not copy stored terminal state.
+- `wireless.enabled: false` now disables Wireless Terminals and Wireless Transmitters together across recipes, `/exort inventory`, placement, GUI access, and wireless coverage, while `/exort give transmitter` remains available as an admin override.
+
 ## 0.18.8 — 2026-07-06
 - Exort recipes now support vanilla-like recipe book discovery through `unlock` triggers in `recipes.yml`, so players can see newly relevant Exort recipes after obtaining key vanilla or Exort ingredients.
 - Extended `recipes.yml` support with furnace, blasting, smoking, campfire, and stonecutting recipe sections, plus recipe group/category metadata and safe smithing `copyDataComponents: false` behavior by default.

@@ -121,6 +121,7 @@ class ExortBlockClassifierTest {
         Material.BARRIER,
         Material.BARRIER,
         Material.BARRIER,
+        Material.BARRIER,
         Material.BARRIER);
   }
 

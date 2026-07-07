@@ -53,8 +53,10 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTierResolver;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -106,6 +108,7 @@ public final class WorldEditBridge implements Listener {
   private static final String SECTION_BUS = "bus";
   private static final String SECTION_MONITOR = "monitor";
   private static final String SECTION_RELAY = "relay";
+  private static final String SECTION_TRANSMITTER = "transmitter";
   private static final String SECTION_CHUNK_LOADER = "chunk_loader";
   private static final String SECTION_WIRE = "wire";
   private static final String SECTION_STORAGE_CORE = "storage_core";
@@ -1545,6 +1548,9 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.relay() != null && !Carriers.matchesCarrier(block, deps.relayCarrier())) {
       return false;
     }
+    if (snapshot.transmitter() && !Carriers.matchesCarrier(block, deps.transmitterCarrier())) {
+      return false;
+    }
     if (snapshot.chunkLoader() != null
         && !Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
       return false;
@@ -1632,6 +1638,10 @@ public final class WorldEditBridge implements Listener {
             plugin, block, new RelayMarker.Link(link.worldId(), link.x(), link.y(), link.z()));
       }
     }
+    if (snapshot.transmitter() && Carriers.matchesCarrier(block, deps.transmitterCarrier())) {
+      TransmitterMarker.set(plugin, block);
+      deps.wirelessTransmitterService().register(block);
+    }
     if (snapshot.chunkLoader() != null
         && Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
       ChunkLoaderData data = snapshot.chunkLoader();
@@ -1671,6 +1681,13 @@ public final class WorldEditBridge implements Listener {
     }
     if (BusMarker.isBus(plugin, block) && deps.busService() != null) {
       deps.busService().unregisterBus(block);
+    }
+    if (TransmitterMarker.isTransmitter(plugin, block)) {
+      TransmitterSessionManager transmitterSessionManager = deps.transmitterSessionManager();
+      if (transmitterSessionManager != null) {
+        transmitterSessionManager.closeSessionsForTransmitter(block);
+      }
+      deps.wirelessTransmitterService().unregister(block);
     }
     unlinkExistingRelayForReplacement(plugin, block);
     if (ChunkLoaderMarker.isChunkLoader(plugin, block)) {
@@ -1880,6 +1897,12 @@ public final class WorldEditBridge implements Listener {
       exort.put(SECTION_RELAY, relayTag.build());
       any = true;
     }
+    if (TransmitterMarker.isTransmitter(plugin, block)) {
+      LinCompoundTag.Builder transmitterTag = LinCompoundTag.builder();
+      transmitterTag.putByte(FIELD_PRESENT, (byte) 1);
+      exort.put(SECTION_TRANSMITTER, transmitterTag.build());
+      any = true;
+    }
     Optional<ChunkLoaderMarker.Data> chunkLoader = ChunkLoaderMarker.get(plugin, block);
     if (chunkLoader.isPresent()) {
       ChunkLoaderMarker.Data data = chunkLoader.get();
@@ -1967,6 +1990,9 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.relay() != null && !Carriers.matchesCarrier(block, deps.relayCarrier())) {
       return false;
     }
+    if (snapshot.transmitter() && !Carriers.matchesCarrier(block, deps.transmitterCarrier())) {
+      return false;
+    }
     if (snapshot.chunkLoader() != null
         && !Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
       return false;
@@ -1982,6 +2008,7 @@ public final class WorldEditBridge implements Listener {
         || type == deps.monitorCarrier()
         || type == deps.busCarrier()
         || type == deps.relayCarrier()
+        || type == deps.transmitterCarrier()
         || type == deps.chunkLoaderCarrier()
         || type == deps.wireMaterial()
         || type == Carriers.CARRIER_BARRIER
@@ -2068,6 +2095,12 @@ public final class WorldEditBridge implements Listener {
         relayTag.putString(FIELD_LINK_Z, Integer.toString(link.z()));
       }
       exort.put(SECTION_RELAY, relayTag.build());
+      any = true;
+    }
+    if (snapshot.transmitter()) {
+      LinCompoundTag.Builder transmitterTag = LinCompoundTag.builder();
+      transmitterTag.putByte(FIELD_PRESENT, (byte) 1);
+      exort.put(SECTION_TRANSMITTER, transmitterTag.build());
       any = true;
     }
     if (snapshot.chunkLoader() != null) {
@@ -2169,6 +2202,7 @@ public final class WorldEditBridge implements Listener {
     MonitorData monitor = null;
     RelayData relay = null;
     ChunkLoaderData chunkLoader = null;
+    boolean transmitter = false;
     boolean wire = false;
     boolean storageCore = false;
 
@@ -2215,6 +2249,11 @@ public final class WorldEditBridge implements Listener {
       relay = new RelayData(readRelayLink(relayTag));
     }
 
+    LinCompoundTag transmitterTag = getCompound(exort, SECTION_TRANSMITTER);
+    if (transmitterTag != null) {
+      transmitter = readPresent(transmitterTag, FIELD_PRESENT);
+    }
+
     LinCompoundTag chunkLoaderTag = getCompound(exort, SECTION_CHUNK_LOADER);
     if (chunkLoaderTag != null) {
       UUID id = readUuid(chunkLoaderTag, FIELD_ID);
@@ -2252,13 +2291,14 @@ public final class WorldEditBridge implements Listener {
         && bus == null
         && monitor == null
         && relay == null
+        && !transmitter
         && chunkLoader == null
         && !wire
         && !storageCore) {
       return null;
     }
     return new MarkerSnapshot(
-        storage, terminal, bus, monitor, relay, chunkLoader, wire, storageCore);
+        storage, terminal, bus, monitor, relay, transmitter, chunkLoader, wire, storageCore);
   }
 
   private static RelayLinkData readRelayLink(LinCompoundTag relayTag) {
@@ -2289,6 +2329,7 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.bus() != null) count++;
     if (snapshot.monitor() != null) count++;
     if (snapshot.relay() != null) count++;
+    if (snapshot.transmitter()) count++;
     if (snapshot.chunkLoader() != null) count++;
     if (snapshot.wire()) count++;
     return count;
@@ -2303,6 +2344,7 @@ public final class WorldEditBridge implements Listener {
     appendSection(sections, snapshot.bus() != null, SECTION_BUS);
     appendSection(sections, snapshot.monitor() != null, SECTION_MONITOR);
     appendSection(sections, snapshot.relay() != null, SECTION_RELAY);
+    appendSection(sections, snapshot.transmitter(), SECTION_TRANSMITTER);
     appendSection(sections, snapshot.chunkLoader() != null, SECTION_CHUNK_LOADER);
     appendSection(sections, snapshot.wire(), SECTION_WIRE);
     return sections.isEmpty() ? "none" : sections.toString();
@@ -3064,6 +3106,8 @@ public final class WorldEditBridge implements Listener {
         material = bridge.deps.busCarrier();
       } else if (snapshot.relay() != null) {
         material = bridge.deps.relayCarrier();
+      } else if (snapshot.transmitter()) {
+        material = bridge.deps.transmitterCarrier();
       } else if (snapshot.chunkLoader() != null) {
         material = bridge.deps.chunkLoaderCarrier();
       } else if (snapshot.wire()) {
@@ -3102,6 +3146,8 @@ public final class WorldEditBridge implements Listener {
         material = bridge.deps.busCarrier();
       } else if (snapshot.relay() != null) {
         material = bridge.deps.relayCarrier();
+      } else if (snapshot.transmitter()) {
+        material = bridge.deps.transmitterCarrier();
       } else if (snapshot.chunkLoader() != null) {
         material = bridge.deps.chunkLoaderCarrier();
       } else if (snapshot.wire()) {
@@ -3121,6 +3167,7 @@ public final class WorldEditBridge implements Listener {
           || matchesMaterial(type, bridge.deps.monitorCarrier())
           || matchesMaterial(type, bridge.deps.busCarrier())
           || matchesMaterial(type, bridge.deps.relayCarrier())
+          || matchesMaterial(type, bridge.deps.transmitterCarrier())
           || matchesMaterial(type, bridge.deps.chunkLoaderCarrier())
           || matchesMaterial(type, bridge.deps.wireMaterial());
     }
@@ -3504,6 +3551,9 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.relay() != null) {
       return deps.relayCarrier();
     }
+    if (snapshot.transmitter()) {
+      return deps.transmitterCarrier();
+    }
     if (snapshot.chunkLoader() != null) {
       return deps.chunkLoaderCarrier();
     }
@@ -3642,6 +3692,7 @@ public final class WorldEditBridge implements Listener {
         bus,
         monitor,
         snapshot.relay(),
+        snapshot.transmitter(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
@@ -3664,6 +3715,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.bus(),
         snapshot.monitor(),
         snapshot.relay(),
+        snapshot.transmitter(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
@@ -3679,6 +3731,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.bus(),
         snapshot.monitor(),
         snapshot.relay(),
+        snapshot.transmitter(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
@@ -3705,6 +3758,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.bus(),
         snapshot.monitor(),
         relay,
+        snapshot.transmitter(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());

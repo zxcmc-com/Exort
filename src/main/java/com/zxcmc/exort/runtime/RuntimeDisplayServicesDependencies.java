@@ -8,6 +8,8 @@ import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -33,6 +35,8 @@ public record RuntimeDisplayServicesDependencies(
     PacketEnhancements packetEnhancements,
     Supplier<WorldEditDebugService> worldEditDebugService,
     Supplier<BusService> busService,
+    Supplier<WirelessTransmitterService> wirelessTransmitterService,
+    Supplier<TransmitterSessionManager> transmitterSessionManager,
     Runnable invalidateNetwork) {
   public RuntimeDisplayServicesDependencies {
     Objects.requireNonNull(plugin, "plugin");
@@ -47,6 +51,8 @@ public record RuntimeDisplayServicesDependencies(
     Objects.requireNonNull(relaySetupTracker, "relaySetupTracker");
     Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
     Objects.requireNonNull(busService, "busService");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
+    Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(invalidateNetwork, "invalidateNetwork");
   }
 }

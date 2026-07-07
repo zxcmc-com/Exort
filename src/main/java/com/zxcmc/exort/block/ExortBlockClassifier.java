@@ -8,6 +8,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.runtime.RuntimeMaterials;
 import java.util.Objects;
@@ -42,6 +43,10 @@ public final class ExortBlockClassifier {
     }
     if (Carriers.matchesCarrier(block, materials.relayCarrier())
         && RelayMarker.isRelay(plugin, block)) {
+      return true;
+    }
+    if (Carriers.matchesCarrier(block, materials.transmitterCarrier())
+        && TransmitterMarker.isTransmitter(plugin, block)) {
       return true;
     }
     if (Carriers.matchesCarrier(block, materials.chunkLoaderCarrier())

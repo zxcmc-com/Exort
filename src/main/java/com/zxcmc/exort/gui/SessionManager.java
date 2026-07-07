@@ -18,6 +18,7 @@ import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -52,6 +53,7 @@ public class SessionManager {
   private final Supplier<BossBarManager> bossBarManager;
   private final Supplier<PlayerFeedback> playerFeedback;
   private final Supplier<WirelessTerminalService> wirelessService;
+  private final Supplier<WirelessTransmitterService> wirelessTransmitterService;
   private final Supplier<BusService> busService;
   private final Supplier<CraftingRules> craftingRules;
   private final BooleanSupplier resourceMode;
@@ -82,6 +84,7 @@ public class SessionManager {
     this.bossBarManager = dependencies.bossBarManager();
     this.playerFeedback = dependencies.playerFeedback();
     this.wirelessService = dependencies.wirelessService();
+    this.wirelessTransmitterService = dependencies.wirelessTransmitterService();
     this.busService = dependencies.busService();
     this.craftingRules = dependencies.craftingRules();
     this.resourceMode = dependencies.resourceMode();
@@ -130,6 +133,10 @@ public class SessionManager {
     return wirelessService.get();
   }
 
+  public WirelessTransmitterService wirelessTransmitterService() {
+    return wirelessTransmitterService.get();
+  }
+
   public BusService busService() {
     return busService.get();
   }
@@ -153,6 +160,7 @@ public class SessionManager {
                 plugin,
                 () -> {
                   WirelessTerminalService tickWireless = wirelessService.get();
+                  WirelessTransmitterService tickTransmitter = wirelessTransmitterService.get();
                   Material tickStorageCarrier = storageCarrier.get();
                   List<GuiSession> snapshot = new ArrayList<>(registry.allSessions());
                   List<WirelessCloseRequest> toClose = new ArrayList<>();
@@ -167,7 +175,8 @@ public class SessionManager {
                     }
                     if (tickWireless == null || tickStorageCarrier == null) continue;
                     GuiSessionValidator.WirelessValidationResult validation =
-                        sessionValidator.wirelessValidation(storageSession, tickWireless);
+                        sessionValidator.wirelessValidation(
+                            storageSession, tickWireless, tickTransmitter);
                     if (!validation.isValid() && validation.player() != null) {
                       toClose.add(
                           new WirelessCloseRequest(validation.player(), validation.messageKey()));

@@ -4,6 +4,8 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -14,6 +16,8 @@ public record MarkerSanityDependencies(
     DisplayRefreshService displayRefreshService,
     Supplier<ItemHologramManager> hologramManager,
     Supplier<BusService> busService,
+    Supplier<WirelessTransmitterService> wirelessTransmitterService,
+    Supplier<TransmitterSessionManager> transmitterSessionManager,
     Database database,
     Material wireCarrier,
     Material storageCarrier,
@@ -21,12 +25,15 @@ public record MarkerSanityDependencies(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    Material transmitterCarrier,
     Material chunkLoaderCarrier) {
   public MarkerSanityDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");
     Objects.requireNonNull(hologramManager, "hologramManager");
     Objects.requireNonNull(busService, "busService");
+    Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
+    Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(wireCarrier, "wireCarrier");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
@@ -34,6 +41,7 @@ public record MarkerSanityDependencies(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(transmitterCarrier, "transmitterCarrier");
     Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
   }
 }

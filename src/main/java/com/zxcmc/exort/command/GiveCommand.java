@@ -131,6 +131,14 @@ final class GiveCommand {
                             amountArgument(
                                 ctx -> giveItem(ctx, amount(ctx), "item.relay", this::relay))))
                 .then(
+                    Commands.literal("transmitter")
+                        .executes(ctx -> giveItem(ctx, 1, "item.transmitter", this::transmitter))
+                        .then(
+                            amountArgument(
+                                ctx ->
+                                    giveItem(
+                                        ctx, amount(ctx), "item.transmitter", this::transmitter))))
+                .then(
                     Commands.literal("chunk_loader")
                         .executes(ctx -> giveChunkLoader(ctx, 1, ChunkLoaderType.CHUNK_LOADER))
                         .then(
@@ -355,6 +363,10 @@ final class GiveCommand {
 
   private ItemStack relay() {
     return dependencies.customItems().relayItem();
+  }
+
+  private ItemStack transmitter() {
+    return dependencies.customItems().transmitterItem();
   }
 
   private void sendGiveResult(

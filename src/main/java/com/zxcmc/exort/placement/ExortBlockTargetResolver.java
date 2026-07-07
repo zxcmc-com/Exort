@@ -17,6 +17,7 @@ public final class ExortBlockTargetResolver {
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material transmitterCarrier,
       Material chunkLoaderCarrier) {
     this.classifier =
         new ExortBlockClassifier(
@@ -28,6 +29,7 @@ public final class ExortBlockTargetResolver {
                 monitorCarrier,
                 busCarrier,
                 relayCarrier,
+                transmitterCarrier,
                 chunkLoaderCarrier));
   }
 

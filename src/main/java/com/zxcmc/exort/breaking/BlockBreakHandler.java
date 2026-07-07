@@ -26,11 +26,14 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -53,6 +56,9 @@ public final class BlockBreakHandler {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material transmitterCarrier;
+  private final WirelessTransmitterService wirelessTransmitterService;
+  private final TransmitterSessionManager transmitterSessionManager;
   private final Material chunkLoaderCarrier;
   private final ItemHologramManager hologramManager;
   private final WireDisplayManager wireDisplayManager;
@@ -77,6 +83,9 @@ public final class BlockBreakHandler {
     this.monitorCarrier = dependencies.monitorCarrier();
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.transmitterCarrier = dependencies.transmitterCarrier();
+    this.wirelessTransmitterService = dependencies.wirelessTransmitterService();
+    this.transmitterSessionManager = dependencies.transmitterSessionManager();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.hologramManager = dependencies.hologramManager();
     this.wireDisplayManager = dependencies.wireDisplayManager();
@@ -269,6 +278,41 @@ public final class BlockBreakHandler {
           displayRefreshService.refreshBlockAndNeighbors(peer);
           displayRefreshService.refreshNetworkFrom(peer);
         }
+      }
+      cleanupDisplays(block);
+      return BreakResult.BROKEN;
+    }
+
+    if (TransmitterMarker.isTransmitter(plugin, block)) {
+      if (!Carriers.matchesCarrier(block, transmitterCarrier)) {
+        transmitterSessionManager.dropStoredTerminal(block);
+        TransmitterMarker.clear(plugin, block);
+        wirelessTransmitterService.unregister(block);
+        return BreakResult.BROKEN;
+      }
+      if (isRegionDenied(player, block, checkRegion)) {
+        return BreakResult.DENIED;
+      }
+      playBreakParticles(block, BreakType.TRANSMITTER);
+      transmitterSessionManager.dropStoredTerminal(block);
+      block.setType(Material.AIR);
+      if (shouldDrop(player)) {
+        dropItemSafe(block, customItems.transmitterItem());
+      }
+      TransmitterMarker.clear(plugin, block);
+      wirelessTransmitterService.unregister(block);
+      invalidateNetwork(block);
+      sessionManager.revalidateSessions();
+      if (wireDisplayManager != null && wireDisplayManager.isEnabled()) {
+        refreshWireNeighbors(block);
+        if (displayRefreshService != null) {
+          displayRefreshService.refreshBlockAndNeighbors(block);
+        }
+      }
+      if (displayRefreshService != null) {
+        displayRefreshService.removeTransmitterDisplay(block);
+        displayRefreshService.refreshBlockAndNeighbors(block);
+        displayRefreshService.refreshNetworkFrom(block);
       }
       cleanupDisplays(block);
       return BreakResult.BROKEN;

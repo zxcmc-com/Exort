@@ -10,6 +10,7 @@ public record RuntimeMaterials(
     Material monitorCarrier,
     Material busCarrier,
     Material relayCarrier,
+    Material transmitterCarrier,
     Material chunkLoaderCarrier) {
   public RuntimeMaterials {
     Objects.requireNonNull(wire, "wire");
@@ -18,6 +19,7 @@ public record RuntimeMaterials(
     Objects.requireNonNull(monitorCarrier, "monitorCarrier");
     Objects.requireNonNull(busCarrier, "busCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(transmitterCarrier, "transmitterCarrier");
     Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
   }
 }

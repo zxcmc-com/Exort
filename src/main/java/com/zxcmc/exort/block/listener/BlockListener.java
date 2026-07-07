@@ -28,6 +28,7 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.placement.storage.StoragePlacementDependencies;
@@ -37,6 +38,7 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wire.placement.WirePlacementLimitGuard;
 import com.zxcmc.exort.wire.placement.WireWaterFlowRefresh;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,6 +76,9 @@ public class BlockListener implements Listener {
   private final Material busCarrier;
   private final Material relayCarrier;
   private final boolean relayEnabled;
+  private final Material transmitterCarrier;
+  private final boolean wirelessEnabled;
+  private final WirelessTransmitterService wirelessTransmitterService;
   private final Material chunkLoaderCarrier;
   private final BlockBreakHandler breakHandler;
   private final ChunkLoaderService chunkLoaderService;
@@ -105,6 +110,9 @@ public class BlockListener implements Listener {
     this.busCarrier = dependencies.busCarrier();
     this.relayCarrier = dependencies.relayCarrier();
     this.relayEnabled = dependencies.relayEnabled();
+    this.transmitterCarrier = dependencies.transmitterCarrier();
+    this.wirelessEnabled = dependencies.wirelessEnabled();
+    this.wirelessTransmitterService = dependencies.wirelessTransmitterService();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
     this.breakHandler = dependencies.breakHandler();
     this.chunkLoaderService = dependencies.chunkLoaderService();
@@ -353,6 +361,31 @@ public class BlockListener implements Listener {
       return;
     }
 
+    if (customItems.isTransmitter(event.getItemInHand())
+        && Carriers.matchesCarrier(block, transmitterCarrier)) {
+      if (!wirelessEnabled) {
+        event.setCancelled(true);
+        playerFeedback.warn(event.getPlayer(), "message.wireless.disabled");
+        return;
+      }
+      if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
+        event.setCancelled(true);
+        return;
+      }
+      TransmitterMarker.set(plugin, block);
+      wirelessTransmitterService.register(block);
+      consumeIfInitialized(event);
+      invalidateNetwork(block);
+      var refresh = displayRefreshService.get();
+      if (refresh != null) {
+        refresh.refreshTransmitter(block);
+        refresh.refreshBlockAndNeighbors(block);
+        refresh.refreshNetworkFrom(block);
+      }
+      playPlaceSound(block, BreakType.TRANSMITTER);
+      return;
+    }
+
     if (customItems.isChunkLoader(event.getItemInHand())
         && Carriers.matchesCarrier(block, chunkLoaderCarrier)) {
       if (!chunkLoaderService.isFeatureEnabled()) {
@@ -529,6 +562,9 @@ public class BlockListener implements Listener {
         return true;
       }
       if (RelayMarker.isRelay(plugin, b)) {
+        return true;
+      }
+      if (TransmitterMarker.isTransmitter(plugin, b)) {
         return true;
       }
       if (ChunkLoaderMarker.isChunkLoader(plugin, b)) {

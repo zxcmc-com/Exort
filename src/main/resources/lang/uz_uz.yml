@@ -60,7 +60,7 @@ message:
   usage_give_storage: "tier bo'yicha ombor itemini berish"
   usage_give_chunk_loader: "Chunk yuklagich berish"
   usage_give_item: "belgilangan Exort itemini berish"
-  usage_give_items: "Itemlar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
+  usage_give_items: "Itemlar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
   usage_reload: "Foydalanish: /exort reload"
   unknown_subcommand: "Noma'lum quyi buyruq."
   help_header: "Exort Storage Network buyruqlari:"
@@ -212,6 +212,10 @@ message:
     empty: "Simsiz terminal zaryadsiz."
     bound: "Simsiz terminal bog'landi."
     self_store: "Simsiz terminalni o'z ichiga saqlab bo'lmaydi."
+    transmitter_inactive: "Wireless Transmitter is not connected to exactly one storage."
+    no_terminal_in_hand: "Hold a Wireless Terminal in main hand or off-hand."
+    transmitter_slot_occupied: "Wireless Transmitter terminal slot is occupied."
+    transmitter_terminal_only: "Only a Wireless Terminal can be placed in this slot."
 debug:
   mode:
     read: "faqat o'qish"
@@ -230,6 +234,7 @@ item:
   import_bus: "Import shinasi"
   export_bus: "Eksport shinasi"
   wireless_terminal: "Simsiz terminal"
+  transmitter: "Wireless Transmitter"
 tier:
   common: "Oddiy"
   rare: "Noyob"
@@ -310,6 +315,33 @@ gui:
       cancel: "Bekor qilish"
   monitor:
     item: "{0}: {1}"
+  transmitter:
+    title: "Wireless Transmitter"
+    status:
+      item: "Network Status"
+      active: "Network: online"
+      storage: "Storage: {0}"
+      range: "Range: {0} blocks"
+      covered: "Player is covered"
+      not_covered: "Player is outside this transmitter range"
+      missing: "Transmitter block is missing"
+      no_storage: "Storage: none"
+      multiple: "Storage: multiple connected"
+      disabled: "Transmitter: disabled"
+    bind:
+      item: "Bind Wireless Terminal"
+      hint: "Click while holding a Wireless Terminal"
+    mode:
+      charge_only: "Mode: Charge Only"
+      bind: "Mode: Bind"
+      disabled: "Mode: Disabled"
+      hint: "Click to switch mode"
+      charge_only_lore: "Inserted terminal charges here only."
+      bind_lore: "Inserted terminal links to this transmitter's storage and charges here."
+      disabled_lore: "Wireless coverage is disabled; inserted terminal still charges."
+    slot:
+      terminal_empty: "Terminal slot: empty"
+      terminal_present: "Terminal slot: occupied"
   bus:
     import_title: "Import shinasi"
     export_title: "Eksport shinasi"

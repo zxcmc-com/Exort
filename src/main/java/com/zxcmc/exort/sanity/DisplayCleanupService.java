@@ -11,6 +11,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,6 +30,7 @@ public final class DisplayCleanupService {
   private static final String TYPE_MONITOR = "monitor";
   private static final String TYPE_BUS = "bus";
   private static final String TYPE_RELAY = "relay";
+  private static final String TYPE_TRANSMITTER = "transmitter";
   private static final String TYPE_CHUNK_LOADER = "chunk_loader";
   private static final String TYPE_MONITOR_ITEM = "monitor_item";
   private static final String TYPE_MONITOR_TEXT = "monitor_text";
@@ -40,12 +42,20 @@ public final class DisplayCleanupService {
         TYPE_MONITOR,
         TYPE_BUS,
         TYPE_RELAY,
+        TYPE_TRANSMITTER,
         TYPE_CHUNK_LOADER,
         TYPE_MONITOR_ITEM,
         TYPE_MONITOR_TEXT
       };
   private static final Set<String> MARKER_BACKED_DISPLAY_TYPES =
-      Set.of(TYPE_STORAGE, TYPE_TERMINAL, TYPE_MONITOR, TYPE_BUS, TYPE_RELAY, TYPE_CHUNK_LOADER);
+      Set.of(
+          TYPE_STORAGE,
+          TYPE_TERMINAL,
+          TYPE_MONITOR,
+          TYPE_BUS,
+          TYPE_RELAY,
+          TYPE_TRANSMITTER,
+          TYPE_CHUNK_LOADER);
   private final Plugin plugin;
   private final Material wireCarrier;
   private final Material storageCarrier;
@@ -53,6 +63,7 @@ public final class DisplayCleanupService {
   private final Material monitorCarrier;
   private final Material busCarrier;
   private final Material relayCarrier;
+  private final Material transmitterCarrier;
   private final Material chunkLoaderCarrier;
 
   public DisplayCleanupService(
@@ -63,6 +74,7 @@ public final class DisplayCleanupService {
       Material monitorCarrier,
       Material busCarrier,
       Material relayCarrier,
+      Material transmitterCarrier,
       Material chunkLoaderCarrier) {
     this.plugin = plugin;
     this.wireCarrier = wireCarrier;
@@ -71,6 +83,7 @@ public final class DisplayCleanupService {
     this.monitorCarrier = monitorCarrier;
     this.busCarrier = busCarrier;
     this.relayCarrier = relayCarrier;
+    this.transmitterCarrier = transmitterCarrier;
     this.chunkLoaderCarrier = chunkLoaderCarrier;
   }
 
@@ -174,6 +187,9 @@ public final class DisplayCleanupService {
       case TYPE_BUS -> Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block);
       case TYPE_RELAY ->
           Carriers.matchesCarrier(block, relayCarrier) && RelayMarker.isRelay(plugin, block);
+      case TYPE_TRANSMITTER ->
+          Carriers.matchesCarrier(block, transmitterCarrier)
+              && TransmitterMarker.isTransmitter(plugin, block);
       case TYPE_CHUNK_LOADER ->
           Carriers.matchesCarrier(block, chunkLoaderCarrier)
               && ChunkLoaderMarker.isChunkLoader(plugin, block);
@@ -188,6 +204,7 @@ public final class DisplayCleanupService {
         || isValidMarkerBackedBlock(block, TYPE_MONITOR)
         || isValidMarkerBackedBlock(block, TYPE_BUS)
         || isValidMarkerBackedBlock(block, TYPE_RELAY)
+        || isValidMarkerBackedBlock(block, TYPE_TRANSMITTER)
         || isValidMarkerBackedBlock(block, TYPE_CHUNK_LOADER);
   }
 

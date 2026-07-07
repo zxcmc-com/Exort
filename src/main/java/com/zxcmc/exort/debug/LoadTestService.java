@@ -135,7 +135,7 @@ public final class LoadTestService {
   private boolean simulateWireScan;
   private boolean simulateDisplays;
   private boolean wirelessEnabled;
-  private int wirelessRangeChunks;
+  private int wirelessRangeBlocks;
   private boolean useMaxStoragePerChunk;
   private boolean loadChunks;
   private int busCountPerChunk;
@@ -914,7 +914,7 @@ public final class LoadTestService {
     long wirelessCost =
         wirelessEnabled
             ? (long) Math.max(1, simulatedPlayers)
-                * (long) Math.max(1, wirelessRangeChunks)
+                * (long) Math.max(1, wirelessRangeBlocks)
                 * (long) Math.max(1, cpuIterationsPerOp / 12)
             : 0L;
     long guardCost = (long) Math.max(0, guardChurnPerTick) * (long) Math.max(1, cpuIterationsPerOp);
@@ -1112,7 +1112,7 @@ public final class LoadTestService {
     if (!wirelessEnabled) return;
     int players = Math.max(1, simulatedPlayers);
     int iterationsPerPlayer = Math.max(1, cpuIterationsPerOp / 12);
-    int iterations = players * iterationsPerPlayer * Math.max(1, wirelessRangeChunks);
+    int iterations = players * iterationsPerPlayer * Math.max(1, wirelessRangeBlocks);
     long acc = 3;
     for (int i = 0; i < iterations; i++) {
       acc = acc * 19 + i;
@@ -1418,7 +1418,7 @@ public final class LoadTestService {
     idleCheckTicks = idleCheckSeconds > 0 ? idleCheckSeconds * 20 : 0;
     WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(plugin.getConfig());
     wirelessEnabled = wirelessConfig.enabled();
-    wirelessRangeChunks = wirelessConfig.rangeChunks();
+    wirelessRangeBlocks = wirelessConfig.rangeBlocks();
     loadChunks = DEFAULT_LOAD_CHUNKS;
     maxLoadedChunks = DEFAULT_MAX_LOADED_CHUNKS;
     chunkGroupSpacing = DEFAULT_CHUNK_GROUP_SPACING;

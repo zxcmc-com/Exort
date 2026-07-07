@@ -11,6 +11,7 @@ import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.device.RelayDisplayManager;
 import com.zxcmc.exort.display.device.StorageDisplayManager;
 import com.zxcmc.exort.display.device.TerminalDisplayManager;
+import com.zxcmc.exort.display.device.TransmitterDisplayManager;
 import com.zxcmc.exort.display.localization.DisplayLocalizationRefreshService;
 import com.zxcmc.exort.display.localization.ExortDisplayLocalizationService;
 import com.zxcmc.exort.display.proxy.ExortBlockProxyService;
@@ -92,6 +93,10 @@ public final class RuntimeDisplayServicesFactory {
         createRelayDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), relayDisplayManager::scanLoadedChunks);
 
+    TransmitterDisplayManager transmitterDisplayManager =
+        createTransmitterDisplayManager(deps, displayModels, metadataService);
+    Bukkit.getScheduler().runTask(deps.plugin(), transmitterDisplayManager::scanLoadedChunks);
+
     ChunkLoaderDisplayManager chunkLoaderDisplayManager =
         createChunkLoaderDisplayManager(deps, displayModels, metadataService);
     Bukkit.getScheduler().runTask(deps.plugin(), chunkLoaderDisplayManager::scanLoadedChunks);
@@ -107,6 +112,7 @@ public final class RuntimeDisplayServicesFactory {
             materials.monitorCarrier(),
             materials.busCarrier(),
             materials.relayCarrier(),
+            materials.transmitterCarrier(),
             materials.chunkLoaderCarrier());
     blockProxyService.start();
 
@@ -132,6 +138,7 @@ public final class RuntimeDisplayServicesFactory {
             materials.busCarrier(),
             materials.relayCarrier(),
             deps.relayTraversalCarrier(),
+            materials.transmitterCarrier(),
             materials.chunkLoaderCarrier(),
             materials.storageCarrier(),
             wireDisplayManager,
@@ -140,6 +147,7 @@ public final class RuntimeDisplayServicesFactory {
             monitorDisplayManager,
             busDisplayManager,
             relayDisplayManager,
+            transmitterDisplayManager,
             chunkLoaderDisplayManager,
             blockProxyService,
             deps.relaySetupTracker());
@@ -153,6 +161,7 @@ public final class RuntimeDisplayServicesFactory {
         monitorDisplayManager,
         busDisplayManager,
         relayDisplayManager,
+        transmitterDisplayManager,
         chunkLoaderDisplayManager,
         blockProxyService,
         displayCullingService,
@@ -172,6 +181,7 @@ public final class RuntimeDisplayServicesFactory {
         materials.monitorCarrier(),
         materials.busCarrier(),
         materials.relayCarrier(),
+        materials.transmitterCarrier(),
         deps.itemModels().displayNamespace(),
         deps.itemModels().wireItemModel(),
         deps.resourceMode(),
@@ -368,6 +378,24 @@ public final class RuntimeDisplayServicesFactory {
         deps.lang().clientComponent(deps.resourceMode(), "item.dormant_chunk_loader"));
   }
 
+  private static TransmitterDisplayManager createTransmitterDisplayManager(
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeDisplayModelConfig displayModels,
+      DisplayMetadataService metadataService) {
+    RuntimeDisplayConfig display = RuntimeDisplayConfig.defaults();
+    return new TransmitterDisplayManager(
+        deps.plugin(),
+        deps.materials().transmitterCarrier(),
+        displayModels.transmitter(),
+        display.displayBaseMaterial(),
+        display.displayScale(),
+        display.offsetX(),
+        display.offsetY(),
+        display.offsetZ(),
+        metadataService,
+        deps.lang().clientComponent(deps.resourceMode(), "item.transmitter"));
+  }
+
   private static void registerSanityServices(
       RuntimeDisplayServicesDependencies deps,
       ItemHologramManager hologramManager,
@@ -384,6 +412,7 @@ public final class RuntimeDisplayServicesFactory {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                materials.transmitterCarrier(),
                 materials.chunkLoaderCarrier()),
             new MarkerSanityService(
                 new MarkerSanityDependencies(
@@ -391,6 +420,8 @@ public final class RuntimeDisplayServicesFactory {
                     displayRefreshService,
                     () -> hologramManager,
                     deps.busService(),
+                    deps.wirelessTransmitterService(),
+                    deps.transmitterSessionManager(),
                     deps.database(),
                     materials.wire(),
                     materials.storageCarrier(),
@@ -398,6 +429,7 @@ public final class RuntimeDisplayServicesFactory {
                     materials.monitorCarrier(),
                     materials.busCarrier(),
                     materials.relayCarrier(),
+                    materials.transmitterCarrier(),
                     materials.chunkLoaderCarrier())),
             displayRefreshService,
             deps.worldEditDebugService(),

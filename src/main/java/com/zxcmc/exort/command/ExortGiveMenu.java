@@ -225,6 +225,9 @@ public final class ExortGiveMenu implements InventoryHolder {
     if (access.isCatalogVisible("relay")) {
       items.add(oneItemCopy(customItems.relayItem()));
     }
+    if (access.isCatalogVisible("transmitter")) {
+      items.add(oneItemCopy(customItems.transmitterItem()));
+    }
     if (access.isCatalogVisible("chunk_loader")) {
       for (ChunkLoaderType type : ChunkLoaderType.all()) {
         items.add(oneItemCopy(customItems.chunkLoaderItem(type)));

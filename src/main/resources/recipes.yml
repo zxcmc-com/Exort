@@ -106,6 +106,22 @@ shaped:
       B: minecraft:echo_shard
       C: minecraft:ender_pearl
       D: minecraft:lodestone
+  transmitter:
+    result:
+      item: exort:transmitter
+      amount: 1
+    unlock:
+      - exort:relay
+    shape:
+      - "ABA"
+      - "CDC"
+      - "AEA"
+    ingredients:
+      A: exort:wire
+      B: minecraft:echo_shard
+      C: minecraft:ender_pearl
+      D: exort:relay
+      E: exort:terminal
 
 shapeless:
   wire:

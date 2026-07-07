@@ -24,6 +24,8 @@ import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.concurrent.CompletableFuture;
 import org.bukkit.Material;
 
@@ -31,6 +33,8 @@ public record ExortRuntimeServices(
     CompletableFuture<ItemNameService.Status> itemNamesStatus,
     CustomItems customItems,
     WirelessTerminalService wirelessService,
+    WirelessTransmitterService wirelessTransmitterService,
+    TransmitterSessionManager transmitterSessionManager,
     ChunkLoaderService chunkLoaderService,
     RelaySetupTracker relaySetupTracker,
     RuntimeMaterials materials,

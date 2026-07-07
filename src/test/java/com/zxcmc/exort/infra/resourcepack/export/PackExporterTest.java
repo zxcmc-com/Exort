@@ -98,6 +98,7 @@ class PackExporterTest {
       assertRelayItemDefinitionModels(zip);
       assertChunkLoaderItemDefinitionModels(zip);
       assertChunkLoaderTextureAndModelUvs(zip);
+      assertTransmitterGuiOverlayAssets(zip);
     }
   }
 
@@ -159,10 +160,28 @@ class PackExporterTest {
           "assets/exort/textures/breaking/particles/block.png",
           "assets/exort/textures/breaking/particles/storage.png",
           "assets/exort/textures/breaking/particles/wire.png",
-          "assets/exort/textures/block/relay.png"
+          "assets/exort/textures/block/relay.png",
+          "assets/exort/font/default.json",
+          "assets/exort/textures/gui/transmitter.png"
         }) {
       assertEntry(zip, entry);
     }
+  }
+
+  private static void assertTransmitterGuiOverlayAssets(ZipFile zip) throws IOException {
+    JsonObject font =
+        JsonParser.parseString(readEntry(zip, "assets/exort/font/default.json")).getAsJsonObject();
+    JsonArray providers = font.getAsJsonArray("providers");
+    boolean transmitterProvider = false;
+    for (JsonElement provider : providers) {
+      JsonObject object = provider.getAsJsonObject();
+      JsonElement file = object.get("file");
+      if (file != null && "exort:gui/transmitter.png".equals(file.getAsString())) {
+        transmitterProvider = true;
+        break;
+      }
+    }
+    assertTrue(transmitterProvider, "font/default.json is missing transmitter GUI provider");
   }
 
   private static void assertNoLegacyBreakingEntries(ZipFile zip) {

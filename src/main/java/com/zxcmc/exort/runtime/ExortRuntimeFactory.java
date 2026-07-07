@@ -31,6 +31,8 @@ import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -57,6 +59,7 @@ public final class ExortRuntimeFactory {
             itemModels.monitorCarrier(),
             itemModels.busCarrier(),
             itemModels.relayCarrier(),
+            itemModels.transmitterCarrier(),
             itemModels.chunkLoaderCarrier());
 
     loadStorageTiersConfig(deps);
@@ -72,6 +75,20 @@ public final class ExortRuntimeFactory {
 
     CustomItems customItems = createCustomItems(deps, itemModels);
     WirelessTerminalService wirelessService = createWirelessService(deps, customItems);
+    WirelessTransmitterService wirelessTransmitterService =
+        createWirelessTransmitterService(deps, materials, networkConfig);
+    TransmitterSessionManager transmitterSessionManager =
+        new TransmitterSessionManager(
+            deps.plugin(),
+            wirelessTransmitterService,
+            wirelessService,
+            deps.lang(),
+            deps.playerFeedback(),
+            deps.regionProtection().get(),
+            () -> deps.resourceMode(),
+            deps.guiOverlayConfig());
+    transmitterSessionManager.reconfigure();
+    wirelessTransmitterService.scanLoadedChunks();
     deps.sessionManager().reconfigure();
 
     deps.stopReloadableRuntime().run();
@@ -139,6 +156,8 @@ public final class ExortRuntimeFactory {
                 packetEnhancements,
                 deps.worldEditDebugService(),
                 () -> state.busService,
+                () -> wirelessTransmitterService,
+                () -> transmitterSessionManager,
                 () -> {
                   if (deps.networkGraphCache().get() != null) {
                     deps.networkGraphCache().get().invalidateAll();
@@ -191,6 +210,8 @@ public final class ExortRuntimeFactory {
                 worldEditWandGuard,
                 deps.playerFeedback(),
                 breakAnimationSender,
+                wirelessTransmitterService,
+                transmitterSessionManager,
                 chunkLoaderService,
                 packetEnhancements));
 
@@ -205,6 +226,8 @@ public final class ExortRuntimeFactory {
                 deps.keys(),
                 customItems,
                 wirelessService,
+                wirelessTransmitterService,
+                transmitterSessionManager,
                 deps.regionProtection().get(),
                 authenticationGate,
                 worldEditWandGuard,
@@ -263,6 +286,8 @@ public final class ExortRuntimeFactory {
             displayServices::displayRefreshService,
             busServices::busService,
             () -> chunkLoaderService,
+            () -> wirelessTransmitterService,
+            () -> transmitterSessionManager,
             displayServices::hologramManager,
             new WorldEditBridgeMaterials(
                 materials.wire(),
@@ -271,6 +296,7 @@ public final class ExortRuntimeFactory {
                 materials.monitorCarrier(),
                 materials.busCarrier(),
                 materials.relayCarrier(),
+                materials.transmitterCarrier(),
                 materials.chunkLoaderCarrier()),
             WorldEditBulkConfig.fromConfig(deps.config()));
     WorldEditIntegration worldEditIntegration =
@@ -284,6 +310,8 @@ public final class ExortRuntimeFactory {
         langFuture,
         customItems,
         wirelessService,
+        wirelessTransmitterService,
+        transmitterSessionManager,
         chunkLoaderService,
         relaySetupTracker,
         materials,
@@ -357,6 +385,7 @@ public final class ExortRuntimeFactory {
         itemModels.importBusItemModel(),
         itemModels.exportBusItemModel(),
         itemModels.relayItemModel(),
+        itemModels.transmitterItemModel(),
         itemModels.chunkLoaderItemModel(),
         itemModels.personalChunkLoaderItemModel(),
         itemModels.dormantChunkLoaderItemModel(),
@@ -374,7 +403,27 @@ public final class ExortRuntimeFactory {
         deps.keys(),
         customItems,
         wirelessConfig.enabled(),
-        wirelessConfig.rangeChunks());
+        wirelessConfig.rangeBlocks());
+  }
+
+  private static WirelessTransmitterService createWirelessTransmitterService(
+      ExortRuntimeFactoryDependencies deps,
+      RuntimeMaterials materials,
+      RuntimeNetworkConfig networkConfig) {
+    WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(deps.config());
+    return new WirelessTransmitterService(
+        deps.plugin(),
+        deps.keys(),
+        wirelessConfig.enabled(),
+        wirelessConfig.rangeBlocks(),
+        networkConfig.wireLimit(),
+        networkConfig.wireHardCap(),
+        networkConfig.relayRangeChunks(),
+        materials.wire(),
+        materials.storageCarrier(),
+        materials.transmitterCarrier(),
+        networkConfig.relayEnabled() ? materials.relayCarrier() : null,
+        deps.networkGraphCache());
   }
 
   private static boolean detectDialogSupport(ExortRuntimeFactoryDependencies deps) {

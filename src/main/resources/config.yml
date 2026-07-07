@@ -163,8 +163,8 @@ chunkLoader:
 # Wireless terminal settings.
 wireless:
   enabled: true
-  # Range in chunks from the bound storage block, using Manhattan distance.
-  rangeChunks: 3
+  # Horizontal range in blocks from loaded active Wireless Transmitters.
+  rangeBlocks: 48
 
 # Custom breaking for Exort carrier blocks.
 # Hardness controls break speed; higher is slower.
@@ -195,6 +195,12 @@ break:
       - pickaxe
       - axe
   relay:
+    hardness: 16.0
+    blastResistance: 50.0
+    tools:
+      - pickaxe
+      - axe
+  transmitter:
     hardness: 16.0
     blastResistance: 50.0
     tools:

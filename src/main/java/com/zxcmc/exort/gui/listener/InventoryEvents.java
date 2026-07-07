@@ -8,6 +8,8 @@ import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.gui.StorageSession;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSession;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -21,14 +23,17 @@ import org.bukkit.inventory.InventoryHolder;
 public final class InventoryEvents implements Listener {
   private final SessionManager sessionManager;
   private final BusSessionManager busSessionManager;
+  private final TransmitterSessionManager transmitterSessionManager;
   private final AuthenticationGate authenticationGate;
 
   public InventoryEvents(
       SessionManager sessionManager,
       BusSessionManager busSessionManager,
+      TransmitterSessionManager transmitterSessionManager,
       AuthenticationGate authenticationGate) {
     this.sessionManager = sessionManager;
     this.busSessionManager = busSessionManager;
+    this.transmitterSessionManager = transmitterSessionManager;
     this.authenticationGate = authenticationGate;
   }
 
@@ -87,6 +92,10 @@ public final class InventoryEvents implements Listener {
       session.handleClick(event);
       return;
     }
+    if (event.getView().getTopInventory().getHolder() instanceof TransmitterSession session) {
+      session.handleClick(event);
+      return;
+    }
   }
 
   @EventHandler(ignoreCancelled = true)
@@ -103,7 +112,12 @@ public final class InventoryEvents implements Listener {
     }
     if (!(event.getView().getTopInventory().getHolder() instanceof StorageSession
         || event.getView().getTopInventory().getHolder() instanceof CraftingSession
-        || event.getView().getTopInventory().getHolder() instanceof BusSession)) {
+        || event.getView().getTopInventory().getHolder() instanceof BusSession
+        || event.getView().getTopInventory().getHolder() instanceof TransmitterSession)) {
+      return;
+    }
+    if (event.getView().getTopInventory().getHolder() instanceof TransmitterSession session) {
+      session.handleDrag(event);
       return;
     }
     if (event.getView().getTopInventory().getHolder() instanceof CraftingSession) {
@@ -144,12 +158,17 @@ public final class InventoryEvents implements Listener {
       busSessionManager.closeSession(player, session);
       return;
     }
+    if (event.getInventory().getHolder() instanceof TransmitterSession session) {
+      transmitterSessionManager.closeSession(player, session);
+      return;
+    }
   }
 
   @EventHandler
   public void onQuit(PlayerQuitEvent event) {
     sessionManager.closeSession(event.getPlayer());
     busSessionManager.closeSession(event.getPlayer());
+    transmitterSessionManager.closeSession(event.getPlayer(), null);
     sessionManager.bossBarManager().remove(event.getPlayer());
   }
 
@@ -159,6 +178,7 @@ public final class InventoryEvents implements Listener {
     }
     sessionManager.closeSession(player);
     busSessionManager.closeSession(player);
+    transmitterSessionManager.closeSession(player, null);
     sessionManager.bossBarManager().remove(player);
     player.closeInventory();
     return true;
@@ -167,6 +187,7 @@ public final class InventoryEvents implements Listener {
   private static boolean isExortInventory(InventoryHolder holder) {
     return holder instanceof ExortGiveMenu
         || holder instanceof GuiSession
-        || holder instanceof BusSession;
+        || holder instanceof BusSession
+        || holder instanceof TransmitterSession;
   }
 }

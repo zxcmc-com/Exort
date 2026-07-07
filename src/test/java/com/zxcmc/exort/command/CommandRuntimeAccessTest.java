@@ -40,7 +40,7 @@ class CommandRuntimeAccessTest {
 
   private static CustomItems customItems() {
     return new CustomItems(
-        null, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
+        null, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
   }
 
   private static WirelessTerminalService wirelessService(CustomItems customItems) {

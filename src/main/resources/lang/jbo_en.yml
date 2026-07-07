@@ -60,7 +60,7 @@ message:
   usage_give_storage: "give a sorcu dacti by tier"
   usage_give_chunk_loader: "dunda lo chunk cargau"
   usage_give_item: "give a fixed Exort dacti"
-  usage_give_items: "dacti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal"
+  usage_give_items: "dacti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
   usage_reload: "pilno: /exort reload"
   unknown_subcommand: "na se djuno lo subminde."
   help_header: "Exort Sorcu Network bende minde:"
@@ -212,6 +212,10 @@ message:
     empty: "cladu medomoi samjongau out of dikca."
     bound: "cladu medomoi samjongau jorne."
     self_store: "na kakne lo nu sorcu lo cladu medomoi samjongau ne'i ri."
+    transmitter_inactive: "Wireless Transmitter is not connected to exactly one storage."
+    no_terminal_in_hand: "Hold a Wireless Terminal in main hand or off-hand."
+    transmitter_slot_occupied: "Wireless Transmitter terminal slot is occupied."
+    transmitter_terminal_only: "Only a Wireless Terminal can be placed in this slot."
 debug:
   mode:
     read: "tcidu poonai"
@@ -230,6 +234,7 @@ item:
   import_bus: "nerbei tanbo"
   export_bus: "barbei tanbo"
   wireless_terminal: "cladu medomoi samjongau"
+  transmitter: "Wireless Transmitter"
 tier:
   common: "fadni"
   rare: "rirci"
@@ -310,6 +315,33 @@ gui:
       cancel: "Sisti"
   monitor:
     item: "{0}: {1}"
+  transmitter:
+    title: "Wireless Transmitter"
+    status:
+      item: "Network Status"
+      active: "Network: online"
+      storage: "Storage: {0}"
+      range: "Range: {0} blocks"
+      covered: "Player is covered"
+      not_covered: "Player is outside this transmitter range"
+      missing: "Transmitter block is missing"
+      no_storage: "Storage: none"
+      multiple: "Storage: multiple connected"
+      disabled: "Transmitter: disabled"
+    bind:
+      item: "Bind Wireless Terminal"
+      hint: "Click while holding a Wireless Terminal"
+    mode:
+      charge_only: "Mode: Charge Only"
+      bind: "Mode: Bind"
+      disabled: "Mode: Disabled"
+      hint: "Click to switch mode"
+      charge_only_lore: "Inserted terminal charges here only."
+      bind_lore: "Inserted terminal links to this transmitter's storage and charges here."
+      disabled_lore: "Wireless coverage is disabled; inserted terminal still charges."
+    slot:
+      terminal_empty: "Terminal slot: empty"
+      terminal_present: "Terminal slot: occupied"
   bus:
     import_title: "nerbei tanbo"
     export_title: "barbei tanbo"

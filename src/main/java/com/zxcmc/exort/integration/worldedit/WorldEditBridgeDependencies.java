@@ -8,6 +8,8 @@ import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -22,6 +24,8 @@ public record WorldEditBridgeDependencies(
     Supplier<DisplayRefreshService> displayRefreshServiceSource,
     Supplier<BusService> busServiceSource,
     Supplier<ChunkLoaderService> chunkLoaderServiceSource,
+    Supplier<WirelessTransmitterService> wirelessTransmitterServiceSource,
+    Supplier<TransmitterSessionManager> transmitterSessionManagerSource,
     Supplier<ItemHologramManager> hologramManagerSource,
     WorldEditBridgeMaterials materials,
     WorldEditBulkConfig bulkConfig) {
@@ -34,6 +38,8 @@ public record WorldEditBridgeDependencies(
     Objects.requireNonNull(displayRefreshServiceSource, "displayRefreshServiceSource");
     Objects.requireNonNull(busServiceSource, "busServiceSource");
     Objects.requireNonNull(chunkLoaderServiceSource, "chunkLoaderServiceSource");
+    Objects.requireNonNull(wirelessTransmitterServiceSource, "wirelessTransmitterServiceSource");
+    Objects.requireNonNull(transmitterSessionManagerSource, "transmitterSessionManagerSource");
     Objects.requireNonNull(hologramManagerSource, "hologramManagerSource");
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(bulkConfig, "bulkConfig");
@@ -57,6 +63,14 @@ public record WorldEditBridgeDependencies(
 
   public ChunkLoaderService chunkLoaderService() {
     return chunkLoaderServiceSource.get();
+  }
+
+  public WirelessTransmitterService wirelessTransmitterService() {
+    return wirelessTransmitterServiceSource.get();
+  }
+
+  public TransmitterSessionManager transmitterSessionManager() {
+    return transmitterSessionManagerSource.get();
   }
 
   public ItemHologramManager hologramManager() {
@@ -85,6 +99,10 @@ public record WorldEditBridgeDependencies(
 
   public Material relayCarrier() {
     return materials.relayCarrier();
+  }
+
+  public Material transmitterCarrier() {
+    return materials.transmitterCarrier();
   }
 
   public Material chunkLoaderCarrier() {
