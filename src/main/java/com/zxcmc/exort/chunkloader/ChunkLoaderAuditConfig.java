@@ -9,6 +9,7 @@ public record ChunkLoaderAuditConfig(
   private static final EnumSet<ChunkLoaderAuditEvent> DEFAULT_CONSOLE_EVENTS =
       EnumSet.of(
           ChunkLoaderAuditEvent.ISSUE,
+          ChunkLoaderAuditEvent.DUPLICATE,
           ChunkLoaderAuditEvent.CRAFT,
           ChunkLoaderAuditEvent.INVENTORY_MOVE,
           ChunkLoaderAuditEvent.DROP,

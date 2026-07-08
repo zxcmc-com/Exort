@@ -5,6 +5,7 @@ import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
+import com.zxcmc.exort.chunkloader.ChunkLoaderService.BreakOutcome;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.display.core.DisplayTags;
 import com.zxcmc.exort.display.device.ItemHologramManager;
@@ -336,7 +337,8 @@ public final class BlockBreakHandler {
               .orElse(ChunkLoaderType.defaultType());
       playBreakParticles(block, BreakType.CHUNK_LOADER);
       boolean dropItem = shouldDrop(player);
-      UUID droppedId = chunkLoaderService.breakLoader(player, block, dropItem).orElse(loaderId);
+      BreakOutcome outcome = dropItem ? BreakOutcome.DROP_ITEM : BreakOutcome.DESTROY;
+      UUID droppedId = chunkLoaderService.breakLoader(player, block, outcome).orElse(loaderId);
       block.setType(Material.AIR);
       if (dropItem) {
         dropItemSafe(block, customItems.chunkLoaderItem(type, droppedId));

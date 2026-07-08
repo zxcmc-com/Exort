@@ -2,6 +2,7 @@ package com.zxcmc.exort.chunkloader;
 
 public enum ChunkLoaderAuditEvent {
   ISSUE,
+  DUPLICATE,
   CRAFT,
   INVENTORY_MOVE,
   DROP,
@@ -18,6 +19,7 @@ public enum ChunkLoaderAuditEvent {
   String configKey() {
     return switch (this) {
       case ISSUE -> "issue";
+      case DUPLICATE -> "duplicate";
       case CRAFT -> "craft";
       case INVENTORY_MOVE -> "inventoryMove";
       case DROP -> "drop";

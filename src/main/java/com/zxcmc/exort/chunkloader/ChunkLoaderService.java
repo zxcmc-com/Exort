@@ -46,6 +46,31 @@ public final class ChunkLoaderService implements Listener {
     MISSING
   }
 
+  public enum BreakOutcome {
+    DROP_ITEM(ChunkLoaderRegistryStatus.ITEM, ChunkLoaderAuditEvent.BREAK, "break", "item_drop"),
+    DESTROY(
+        ChunkLoaderRegistryStatus.REMOVED,
+        ChunkLoaderAuditEvent.DESTROY,
+        "destroy",
+        "creative_break");
+
+    private final ChunkLoaderRegistryStatus status;
+    private final ChunkLoaderAuditEvent auditEvent;
+    private final String source;
+    private final String reason;
+
+    BreakOutcome(
+        ChunkLoaderRegistryStatus status,
+        ChunkLoaderAuditEvent auditEvent,
+        String source,
+        String reason) {
+      this.status = status;
+      this.auditEvent = auditEvent;
+      this.source = source;
+      this.reason = reason;
+    }
+  }
+
   private final JavaPlugin plugin;
   private final Database database;
   private final Material carrier;
@@ -128,6 +153,10 @@ public final class ChunkLoaderService implements Listener {
     return config.enabled();
   }
 
+  public boolean isAuditEnabled() {
+    return config.audit().enabled();
+  }
+
   public ChunkLoaderAuditLogger auditLogger() {
     return auditLogger;
   }
@@ -142,6 +171,10 @@ public final class ChunkLoaderService implements Listener {
     }
     UUID byPosition = byBlock.get(BlockKey.of(block));
     return byPosition == null || byPosition.equals(id);
+  }
+
+  public boolean isActiveLoaderId(UUID id) {
+    return id != null && byId.containsKey(id);
   }
 
   public boolean place(Player player, Block block, UUID id) {
@@ -192,12 +225,13 @@ public final class ChunkLoaderService implements Listener {
     return true;
   }
 
-  public Optional<UUID> breakLoader(Player player, Block block, boolean dropsItem) {
+  public Optional<UUID> breakLoader(Player player, Block block, BreakOutcome outcome) {
     Optional<ChunkLoaderMarker.Data> data = ChunkLoaderMarker.get(plugin, block);
     if (data.isEmpty()) {
       cleanupAt(block, "break_missing_marker");
       return Optional.empty();
     }
+    BreakOutcome safeOutcome = outcome == null ? BreakOutcome.DROP_ITEM : outcome;
     UUID id = data.get().id();
     ChunkLoaderRecord record = byId.get(id);
     if (record == null) {
@@ -218,11 +252,7 @@ public final class ChunkLoaderService implements Listener {
     database.deleteChunkLoader(id).exceptionally(this::logDeleteFailure);
     ChunkLoaderObservation observation =
         ChunkLoaderObservation.fromRecord(
-            record,
-            dropsItem ? ChunkLoaderRegistryStatus.ITEM : ChunkLoaderRegistryStatus.REMOVED,
-            player,
-            "break",
-            dropsItem ? "item_drop" : "creative_break");
+            record, safeOutcome.status, player, safeOutcome.source, safeOutcome.reason);
     if (observation != null) {
       database
           .recordChunkLoaderObservation(observation)
@@ -233,7 +263,7 @@ public final class ChunkLoaderService implements Listener {
               });
     }
     ChunkLoaderMarker.clear(plugin, block);
-    auditLogger.log(ChunkLoaderAuditEvent.BREAK, player, id, record.type(), block);
+    auditLogger.log(safeOutcome.auditEvent, player, id, record.type(), block, safeOutcome.reason);
     return Optional.of(id);
   }
 

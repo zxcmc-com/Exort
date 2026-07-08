@@ -5,6 +5,7 @@ import com.zxcmc.exort.block.listener.BlockListenerDependencies;
 import com.zxcmc.exort.breaking.explosion.ExortExplosionListener;
 import com.zxcmc.exort.bus.listener.BusListener;
 import com.zxcmc.exort.chunkloader.ChunkLoaderAuditListener;
+import com.zxcmc.exort.chunkloader.ChunkLoaderCreativeAudit;
 import com.zxcmc.exort.chunkloader.ChunkLoaderListener;
 import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
@@ -48,9 +49,17 @@ public final class RuntimeListenerRegistrar {
     registerBlockListeners(deps);
     registerGuiListeners(deps);
     registerStorageAndWireListeners(deps);
-    registerPickListener(deps);
+    ChunkLoaderAuditListener chunkLoaderAuditListener =
+        deps.chunkLoaderService().isAuditEnabled() ? createChunkLoaderAuditListener(deps) : null;
+    registerPickListener(
+        deps,
+        chunkLoaderAuditListener == null
+            ? ChunkLoaderCreativeAudit.NOOP
+            : chunkLoaderAuditListener);
     registerItemPlaceBridge(deps);
-    registerChunkLoaderAuditListener(deps);
+    if (chunkLoaderAuditListener != null) {
+      register(deps, chunkLoaderAuditListener);
+    }
     registerMonitorListener(deps);
     RightClickPlacementGuard placementGuard = registerPlacementGuard(deps, placementConfig);
     registerInventoryRefreshListener(deps);
@@ -95,6 +104,7 @@ public final class RuntimeListenerRegistrar {
                 deps.busServiceSource(),
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
+                deps.transmitterPlacedRecorder(),
                 (storageId, tierKey, tierMaxItems, displayName) ->
                     deps.database()
                         .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
@@ -213,7 +223,8 @@ public final class RuntimeListenerRegistrar {
             deps.storagePeekTicks()));
   }
 
-  private static void registerPickListener(RuntimeListenerDependencies deps) {
+  private static void registerPickListener(
+      RuntimeListenerDependencies deps, ChunkLoaderCreativeAudit chunkLoaderCreativeAudit) {
     RuntimeMaterials materials = deps.materials();
     var pickListener =
         new PickListener(
@@ -228,7 +239,8 @@ public final class RuntimeListenerRegistrar {
             materials.busCarrier(),
             materials.relayCarrier(),
             materials.transmitterCarrier(),
-            materials.chunkLoaderCarrier());
+            materials.chunkLoaderCarrier(),
+            chunkLoaderCreativeAudit);
     register(deps, pickListener);
     if (deps.packetEnhancements() != null) {
       deps.packetEnhancements().registerPickBridge(pickListener);
@@ -266,6 +278,7 @@ public final class RuntimeListenerRegistrar {
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
                 deps.monitorPlacedRecorder(),
+                deps.transmitterPlacedRecorder(),
                 (storageId, tierKey, tierMaxItems, displayName) ->
                     deps.database()
                         .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
@@ -274,14 +287,14 @@ public final class RuntimeListenerRegistrar {
                 () -> deps.busRuntimeConfig())));
   }
 
-  private static void registerChunkLoaderAuditListener(RuntimeListenerDependencies deps) {
-    register(
-        deps,
-        new ChunkLoaderAuditListener(
-            deps.plugin(),
-            deps.customItems(),
-            deps.database(),
-            deps.chunkLoaderService().auditLogger()));
+  private static ChunkLoaderAuditListener createChunkLoaderAuditListener(
+      RuntimeListenerDependencies deps) {
+    return new ChunkLoaderAuditListener(
+        deps.plugin(),
+        deps.customItems(),
+        deps.database(),
+        deps.chunkLoaderService().auditLogger(),
+        deps.chunkLoaderService()::isActiveLoaderId);
   }
 
   private static void registerMonitorListener(RuntimeListenerDependencies deps) {
@@ -428,7 +441,8 @@ public final class RuntimeListenerRegistrar {
             materials.transmitterCarrier(),
             deps.regionProtection(),
             deps.authenticationGate(),
-            deps.playerFeedback()));
+            deps.playerFeedback(),
+            deps.transmitterRecentlyPlaced()));
     register(
         deps,
         new WirelessListener(

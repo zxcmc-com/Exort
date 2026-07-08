@@ -2,6 +2,7 @@ package com.zxcmc.exort.items.listener;
 
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.chunkloader.ChunkLoaderCreativeAudit;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -56,6 +57,7 @@ public final class PickListener implements Listener {
   private final Material relayCarrier;
   private final Material transmitterCarrier;
   private final Material chunkLoaderCarrier;
+  private final ChunkLoaderCreativeAudit chunkLoaderCreativeAudit;
   private final Map<UUID, RecentPick> recentPicks = new HashMap<>();
 
   public PickListener(
@@ -70,7 +72,8 @@ public final class PickListener implements Listener {
       Material busCarrier,
       Material relayCarrier,
       Material transmitterCarrier,
-      Material chunkLoaderCarrier) {
+      Material chunkLoaderCarrier,
+      ChunkLoaderCreativeAudit chunkLoaderCreativeAudit) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.keys = Objects.requireNonNull(keys, "keys");
@@ -83,6 +86,8 @@ public final class PickListener implements Listener {
     this.relayCarrier = relayCarrier;
     this.transmitterCarrier = transmitterCarrier;
     this.chunkLoaderCarrier = chunkLoaderCarrier;
+    this.chunkLoaderCreativeAudit =
+        chunkLoaderCreativeAudit == null ? ChunkLoaderCreativeAudit.NOOP : chunkLoaderCreativeAudit;
   }
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
@@ -162,7 +167,6 @@ public final class PickListener implements Listener {
     ItemStack desired = null;
     String type = null;
     String expectedTier = null;
-    boolean alwaysFresh = false;
     if (isTerminal(target)) {
       TerminalKind kind = TerminalMarker.kind(plugin, target);
       if (kind == TerminalKind.CRAFTING) {
@@ -201,7 +205,6 @@ public final class PickListener implements Listener {
               .orElse(ChunkLoaderType.defaultType());
       desired = customItems.chunkLoaderItem(loaderType);
       type = loaderType.id();
-      alwaysFresh = true;
     } else if (isStorage(target)) {
       var tierOpt = readTier(target);
       if (tierOpt.isEmpty()) return null;
@@ -215,30 +218,17 @@ public final class PickListener implements Listener {
     } else {
       return null;
     }
-    return new PickTarget(desired, type, expectedTier, alwaysFresh);
+    return new PickTarget(desired, type, expectedTier);
   }
 
   private void applyEventPick(PlayerPickItemEvent event, PickTarget pick) {
     Player player = event.getPlayer();
-    int held = player.getInventory().getHeldItemSlot();
-    int existingSlot =
-        pick.alwaysFresh()
-            ? -1
-            : findExisting(player.getInventory(), pick.type(), pick.expectedTier());
+    PlayerInventory inv = player.getInventory();
+    int existingSlot = findExisting(inv, pick);
     if (existingSlot >= 0) {
-      if (existingSlot <= 8) {
-        event.setSourceSlot(existingSlot);
-        event.setTargetSlot(existingSlot);
-      } else {
-        int empty = findEmptyHotbar(player.getInventory(), held);
-        if (empty >= 0) {
-          event.setSourceSlot(existingSlot);
-          event.setTargetSlot(empty);
-        } else {
-          event.setSourceSlot(existingSlot);
-          event.setTargetSlot(held);
-        }
-      }
+      event.setCancelled(true);
+      PickApplyResult result = pickExistingFromInventory(inv, existingSlot);
+      player.updateInventory();
       debug(
           "handled event="
               + event.getClass().getSimpleName()
@@ -246,40 +236,41 @@ public final class PickListener implements Listener {
               + pick.type()
               + tierSuffix(pick.expectedTier())
               + " sourceSlot="
-              + event.getSourceSlot()
+              + result.sourceSlot()
               + " targetSlot="
-              + event.getTargetSlot());
+              + result.targetSlot()
+              + " action="
+              + result.action());
       return;
     }
 
-    event.setCancelled(true);
-    if (player.getGameMode() == GameMode.CREATIVE && pick.item() != null) {
-      ItemStack give = pick.item().clone();
-      give.setAmount(1);
-      int empty = findEmptyHotbar(player.getInventory(), held);
-      int targetSlot = empty >= 0 ? empty : held;
-      player.getInventory().setItem(targetSlot, give);
-      player.getInventory().setHeldItemSlot(targetSlot);
-      player.updateInventory();
+    if (player.getGameMode() == GameMode.CREATIVE) {
+      event.setCancelled(true);
+      PickApplyResult result = applyCreativePick(player, pick, findVanillaPickTargetSlot(inv));
       debug(
           "handled creative event="
               + event.getClass().getSimpleName()
               + " result="
               + pick.type()
               + tierSuffix(pick.expectedTier())
+              + " sourceSlot="
+              + result.sourceSlot()
               + " targetSlot="
-              + targetSlot);
+              + result.targetSlot()
+              + " action="
+              + result.action());
+      return;
     }
+
+    event.setCancelled(true);
   }
 
   private void applyDirectPick(Player player, PickTarget pick, String source) {
-    int held = player.getInventory().getHeldItemSlot();
-    int existingSlot =
-        pick.alwaysFresh()
-            ? -1
-            : findExisting(player.getInventory(), pick.type(), pick.expectedTier());
-    if (existingSlot >= 0 && existingSlot <= 8) {
-      player.getInventory().setHeldItemSlot(existingSlot);
+    PlayerInventory inv = player.getInventory();
+    int existingSlot = findExisting(inv, pick);
+    if (existingSlot >= 0) {
+      PickApplyResult result = pickExistingFromInventory(inv, existingSlot);
+      player.updateInventory();
       debug(
           "handled direct source="
               + source
@@ -287,9 +278,11 @@ public final class PickListener implements Listener {
               + pick.type()
               + tierSuffix(pick.expectedTier())
               + " sourceSlot="
-              + existingSlot
+              + result.sourceSlot()
               + " targetSlot="
-              + existingSlot);
+              + result.targetSlot()
+              + " action="
+              + result.action());
       return;
     }
 
@@ -301,24 +294,12 @@ public final class PickListener implements Listener {
               + pick.type()
               + tierSuffix(pick.expectedTier())
               + " creative=false existingSlot="
-              + existingSlot);
+              + existingSlot
+              + " action=miss");
       return;
     }
 
-    int targetSlot;
-    ItemStack give;
-    if (existingSlot >= 9) {
-      targetSlot = chooseDirectTargetSlot(player.getInventory(), held);
-      ItemStack existing = player.getInventory().getItem(existingSlot);
-      give = existing != null ? existing.clone() : pick.item().clone();
-    } else {
-      targetSlot = chooseDirectTargetSlot(player.getInventory(), held);
-      give = pick.item().clone();
-    }
-    give.setAmount(1);
-    player.getInventory().setItem(targetSlot, give);
-    player.getInventory().setHeldItemSlot(targetSlot);
-    player.updateInventory();
+    PickApplyResult result = applyCreativePick(player, pick, findVanillaPickTargetSlot(inv));
     debug(
         "handled direct source="
             + source
@@ -326,14 +307,29 @@ public final class PickListener implements Listener {
             + pick.type()
             + tierSuffix(pick.expectedTier())
             + " sourceSlot="
-            + existingSlot
+            + result.sourceSlot()
             + " targetSlot="
-            + targetSlot);
+            + result.targetSlot()
+            + " action="
+            + result.action());
   }
 
-  private int chooseDirectTargetSlot(PlayerInventory inv, int held) {
-    int empty = findEmptyHotbar(inv, held);
-    return empty >= 0 ? empty : held;
+  private PickApplyResult applyCreativePick(Player player, PickTarget pick, int targetSlot) {
+    PlayerInventory inv = player.getInventory();
+    PickApplyResult result = addAndPickCreative(inv, pick.item(), targetSlot);
+    if (result.replacedStack() != null && isChunkLoaderStack(result.replacedStack())) {
+      ItemStack replaced = result.replacedStack();
+      chunkLoaderCreativeAudit.recordCreativePickReplacementDestroy(
+          player,
+          customItems.chunkLoaderId(replaced).orElse(null),
+          customItems.chunkLoaderType(replaced),
+          replaced.getAmount());
+    }
+    if (!"miss".equals(result.action())) {
+      player.updateInventory();
+      auditCreativePickIssue(player, pick);
+    }
+    return result;
   }
 
   private boolean isTerminal(Block block) {
@@ -381,14 +377,37 @@ public final class PickListener implements Listener {
     return StorageMarker.get(plugin, block).map(StorageMarker.Data::tier);
   }
 
-  private int findExisting(PlayerInventory inv, String type, String expectedTier) {
+  private int findExisting(PlayerInventory inv, PickTarget pick) {
     ItemStack[] contents = inv.getContents();
-    for (int i = 0; i < contents.length; i++) {
-      if (matchesType(contents[i], type, expectedTier)) {
+    for (int i = 0; i < Math.min(36, contents.length); i++) {
+      if (matchesPickTarget(contents[i], pick)) {
         return i;
       }
     }
     return -1;
+  }
+
+  private boolean matchesPickTarget(ItemStack stack, PickTarget pick) {
+    if (pick.isChunkLoader()) {
+      return isReusableChunkLoader(stack, pick.chunkLoaderType());
+    }
+    return matchesType(stack, pick.type(), pick.expectedTier());
+  }
+
+  private boolean isReusableChunkLoader(ItemStack stack, ChunkLoaderType type) {
+    return isReusableChunkLoader(customItems, stack, type);
+  }
+
+  static boolean isReusableChunkLoader(
+      CustomItems customItems, ItemStack stack, ChunkLoaderType type) {
+    return stack != null
+        && stack.getType() != Material.AIR
+        && customItems.isChunkLoader(stack)
+        && customItems.chunkLoaderType(stack) == type;
+  }
+
+  private boolean isChunkLoaderStack(ItemStack stack) {
+    return stack != null && stack.getType() != Material.AIR && customItems.isChunkLoader(stack);
   }
 
   private boolean matchesType(ItemStack stack, String type, String expectedTier) {
@@ -403,20 +422,98 @@ public final class PickListener implements Listener {
     return true;
   }
 
-  private int findEmptyHotbar(PlayerInventory inv, int startSlot) {
-    for (int i = startSlot; i <= 8; i++) {
-      ItemStack stack = inv.getItem(i);
-      if (stack == null || stack.getType() == Material.AIR) {
-        return i;
+  private void auditCreativePickIssue(Player player, PickTarget pick) {
+    if (pick.isChunkLoader()) {
+      chunkLoaderCreativeAudit.recordCreativePickIssue(player, pick.chunkLoaderType(), 1);
+    }
+  }
+
+  private static int targetSlotForExisting(PlayerInventory inv, int existingSlot) {
+    return existingSlot >= 0 && existingSlot <= 8 ? existingSlot : findVanillaPickTargetSlot(inv);
+  }
+
+  static int findVanillaPickTargetSlot(PlayerInventory inv) {
+    int held = inv.getHeldItemSlot();
+    for (int offset = 0; offset < 9; offset++) {
+      int slot = hotbarSlotAt(held, offset);
+      if (isEmpty(inv.getItem(slot))) {
+        return slot;
       }
     }
-    for (int i = 0; i < startSlot; i++) {
-      ItemStack stack = inv.getItem(i);
-      if (stack == null || stack.getType() == Material.AIR) {
+    for (int offset = 0; offset < 9; offset++) {
+      int slot = hotbarSlotAt(held, offset);
+      ItemStack stack = inv.getItem(slot);
+      if (!isEmpty(stack) && !hasEnchantments(stack)) {
+        return slot;
+      }
+    }
+    return held;
+  }
+
+  static PickApplyResult pickExistingFromInventory(PlayerInventory inv, int sourceSlot) {
+    return pickExistingFromInventory(inv, sourceSlot, targetSlotForExisting(inv, sourceSlot));
+  }
+
+  static PickApplyResult pickExistingFromInventory(
+      PlayerInventory inv, int sourceSlot, int targetSlot) {
+    if (sourceSlot >= 0 && sourceSlot <= 8) {
+      inv.setHeldItemSlot(sourceSlot);
+      return new PickApplyResult("select", sourceSlot, sourceSlot, -1, null);
+    }
+    ItemStack targetStack = inv.getItem(targetSlot);
+    inv.setItem(targetSlot, inv.getItem(sourceSlot));
+    inv.setItem(sourceSlot, targetStack);
+    inv.setHeldItemSlot(targetSlot);
+    return new PickApplyResult("swap", sourceSlot, targetSlot, -1, null);
+  }
+
+  static PickApplyResult addAndPickCreative(
+      PlayerInventory inv, ItemStack pickedItem, int targetSlot) {
+    if (isEmpty(pickedItem)) {
+      return new PickApplyResult("miss", -1, targetSlot, -1, null);
+    }
+    ItemStack give = pickedItem.clone();
+    give.setAmount(1);
+    ItemStack displaced = inv.getItem(targetSlot);
+    int displacedSlot = -1;
+    ItemStack replaced = null;
+    if (!isEmpty(displaced)) {
+      displacedSlot = findFirstEmptySlot(inv);
+      if (displacedSlot >= 0) {
+        inv.setItem(displacedSlot, displaced);
+      } else {
+        replaced = displaced;
+      }
+    }
+    inv.setItem(targetSlot, give);
+    inv.setHeldItemSlot(targetSlot);
+    return new PickApplyResult(
+        displacedSlot >= 0 ? "give_move_displaced" : "give_replace",
+        -1,
+        targetSlot,
+        displacedSlot,
+        replaced);
+  }
+
+  private static int findFirstEmptySlot(PlayerInventory inv) {
+    for (int i = 0; i < 36; i++) {
+      if (isEmpty(inv.getItem(i))) {
         return i;
       }
     }
     return -1;
+  }
+
+  private static int hotbarSlotAt(int held, int offset) {
+    return Math.floorMod(held + offset, 9);
+  }
+
+  private static boolean isEmpty(ItemStack stack) {
+    return stack == null || stack.getType() == Material.AIR || stack.getAmount() <= 0;
+  }
+
+  private static boolean hasEnchantments(ItemStack stack) {
+    return stack != null && !stack.getEnchantments().isEmpty();
   }
 
   private void debug(String message) {
@@ -543,6 +640,16 @@ public final class PickListener implements Listener {
 
   private record RecentPick(BlockKey block, int tick) {}
 
-  private record PickTarget(
-      ItemStack item, String type, String expectedTier, boolean alwaysFresh) {}
+  record PickApplyResult(
+      String action, int sourceSlot, int targetSlot, int displacedSlot, ItemStack replacedStack) {}
+
+  record PickTarget(ItemStack item, String type, String expectedTier) {
+    boolean isChunkLoader() {
+      return ChunkLoaderType.fromNullableId(type).isPresent();
+    }
+
+    ChunkLoaderType chunkLoaderType() {
+      return ChunkLoaderType.fromNullableId(type).orElse(ChunkLoaderType.defaultType());
+    }
+  }
 }

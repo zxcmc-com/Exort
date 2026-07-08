@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.10 — 2026-07-08
+- Chunk Loader audit logs now distinguish normal breaks that preserve the loader item from destructive removal without drops, including creative block destruction, confirmed creative inventory deletion, item despawn, void/out-of-world loss, fire/lava/cactus/campfire destruction, explosions, lightning, `/kill` item removal, and Curse of Vanishing death loss.
+- Creative inventory auditing for Chunk Loaders is now session-aware: cursor moves and already logged drop/pickup/clear/loss/pick actions are reconciled on close, unassigned creative gains are logged as issues, and extra copies of an already present UUID are logged as duplicates.
+- `chunkLoader.audit.enabled: false` now disables the whole Chunk Loader audit pipeline, including file writes, inventory event tracking, creative-session reconciliation, and creative pick audit ledger work.
+- Creative and survival pick-block for Exort blocks now mirrors vanilla hotbar target selection across Paper and PacketEvents paths; Chunk Loaders and Storage blocks reuse matching existing inventory items by slot order, swap existing stacks instead of cloning them, issue new Chunk Loader items only when needed in creative, and log a replaced full-inventory Chunk Loader as destroyed.
+- Placing a Wireless Transmitter no longer opens its GUI from the same right-click that placed it; the next normal right-click still opens the transmitter.
+
 ## 0.18.9 — 2026-07-07
 - Added Wireless Transmitter as the Exort wireless access point block/item, with RESOURCE and VANILLA visuals, a RESOURCE GUI texture, a recipe, `/exort give transmitter`, `/exort inventory` support, pick-block output, custom breaking, explosion handling, display refresh, and WorldEdit/FAWE marker preservation.
 - The Wireless Transmitter GUI now provides Charge Only, Bind, and Disabled modes; terminals keep charging in every mode, while Disabled mode removes the transmitter from wireless coverage.

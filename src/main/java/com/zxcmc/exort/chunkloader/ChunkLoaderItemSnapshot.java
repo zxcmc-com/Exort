@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import org.bukkit.Material;
 import org.bukkit.block.BlockState;
 import org.bukkit.inventory.InventoryHolder;
@@ -42,11 +43,17 @@ final class ChunkLoaderItemSnapshot {
   }
 
   static ChunkLoaderItemSnapshot of(Iterable<ItemStack> stacks, Resolver resolver) {
+    return ofMatching(stacks, resolver, stack -> true);
+  }
+
+  static ChunkLoaderItemSnapshot ofMatching(
+      Iterable<ItemStack> stacks, Resolver resolver, Predicate<ItemStack> itemFilter) {
     Objects.requireNonNull(resolver, "resolver");
+    Predicate<ItemStack> safeFilter = itemFilter == null ? stack -> true : itemFilter;
     Map<Key, Integer> counts = new HashMap<>();
     if (stacks != null) {
       for (ItemStack stack : stacks) {
-        addStack(counts, stack, resolver, 0);
+        addStack(counts, stack, resolver, safeFilter, 0);
       }
     }
     return new ChunkLoaderItemSnapshot(counts);
@@ -55,7 +62,7 @@ final class ChunkLoaderItemSnapshot {
   static ChunkLoaderItemSnapshot of(ItemStack stack, Resolver resolver) {
     Objects.requireNonNull(resolver, "resolver");
     Map<Key, Integer> counts = new HashMap<>();
-    addStack(counts, stack, resolver, 0);
+    addStack(counts, stack, resolver, stackItem -> true, 0);
     return new ChunkLoaderItemSnapshot(counts);
   }
 
@@ -102,11 +109,15 @@ final class ChunkLoaderItemSnapshot {
   }
 
   private static void addStack(
-      Map<Key, Integer> counts, ItemStack stack, Resolver resolver, int depth) {
+      Map<Key, Integer> counts,
+      ItemStack stack,
+      Resolver resolver,
+      Predicate<ItemStack> itemFilter,
+      int depth) {
     if (stack == null || stack.getType() == Material.AIR || stack.getAmount() <= 0) {
       return;
     }
-    if (resolver.isChunkLoader(stack)) {
+    if (resolver.isChunkLoader(stack) && itemFilter.test(stack)) {
       counts.merge(
           new Key(resolver.chunkLoaderId(stack).orElse(null), resolver.chunkLoaderType(stack)),
           stack.getAmount(),
@@ -118,14 +129,14 @@ final class ChunkLoaderItemSnapshot {
     ItemMeta meta = stack.getItemMeta();
     if (meta instanceof BundleMeta bundle && bundle.hasItems()) {
       for (ItemStack nested : bundle.getItems()) {
-        addStack(counts, nested, resolver, depth + 1);
+        addStack(counts, nested, resolver, itemFilter, depth + 1);
       }
     }
     if (meta instanceof BlockStateMeta blockStateMeta && blockStateMeta.hasBlockState()) {
       BlockState state = blockStateMeta.getBlockState();
       if (state instanceof InventoryHolder holder) {
         for (ItemStack nested : holder.getInventory().getContents()) {
-          addStack(counts, nested, resolver, depth + 1);
+          addStack(counts, nested, resolver, itemFilter, depth + 1);
         }
       }
     }

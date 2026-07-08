@@ -58,6 +58,8 @@ public record ExortRuntimeFactoryDependencies(
     Consumer<String> pickDebugFullSink,
     Consumer<Block> monitorPlacedRecorder,
     java.util.function.Predicate<Block> monitorRecentlyPlaced,
+    Consumer<Block> transmitterPlacedRecorder,
+    java.util.function.Predicate<Block> transmitterRecentlyPlaced,
     Supplier<GuiRuntimeConfig> guiRuntimeConfig,
     Supplier<GuiOverlayConfig> guiOverlayConfig,
     Consumer<String> renderStorage,
@@ -91,6 +93,8 @@ public record ExortRuntimeFactoryDependencies(
     Objects.requireNonNull(pickDebugFullSink, "pickDebugFullSink");
     Objects.requireNonNull(monitorPlacedRecorder, "monitorPlacedRecorder");
     Objects.requireNonNull(monitorRecentlyPlaced, "monitorRecentlyPlaced");
+    Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
+    Objects.requireNonNull(transmitterRecentlyPlaced, "transmitterRecentlyPlaced");
     Objects.requireNonNull(guiRuntimeConfig, "guiRuntimeConfig");
     Objects.requireNonNull(guiOverlayConfig, "guiOverlayConfig");
     Objects.requireNonNull(renderStorage, "renderStorage");

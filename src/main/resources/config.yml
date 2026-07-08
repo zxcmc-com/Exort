@@ -138,6 +138,8 @@ chunkLoader:
   # Values outside 0..8 are clamped by Exort.
   radius: 1
   audit:
+    # Disable the whole Chunk Loader audit pipeline, including console logs, file logs, inventory
+    # tracking, creative-session reconciliation, and related item-loss event listeners.
     enabled: true
     file:
       enabled: true
@@ -147,6 +149,7 @@ chunkLoader:
     # Console event filters only. The dedicated file audit remains full while file.enabled is true.
     events:
       issue: true
+      duplicate: true
       craft: true
       inventoryMove: true
       drop: true

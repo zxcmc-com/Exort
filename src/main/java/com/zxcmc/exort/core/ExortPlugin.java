@@ -55,9 +55,9 @@ import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.InventoryRefreshService;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.monitor.MonitorPlacementTracker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.NetworkGraphCacheProvider;
+import com.zxcmc.exort.placement.RecentPlacementTracker;
 import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.platform.MinecraftVersionRequirement;
 import com.zxcmc.exort.platform.ModePolicy;
@@ -120,7 +120,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private BossBarManager bossBarManager;
   private SearchDialogService searchDialogService;
   private InventoryRefreshService inventoryRefreshService;
-  private MonitorPlacementTracker monitorPlacementTracker;
+  private RecentPlacementTracker placementTracker;
   private RuntimeTaskScheduler runtimeTasks;
   private int wireLimit;
   private int wireHardCap;
@@ -239,7 +239,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         new RuntimeTaskScheduler(
             this, () -> storageManager, () -> StorageRuntimeConfig.fromConfig(getConfig()));
     inventoryRefreshService = new InventoryRefreshService(() -> customItems, () -> wirelessService);
-    monitorPlacementTracker = new MonitorPlacementTracker();
+    placementTracker = new RecentPlacementTracker();
     sessionManager =
         new SessionManager(
             new SessionManagerDependencies(
@@ -598,11 +598,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         this::recordPickDebug,
         this::recordPickDebugFull,
         block -> {
-          if (monitorPlacementTracker != null) {
-            monitorPlacementTracker.markPlaced(block);
+          if (placementTracker != null) {
+            placementTracker.markPlaced(block);
           }
         },
-        block -> monitorPlacementTracker != null && monitorPlacementTracker.isRecentlyPlaced(block),
+        block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
+        block -> {
+          if (placementTracker != null) {
+            placementTracker.markPlaced(block);
+          }
+        },
+        block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
         () -> GuiRuntimeConfig.fromConfig(getConfig()),
         GuiOverlayConfig::defaults,
         storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE),

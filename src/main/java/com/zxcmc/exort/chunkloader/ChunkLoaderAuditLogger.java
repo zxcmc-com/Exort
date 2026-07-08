@@ -75,14 +75,16 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
         safeType,
         amount,
         actor,
-        event == ChunkLoaderAuditEvent.CLEANUP ? "Exort" : "Console",
+        fallbackActor(event),
         block,
         null,
         null,
         null,
         null,
         null,
-        event == ChunkLoaderAuditEvent.CLEANUP ? detail : null);
+        event == ChunkLoaderAuditEvent.CLEANUP || event == ChunkLoaderAuditEvent.DESTROY
+            ? detail
+            : null);
   }
 
   public void logIssue(Player actor, Player target, int amount, String source) {
@@ -91,11 +93,23 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
 
   public void logIssue(
       Player actor, Player target, int amount, ChunkLoaderType type, String source) {
+    logIssue(actor, target, amount, type, source, actor == null ? null : actor.getLocation());
+  }
+
+  public void logIssue(
+      Player actor,
+      Player target,
+      int amount,
+      ChunkLoaderType type,
+      String source,
+      Location location) {
     ChunkLoaderType safeType = safeType(type);
     int safeAmount = Math.max(1, amount);
     if (shouldConsoleLog(ChunkLoaderAuditEvent.ISSUE)) {
       boolean inventoryIssue =
-          source != null && source.toLowerCase(Locale.ROOT).contains("inventory");
+          source != null
+              && (source.toLowerCase(Locale.ROOT).contains("inventory")
+                  || source.toLowerCase(Locale.ROOT).contains("creative_pick"));
       Component message =
           prefix()
               .append(actor(actor))
@@ -118,12 +132,54 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
         actor,
         "Console",
         null,
-        null,
+        location,
         null,
         null,
         source,
         target == null ? null : target.getName(),
         null);
+  }
+
+  public void logDuplicate(
+      Player actor,
+      UUID loaderId,
+      ChunkLoaderType type,
+      int amount,
+      String source,
+      Location location) {
+    ChunkLoaderType safeType = safeType(type);
+    int safeAmount = Math.max(1, amount);
+    if (shouldConsoleLog(ChunkLoaderAuditEvent.DUPLICATE)) {
+      Component message =
+          prefix()
+              .append(actor(actor))
+              .append(Component.text(" duplicated ", NamedTextColor.GRAY))
+              .append(chunkLoaderName(safeAmount, safeType, loaderId));
+      message = appendSource(message, source);
+      if (location != null && location.getWorld() != null) {
+        message =
+            message
+                .append(Component.text(" at ", NamedTextColor.GRAY))
+                .append(locationCoordinates(location))
+                .append(Component.text(", ", NamedTextColor.GRAY))
+                .append(worldName(location.getWorld()));
+      }
+      emitConsole(appendActorLocation(message, actor));
+    }
+    writeFile(
+        "duplicate",
+        loaderId,
+        safeType,
+        safeAmount,
+        actor,
+        "Console",
+        null,
+        location,
+        null,
+        actor == null ? null : actor.getLocation(),
+        source,
+        actor == null ? null : actor.getName(),
+        source);
   }
 
   public void logInventoryTransfer(
@@ -609,6 +665,8 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     Component message = prefix();
     if (event == ChunkLoaderAuditEvent.CLEANUP) {
       message = message.append(Component.text("Exort", NamedTextColor.GOLD));
+    } else if (event == ChunkLoaderAuditEvent.DESTROY && actor == null) {
+      message = message.append(environment());
     } else {
       message = message.append(actor(actor));
     }
@@ -624,7 +682,9 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
               .append(Component.text(", ", NamedTextColor.GRAY))
               .append(worldName(block.getWorld()));
     }
-    if (event == ChunkLoaderAuditEvent.CLEANUP && detail != null && !detail.isBlank()) {
+    if ((event == ChunkLoaderAuditEvent.CLEANUP || event == ChunkLoaderAuditEvent.DESTROY)
+        && detail != null
+        && !detail.isBlank()) {
       message =
           message
               .append(Component.text(" (reason: ", NamedTextColor.DARK_GRAY))
@@ -637,6 +697,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   private static String action(ChunkLoaderAuditEvent event) {
     return switch (event) {
       case ISSUE -> "issued";
+      case DUPLICATE -> "duplicated";
       case CRAFT -> "crafted";
       case INVENTORY_MOVE -> "moved";
       case DROP -> "dropped";
@@ -647,7 +708,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       case DISABLE -> "disabled";
       case TICKET_ACQUIRE -> "loaded chunks for";
       case TICKET_RELEASE -> "released chunks for";
-      case DESTROY -> "lost";
+      case DESTROY -> "destroyed";
       case CLEANUP -> "cleaned up";
     };
   }
@@ -655,6 +716,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
   private static String fileAction(ChunkLoaderAuditEvent event) {
     return switch (event) {
       case ISSUE -> "issue";
+      case DUPLICATE -> "duplicate";
       case CRAFT -> "craft";
       case INVENTORY_MOVE -> "inventory_move";
       case DROP -> "drop";
@@ -665,8 +727,16 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
       case DISABLE -> "disable";
       case TICKET_ACQUIRE -> "ticket_acquire";
       case TICKET_RELEASE -> "ticket_release";
-      case DESTROY -> "lost";
+      case DESTROY -> "destroy";
       case CLEANUP -> "cleanup";
+    };
+  }
+
+  private static String fallbackActor(ChunkLoaderAuditEvent event) {
+    return switch (event) {
+      case CLEANUP -> "Exort";
+      case DESTROY -> "Environment";
+      default -> "Console";
     };
   }
 
@@ -694,7 +764,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
 
   private static Component itemLossStart(
       Player actor, Player target, UUID loaderId, ChunkLoaderType type, int amount, String reason) {
-    if (actor == null && target == null && !isKnownPhysicalDestruction(reason)) {
+    if (actor == null && target == null && !isKnownDestructionReason(reason)) {
       return prefix().append(chunkLoaderName(amount, type, loaderId)).append(disappearedText());
     }
     return prefix()
@@ -712,7 +782,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     if ("/clear".equals(normalized) || "/exort inventory".equals(normalized)) {
       return "removed";
     }
-    if (isKnownPhysicalDestruction(normalized)) {
+    if (isKnownDestructionReason(normalized)) {
       return "destroyed";
     }
     if ("inventory interaction".equals(normalized) || "automation transfer".equals(normalized)) {
@@ -721,10 +791,29 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     return "lost";
   }
 
-  private static boolean isKnownPhysicalDestruction(String reason) {
+  private static boolean isKnownDestructionReason(String reason) {
     String normalized = normalizedReason(reason);
     return switch (normalized) {
-      case "fire", "fire tick", "lava", "hot floor", "magma block", "void" -> true;
+      case "block explosion",
+          "campfire",
+          "contact",
+          "creative inventory",
+          "creative pick replace",
+          "curse of vanishing",
+          "death",
+          "despawn",
+          "entity explosion",
+          "fire",
+          "fire tick",
+          "hot floor",
+          "kill",
+          "lava",
+          "lightning",
+          "magma block",
+          "out of world",
+          "void",
+          "world border" ->
+          true;
       default -> false;
     };
   }
@@ -779,7 +868,7 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
     }
     return message
         .append(Component.text(" via ", NamedTextColor.GRAY))
-        .append(Component.text(source, NamedTextColor.YELLOW));
+        .append(Component.text(consoleSourceLabel(source), NamedTextColor.YELLOW));
   }
 
   private static Component appendActorLocation(Component message, Player actor) {
@@ -828,6 +917,10 @@ public final class ChunkLoaderAuditLogger implements AutoCloseable {
 
   private static String humanReason(String reason) {
     return reason == null ? "" : reason.replace('\n', ' ').replace('_', ' ').trim();
+  }
+
+  static String consoleSourceLabel(String source) {
+    return humanReason(source);
   }
 
   private static String cleanDestination(String destination) {

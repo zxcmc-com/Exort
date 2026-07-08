@@ -18,8 +18,10 @@ import com.zxcmc.exort.placement.storage.StorageTierSaver;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public record BlockListenerDependencies(
@@ -51,6 +53,7 @@ public record BlockListenerDependencies(
     Supplier<BusService> busService,
     Supplier<NetworkGraphCache> networkGraphCache,
     Runnable revalidateSessions,
+    Consumer<Block> transmitterPlacedRecorder,
     StorageTierSaver storageTierSaver,
     Supplier<BreakSoundConfig> breakSoundConfig,
     Supplier<BusRuntimeConfig> busRuntimeConfig) {
@@ -78,6 +81,7 @@ public record BlockListenerDependencies(
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");
+    Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
     Objects.requireNonNull(storageTierSaver, "storageTierSaver");
     Objects.requireNonNull(breakSoundConfig, "breakSoundConfig");
     Objects.requireNonNull(busRuntimeConfig, "busRuntimeConfig");

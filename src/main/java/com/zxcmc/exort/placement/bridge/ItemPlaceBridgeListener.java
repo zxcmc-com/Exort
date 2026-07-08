@@ -93,6 +93,7 @@ public class ItemPlaceBridgeListener implements Listener {
   private final Supplier<NetworkGraphCache> networkGraphCache;
   private final Runnable revalidateSessions;
   private final Consumer<Block> monitorPlacedRecorder;
+  private final Consumer<Block> transmitterPlacedRecorder;
   private final StorageTierSaver storageTierSaver;
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
@@ -126,6 +127,7 @@ public class ItemPlaceBridgeListener implements Listener {
     this.networkGraphCache = dependencies.networkGraphCache();
     this.revalidateSessions = dependencies.revalidateSessions();
     this.monitorPlacedRecorder = dependencies.monitorPlacedRecorder();
+    this.transmitterPlacedRecorder = dependencies.transmitterPlacedRecorder();
     this.storageTierSaver = dependencies.storageTierSaver();
     this.breakSoundConfig = dependencies.breakSoundConfig();
     this.busRuntimeConfig = dependencies.busRuntimeConfig();
@@ -291,6 +293,7 @@ public class ItemPlaceBridgeListener implements Listener {
         return;
       placeTransmitter(target);
       finishPlacement(event, target, BreakType.TRANSMITTER);
+      transmitterPlacedRecorder.accept(target);
       refreshTransmitterPlacement(target);
       return;
     }

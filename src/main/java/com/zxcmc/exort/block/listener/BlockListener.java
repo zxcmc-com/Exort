@@ -42,6 +42,7 @@ import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -89,6 +90,7 @@ public class BlockListener implements Listener {
   private final Supplier<MonitorDisplayManager> monitorDisplayManager;
   private final Supplier<BusService> busService;
   private final Supplier<NetworkGraphCache> networkGraphCache;
+  private final Consumer<Block> transmitterPlacedRecorder;
   private final StorageTierSaver storageTierSaver;
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
@@ -122,6 +124,7 @@ public class BlockListener implements Listener {
     this.monitorDisplayManager = dependencies.monitorDisplayManager();
     this.busService = dependencies.busService();
     this.networkGraphCache = dependencies.networkGraphCache();
+    this.transmitterPlacedRecorder = dependencies.transmitterPlacedRecorder();
     this.storageTierSaver = dependencies.storageTierSaver();
     this.breakSoundConfig = dependencies.breakSoundConfig();
     this.busRuntimeConfig = dependencies.busRuntimeConfig();
@@ -374,6 +377,7 @@ public class BlockListener implements Listener {
       }
       TransmitterMarker.set(plugin, block);
       wirelessTransmitterService.register(block);
+      transmitterPlacedRecorder.accept(block);
       consumeIfInitialized(event);
       invalidateNetwork(block);
       var refresh = displayRefreshService.get();

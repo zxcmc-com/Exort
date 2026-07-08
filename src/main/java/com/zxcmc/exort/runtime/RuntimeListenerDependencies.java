@@ -91,7 +91,9 @@ public record RuntimeListenerDependencies(
     Runnable revalidateSessions,
     Consumer<String> pickDebugSink,
     Consumer<Block> monitorPlacedRecorder,
-    Predicate<Block> monitorRecentlyPlaced) {
+    Predicate<Block> monitorRecentlyPlaced,
+    Consumer<Block> transmitterPlacedRecorder,
+    Predicate<Block> transmitterRecentlyPlaced) {
   public RuntimeListenerDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(database, "database");
@@ -128,6 +130,8 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(pickDebugSink, "pickDebugSink");
     Objects.requireNonNull(monitorPlacedRecorder, "monitorPlacedRecorder");
     Objects.requireNonNull(monitorRecentlyPlaced, "monitorRecentlyPlaced");
+    Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
+    Objects.requireNonNull(transmitterRecentlyPlaced, "transmitterRecentlyPlaced");
   }
 
   public Supplier<DisplayRefreshService> displayRefreshServiceSource() {

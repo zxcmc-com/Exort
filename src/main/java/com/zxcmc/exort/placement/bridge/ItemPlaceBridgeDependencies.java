@@ -48,6 +48,7 @@ public record ItemPlaceBridgeDependencies(
     Supplier<NetworkGraphCache> networkGraphCache,
     Runnable revalidateSessions,
     Consumer<Block> monitorPlacedRecorder,
+    Consumer<Block> transmitterPlacedRecorder,
     StorageTierSaver storageTierSaver,
     Supplier<BreakSoundConfig> breakSoundConfig,
     ChunkLoaderService chunkLoaderService,
@@ -75,6 +76,7 @@ public record ItemPlaceBridgeDependencies(
     Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");
     Objects.requireNonNull(monitorPlacedRecorder, "monitorPlacedRecorder");
+    Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
     Objects.requireNonNull(storageTierSaver, "storageTierSaver");
     Objects.requireNonNull(breakSoundConfig, "breakSoundConfig");
     Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");

@@ -6,6 +6,8 @@ import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import java.util.Objects;
+import java.util.function.Predicate;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -27,6 +29,7 @@ public final class TransmitterListener implements Listener {
   private final RegionProtection regionProtection;
   private final AuthenticationGate authenticationGate;
   private final PlayerFeedback playerFeedback;
+  private final Predicate<Block> transmitterRecentlyPlaced;
 
   public TransmitterListener(
       Plugin plugin,
@@ -36,7 +39,8 @@ public final class TransmitterListener implements Listener {
       Material transmitterCarrier,
       RegionProtection regionProtection,
       AuthenticationGate authenticationGate,
-      PlayerFeedback playerFeedback) {
+      PlayerFeedback playerFeedback,
+      Predicate<Block> transmitterRecentlyPlaced) {
     this.plugin = plugin;
     this.transmitterService = transmitterService;
     this.wirelessService = wirelessService;
@@ -45,6 +49,7 @@ public final class TransmitterListener implements Listener {
     this.regionProtection = regionProtection;
     this.authenticationGate = authenticationGate;
     this.playerFeedback = playerFeedback;
+    this.transmitterRecentlyPlaced = Objects.requireNonNull(transmitterRecentlyPlaced);
   }
 
   @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGH)
@@ -61,6 +66,9 @@ public final class TransmitterListener implements Listener {
       return;
     }
     if (player.isSneaking()) {
+      return;
+    }
+    if (transmitterRecentlyPlaced.test(block)) {
       return;
     }
     event.setCancelled(true);

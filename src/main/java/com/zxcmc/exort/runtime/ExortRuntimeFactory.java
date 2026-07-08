@@ -266,7 +266,9 @@ public final class ExortRuntimeFactory {
                 deps.revalidateSessions(),
                 deps.pickDebugSink(),
                 deps.monitorPlacedRecorder(),
-                deps.monitorRecentlyPlaced()),
+                deps.monitorRecentlyPlaced(),
+                deps.transmitterPlacedRecorder(),
+                deps.transmitterRecentlyPlaced()),
             PlacementGuardConfig.fromConfig(deps.config()));
 
     RuntimePostRefreshScheduler.schedule(

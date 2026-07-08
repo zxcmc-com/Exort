@@ -48,6 +48,7 @@ class ChunkLoaderConfigTest {
     ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(new YamlConfiguration());
 
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.ISSUE));
+    assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DUPLICATE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.CRAFT));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.DROP));
@@ -82,6 +83,21 @@ class ChunkLoaderConfigTest {
     assertFalse(audit.shouldWriteFile());
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
     assertTrue(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
+  }
+
+  @Test
+  void auditEnabledFalseDisablesConsoleAndFileAudit() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("chunkLoader.audit.enabled", false);
+    config.set("chunkLoader.audit.file.enabled", true);
+    config.set("chunkLoader.audit.events.inventoryMove", true);
+
+    ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(config);
+
+    assertFalse(audit.enabled());
+    assertFalse(audit.shouldWriteFile());
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.PLACE));
+    assertFalse(audit.shouldLog(ChunkLoaderAuditEvent.INVENTORY_MOVE));
   }
 
   @Test
