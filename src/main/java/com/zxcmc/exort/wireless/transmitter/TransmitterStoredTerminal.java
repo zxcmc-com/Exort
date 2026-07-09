@@ -2,6 +2,7 @@ package com.zxcmc.exort.wireless.transmitter;
 
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.TransmitterMarker;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -30,6 +31,29 @@ public final class TransmitterStoredTerminal {
         TransmitterMarker.SECTION,
         FIELD_MODE,
         mode == null ? TransmitterMode.CHARGE_ONLY.id() : mode.id());
+  }
+
+  public static Optional<byte[]> terminalBlob(Plugin plugin, Block block) {
+    return ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL)
+        .filter(bytes -> bytes.length > 0 && bytes.length <= MAX_ITEM_BLOB_BYTES)
+        .map(bytes -> Arrays.copyOf(bytes, bytes.length));
+  }
+
+  public static void restore(
+      Plugin plugin, Block block, TransmitterMode mode, byte[] terminalBlob) {
+    setMode(plugin, block, mode);
+    if (terminalBlob == null
+        || terminalBlob.length <= 0
+        || terminalBlob.length > MAX_ITEM_BLOB_BYTES) {
+      clear(plugin, block);
+      return;
+    }
+    ChunkMarkerStore.setBytes(
+        plugin,
+        block,
+        TransmitterMarker.SECTION,
+        FIELD_TERMINAL,
+        Arrays.copyOf(terminalBlob, terminalBlob.length));
   }
 
   public static Optional<ItemStack> get(

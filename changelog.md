@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.18.12 — 2026-07-09
+- Wireless Transmitter WorldEdit/FAWE handling now preserves transmitter mode and stored terminal state for move, destructive edit history, and undo/redo flows, while ordinary clipboard copies still omit the stored terminal to prevent duplication.
+
 ## 0.18.11 — 2026-07-09
 - Stored Wireless Terminals inside Wireless Transmitters now charge only while the transmitter is connected to exactly one storage and not set to Disabled; disconnected or Disabled transmitters pause stored-terminal charging without losing saved charge.
 - Wireless Transmitter RESOURCE visuals now use the updated transmitter texture atlas and separate inactive, active, and actively charging placed-block models; the transmitter item keeps the default inactive model.

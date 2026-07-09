@@ -7,9 +7,30 @@ record MarkerSnapshot(
     MonitorData monitor,
     RelayData relay,
     boolean transmitter,
+    TransmitterData transmitterData,
     ChunkLoaderData chunkLoader,
     boolean wire,
     boolean storageCore) {
+  MarkerSnapshot {
+    transmitter = transmitter || transmitterData != null;
+    if (!transmitter) {
+      transmitterData = null;
+    }
+  }
+
+  MarkerSnapshot(
+      StorageData storage,
+      TerminalData terminal,
+      BusData bus,
+      MonitorData monitor,
+      RelayData relay,
+      boolean transmitter,
+      ChunkLoaderData chunkLoader,
+      boolean wire,
+      boolean storageCore) {
+    this(storage, terminal, bus, monitor, relay, transmitter, null, chunkLoader, wire, storageCore);
+  }
+
   MarkerSnapshot(
       StorageData storage,
       TerminalData terminal,
@@ -19,7 +40,7 @@ record MarkerSnapshot(
       ChunkLoaderData chunkLoader,
       boolean wire,
       boolean storageCore) {
-    this(storage, terminal, bus, monitor, relay, false, chunkLoader, wire, storageCore);
+    this(storage, terminal, bus, monitor, relay, false, null, chunkLoader, wire, storageCore);
   }
 
   MarkerSnapshot(
@@ -30,6 +51,22 @@ record MarkerSnapshot(
       RelayData relay,
       boolean wire,
       boolean storageCore) {
-    this(storage, terminal, bus, monitor, relay, false, null, wire, storageCore);
+    this(storage, terminal, bus, monitor, relay, false, null, null, wire, storageCore);
+  }
+
+  MarkerSnapshot withoutTransmitterTerminal() {
+    TransmitterData sanitized =
+        transmitterData == null ? null : transmitterData.withoutTerminalBlob();
+    return new MarkerSnapshot(
+        storage,
+        terminal,
+        bus,
+        monitor,
+        relay,
+        transmitter,
+        sanitized,
+        chunkLoader,
+        wire,
+        storageCore);
   }
 }

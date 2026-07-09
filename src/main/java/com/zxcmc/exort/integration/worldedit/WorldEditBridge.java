@@ -56,7 +56,9 @@ import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTierResolver;
+import com.zxcmc.exort.wireless.transmitter.TransmitterMode;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterStoredTerminal;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -128,6 +130,7 @@ public final class WorldEditBridge implements Listener {
   private static final String FIELD_NAME = "name";
   private static final String FIELD_ITEM_KEY = "item_key";
   private static final String FIELD_ITEM_BLOB = "item_blob";
+  private static final String FIELD_TERMINAL_BLOB = "terminal_blob";
   private static final String FIELD_PRESENT = "present";
   private static final String FIELD_LINK_WORLD = "link_world";
   private static final String FIELD_LINK_X = "link_x";
@@ -593,9 +596,14 @@ public final class WorldEditBridge implements Listener {
       pendingCutSourcePatches.remove(actorId);
       return;
     }
-    pendingCutSourcePatches.put(actorId, patch);
+    PendingClipboardPatch sourcePatch = captureClipboardPatch(actor, true);
+    if (sourcePatch == null || sourcePatch.markers().isEmpty()) {
+      sourcePatch = patch;
+    }
+    pendingCutSourcePatches.put(actorId, sourcePatch);
+    PendingClipboardPatch retainedPatch = sourcePatch;
     Bukkit.getScheduler()
-        .runTaskLater(plugin, () -> pendingCutSourcePatches.remove(actorId, patch), 100L);
+        .runTaskLater(plugin, () -> pendingCutSourcePatches.remove(actorId, retainedPatch), 100L);
   }
 
   private PendingClipboardPatch pendingCutSourcePatch(Actor actor) {
@@ -792,7 +800,12 @@ public final class WorldEditBridge implements Listener {
   }
 
   private PendingClipboardPatch captureClipboardPatch(Actor actor) {
-    CapturedMarkers captured = captureSelectionMarkers(actor);
+    return captureClipboardPatch(actor, false);
+  }
+
+  private PendingClipboardPatch captureClipboardPatch(
+      Actor actor, boolean includeTransmitterTerminal) {
+    CapturedMarkers captured = captureSelectionMarkers(actor, includeTransmitterTerminal);
     if (captured.markers().isEmpty()) {
       return null;
     }
@@ -809,7 +822,7 @@ public final class WorldEditBridge implements Listener {
     if (vector.equals(BlockVector3.at(0, 0, 0))) {
       return null;
     }
-    CapturedMarkers captured = captureSelectionMarkers(actor);
+    CapturedMarkers captured = captureSelectionMarkers(actor, true);
     if (captured.markers().isEmpty()) {
       return null;
     }
@@ -862,7 +875,7 @@ public final class WorldEditBridge implements Listener {
     if (!Bukkit.isPrimaryThread()) {
       return null;
     }
-    CapturedMarkers captured = captureSelectionMarkers(actor);
+    CapturedMarkers captured = captureSelectionMarkers(actor, true);
     Map<Long, MarkerSnapshot> markers = new HashMap<>();
     Set<ChunkKey> chunks = new HashSet<>();
     UUID worldId = captured.sourceWorldId();
@@ -917,7 +930,7 @@ public final class WorldEditBridge implements Listener {
           plugin,
           chunk,
           (block, root) -> {
-            LinCompoundTag tag = buildExortTag(block);
+            LinCompoundTag tag = buildExortTag(block, true);
             MarkerSnapshot snapshot = parseSnapshot(tag);
             if (snapshot != null) {
               markers.put(blockKey(block.getX(), block.getY(), block.getZ()), snapshot);
@@ -1061,6 +1074,10 @@ public final class WorldEditBridge implements Listener {
   }
 
   private CapturedMarkers captureSelectionMarkers(Actor actor) {
+    return captureSelectionMarkers(actor, false);
+  }
+
+  private CapturedMarkers captureSelectionMarkers(Actor actor, boolean includeTransmitterTerminal) {
     if (actor == null) return new CapturedMarkers(null, Map.of());
     LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
     com.sk89q.worldedit.world.World weWorld = session.getSelectionWorld();
@@ -1100,7 +1117,7 @@ public final class WorldEditBridge implements Listener {
               if (!region.contains(pos)) {
                 return;
               }
-              LinCompoundTag tag = buildExortTag(block);
+              LinCompoundTag tag = buildExortTag(block, includeTransmitterTerminal);
               if (tag != null) {
                 markers.put(pos, tag);
               }
@@ -1186,16 +1203,10 @@ public final class WorldEditBridge implements Listener {
       MarkerSnapshot moveDestinationExistingSnapshot,
       MarkerSnapshot pasteUndoSnapshot,
       MarkerSnapshot cutSourceHistory) {
-    if (existingSnapshot != null) {
-      return existingSnapshot;
-    }
-    if (moveDestinationExistingSnapshot != null) {
-      return moveDestinationExistingSnapshot;
-    }
-    if (pasteUndoSnapshot != null) {
-      return pasteUndoSnapshot;
-    }
-    return cutSourceHistory;
+    MarkerSnapshot chosen = existingSnapshot;
+    chosen = richerTransmitterSnapshot(chosen, moveDestinationExistingSnapshot);
+    chosen = richerTransmitterSnapshot(chosen, pasteUndoSnapshot);
+    return richerTransmitterSnapshot(chosen, cutSourceHistory);
   }
 
   static MarkerSnapshot chooseExistingSnapshot(
@@ -1203,13 +1214,35 @@ public final class WorldEditBridge implements Listener {
       PendingOperationSnapshot operationSnapshot,
       UUID worldId,
       BlockVector3 position) {
-    if (liveSnapshot != null) {
+    if (operationSnapshot == null) {
       return liveSnapshot;
     }
-    if (operationSnapshot == null) {
-      return null;
+    return richerTransmitterSnapshot(liveSnapshot, operationSnapshot.get(worldId, position));
+  }
+
+  private static MarkerSnapshot richerTransmitterSnapshot(
+      MarkerSnapshot current, MarkerSnapshot candidate) {
+    if (current == null) {
+      return candidate;
     }
-    return operationSnapshot.get(worldId, position);
+    if (candidate == null) {
+      return current;
+    }
+    if (current.transmitter()
+        && candidate.transmitter()
+        && hasTransmitterTerminal(candidate)
+        && !hasTransmitterTerminal(current)) {
+      return candidate;
+    }
+    return current;
+  }
+
+  private static boolean hasTransmitterTerminal(MarkerSnapshot snapshot) {
+    if (snapshot == null || snapshot.transmitterData() == null) {
+      return false;
+    }
+    byte[] terminalBlob = snapshot.transmitterData().terminalBlob();
+    return terminalBlob != null && terminalBlob.length > 0;
   }
 
   private void enqueue(MarkerUpdate update) {
@@ -1640,6 +1673,14 @@ public final class WorldEditBridge implements Listener {
     }
     if (snapshot.transmitter() && Carriers.matchesCarrier(block, deps.transmitterCarrier())) {
       TransmitterMarker.set(plugin, block);
+      TransmitterData transmitterData = snapshot.transmitterData();
+      if (transmitterData != null) {
+        TransmitterStoredTerminal.restore(
+            plugin,
+            block,
+            TransmitterMode.fromString(transmitterData.mode()),
+            transmitterData.terminalBlob());
+      }
       deps.wirelessTransmitterService().register(block);
     }
     if (snapshot.chunkLoader() != null
@@ -1686,6 +1727,7 @@ public final class WorldEditBridge implements Listener {
       TransmitterSessionManager transmitterSessionManager = deps.transmitterSessionManager();
       if (transmitterSessionManager != null) {
         transmitterSessionManager.closeSessionsForTransmitter(block);
+        transmitterSessionManager.cancelChargingRefresh(block);
       }
       deps.wirelessTransmitterService().unregister(block);
     }
@@ -1817,6 +1859,10 @@ public final class WorldEditBridge implements Listener {
   }
 
   private LinCompoundTag buildExortTag(Block block) {
+    return buildExortTag(block, false);
+  }
+
+  private LinCompoundTag buildExortTag(Block block, boolean includeTransmitterTerminal) {
     LinCompoundTag.Builder exort = LinCompoundTag.builder();
     boolean any = false;
     Optional<StorageMarker.Data> storage = StorageMarker.get(plugin, block);
@@ -1900,6 +1946,8 @@ public final class WorldEditBridge implements Listener {
     if (TransmitterMarker.isTransmitter(plugin, block)) {
       LinCompoundTag.Builder transmitterTag = LinCompoundTag.builder();
       transmitterTag.putByte(FIELD_PRESENT, (byte) 1);
+      writeTransmitterData(
+          transmitterTag, captureTransmitterData(block, includeTransmitterTerminal));
       exort.put(SECTION_TRANSMITTER, transmitterTag.build());
       any = true;
     }
@@ -1967,7 +2015,30 @@ public final class WorldEditBridge implements Listener {
     if (!world.isChunkLoaded(position.x() >> 4, position.z() >> 4)) {
       return null;
     }
-    return parseSnapshot(buildExortTag(world.getBlockAt(position.x(), position.y(), position.z())));
+    return parseSnapshot(
+        buildExortTag(world.getBlockAt(position.x(), position.y(), position.z()), true));
+  }
+
+  private TransmitterData captureTransmitterData(Block block, boolean includeTerminalBlob) {
+    byte[] terminalBlob =
+        includeTerminalBlob
+            ? TransmitterStoredTerminal.terminalBlob(plugin, block).orElse(null)
+            : null;
+    return new TransmitterData(TransmitterStoredTerminal.mode(plugin, block).id(), terminalBlob);
+  }
+
+  private static void writeTransmitterData(
+      LinCompoundTag.Builder transmitterTag, TransmitterData data) {
+    if (transmitterTag == null || data == null) {
+      return;
+    }
+    if (data.mode() != null) {
+      transmitterTag.putString(FIELD_MODE, data.mode());
+    }
+    byte[] terminalBlob = data.terminalBlob();
+    if (terminalBlob != null && terminalBlob.length > 0) {
+      transmitterTag.putByteArray(FIELD_TERMINAL_BLOB, terminalBlob);
+    }
   }
 
   private boolean matchesWorldCarrier(Block block, MarkerSnapshot snapshot) {
@@ -2015,7 +2086,7 @@ public final class WorldEditBridge implements Listener {
         || type == Carriers.CHORUS_MATERIAL;
   }
 
-  private static LinCompoundTag buildExortTag(MarkerSnapshot snapshot) {
+  static LinCompoundTag buildExortTag(MarkerSnapshot snapshot) {
     if (snapshot == null) return null;
     LinCompoundTag.Builder exort = LinCompoundTag.builder();
     boolean any = false;
@@ -2100,6 +2171,7 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.transmitter()) {
       LinCompoundTag.Builder transmitterTag = LinCompoundTag.builder();
       transmitterTag.putByte(FIELD_PRESENT, (byte) 1);
+      writeTransmitterData(transmitterTag, snapshot.transmitterData());
       exort.put(SECTION_TRANSMITTER, transmitterTag.build());
       any = true;
     }
@@ -2194,13 +2266,14 @@ public final class WorldEditBridge implements Listener {
     return WorldEditMarkerMath.blockKey(x, y, z);
   }
 
-  private static MarkerSnapshot parseSnapshot(LinCompoundTag exort) {
+  static MarkerSnapshot parseSnapshot(LinCompoundTag exort) {
     if (exort == null) return null;
     StorageData storage = null;
     TerminalData terminal = null;
     BusData bus = null;
     MonitorData monitor = null;
     RelayData relay = null;
+    TransmitterData transmitterData = null;
     ChunkLoaderData chunkLoader = null;
     boolean transmitter = false;
     boolean wire = false;
@@ -2252,6 +2325,12 @@ public final class WorldEditBridge implements Listener {
     LinCompoundTag transmitterTag = getCompound(exort, SECTION_TRANSMITTER);
     if (transmitterTag != null) {
       transmitter = readPresent(transmitterTag, FIELD_PRESENT);
+      if (transmitter) {
+        transmitterData =
+            new TransmitterData(
+                readString(transmitterTag, FIELD_MODE),
+                readByteArray(transmitterTag, FIELD_TERMINAL_BLOB));
+      }
     }
 
     LinCompoundTag chunkLoaderTag = getCompound(exort, SECTION_CHUNK_LOADER);
@@ -2298,7 +2377,16 @@ public final class WorldEditBridge implements Listener {
       return null;
     }
     return new MarkerSnapshot(
-        storage, terminal, bus, monitor, relay, transmitter, chunkLoader, wire, storageCore);
+        storage,
+        terminal,
+        bus,
+        monitor,
+        relay,
+        transmitter,
+        transmitterData,
+        chunkLoader,
+        wire,
+        storageCore);
   }
 
   private static RelayLinkData readRelayLink(LinCompoundTag relayTag) {
@@ -2475,6 +2563,13 @@ public final class WorldEditBridge implements Listener {
       LinCompoundTag root = readRootNbt(base);
       LinCompoundTag exort = readExort(root);
       MarkerSnapshot parsed = parseSnapshot(exort);
+      if (parsed != null && historyAction == null) {
+        MarkerSnapshot sanitized = parsed.withoutTransmitterTerminal();
+        if (sanitized != parsed) {
+          parsed = sanitized;
+          exort = buildExortTag(parsed);
+        }
+      }
       boolean fromClipboard = parsed != null;
       String markerSource = parsed != null ? "nbt" : "none";
       boolean carriedHit = false;
@@ -3693,6 +3788,7 @@ public final class WorldEditBridge implements Listener {
         monitor,
         snapshot.relay(),
         snapshot.transmitter(),
+        snapshot.transmitterData(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
@@ -3716,6 +3812,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.monitor(),
         snapshot.relay(),
         snapshot.transmitter(),
+        snapshot.transmitterData(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
@@ -3732,6 +3829,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.monitor(),
         snapshot.relay(),
         snapshot.transmitter(),
+        snapshot.transmitterData(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());
@@ -3759,6 +3857,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.monitor(),
         relay,
         snapshot.transmitter(),
+        snapshot.transmitterData(),
         snapshot.chunkLoader(),
         snapshot.wire(),
         snapshot.storageCore());

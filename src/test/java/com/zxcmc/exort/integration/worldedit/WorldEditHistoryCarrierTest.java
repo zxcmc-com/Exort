@@ -1,5 +1,6 @@
 package com.zxcmc.exort.integration.worldedit;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,6 +21,101 @@ import org.enginehub.linbus.tree.LinTagType;
 import org.junit.jupiter.api.Test;
 
 class WorldEditHistoryCarrierTest {
+  @Test
+  void transmitterSnapshotRoundTripPreservesModeAndStoredTerminalForHistory() {
+    byte[] terminalBlob = {1, 2, 3, 4};
+    MarkerSnapshot transmitter =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("disabled", terminalBlob),
+            null,
+            false,
+            false);
+
+    LinCompoundTag tag = WorldEditBridge.buildExortTag(transmitter);
+    terminalBlob[0] = 9;
+    MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(tag);
+
+    assertNotNull(parsed);
+    assertTrue(parsed.transmitter());
+    assertNotNull(parsed.transmitterData());
+    assertEquals("disabled", parsed.transmitterData().mode());
+    assertArrayEquals(new byte[] {1, 2, 3, 4}, parsed.transmitterData().terminalBlob());
+  }
+
+  @Test
+  void transmitterClipboardSanitizerKeepsModeButDropsStoredTerminal() {
+    MarkerSnapshot transmitter =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("bind", new byte[] {7, 8, 9}),
+            null,
+            false,
+            false);
+
+    MarkerSnapshot sanitized = transmitter.withoutTransmitterTerminal();
+    MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(WorldEditBridge.buildExortTag(sanitized));
+
+    assertNotNull(parsed);
+    assertTrue(parsed.transmitter());
+    assertNotNull(parsed.transmitterData());
+    assertEquals("bind", parsed.transmitterData().mode());
+    assertNull(parsed.transmitterData().terminalBlob());
+  }
+
+  @Test
+  void transmitterHistoryChoosesSnapshotWithStoredTerminalOverSanitizedLiveSnapshot() {
+    UUID worldId = new UUID(90L, 91L);
+    BlockVector3 position = BlockVector3.at(12, 64, -5);
+    MarkerSnapshot modeOnly =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("charge_only", null),
+            null,
+            false,
+            false);
+    MarkerSnapshot full =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("charge_only", new byte[] {3, 2, 1}),
+            null,
+            false,
+            false);
+    PendingOperationSnapshot operationSnapshot =
+        new PendingOperationSnapshot(
+            worldId,
+            Map.of(WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()), full),
+            Set.of(),
+            System.currentTimeMillis(),
+            1,
+            "test");
+
+    assertEquals(full, WorldEditBridge.chooseUndoSnapshot(modeOnly, null, full, null));
+    assertEquals(
+        full,
+        WorldEditBridge.chooseExistingSnapshot(modeOnly, operationSnapshot, worldId, position));
+  }
+
   @Test
   void chunkLoaderSnapshotDataDefaultsAndPreservesFixedType() {
     UUID id = new UUID(0L, 42L);
@@ -214,6 +310,48 @@ class WorldEditHistoryCarrierTest {
     assertEquals(terminal, history.peek(frame, HistoryAction.UNDO, 10, 64, -30));
     assertEquals(terminal, history.consume(actorId, HistoryAction.UNDO, worldId, 10, 64, -30));
     assertNull(history.consume(actorId, HistoryAction.UNDO, worldId, 10, 64, -25));
+  }
+
+  @Test
+  void moveSourceHistoryKeepsTransmitterStoredTerminalFromMoveSidecar() {
+    WorldEditMarkerHistory history = new WorldEditMarkerHistory();
+    UUID actorId = new UUID(121L, 122L);
+    UUID worldId = new UUID(123L, 124L);
+    BlockVector3 source = BlockVector3.at(-8, 70, 16);
+    BlockVector3 offset = BlockVector3.at(3, 0, 0);
+    MarkerSnapshot transmitter =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("disabled", new byte[] {4, 5, 6}),
+            null,
+            false,
+            false);
+    PendingMovePatch movePatch =
+        new PendingMovePatch(
+            Map.of(WorldEditMarkerMath.blockKey(source.x(), source.y(), source.z()), transmitter),
+            Map.of(
+                WorldEditMarkerMath.blockKey(
+                    source.add(offset).x(), source.add(offset).y(), source.add(offset).z()),
+                transmitter),
+            offset,
+            System.currentTimeMillis(),
+            3);
+
+    WorldEditMarkerHistory.Frame frame = history.beginNormalOperation(actorId, worldId, 1L);
+    MarkerSnapshot seeded =
+        WorldEditBridge.rememberMoveSourceHistory(
+            history, actorId, worldId, source, movePatch, frame);
+    MarkerSnapshot consumed = history.consume(actorId, HistoryAction.UNDO, worldId, -8, 70, 16);
+
+    assertEquals(transmitter, seeded);
+    assertNotNull(consumed);
+    assertNotNull(consumed.transmitterData());
+    assertArrayEquals(new byte[] {4, 5, 6}, consumed.transmitterData().terminalBlob());
   }
 
   @Test
