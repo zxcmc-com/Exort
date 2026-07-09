@@ -19,6 +19,9 @@ import org.bukkit.persistence.PersistentDataType;
 public class WirelessTerminalService {
   private static final int MAX_CHARGE = WirelessChargeService.MAX_CHARGE;
 
+  public record StoredChargeState(
+      ItemStack stack, int charge, boolean charging, long chargingEndsAtMillis) {}
+
   private final StorageKeys keys;
   private final CustomItems customItems;
   private final boolean enabled;
@@ -57,6 +60,27 @@ public class WirelessTerminalService {
     PersistentDataContainer pdc = meta.getPersistentDataContainer();
     chargeService.markStoredNow(pdc);
     stack.setItemMeta(meta);
+  }
+
+  public StoredChargeState reconcileStoredCharge(ItemStack stack, boolean chargingAllowed) {
+    if (!isWireless(stack) || stack.getItemMeta() == null) {
+      return new StoredChargeState(stack, 0, false, -1L);
+    }
+    ItemMeta meta = stack.getItemMeta();
+    PersistentDataContainer pdc = meta.getPersistentDataContainer();
+    int charge = chargeService.computeCharge(pdc);
+    pdc.set(keys.wirelessCharge(), PersistentDataType.INTEGER, charge);
+    boolean charging = chargingAllowed && charge < MAX_CHARGE;
+    if (charging) {
+      chargeService.markStoredNow(pdc);
+    } else {
+      chargeService.clearStoredAt(pdc);
+    }
+    WirelessMeta metaInfo = bindService.readMeta(pdc);
+    loreService.apply(meta, charge, bindService.isLinked(pdc), metaInfo, enabled);
+    stack.setItemMeta(meta);
+    long endsAt = charging ? chargeService.chargingEndsAtMillis(pdc) : -1L;
+    return new StoredChargeState(stack, charge, charging, endsAt);
   }
 
   public ItemStack displaySample(ItemStack storedSample) {

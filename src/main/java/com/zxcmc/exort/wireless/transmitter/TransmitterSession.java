@@ -91,6 +91,7 @@ public final class TransmitterSession implements InventoryHolder {
     ItemStack[] contents = new ItemStack[SIZE];
     TransmitterMode mode = mode();
     WirelessTransmitterService.Status status = transmitterService.status(transmitter);
+    manager.reconcileCharging(transmitter, status);
     contents[MODE_SLOT] = modeItem(mode);
     contents[INFO_SLOT] = infoItem(mode, status);
     contents[TERMINAL_SLOT] = storedTerminalDisplay();
@@ -188,6 +189,7 @@ public final class TransmitterSession implements InventoryHolder {
       event.setCurrentItem(source);
     }
     render();
+    refreshTransmitterDisplay();
   }
 
   private void storeFromCursor(InventoryClickEvent event, ItemStack cursor) {
@@ -215,6 +217,7 @@ public final class TransmitterSession implements InventoryHolder {
     cursor.setAmount(cursor.getAmount() - 1);
     event.getView().setCursor(cursor.getAmount() <= 0 ? null : cursor);
     render();
+    refreshTransmitterDisplay();
   }
 
   private void takeStoredToCursor(InventoryClickEvent event) {
@@ -226,6 +229,7 @@ public final class TransmitterSession implements InventoryHolder {
               event.getView().setCursor(out);
             });
     render();
+    refreshTransmitterDisplay();
   }
 
   private void toggleMode() {
@@ -240,16 +244,14 @@ public final class TransmitterSession implements InventoryHolder {
               saveStoredTerminal(extracted);
             });
     render();
+    refreshTransmitterDisplay();
   }
 
   private boolean prepareForMode(ItemStack stack, TransmitterMode mode) {
-    if (mode != TransmitterMode.BIND) {
-      wirelessService.prepareForStorage(stack);
-      return true;
+    if (mode == TransmitterMode.BIND) {
+      bindStoredTerminal(stack);
     }
-    bindStoredTerminal(stack);
-    wirelessService.prepareForStorage(stack);
-    return true;
+    return manager.prepareStoredTerminal(transmitter, stack);
   }
 
   private boolean bindStoredTerminal(ItemStack stack) {
@@ -296,6 +298,10 @@ public final class TransmitterSession implements InventoryHolder {
 
   private org.bukkit.plugin.Plugin plugin() {
     return manager.plugin();
+  }
+
+  private void refreshTransmitterDisplay() {
+    manager.refreshTransmitterDisplay(transmitter);
   }
 
   private ItemStack modeItem(TransmitterMode mode) {

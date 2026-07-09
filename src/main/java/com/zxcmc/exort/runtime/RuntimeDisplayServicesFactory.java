@@ -387,13 +387,16 @@ public final class RuntimeDisplayServicesFactory {
         deps.plugin(),
         deps.materials().transmitterCarrier(),
         displayModels.transmitter(),
+        displayModels.transmitterEnabled(),
+        displayModels.transmitterCharging(),
         display.displayBaseMaterial(),
         display.displayScale(),
         display.offsetX(),
         display.offsetY(),
         display.offsetZ(),
         metadataService,
-        deps.lang().clientComponent(deps.resourceMode(), "item.transmitter"));
+        deps.lang().clientComponent(deps.resourceMode(), "item.transmitter"),
+        deps.transmitterSessionManager());
   }
 
   private static void registerSanityServices(

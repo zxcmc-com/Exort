@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.11 — 2026-07-09
+- Stored Wireless Terminals inside Wireless Transmitters now charge only while the transmitter is connected to exactly one storage and not set to Disabled; disconnected or Disabled transmitters pause stored-terminal charging without losing saved charge.
+- Wireless Transmitter RESOURCE visuals now use the updated transmitter texture atlas and separate inactive, active, and actively charging placed-block models; the transmitter item keeps the default inactive model.
+- Minor ru-ru locale cleanup for Wireless Transmitter GUI text.
+
 ## 0.18.10 — 2026-07-08
 - Chunk Loader audit logs now distinguish normal breaks that preserve the loader item from destructive removal without drops, including creative block destruction, confirmed creative inventory deletion, item despawn, void/out-of-world loss, fire/lava/cactus/campfire destruction, explosions, lightning, `/kill` item removal, and Curse of Vanishing death loss.
 - Creative inventory auditing for Chunk Loaders is now session-aware: cursor moves and already logged drop/pickup/clear/loss/pick actions are reconciled on close, unassigned creative gains are logged as issues, and extra copies of an already present UUID are logged as duplicates.

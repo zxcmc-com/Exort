@@ -99,6 +99,7 @@ class PackExporterTest {
       assertChunkLoaderItemDefinitionModels(zip);
       assertChunkLoaderTextureAndModelUvs(zip);
       assertTransmitterGuiOverlayAssets(zip);
+      assertTransmitterStateAssets(zip);
     }
   }
 
@@ -141,6 +142,12 @@ class PackExporterTest {
           "assets/exort/items/chunkloader/mythical.json",
           "assets/exort/items/chunkloader/legendary.json",
           "assets/exort/items/chunkloader/disabled.json",
+          "assets/exort/items/transmitter/transmitter.json",
+          "assets/exort/items/transmitter/enabled.json",
+          "assets/exort/items/transmitter/charging.json",
+          "assets/exort/models/transmitter/transmitter.json",
+          "assets/exort/models/transmitter/enabled.json",
+          "assets/exort/models/transmitter/charging.json",
           "assets/exort/models/chunkloader/immortal.json",
           "assets/exort/models/chunkloader/mythical.json",
           "assets/exort/models/chunkloader/legendary.json",
@@ -182,6 +189,17 @@ class PackExporterTest {
       }
     }
     assertTrue(transmitterProvider, "font/default.json is missing transmitter GUI provider");
+  }
+
+  private static void assertTransmitterStateAssets(ZipFile zip) throws IOException {
+    assertEntry(zip, "assets/exort/models/transmitter/enabled.json");
+    assertEntry(zip, "assets/exort/models/transmitter/charging.json");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/transmitter/transmitter.json", "exort:transmitter/transmitter");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/transmitter/enabled.json", "exort:transmitter/enabled");
+    assertItemDefinitionModel(
+        zip, "assets/exort/items/transmitter/charging.json", "exort:transmitter/charging");
   }
 
   private static void assertNoLegacyBreakingEntries(ZipFile zip) {

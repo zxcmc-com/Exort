@@ -77,6 +77,7 @@ public final class ExortRuntimeFactory {
     WirelessTerminalService wirelessService = createWirelessService(deps, customItems);
     WirelessTransmitterService wirelessTransmitterService =
         createWirelessTransmitterService(deps, materials, networkConfig);
+    RuntimeServiceState state = new RuntimeServiceState();
     TransmitterSessionManager transmitterSessionManager =
         new TransmitterSessionManager(
             deps.plugin(),
@@ -86,7 +87,13 @@ public final class ExortRuntimeFactory {
             deps.playerFeedback(),
             deps.regionProtection().get(),
             () -> deps.resourceMode(),
-            deps.guiOverlayConfig());
+            deps.guiOverlayConfig(),
+            block -> {
+              DisplayRefreshService refresh = state.displayRefreshService;
+              if (refresh != null) {
+                refresh.refreshTransmitter(block);
+              }
+            });
     transmitterSessionManager.reconfigure();
     wirelessTransmitterService.scanLoadedChunks();
     deps.sessionManager().reconfigure();
@@ -121,7 +128,6 @@ public final class ExortRuntimeFactory {
     AuthenticationGate authenticationGate = new KnownAuthenticationGate(deps.plugin());
     WorldEditWandGuard worldEditWandGuard = new KnownWorldEditWandGuard(deps.plugin());
 
-    RuntimeServiceState state = new RuntimeServiceState();
     RelaySetupTracker relaySetupTracker =
         new RelaySetupTracker(
             deps.plugin(),

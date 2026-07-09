@@ -154,6 +154,14 @@ class BundledLanguageFilesTest {
   }
 
   @Test
+  void russianTransmitterDisabledModeUsesPlainE() {
+    Map<String, String> russian = readRuntimeLang("ru_ru");
+
+    assertEquals("Передатчик: отключен", russian.get("gui.transmitter.status.disabled"));
+    assertEquals("Режим: отключен", russian.get("gui.transmitter.mode.disabled"));
+  }
+
+  @Test
   void chunkLoaderStatusUsesSingleLoaderNameAndGenericUuidLabel() throws IOException {
     for (String locale : checkedLocales()) {
       assertEquals(

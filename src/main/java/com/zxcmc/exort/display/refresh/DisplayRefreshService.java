@@ -373,6 +373,7 @@ public final class DisplayRefreshService {
     Set<Block> monitors = new HashSet<>();
     Set<Block> buses = new HashSet<>();
     Set<Block> relays = new HashSet<>();
+    Set<Block> transmitters = new HashSet<>();
     NetworkRefreshBudget budget = new NetworkRefreshBudget(hardCap);
     queue.add(start);
     visited.add(start);
@@ -426,6 +427,9 @@ public final class DisplayRefreshService {
           monitors.add(next);
         } else if (Carriers.matchesCarrier(next, busCarrier) && BusMarker.isBus(plugin, next)) {
           buses.add(next);
+        } else if (Carriers.matchesCarrier(next, transmitterCarrier)
+            && TransmitterMarker.isTransmitter(plugin, next)) {
+          transmitters.add(next);
         } else if (Carriers.matchesCarrier(next, storageCarrier)
             && StorageMarker.get(plugin, next).isPresent()) {
           if (storageDisplayManager != null) {
@@ -457,6 +461,9 @@ public final class DisplayRefreshService {
     }
     for (Block bus : buses) {
       refreshBus(bus);
+    }
+    for (Block transmitter : transmitters) {
+      refreshTransmitter(transmitter);
     }
   }
 
