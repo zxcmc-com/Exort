@@ -22,8 +22,8 @@ With stunning visuals, immersive interfaces, and a gameplay experience that feel
 
 ## Compatibility
 - **Server software**: Paper / Purpur
-- **Supported Minecraft**: 1.21.7-26.2
-- **Java**: 25 for Minecraft 26.1+ servers; Java 21 remains supported for the generated plugin bytecode and older 1.21.x servers.
+- **Supported Minecraft**: 1.21.11-26.2
+- **Java**: 25 for Minecraft 26.1+ servers; Java 21 remains supported for the generated plugin bytecode and older 1.21.11 servers.
 
 ## Installation
 1) Build: `./gradlew build`
