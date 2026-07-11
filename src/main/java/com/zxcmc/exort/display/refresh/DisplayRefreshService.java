@@ -265,29 +265,32 @@ public final class DisplayRefreshService {
     }
   }
 
-  private void refreshNetworkFromNow(Block block) {
-    if (block == null || block.getWorld() == null) return;
-    if (wireMaterial == null) return;
+  private Set<BlockKey> refreshNetworkFromNow(Block block) {
+    if (block == null || block.getWorld() == null) return Set.of();
+    if (wireMaterial == null) return Set.of();
     int hardCap = Math.max(0, wireHardCap);
-    if (hardCap == 0) return;
+    if (hardCap == 0) return Set.of();
     boolean isWire =
         Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
     boolean isRelay =
         Carriers.matchesCarrier(block, relayTraversalCarrier) && RelayMarker.isRelay(plugin, block);
     if (isWire || isRelay) {
-      refreshFromNetworkNode(block, hardCap, wireMaterial);
-      return;
+      return refreshFromNetworkNode(block, hardCap, wireMaterial);
     }
+    Set<BlockKey> refreshedNodes = new HashSet<>();
     for (var face : FACES) {
       Block neighbor = block.getRelative(face);
       if (!isChunkLoaded(neighbor)) continue;
+      BlockKey neighborKey = BlockKey.from(neighbor);
+      if (refreshedNodes.contains(neighborKey)) continue;
       if (Carriers.matchesCarrier(neighbor, wireMaterial) && WireMarker.isWire(plugin, neighbor)) {
-        refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
+        refreshedNodes.addAll(refreshFromNetworkNode(neighbor, hardCap, wireMaterial));
       } else if (Carriers.matchesCarrier(neighbor, relayTraversalCarrier)
           && RelayMarker.isRelay(plugin, neighbor)) {
-        refreshFromNetworkNode(neighbor, hardCap, wireMaterial);
+        refreshedNodes.addAll(refreshFromNetworkNode(neighbor, hardCap, wireMaterial));
       }
     }
+    return Set.copyOf(refreshedNodes);
   }
 
   private void scheduleRefreshDrain() {
@@ -333,7 +336,7 @@ public final class DisplayRefreshService {
       iterator.remove();
       Block block = loadedBlock(key);
       if (block != null) {
-        refreshNetworkFromNow(block);
+        queuedNetworkStarts.removeAll(refreshNetworkFromNow(block));
       }
       budget--;
     }
@@ -364,9 +367,13 @@ public final class DisplayRefreshService {
 
   private record ChunkKey(UUID world, int x, int z) {}
 
-  private record BlockKey(UUID world, int x, int y, int z) {}
+  private record BlockKey(UUID world, int x, int y, int z) {
+    private static BlockKey from(Block block) {
+      return new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
+    }
+  }
 
-  private void refreshFromNetworkNode(Block start, int hardCap, Material wireMaterial) {
+  private Set<BlockKey> refreshFromNetworkNode(Block start, int hardCap, Material wireMaterial) {
     Queue<Block> queue = new ArrayDeque<>();
     Set<Block> visited = new HashSet<>();
     Set<Block> terminals = new HashSet<>();
@@ -465,6 +472,11 @@ public final class DisplayRefreshService {
     for (Block transmitter : transmitters) {
       refreshTransmitter(transmitter);
     }
+    Set<BlockKey> refreshedNodes = new HashSet<>();
+    for (Block node : visited) {
+      refreshedNodes.add(BlockKey.from(node));
+    }
+    return Set.copyOf(refreshedNodes);
   }
 
   private boolean isChunkLoaded(Block block) {

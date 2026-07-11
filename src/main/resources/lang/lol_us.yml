@@ -16,6 +16,8 @@ message:
   relay_disabled: "Netwurk relayz offz by server config."
   chunk_loader_duplicate: "Dis Chunk Loadr already werkz at anothr spot."
   chunk_loader_feature_disabled: "Chunk Loadrz offz by server config."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk Loadr: Onz."
   chunk_loader_disabled: "Chunk Loadr: Offz."
   chunk_loader_already_enabled: "Chunk Loadr: Onz."

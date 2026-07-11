@@ -33,6 +33,7 @@ public final class RuntimeBreakingServicesFactory {
                 deps.displayRefreshService(),
                 deps.breakAnimationSender(),
                 deps.storageManager(),
+                deps.storageClaimRegistry(),
                 deps.sessionManager(),
                 deps.monitorDisplayManager(),
                 deps.busSessionManager(),

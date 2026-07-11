@@ -31,4 +31,20 @@ class StorageRuntimeConfigTest {
 
     assertEquals("AMOUNT", config.defaultSortModeName());
   }
+
+  @Test
+  void clampsSchedulerIntervalsWithoutTickArithmeticOverflow() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("performance.storage.flushIntervalSeconds", Long.MAX_VALUE);
+    yaml.set("performance.storage.idleUnloadSeconds", Long.MAX_VALUE);
+    yaml.set("performance.storage.idleCheckSeconds", -1L);
+
+    StorageRuntimeConfig config = StorageRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(
+        StorageRuntimeConfig.MAX_SCHEDULER_INTERVAL_SECONDS, config.flushIntervalSeconds());
+    assertEquals(
+        StorageRuntimeConfig.MAX_SCHEDULER_INTERVAL_SECONDS, config.cacheIdleUnloadSeconds());
+    assertEquals(0L, config.cacheIdleCheckSeconds());
+  }
 }

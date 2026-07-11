@@ -4,6 +4,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
+import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.WireMarker;
@@ -22,8 +23,6 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class WireListener implements Listener {
@@ -145,16 +144,12 @@ public class WireListener implements Listener {
   }
 
   private boolean allowPlacement(ItemStack item) {
-    if (item == null || !item.hasItemMeta()) return false;
-    PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    if (type == null) return false;
-    return "wire".equalsIgnoreCase(type)
-        || "terminal".equalsIgnoreCase(type)
-        || "storage".equalsIgnoreCase(type)
-        || "monitor".equalsIgnoreCase(type)
-        || "import_bus".equalsIgnoreCase(type)
-        || "export_bus".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, item, "wire")
+        || CustomItemClassifier.isType(keys, item, "terminal")
+        || CustomItemClassifier.isType(keys, item, "storage")
+        || CustomItemClassifier.isType(keys, item, "monitor")
+        || CustomItemClassifier.isType(keys, item, "import_bus")
+        || CustomItemClassifier.isType(keys, item, "export_bus");
   }
 
   private record NetworkInfo(int wires, boolean storageConnected, boolean tooLongHardCap) {}

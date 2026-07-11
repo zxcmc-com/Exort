@@ -16,6 +16,8 @@ message:
   relay_disabled: "நெட்வொர்க் ரிலேகள் சர்வர் கான்ஃபிகரேஷனால் முடக்கப்பட்டுள்ளன."
   chunk_loader_duplicate: "இந்த சங்க் லோடர் ஏற்கனவே வேறு இடத்தில் செயல்பாட்டில் உள்ளது."
   chunk_loader_feature_disabled: "சங்க் லோடர்கள் சர்வர் கான்ஃபிகரேஷனால் முடக்கப்பட்டுள்ளன."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "சங்க் லோடர்: செயலில்."
   chunk_loader_disabled: "சங்க் லோடர்: முடக்கப்பட்டது."
   chunk_loader_already_enabled: "சங்க் லோடர்: செயலில்."

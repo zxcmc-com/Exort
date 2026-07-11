@@ -9,6 +9,7 @@ public enum ChunkLoaderRuntimeState {
   OWNER_GRACE("owner_grace"),
   OWNER_OFFLINE("owner_offline"),
   WORLD_UNAVAILABLE("world_unavailable"),
+  QUOTA_BLOCKED("quota_blocked"),
   MISSING("missing");
 
   private final String id;

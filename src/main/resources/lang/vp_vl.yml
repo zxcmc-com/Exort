@@ -16,6 +16,8 @@ message:
   relay_disabled: "Nät-relajoj är Off i server config."
   chunk_loader_duplicate: "Denna Chunk-laddare är redan aktiv på annan plats."
   chunk_loader_feature_disabled: "Chunk-laddare är Off i server config."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk-laddare: Aktiv."
   chunk_loader_disabled: "Chunk-laddare: Off."
   chunk_loader_already_enabled: "Chunk-laddare: Aktiv."

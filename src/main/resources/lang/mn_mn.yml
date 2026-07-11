@@ -16,6 +16,8 @@ message:
   relay_disabled: "Сүлжээний релегүүд серверийн тохиргоонд унтраалттай байна."
   chunk_loader_duplicate: "Энэ Чанк ачаалагч өөр байрлалд аль хэдийн идэвхтэй байна."
   chunk_loader_feature_disabled: "Чанк ачаалагчид серверийн тохиргоонд унтраалттай байна."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Чанк ачаалагч: Идэвхтэй."
   chunk_loader_disabled: "Чанк ачаалагч: Унтраалттай."
   chunk_loader_already_enabled: "Чанк ачаалагч: Идэвхтэй."

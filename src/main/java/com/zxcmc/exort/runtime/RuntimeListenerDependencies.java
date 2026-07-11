@@ -31,6 +31,7 @@ import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.recipes.CraftingRulesConfig;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.relay.RelaySetupTracker;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
@@ -47,6 +48,7 @@ public record RuntimeListenerDependencies(
     JavaPlugin plugin,
     Database database,
     StorageManager storageManager,
+    StorageClaimRegistry storageClaimRegistry,
     SessionManager sessionManager,
     StorageKeys keys,
     CustomItems customItems,
@@ -98,6 +100,7 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");
     Objects.requireNonNull(sessionManager, "sessionManager");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(customItems, "customItems");

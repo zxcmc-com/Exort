@@ -6,13 +6,13 @@ import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -33,8 +33,8 @@ public record SessionManagerDependencies(
     Supplier<WirelessTransmitterService> wirelessTransmitterService,
     Supplier<BusService> busService,
     Supplier<CraftingRules> craftingRules,
-    BooleanSupplier resourceMode,
-    BooleanSupplier dialogSupported,
+    java.util.function.BooleanSupplier resourceMode,
+    Supplier<RegionProtection> regionProtection,
     IntSupplier wireLimit,
     IntSupplier wireHardCap,
     IntSupplier relayRangeChunks,
@@ -60,7 +60,7 @@ public record SessionManagerDependencies(
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(craftingRules, "craftingRules");
     Objects.requireNonNull(resourceMode, "resourceMode");
-    Objects.requireNonNull(dialogSupported, "dialogSupported");
+    Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(wireLimit, "wireLimit");
     Objects.requireNonNull(wireHardCap, "wireHardCap");
     Objects.requireNonNull(relayRangeChunks, "relayRangeChunks");

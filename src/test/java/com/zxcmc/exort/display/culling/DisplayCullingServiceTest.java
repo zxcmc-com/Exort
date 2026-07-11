@@ -148,4 +148,15 @@ class DisplayCullingServiceTest {
     assertFalse(afterBuffer.isForward(worldId, -3.6, 0.0, 16.0, 0.0));
     assertTrue(afterBuffer.isForward(worldId, -3.6, 0.0, -16.0, 0.0));
   }
+
+  @Test
+  void persistentStateInstallRejectsStoppedOrStaleRuntimeCompletion() {
+    assertTrue(DisplayCullingService.canInstallPersistentClientCullingStates(true, 4L, 4L, 7L, 7L));
+    assertFalse(
+        DisplayCullingService.canInstallPersistentClientCullingStates(false, 4L, 4L, 7L, 7L));
+    assertFalse(
+        DisplayCullingService.canInstallPersistentClientCullingStates(true, 3L, 4L, 7L, 7L));
+    assertFalse(
+        DisplayCullingService.canInstallPersistentClientCullingStates(true, 4L, 4L, 6L, 7L));
+  }
 }

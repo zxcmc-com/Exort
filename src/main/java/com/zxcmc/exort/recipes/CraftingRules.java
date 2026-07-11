@@ -1,5 +1,6 @@
 package com.zxcmc.exort.recipes;
 
+import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.keys.StorageKeys;
 import org.bukkit.Keyed;
 import org.bukkit.NamespacedKey;
@@ -12,8 +13,6 @@ import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.inventory.SmithingTransformRecipe;
 import org.bukkit.inventory.SmithingTrimRecipe;
 import org.bukkit.inventory.StonecuttingRecipe;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 public final class CraftingRules {
   private final StorageKeys keys;
@@ -48,10 +47,8 @@ public final class CraftingRules {
   }
 
   public boolean isCustomItem(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return type != null && !type.isEmpty();
+    return CustomItemClassifier.isCustomItem(keys, stack)
+        || CustomItemClassifier.hasDurableIdentity(keys, stack);
   }
 
   private boolean isExternalRecipe(Recipe recipe) {

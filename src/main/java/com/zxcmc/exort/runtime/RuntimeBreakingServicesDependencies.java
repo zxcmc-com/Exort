@@ -15,6 +15,7 @@ import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
@@ -34,6 +35,7 @@ public record RuntimeBreakingServicesDependencies(
     WireDisplayManager wireDisplayManager,
     DisplayRefreshService displayRefreshService,
     StorageManager storageManager,
+    StorageClaimRegistry storageClaimRegistry,
     SessionManager sessionManager,
     Supplier<MonitorDisplayManager> monitorDisplayManager,
     Supplier<BusSessionManager> busSessionManager,
@@ -57,6 +59,7 @@ public record RuntimeBreakingServicesDependencies(
     Objects.requireNonNull(wireDisplayManager, "wireDisplayManager");
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");
     Objects.requireNonNull(sessionManager, "sessionManager");
     Objects.requireNonNull(monitorDisplayManager, "monitorDisplayManager");
     Objects.requireNonNull(busSessionManager, "busSessionManager");

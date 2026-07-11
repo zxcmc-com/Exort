@@ -16,6 +16,8 @@ message:
   relay_disabled: "Releurile de rețea sunt dezactivate de configurația serverului."
   chunk_loader_duplicate: "Acest încărcător de chunk-uri este deja activ în altă poziție."
   chunk_loader_feature_disabled: "Încărcătoarele de chunk-uri sunt dezactivate de configurația serverului."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Încărcător de chunk-uri: Activ."
   chunk_loader_disabled: "Încărcător de chunk-uri: Dezactivat."
   chunk_loader_already_enabled: "Încărcător de chunk-uri: Activ."

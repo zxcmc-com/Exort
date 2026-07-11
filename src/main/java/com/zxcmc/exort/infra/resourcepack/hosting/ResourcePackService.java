@@ -154,6 +154,16 @@ public final class ResourcePackService implements Listener {
     }
 
     ResourcePackHosting effective = resolveHosting(configured);
+    if (effective == ResourcePackHosting.DISABLED) {
+      ResourcePackProviderBridge.removeAll(plugin);
+      setState(
+          State.disabled(
+              "AUTO found no enabled provider or configured official pack; select SELFHOST"
+                  + " explicitly to start the built-in HTTP server",
+              configured,
+              configuredDelivery));
+      return;
+    }
     if (!isProviderHosting(effective)) {
       ResourcePackProviderBridge.removeOtherProviderHandoffs(plugin, effective);
     }
@@ -318,9 +328,9 @@ public final class ResourcePackService implements Listener {
       return configured;
     }
     return resolveAutoHosting(
-        ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.NEXO),
-        ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.ITEMSADDER),
-        ResourcePackProviderBridge.isProviderInstalled(plugin, ResourcePackHosting.ORAXEN),
+        plugin.getServer().getPluginManager().isPluginEnabled("Nexo"),
+        plugin.getServer().getPluginManager().isPluginEnabled("ItemsAdder"),
+        plugin.getServer().getPluginManager().isPluginEnabled("Oraxen"),
         officialPackConfigured());
   }
 
@@ -355,23 +365,23 @@ public final class ResourcePackService implements Listener {
   }
 
   static ResourcePackHosting resolveAutoHosting(
-      boolean nexoInstalled,
-      boolean itemsAdderInstalled,
-      boolean oraxenInstalled,
+      boolean nexoAvailable,
+      boolean itemsAdderAvailable,
+      boolean oraxenAvailable,
       boolean officialConfigured) {
-    if (nexoInstalled) {
+    if (nexoAvailable) {
       return ResourcePackHosting.NEXO;
     }
-    if (itemsAdderInstalled) {
+    if (itemsAdderAvailable) {
       return ResourcePackHosting.ITEMSADDER;
     }
-    if (oraxenInstalled) {
+    if (oraxenAvailable) {
       return ResourcePackHosting.ORAXEN;
     }
     if (officialConfigured) {
       return ResourcePackHosting.EXORT;
     }
-    return ResourcePackHosting.SELFHOST;
+    return ResourcePackHosting.DISABLED;
   }
 
   private boolean isProviderHosting(ResourcePackHosting hosting) {

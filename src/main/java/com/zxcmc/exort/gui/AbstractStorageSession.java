@@ -91,7 +91,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     this.manager = manager;
     this.terminalBlock = terminalBlock;
     this.storageLocation = storageLocation;
-    this.readOnly = readOnly;
+    this.readOnly = readOnly || tier.isReadOnly();
     this.wireless = wireless;
     if (sortMode != null) {
       this.sortMode = sortMode;
@@ -427,7 +427,12 @@ public abstract class AbstractStorageSession implements SearchableSession {
     ItemStack sample = data.sample();
     long allowed = Math.min(stack.getAmount(), spaceLeftFor(sample));
     if (allowed <= 0) return 0;
-    cache.addItem(key, sample, allowed);
+    StorageCache.AddResult added = cache.tryAddItem(key, sample, allowed);
+    if (!added.accepted()) {
+      setInfoErrorMessage(tr("message.operation_failed"));
+      triggerInfoError();
+      return 0;
+    }
     return allowed;
   }
 
@@ -460,7 +465,12 @@ public abstract class AbstractStorageSession implements SearchableSession {
     ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(storageStack);
     String key = data.key();
     ItemStack sample = data.sample();
-    cache.addItem(key, sample, allowed);
+    StorageCache.AddResult added = cache.tryAddItem(key, sample, allowed);
+    if (!added.accepted()) {
+      setInfoErrorMessage(tr("message.operation_failed"));
+      triggerInfoError();
+      return 0;
+    }
     cursor.setAmount(cursor.getAmount() - (int) allowed);
     if (cursor.getAmount() <= 0) {
       event.getView().setCursor(new ItemStack(Material.AIR));
@@ -654,7 +664,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
     if (reserved == null) return;
     long rollback = reserved.amount() - Math.max(0, moved);
     if (rollback > 0) {
-      cache.addItem(reserved.key(), reserved.sample(), rollback);
+      cache.restoreReserved(reserved, rollback);
     }
   }
 }

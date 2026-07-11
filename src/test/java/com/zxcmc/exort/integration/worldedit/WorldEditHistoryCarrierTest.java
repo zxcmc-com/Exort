@@ -123,12 +123,28 @@ class WorldEditHistoryCarrierTest {
     assertEquals(
         ChunkLoaderType.CHUNK_LOADER, new ChunkLoaderData(id, null, null, null, 100L).type());
     assertTrue(new ChunkLoaderData(id, null, null, null, 100L).enabled());
+    assertFalse(new ChunkLoaderData(id, null, null, null, 100L).bypassLimits());
     assertEquals(
         ChunkLoaderType.DORMANT_CHUNK_LOADER,
         new ChunkLoaderData(id, ChunkLoaderType.DORMANT_CHUNK_LOADER, null, null, 100L).type());
     assertFalse(
         new ChunkLoaderData(id, ChunkLoaderType.PERSONAL_CHUNK_LOADER, null, null, 100L, false)
             .enabled());
+  }
+
+  @Test
+  void chunkLoaderHistoryRoundTripPreservesLimitBypass() {
+    UUID id = new UUID(0L, 43L);
+    ChunkLoaderData data =
+        new ChunkLoaderData(
+            id, ChunkLoaderType.CHUNK_LOADER, new UUID(0L, 44L), "Admin", 100L, true, true);
+    MarkerSnapshot snapshot = new MarkerSnapshot(null, null, null, null, null, data, false, false);
+
+    MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(WorldEditBridge.buildExortTag(snapshot));
+
+    assertNotNull(parsed);
+    assertNotNull(parsed.chunkLoader());
+    assertTrue(parsed.chunkLoader().bypassLimits());
   }
 
   @Test
@@ -216,6 +232,33 @@ class WorldEditHistoryCarrierTest {
     assertTrue(history.peekState(frame, HistoryAction.REDO, 5, 80, 7).storageCloneRequired());
     assertTrue(
         history.peekState(actorId, HistoryAction.REDO, worldId, 5, 80, 7).storageCloneRequired());
+  }
+
+  @Test
+  void storageIdentityPolicyMovesOnlyCorrelatedSourceAndCreatesEmptyCopiesOtherwise() {
+    UUID worldId = new UUID(81L, 82L);
+    MarkerSnapshot storage =
+        new MarkerSnapshot(
+            new StorageData("storage-policy", "BASIC", 100L, "NORTH", null),
+            null,
+            null,
+            null,
+            null,
+            false,
+            false);
+    MarkerUpdate clipboardPaste =
+        new MarkerUpdate(1L, worldId, 1, 64, 1, storage, null, true, false);
+    MarkerUpdate move = new MarkerUpdate(2L, worldId, 2, 64, 2, storage, null, true, true);
+
+    assertEquals(
+        WorldEditBridge.StorageIdentityAction.CREATE_EMPTY,
+        WorldEditBridge.storageIdentityAction(clipboardPaste, Set.of()));
+    assertEquals(
+        WorldEditBridge.StorageIdentityAction.PRESERVE_IDENTITY,
+        WorldEditBridge.storageIdentityAction(move, Set.of()));
+    assertEquals(
+        WorldEditBridge.StorageIdentityAction.PRESERVE_IDENTITY,
+        WorldEditBridge.storageIdentityAction(clipboardPaste, Set.of("storage-policy")));
   }
 
   @Test

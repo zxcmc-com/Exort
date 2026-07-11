@@ -16,6 +16,8 @@ message:
   relay_disabled: "Ретранслаторите са изключени в конфигурацията на сървъра."
   chunk_loader_duplicate: "Този зареждач на чанкове вече е активен на друга позиция."
   chunk_loader_feature_disabled: "Зареждачите на чанкове са изключени в конфигурацията на сървъра."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Зареждач на чанкове: Активен."
   chunk_loader_disabled: "Зареждач на чанкове: Изключено."
   chunk_loader_already_enabled: "Зареждач на чанкове: Активен."

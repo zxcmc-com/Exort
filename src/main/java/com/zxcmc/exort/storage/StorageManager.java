@@ -81,15 +81,15 @@ public class StorageManager {
         .thenCompose(
             v ->
                 database
-                    .loadStorage(storageId)
+                    .loadStorageWithHealth(storageId)
                     .thenCombine(
                         database.getStorageSortMode(storageId),
-                        (items, sortMode) ->
-                            new LoadedStorageData(items, sortMode, Optional.empty()))
+                        (storage, sortMode) ->
+                            new LoadedStorageData(storage, sortMode, Optional.empty()))
                     .thenCombine(
                         database.getStorageDisplayName(storageId),
                         (data, displayName) ->
-                            new LoadedStorageData(data.items(), data.sortMode(), displayName)))
+                            new LoadedStorageData(data.storage(), data.sortMode(), displayName)))
         .thenCompose(data -> finishLoadOnMainThread(storageId, cache, data))
         .whenComplete(
             (res, err) -> {
@@ -109,15 +109,27 @@ public class StorageManager {
   private CompletableFuture<StorageCache> finishLoadOnMainThread(
       String storageId, StorageCache cache, LoadedStorageData data) {
     return supplyOnMainThread(
-        "loading storage " + storageId,
-        () -> {
-          cache.loadFromDb(data.items());
-          cache.setDisplayName(data.displayName().orElse(null));
-          refreshCustomItems(cache);
-          SortMode mode = sortService.resolveAndPersistDefault(storageId, data.sortMode());
-          cache.setSortMode(mode);
-          return cache;
-        });
+            "loading storage " + storageId,
+            () -> {
+              StorageCache.LoadResult loadResult =
+                  cache.loadFromDb(data.storage().items(), data.storage().structuralCorruptions());
+              cache.setDisplayName(data.displayName().orElse(null));
+              refreshCustomItems(cache);
+              SortMode mode = sortService.resolveAndPersistDefault(storageId, data.sortMode());
+              cache.setSortMode(mode);
+              return new InstalledCache(cache, loadResult.quarantineEntries());
+            })
+        .thenCompose(
+            installed ->
+                database
+                    .quarantineStorageItems(storageId, installed.quarantineEntries())
+                    .thenApply(ignored -> installed.cache()))
+        .whenComplete(
+            (loadedCache, error) -> {
+              if (error != null) {
+                caches.remove(storageId, cache);
+              }
+            });
   }
 
   public void flushDirtyCaches() {
@@ -289,7 +301,10 @@ public class StorageManager {
   }
 
   private record LoadedStorageData(
-      Map<String, DbItem> items, Optional<String> sortMode, Optional<String> displayName) {}
+      StorageLoadResult storage, Optional<String> sortMode, Optional<String> displayName) {}
+
+  private record InstalledCache(
+      StorageCache cache, Collection<StorageQuarantineEntry> quarantineEntries) {}
 
   private record CloneSnapshot(
       Collection<DbItem> items, Map<String, DbItem> byKey, SortMode sortMode, String displayName) {}

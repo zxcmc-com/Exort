@@ -16,6 +16,7 @@ import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.display.wire.WireDisplayManager;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
@@ -31,9 +32,12 @@ import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.placement.BridgePlacementEvents;
+import com.zxcmc.exort.placement.PlacementCompensation;
 import com.zxcmc.exort.placement.storage.StoragePlacementDependencies;
 import com.zxcmc.exort.placement.storage.StoragePlacementFailureHandler;
-import com.zxcmc.exort.placement.storage.StorageTierSaver;
+import com.zxcmc.exort.storage.StorageClaimLocation;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wire.placement.WirePlacementLimitGuard;
@@ -48,6 +52,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Player;
@@ -65,6 +70,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class BlockListener implements Listener {
   private final JavaPlugin plugin;
   private final StorageManager storageManager;
+  private final StorageClaimRegistry storageClaimRegistry;
   private final StorageKeys keys;
   private final CustomItems customItems;
   private final Material wireMaterial;
@@ -91,13 +97,13 @@ public class BlockListener implements Listener {
   private final Supplier<BusService> busService;
   private final Supplier<NetworkGraphCache> networkGraphCache;
   private final Consumer<Block> transmitterPlacedRecorder;
-  private final StorageTierSaver storageTierSaver;
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
 
   public BlockListener(BlockListenerDependencies dependencies) {
     this.plugin = dependencies.plugin();
     this.storageManager = dependencies.storageManager();
+    this.storageClaimRegistry = dependencies.storageClaimRegistry();
     this.keys = dependencies.keys();
     this.customItems = dependencies.customItems();
     this.wireMaterial = dependencies.wireMaterial();
@@ -125,7 +131,6 @@ public class BlockListener implements Listener {
     this.busService = dependencies.busService();
     this.networkGraphCache = dependencies.networkGraphCache();
     this.transmitterPlacedRecorder = dependencies.transmitterPlacedRecorder();
-    this.storageTierSaver = dependencies.storageTierSaver();
     this.breakSoundConfig = dependencies.breakSoundConfig();
     this.busRuntimeConfig = dependencies.busRuntimeConfig();
     this.placementFailureHandler =
@@ -142,6 +147,7 @@ public class BlockListener implements Listener {
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
   public void onPlace(BlockPlaceEvent event) {
+    if (BridgePlacementEvents.isDispatching()) return;
     Block block = event.getBlockPlaced();
     if (customItems.isMonitor(event.getItemInHand())
         && Carriers.matchesCarrier(block, monitorCarrier)) {
@@ -403,14 +409,30 @@ public class BlockListener implements Listener {
       }
       UUID loaderId = customItems.chunkLoaderId(event.getItemInHand()).orElse(UUID.randomUUID());
       ChunkLoaderType type = customItems.chunkLoaderType(event.getItemInHand());
-      if (!chunkLoaderService.canPlace(loaderId, block)) {
+      ItemStack placedItem = event.getItemInHand().clone();
+      placedItem.setAmount(1);
+      Player placementPlayer = event.getPlayer();
+      BlockState replacedState = event.getBlockReplacedState();
+      boolean refundOnFailure = shouldRefundPlacementItem(placementPlayer, placedItem);
+      ChunkLoaderService.PlacementResult placement =
+          chunkLoaderService.placementResult(event.getPlayer(), loaderId, block, type);
+      if (placement != ChunkLoaderService.PlacementResult.ALLOWED) {
         event.setCancelled(true);
-        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
+        warnChunkLoaderPlacement(event.getPlayer(), placement);
         return;
       }
-      if (!chunkLoaderService.place(event.getPlayer(), block, loaderId, type)) {
+      if (!chunkLoaderService.place(
+          placementPlayer,
+          block,
+          loaderId,
+          type,
+          failure -> {
+            PlacementCompensation.restoreAndRefund(
+                block, replacedState, placementPlayer, placedItem, refundOnFailure);
+            playerFeedback.error(placementPlayer, "message.chunk_loader_toggle_failed");
+          })) {
         event.setCancelled(true);
-        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_duplicate");
+        playerFeedback.warn(event.getPlayer(), "message.chunk_loader_initializing");
         return;
       }
       consumeIfInitialized(event);
@@ -444,6 +466,10 @@ public class BlockListener implements Listener {
     }
     StorageTier tier = tierOpt.get();
     if (!Carriers.matchesCarrier(block, storageCarrier)) return;
+    if (!event.canBuild()) {
+      event.setCancelled(true);
+      return;
+    }
     if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
       event.setCancelled(true);
       return;
@@ -451,6 +477,14 @@ public class BlockListener implements Listener {
 
     String storageId =
         customItems.storageId(event.getItemInHand()).orElse(UUID.randomUUID().toString());
+    StorageClaimLocation claimLocation = StorageClaimLocation.fromBlock(block);
+    StorageClaimRegistry.ReservationResult claim =
+        storageClaimRegistry.reserve(storageId, claimLocation);
+    if (!claim.allowed()) {
+      event.setCancelled(true);
+      warnStorageClaimDenied(event.getPlayer(), storageId, claimLocation, claim.denial());
+      return;
+    }
     String displayName = customItems.storageDisplayName(event.getItemInHand()).orElse(null);
     ItemStack placedItem = event.getItemInHand().clone();
     placedItem.setAmount(1);
@@ -474,7 +508,9 @@ public class BlockListener implements Listener {
         tier.maxItems(),
         displayName,
         placedItem,
-        refundOnPersistFailure);
+        refundOnPersistFailure,
+        event.getBlockReplacedState(),
+        claim.reservation());
     var refresh = displayRefreshService.get();
     if (refresh != null) {
       refresh.refreshStorage(block);
@@ -508,6 +544,16 @@ public class BlockListener implements Listener {
     }
   }
 
+  private void warnChunkLoaderPlacement(Player player, ChunkLoaderService.PlacementResult result) {
+    String key =
+        switch (result) {
+          case INITIALIZING -> "message.chunk_loader_initializing";
+          case QUOTA_EXCEEDED -> "message.chunk_loader_limit_reached";
+          case DUPLICATE, ALLOWED -> "message.chunk_loader_duplicate";
+        };
+    playerFeedback.warn(player, key);
+  }
+
   private void invalidateNetwork(Block block) {
     var cache = networkGraphCache.get();
     if (cache != null) {
@@ -521,7 +567,7 @@ public class BlockListener implements Listener {
     BlockBreakHandler.BreakResult result = breakHandler.handleBreak(event.getPlayer(), block, true);
     switch (result) {
       case BROKEN -> event.setDropItems(false);
-      case DENIED -> {
+      case PENDING, DENIED -> {
         event.setCancelled(true);
         event.setDropItems(false);
       }
@@ -634,18 +680,44 @@ public class BlockListener implements Listener {
       long tierMaxItems,
       String displayName,
       ItemStack refund,
-      boolean shouldRefund) {
-    storageTierSaver
-        .save(storageId, tierKey, tierMaxItems, displayName)
+      boolean shouldRefund,
+      BlockState replacedState,
+      StorageClaimRegistry.Reservation reservation) {
+    storageClaimRegistry
+        .persist(reservation, tierKey, tierMaxItems, displayName)
         .whenComplete(
             (ignored, err) -> {
               if (err != null) {
                 placementFailureHandler.rollbackFailedPlacement(
-                    player, block, storageId, refund, shouldRefund, err);
+                    player, block, storageId, refund, shouldRefund, replacedState, err);
               } else {
                 storageManager.setCachedDisplayName(storageId, displayName);
               }
             });
+  }
+
+  private void warnStorageClaimDenied(
+      Player player,
+      String storageId,
+      StorageClaimLocation location,
+      StorageClaimRegistry.Denial denial) {
+    plugin
+        .getLogger()
+        .warning(
+            "Denied storage placement for "
+                + storageId
+                + " at "
+                + location
+                + ": physical claim "
+                + denial);
+    playerFeedback.respond(
+        player,
+        denial == StorageClaimRegistry.Denial.NOT_READY
+            ? FeedbackReason.STORAGE_LOADING
+            : FeedbackReason.STORAGE_CLAIM_CONFLICT,
+        denial == StorageClaimRegistry.Denial.NOT_READY
+            ? "message.storage_loading"
+            : "message.storage_load_failed");
   }
 
   private boolean shouldRefundPlacementItem(Player player, ItemStack item) {

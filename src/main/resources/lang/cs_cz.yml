@@ -16,6 +16,8 @@ message:
   relay_disabled: "Relé jsou vypnutá v konfiguraci serveru."
   chunk_loader_duplicate: "Tento loader chunků je už aktivní na jiné pozici."
   chunk_loader_feature_disabled: "Loadery chunků jsou vypnuté v konfiguraci serveru."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Loader chunků: Aktivní."
   chunk_loader_disabled: "Loader chunků: Vypnuto."
   chunk_loader_already_enabled: "Loader chunků: Aktivní."

@@ -16,6 +16,8 @@ message:
   relay_disabled: "˙uoᴉʇɐɹnƃᴉɟuoɔ ɹǝʌɹǝs ʎq pǝlqɐsᴉp ǝɹɐ sʎɐlǝᴚ ʞɹoʍʇǝN"
   chunk_loader_duplicate: "˙uoᴉʇᴉsod ɹǝɥʇouɐ ʇɐ ǝʌᴉʇɔɐ ʎpɐǝɹlɐ sᴉ ɹǝpɐo⅂ ʞunɥƆ sᴉɥ⊥"
   chunk_loader_feature_disabled: "˙uoᴉʇɐɹnƃᴉɟuoɔ ɹǝʌɹǝs ʎq pǝlqɐsᴉp ǝɹɐ sɹǝpɐo⅂ ʞunɥƆ"
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "ɹǝpɐo⅂ ʞunɥƆ: :ǝʌᴉʇɔ∀."
   chunk_loader_disabled: "ɹǝpɐo⅂ ʞunɥƆ: pǝlqɐsᴉ◖."
   chunk_loader_already_enabled: "ɹǝpɐo⅂ ʞunɥƆ: :ǝʌᴉʇɔ∀."

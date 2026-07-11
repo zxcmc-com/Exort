@@ -159,17 +159,37 @@ public final class TransmitterSessionManager {
     }
     closeSessionsForTransmitter(transmitter);
     cancelChargingRefresh(transmitter);
-    TransmitterStoredTerminal.take(
-            plugin, transmitter, wirelessService::isWireless, message -> ExortLog.warn(message))
-        .ifPresent(
-            stored -> {
-              ItemStack drop = wirelessService.extractFromStorage(stored);
-              var dropped =
-                  transmitter
-                      .getWorld()
-                      .dropItem(transmitter.getLocation().add(0.5, 0.5, 0.5), drop);
-              dropped.setVelocity(new Vector(0, 0, 0));
-            });
+    TransmitterStoredTerminal.TakeReservation reservation =
+        TransmitterStoredTerminal.reserveTake(
+                plugin, transmitter, wirelessService::isWireless, message -> ExortLog.warn(message))
+            .orElse(null);
+    if (reservation == null || !reservation.commit()) {
+      return;
+    }
+    boolean spawned = false;
+    try {
+      ItemStack drop = wirelessService.extractFromStorage(reservation.item());
+      var dropped =
+          transmitter.getWorld().dropItem(transmitter.getLocation().add(0.5, 0.5, 0.5), drop);
+      spawned = true;
+      dropped.setVelocity(new Vector(0, 0, 0));
+    } catch (RuntimeException failure) {
+      boolean restored = false;
+      if (!spawned) {
+        try {
+          restored = reservation.rollback();
+        } catch (RuntimeException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+      }
+      if (!spawned && !restored) {
+        ExortLog.error(
+            "Failed to restore Wireless Terminal after transmitter drop error: "
+                + failure.getMessage());
+      } else {
+        ExortLog.warn("Wireless Transmitter item drop failed: " + failure.getMessage());
+      }
+    }
   }
 
   public VisualState visualState(Block transmitter) {

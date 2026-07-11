@@ -16,6 +16,8 @@ message:
   relay_disabled: "Netverks-relän ir slått av i server config."
   chunk_loader_duplicate: "Dien Chunk-loader ir redan aktiv på ien ander stað."
   chunk_loader_feature_disabled: "Chunk-loader-funksjonen ir slått av i server config."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk-loader: Aktivt."
   chunk_loader_disabled: "Chunk-loader: Avstengt."
   chunk_loader_already_enabled: "Chunk-loader: Aktivt."

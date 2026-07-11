@@ -19,4 +19,11 @@ record MarkerUpdate(
   int chunkZ() {
     return z >> 4;
   }
+
+  MarkerUpdate asMove() {
+    return moveOperation
+        ? this
+        : new MarkerUpdate(
+            operationId, worldId, x, y, z, snapshot, removedStorageId, storageCloneRequired, true);
+  }
 }

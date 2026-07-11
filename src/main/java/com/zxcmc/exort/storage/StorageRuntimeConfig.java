@@ -10,6 +10,8 @@ public record StorageRuntimeConfig(
     int flushIntervalSeconds,
     long cacheIdleUnloadSeconds,
     long cacheIdleCheckSeconds) {
+  static final int MAX_SCHEDULER_INTERVAL_SECONDS = Integer.MAX_VALUE / 20;
+
   public StorageRuntimeConfig {
     Objects.requireNonNull(defaultSortModeName, "defaultSortModeName");
   }
@@ -19,8 +21,12 @@ public record StorageRuntimeConfig(
     return new StorageRuntimeConfig(
         ConfigEnums.parse("defaultSortMode", config.getString("defaultSortMode"), SortMode.AMOUNT)
             .name(),
-        config.getInt("performance.storage.flushIntervalSeconds", 10),
-        config.getLong("performance.storage.idleUnloadSeconds", 300),
-        config.getLong("performance.storage.idleCheckSeconds", 60));
+        clampSeconds(config.getLong("performance.storage.flushIntervalSeconds", 10)),
+        clampSeconds(config.getLong("performance.storage.idleUnloadSeconds", 300)),
+        clampSeconds(config.getLong("performance.storage.idleCheckSeconds", 60)));
+  }
+
+  private static int clampSeconds(long value) {
+    return (int) Math.max(0L, Math.min(MAX_SCHEDULER_INTERVAL_SECONDS, value));
   }
 }

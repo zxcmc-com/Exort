@@ -14,7 +14,7 @@ import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
-import com.zxcmc.exort.placement.storage.StorageTierSaver;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
@@ -27,6 +27,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public record BlockListenerDependencies(
     JavaPlugin plugin,
     StorageManager storageManager,
+    StorageClaimRegistry storageClaimRegistry,
     StorageKeys keys,
     CustomItems customItems,
     Material wireMaterial,
@@ -54,12 +55,12 @@ public record BlockListenerDependencies(
     Supplier<NetworkGraphCache> networkGraphCache,
     Runnable revalidateSessions,
     Consumer<Block> transmitterPlacedRecorder,
-    StorageTierSaver storageTierSaver,
     Supplier<BreakSoundConfig> breakSoundConfig,
     Supplier<BusRuntimeConfig> busRuntimeConfig) {
   public BlockListenerDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(customItems, "customItems");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
@@ -82,7 +83,6 @@ public record BlockListenerDependencies(
     Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");
     Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
-    Objects.requireNonNull(storageTierSaver, "storageTierSaver");
     Objects.requireNonNull(breakSoundConfig, "breakSoundConfig");
     Objects.requireNonNull(busRuntimeConfig, "busRuntimeConfig");
   }

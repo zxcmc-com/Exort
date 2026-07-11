@@ -16,7 +16,7 @@ class StorageMarkerTest {
   private static final Logger LOGGER = Logger.getLogger(StorageMarkerTest.class.getName());
 
   @Test
-  void missingTierWithSnapshotMigratesToClosestLowerTierPermanently() {
+  void missingTierWithSnapshotResolvesWithoutRewritingMarker() {
     loadTiers(false);
     Plugin plugin = BukkitTestDoubles.plugin();
     Block block =
@@ -24,41 +24,33 @@ class StorageMarkerTest {
             .block(0, 64, 0, Material.BARRIER);
     writeRawStorageMarker(plugin, block, "storage-a", "OBSIDIAN", 20L * 45L * 64L);
 
-    StorageMarker.Data migrated = StorageMarker.get(plugin, block).orElseThrow();
+    StorageMarker.Data resolved = StorageMarker.get(plugin, block).orElseThrow();
 
-    assertEquals("DIAMOND", migrated.tier().key());
-    assertEquals(10L * 45L * 64L, migrated.tierMaxItems());
+    assertEquals("OBSIDIAN", resolved.tier().key());
+    assertEquals(20L * 45L * 64L, resolved.tierMaxItems());
+    assertTrue(resolved.orphaned());
+    assertTrue(resolved.tier().isReadOnly());
+    assertEquals(
+        "OBSIDIAN", ChunkMarkerStore.getString(plugin, block, "storage", "tier").orElseThrow());
+    assertEquals(
+        20L * 45L * 64L,
+        ChunkMarkerStore.getLong(plugin, block, "storage", "tierMaxItems").orElseThrow());
 
     loadTiers(true);
     StorageMarker.Data afterObsidianReturned = StorageMarker.get(plugin, block).orElseThrow();
 
-    assertEquals("DIAMOND", afterObsidianReturned.tier().key());
-    assertEquals(10L * 45L * 64L, afterObsidianReturned.tierMaxItems());
+    assertEquals("OBSIDIAN", afterObsidianReturned.tier().key());
+    assertEquals(20L * 45L * 64L, afterObsidianReturned.tierMaxItems());
   }
 
   @Test
-  void missingTierWithoutSnapshotFallsBackToSmallestTier() {
+  void missingTierWithoutSnapshotFailsClosed() {
     loadTiers(false);
     Plugin plugin = BukkitTestDoubles.plugin();
     Block block =
         BukkitTestDoubles.world("storage-marker-missing-snapshot", uuid(2))
             .block(0, 64, 0, Material.BARRIER);
     writeRawStorageMarker(plugin, block, "storage-b", "OBSIDIAN", null);
-
-    StorageMarker.Data migrated = StorageMarker.get(plugin, block).orElseThrow();
-
-    assertEquals("GOLD", migrated.tier().key());
-    assertTrue(migrated.fallback());
-  }
-
-  @Test
-  void missingTierRemainsInactiveWhenNoTiersExist() {
-    StorageTier.loadFromConfig(new YamlConfiguration(), LOGGER);
-    Plugin plugin = BukkitTestDoubles.plugin();
-    Block block =
-        BukkitTestDoubles.world("storage-marker-no-tiers", uuid(3))
-            .block(0, 64, 0, Material.BARRIER);
-    writeRawStorageMarker(plugin, block, "storage-c", "OBSIDIAN", 20L * 45L * 64L);
 
     assertTrue(StorageMarker.get(plugin, block).isEmpty());
   }
@@ -81,6 +73,47 @@ class StorageMarkerTest {
 
     StorageMarker.Data cleared = StorageMarker.get(plugin, block).orElseThrow();
     assertEquals(null, cleared.displayName());
+  }
+
+  @Test
+  void readingLegacyDisplayNameDoesNotRewriteMarker() {
+    loadTiers(true);
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block =
+        BukkitTestDoubles.world("storage-marker-pure-read", uuid(5))
+            .block(0, 64, 0, Material.BARRIER);
+    writeRawStorageMarker(plugin, block, "storage-e", "GOLD", 45L * 64L);
+    ChunkMarkerStore.setString(plugin, block, "storage", "name", "  Main\u0000 Vault  ");
+
+    StorageMarker.Data data = StorageMarker.get(plugin, block).orElseThrow();
+
+    assertEquals("Main Vault", data.displayName());
+    assertEquals(
+        "  Main\u0000 Vault  ",
+        ChunkMarkerStore.getString(plugin, block, "storage", "name").orElseThrow());
+  }
+
+  @Test
+  void claimConflictMakesConfiguredTierReadOnlyUntilReconciled() {
+    loadTiers(true);
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block =
+        BukkitTestDoubles.world("storage-marker-claim-conflict", uuid(6))
+            .block(0, 64, 0, Material.BARRIER);
+    StorageTier tier = StorageTier.fromString("gold").orElseThrow();
+    StorageMarker.set(plugin, block, "storage-f", tier);
+
+    StorageMarker.setClaimConflict(plugin, block, true);
+
+    StorageMarker.Data conflicted = StorageMarker.get(plugin, block).orElseThrow();
+    assertEquals("GOLD", conflicted.tier().key());
+    assertEquals(tier.maxItems(), conflicted.tierMaxItems());
+    assertTrue(conflicted.tier().isReadOnly());
+
+    StorageMarker.setClaimConflict(plugin, block, false);
+
+    StorageMarker.Data reconciled = StorageMarker.get(plugin, block).orElseThrow();
+    assertTrue(!reconciled.tier().isReadOnly());
   }
 
   private static void loadTiers(boolean includeObsidian) {

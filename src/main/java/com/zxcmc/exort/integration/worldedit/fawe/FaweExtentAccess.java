@@ -12,8 +12,15 @@ public final class FaweExtentAccess {
   private FaweExtentAccess() {}
 
   public static Result allowExtent(Plugin fawe, String extentClass) {
+    return allowExtent(fawe, extentClass, true);
+  }
+
+  public static Result allowExtent(Plugin fawe, String extentClass, boolean autoConfigure) {
     File configFile = new File(fawe.getDataFolder(), "config.yml");
-    ConfigResult configResult = allowExtentInConfig(configFile, extentClass);
+    ConfigResult configResult =
+        autoConfigure
+            ? allowExtentInConfig(configFile, extentClass)
+            : inspectExtentInConfig(configFile, extentClass);
     boolean modified = configResult.modified() && configResult.saved();
     boolean runtimeAllowed = false;
     Throwable runtimeError = null;
@@ -26,7 +33,7 @@ public final class FaweExtentAccess {
       Object extent = settingsClass.getField("EXTENT").get(settings);
       var allowedField = extent.getClass().getField("ALLOWED_PLUGINS");
       Object value = allowedField.get(extent);
-      if (value instanceof java.util.List<?> list) {
+      if (autoConfigure && value instanceof java.util.List<?> list) {
         if (!list.contains(extentClass)) {
           try {
             @SuppressWarnings("unchecked")
@@ -58,7 +65,7 @@ public final class FaweExtentAccess {
         }
       }
       runtimeAllowed = containsString(allowedField.get(extent), extentClass);
-    } catch (Throwable err) {
+    } catch (ReflectiveOperationException | RuntimeException | LinkageError err) {
       runtimeError = err;
     }
     return new Result(
@@ -72,6 +79,19 @@ public final class FaweExtentAccess {
 
   public static Result allowMarkerExtent(Plugin fawe, String extentClass) {
     return allowExtent(fawe, extentClass);
+  }
+
+  public static ConfigResult inspectExtentInConfig(File configFile, String extentClass) {
+    String path = configFile == null ? "<unknown>" : configFile.getAbsolutePath();
+    if (configFile == null || !configFile.isFile()) {
+      return new ConfigResult(path, false, false, false, null);
+    }
+    try {
+      YamlConfiguration.loadConfiguration(configFile);
+      return new ConfigResult(path, true, false, false, null);
+    } catch (RuntimeException error) {
+      return new ConfigResult(path, true, false, false, describe(error));
+    }
   }
 
   public static ConfigResult allowExtentInConfig(File configFile, String extentClass) {

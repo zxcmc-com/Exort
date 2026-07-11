@@ -23,19 +23,20 @@ import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.relay.RelaySetupTracker;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
-import java.util.concurrent.CompletableFuture;
 import org.bukkit.Material;
 
 public record ExortRuntimeServices(
-    CompletableFuture<ItemNameService.Status> itemNamesStatus,
+    RuntimeItemNamesReload itemNamesReload,
     CustomItems customItems,
     WirelessTerminalService wirelessService,
     WirelessTransmitterService wirelessTransmitterService,
     TransmitterSessionManager transmitterSessionManager,
     ChunkLoaderService chunkLoaderService,
+    StorageClaimRegistry storageClaimRegistry,
     RelaySetupTracker relaySetupTracker,
     RuntimeMaterials materials,
     Material relayTraversalCarrier,
@@ -62,5 +63,8 @@ public record ExortRuntimeServices(
     RecipeService recipeService,
     PacketEnhancements packetEnhancements,
     RightClickPlacementGuard placementGuard,
-    WorldEditIntegration worldEditIntegration,
-    boolean dialogSupported) {}
+    WorldEditIntegration worldEditIntegration) {
+  public java.util.concurrent.CompletableFuture<ItemNameService.Status> itemNamesStatus() {
+    return itemNamesReload.start();
+  }
+}

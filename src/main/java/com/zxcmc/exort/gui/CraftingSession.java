@@ -434,7 +434,7 @@ public class CraftingSession extends AbstractStorageSession {
   private void rollbackIngredients(List<StorageCache.ReservedItem> reserved) {
     if (reserved == null || reserved.isEmpty()) return;
     for (StorageCache.ReservedItem item : reserved) {
-      cache.addItem(item.key(), item.sample(), item.amount());
+      cache.restoreReserved(item);
     }
   }
 
@@ -646,6 +646,16 @@ public class CraftingSession extends AbstractStorageSession {
         CraftingTargetPreflight.merge(
             outputAdditions(plan, stack.give), remainderAdditions(plan, stack.crafts));
     if (!canAddAllToPlayer(viewer, output)) return false;
+    int bufferGive = Math.min(stack.bufferUsed, stack.give);
+    int remaining = stack.give - bufferGive;
+    int crafts = remaining / plan.resultPerCraft;
+    int expectedCraftOutput = stack.crafts * plan.resultPerCraft;
+    int craftedOutput = crafts * plan.resultPerCraft;
+    int bufferedOutput = expectedCraftOutput - craftedOutput;
+    if (bufferedOutput > 0
+        && !cache.preflightItem(plan.resultKey, plan.result, bufferedOutput).accepted()) {
+      return false;
+    }
     List<StorageCache.ReservedItem> reserved = null;
     if (stack.crafts > 0) {
       reserved = reserveIngredients(plan, stack.crafts);
@@ -660,16 +670,11 @@ public class CraftingSession extends AbstractStorageSession {
       }
       return false;
     }
-    int bufferGive = Math.min(stack.bufferUsed, stack.give);
     if (bufferGive > 0) {
       state.takeFromBuffer(plan.resultKey, bufferGive);
     }
-    int remaining = stack.give - bufferGive;
-    int crafts = remaining / plan.resultPerCraft;
-    int expectedCraftOutput = stack.crafts * plan.resultPerCraft;
-    int craftedOutput = crafts * plan.resultPerCraft;
-    if (craftedOutput < expectedCraftOutput) {
-      cache.addItem(plan.resultKey, plan.result, expectedCraftOutput - craftedOutput);
+    if (bufferedOutput > 0) {
+      cache.addItem(plan.resultKey, plan.result, bufferedOutput);
     }
     return true;
   }
@@ -1103,6 +1108,9 @@ public class CraftingSession extends AbstractStorageSession {
     long needed = 0L;
     for (OutputStack addition : additions) {
       if (addition.amount() <= 0) continue;
+      if (!cache.preflightItem(addition.key(), addition.sample(), addition.amount()).accepted()) {
+        return false;
+      }
       long weight = Math.max(1L, cache.nestedWeight(addition.sample()));
       needed = saturatingAdd(needed, saturatingMultiply(addition.amount(), weight));
       if (needed > spaceLeft()) return false;

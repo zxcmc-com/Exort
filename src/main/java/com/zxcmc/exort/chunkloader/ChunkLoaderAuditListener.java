@@ -42,11 +42,27 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCreativeAudit {
+  private static final Set<String> VANILLA_ITEM_DESTRUCTION_DAMAGE =
+      Set.of(
+          "minecraft:cactus",
+          "minecraft:campfire",
+          "minecraft:explosion",
+          "minecraft:generic_kill",
+          "minecraft:hot_floor",
+          "minecraft:in_fire",
+          "minecraft:lava",
+          "minecraft:lightning_bolt",
+          "minecraft:on_fire",
+          "minecraft:out_of_world",
+          "minecraft:outside_border",
+          "minecraft:player_explosion",
+          "minecraft:sweet_berry_bush");
+
   private final JavaPlugin plugin;
   private final CustomItems customItems;
   private final Database database;
   private final ChunkLoaderAuditLogger auditLogger;
-  private final Map<UUID, EntityDamageEvent.DamageCause> itemDamageCauses = new HashMap<>();
+  private final Map<UUID, String> itemDamageTypes = new HashMap<>();
   private final Map<UUID, CreativeInventorySession> creativeSessions = new HashMap<>();
   private final Predicate<UUID> activeLoaderIds;
   private final ChunkLoaderItemSnapshot.Resolver snapshotResolver;
@@ -202,7 +218,8 @@ public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCrea
   @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
   public void onItemDamage(EntityDamageEvent event) {
     if (event.getEntity() instanceof Item item && customItems.isChunkLoader(item.getItemStack())) {
-      itemDamageCauses.put(item.getUniqueId(), event.getCause());
+      itemDamageTypes.put(
+          item.getUniqueId(), event.getDamageSource().getDamageType().getKey().asString());
     }
   }
 
@@ -211,14 +228,14 @@ public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCrea
     if (!(event.getEntity() instanceof Item item)) {
       return;
     }
-    EntityDamageEvent.DamageCause damageCause = itemDamageCauses.remove(item.getUniqueId());
+    String damageType = itemDamageTypes.remove(item.getUniqueId());
     if (!customItems.isChunkLoader(item.getItemStack())
         || !shouldAuditEntityRemove(event.getCause())) {
       return;
     }
     ItemStack stack = item.getItemStack();
-    String reason = destroyReason(event.getCause(), damageCause);
-    ChunkLoaderRegistryStatus status = registryStatusForEntityRemove(event.getCause(), damageCause);
+    String reason = destroyReason(event.getCause(), damageType);
+    ChunkLoaderRegistryStatus status = registryStatusForEntityRemove(event.getCause(), damageType);
     auditLogger.logItemDestroy(
         null,
         null,
@@ -298,10 +315,9 @@ public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCrea
     };
   }
 
-  static String destroyReason(
-      EntityRemoveEvent.Cause cause, EntityDamageEvent.DamageCause damageCause) {
-    if (damageCause != null) {
-      return damageCause.name().toLowerCase(java.util.Locale.ROOT);
+  static String destroyReason(EntityRemoveEvent.Cause cause, String damageType) {
+    if (damageType != null) {
+      return damageType;
     }
     return cause.name().toLowerCase(java.util.Locale.ROOT);
   }
@@ -694,7 +710,7 @@ public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCrea
       return;
     }
     database
-        .recordChunkLoaderObservation(observation)
+        .recordChunkLoaderObservationBestEffort(observation)
         .whenComplete(
             (found, err) -> {
               if (err != null || !Boolean.TRUE.equals(found)) {
@@ -713,16 +729,16 @@ public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCrea
     ChunkLoaderObservation observation =
         ChunkLoaderObservation.atLocation(id, status, location, actor, reason, reason);
     if (observation != null) {
-      database.recordChunkLoaderObservation(observation);
+      database.recordChunkLoaderObservationBestEffort(observation);
     }
   }
 
   static ChunkLoaderRegistryStatus registryStatusForEntityRemove(
-      EntityRemoveEvent.Cause cause, EntityDamageEvent.DamageCause damageCause) {
-    if (isVanillaItemDestruction(damageCause)) {
+      EntityRemoveEvent.Cause cause, String damageType) {
+    if (isVanillaItemDestruction(damageType)) {
       return ChunkLoaderRegistryStatus.REMOVED;
     }
-    if (damageCause != null) {
+    if (damageType != null) {
       return ChunkLoaderRegistryStatus.LOST;
     }
     return switch (cause) {
@@ -731,26 +747,8 @@ public final class ChunkLoaderAuditListener implements Listener, ChunkLoaderCrea
     };
   }
 
-  private static boolean isVanillaItemDestruction(EntityDamageEvent.DamageCause damageCause) {
-    if (damageCause == null) {
-      return false;
-    }
-    return switch (damageCause) {
-      case BLOCK_EXPLOSION,
-          CAMPFIRE,
-          CONTACT,
-          ENTITY_EXPLOSION,
-          FIRE,
-          FIRE_TICK,
-          HOT_FLOOR,
-          KILL,
-          LAVA,
-          LIGHTNING,
-          VOID,
-          WORLD_BORDER ->
-          true;
-      default -> false;
-    };
+  private static boolean isVanillaItemDestruction(String damageType) {
+    return damageType != null && VANILLA_ITEM_DESTRUCTION_DAMAGE.contains(damageType);
   }
 
   static List<DeathLoss> deathLosses(

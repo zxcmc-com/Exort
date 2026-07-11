@@ -85,6 +85,23 @@ class WirelessTerminalServiceStoredChargeTest {
     assertTrue(terminal.meta.pdc.has(harness.keys.wirelessStoredAt()));
   }
 
+  @Test
+  void craftingUnbindReturnsOneTerminalAndPreservesCharge() {
+    Harness harness = harness();
+    TestItemStack terminal = terminal(harness, 42);
+    terminal.amount = 16;
+    terminal.meta.pdc.set(harness.keys.wirelessOwner(), "owner");
+    terminal.meta.pdc.set(harness.keys.wirelessStorageId(), "storage");
+
+    TestItemStack result = (TestItemStack) harness.service.resetLinkViaCraft(terminal);
+
+    assertEquals(1, result.getAmount());
+    assertEquals(16, terminal.getAmount());
+    assertEquals(42, harness.service.currentCharge(result));
+    assertFalse(result.meta.pdc.has(harness.keys.wirelessOwner()));
+    assertFalse(result.meta.pdc.has(harness.keys.wirelessStorageId()));
+  }
+
   private static Harness harness() {
     Plugin plugin = BukkitTestDoubles.plugin();
     StorageKeys keys = new StorageKeys(plugin);
@@ -124,6 +141,7 @@ class WirelessTerminalServiceStoredChargeTest {
 
   private static final class TestItemStack extends ItemStack {
     private final MetaState meta;
+    private int amount = 1;
 
     TestItemStack(MetaState meta) {
       this.meta = meta;
@@ -150,8 +168,20 @@ class WirelessTerminalServiceStoredChargeTest {
     }
 
     @Override
+    public int getAmount() {
+      return amount;
+    }
+
+    @Override
+    public void setAmount(int amount) {
+      this.amount = amount;
+    }
+
+    @Override
     public TestItemStack clone() {
-      return new TestItemStack(meta.copy());
+      TestItemStack copy = new TestItemStack(meta.copy());
+      copy.amount = amount;
+      return copy;
     }
   }
 

@@ -15,7 +15,9 @@ chorusfix: true
 
 # Resource pack delivery is used only when the effective mode is RESOURCE.
 resourcePack:
-  # AUTO | EXORT | NEXO | ITEMSADDER | ORAXEN | SELFHOST | LOBFILE | DISABLED
+  # AUTO | EXORT | NEXO | ITEMSADDER | ORAXEN | SELFHOST | LOBFILE | DISABLED.
+  # AUTO uses an enabled pack provider or configured official EXORT hosting; it never opens the
+  # built-in HTTP server. Select SELFHOST explicitly to start the built-in server.
   hosting: AUTO
   # AUTO | CONFIGURATION | JOIN | MANUAL
   delivery: AUTO
@@ -45,6 +47,13 @@ packetEvents:
   # SIMPLE | FULL
   localizationLevel: SIMPLE
 
+# Optional integration controls. Exort never edits another plugin's config unless explicitly opted in.
+integrations:
+  fawe:
+    # Add Exort/provider extents to FastAsyncWorldEdit's extent.allowed-plugins automatically.
+    # Leave false to receive an actionable diagnostic and manage the FAWE allowlist yourself.
+    autoConfigure: false
+
 # Runtime performance controls that may need server-specific tuning.
 performance:
   displayCulling:
@@ -61,6 +70,7 @@ performance:
   worldEditBulk: true
   storage:
     # Seconds between periodic dirty-cache flushes to the database. Set 0 to disable the periodic flush.
+    # Negative and scheduler-overflowing values are clamped to a safe range.
     flushIntervalSeconds: 10
     # Seconds before an idle storage cache can be unloaded from memory. Set 0 to disable idle unloads.
     idleUnloadSeconds: 300
@@ -69,9 +79,10 @@ performance:
   # Ticks between physical terminal/bus GUI distance checks.
   sessionDeviceCheckIntervalTicks: 5
   bus:
-    # Global bus operation budget per tick.
+    # Global bus operation budget per tick. Values above 4096 are clamped.
     maxOperationsPerTick: 500
-    # Per-chunk bus operation budget per tick. Set 0 for no per-chunk limit.
+    # Per-chunk bus operation budget per tick. Set 0 for no per-chunk limit;
+    # values above the global budget are clamped to that budget.
     maxOperationsPerChunk: 40
 
 # Prevent client-side ghost placement and sounds when right-clicking Exort blocks with placeable items.
@@ -81,8 +92,8 @@ placementGuard: true
 protection:
   enabled: true
   # If an installed protection adapter cannot complete a check, true denies Exort actions.
-  # false keeps fail-open behavior.
-  failClosedOnError: false
+  # Keep this fail-closed unless compatibility debugging explicitly requires otherwise.
+  failClosedOnError: true
   adapters:
     worldguard: true
     griefPrevention: true
@@ -119,8 +130,10 @@ wire:
   # and safely falls back to BARRIER otherwise. BARRIER always uses full-block wire hitboxes.
   carrier: CHORUS_PLANT
   # Maximum logical wire length used to connect a terminal to storage.
+  # Values are clamped to 1..32768 to keep traversal work bounded.
   limit: 32
   # Hard traversal cap. If exceeded, the network is ignored.
+  # Values are clamped to wire.limit..65536.
   hardCap: 64
 
 # Network Relay settings.
@@ -128,6 +141,7 @@ relay:
   # Enable Network Relay placement, interaction, recipes, catalog visibility, and network traversal.
   enabled: true
   # Maximum chunk Manhattan distance between two linked network relay blocks.
+  # Values outside 0..1024 are clamped by Exort.
   rangeChunks: 3
 
 # Chunk Loader settings.
@@ -137,6 +151,14 @@ chunkLoader:
   # Square radius in chunks around the loader. 1 keeps 3x3 chunks loaded.
   # Values outside 0..8 are clamped by Exort.
   radius: 1
+  # Operational limits protect the server from accidentally ticketing excessive chunks.
+  # Values outside Exort's safe ranges are clamped with a startup warning.
+  limits:
+    maxActiveLoaders: 128
+    maxActiveLoadersPerWorld: 64
+    maxActiveLoadersPerPlayer: 8
+    maxUniqueChunks: 2048
+    maxUniqueChunksPerWorld: 1024
   audit:
     # Disable the whole Chunk Loader audit pipeline, including console logs, file logs, inventory
     # tracking, creative-session reconciliation, and related item-loss event listeners.
@@ -144,6 +166,7 @@ chunkLoader:
     file:
       enabled: true
       path: logs/chunkloaders.log
+      # Clamped to 1..67108864 bytes and 1..32 archives.
       maxSizeBytes: 10485760
       maxFiles: 10
     # Console event filters only. The dedicated file audit remains full while file.enabled is true.
@@ -167,6 +190,7 @@ chunkLoader:
 wireless:
   enabled: true
   # Horizontal range in blocks from loaded active Wireless Transmitters.
+  # Values outside 0..32768 are clamped by Exort.
   rangeBlocks: 48
 
 # Custom breaking for Exort carrier blocks.

@@ -7,9 +7,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -17,6 +18,7 @@ import java.util.logging.Logger;
 
 public final class RotatingChunkLoaderAuditFileWriter implements ChunkLoaderAuditFileWriter {
   private static final long CLOSE_TIMEOUT_SECONDS = 2L;
+  private static final int QUEUE_CAPACITY = 2_048;
 
   private final Path file;
   private final long maxSizeBytes;
@@ -33,12 +35,18 @@ public final class RotatingChunkLoaderAuditFileWriter implements ChunkLoaderAudi
     this.maxFiles = Math.max(1, maxFiles);
     this.logger = logger;
     this.executor =
-        Executors.newSingleThreadExecutor(
+        new ThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(QUEUE_CAPACITY),
             task -> {
               Thread thread = new Thread(task, "Exort-ChunkLoaderAuditLog");
               thread.setDaemon(true);
               return thread;
-            });
+            },
+            new ThreadPoolExecutor.AbortPolicy());
   }
 
   public static ChunkLoaderAuditFileWriter create(

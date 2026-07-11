@@ -57,7 +57,6 @@ public class SessionManager {
   private final Supplier<BusService> busService;
   private final Supplier<CraftingRules> craftingRules;
   private final BooleanSupplier resourceMode;
-  private final BooleanSupplier dialogSupported;
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
   private final IntSupplier relayRangeChunks;
@@ -88,7 +87,6 @@ public class SessionManager {
     this.busService = dependencies.busService();
     this.craftingRules = dependencies.craftingRules();
     this.resourceMode = dependencies.resourceMode();
-    this.dialogSupported = dependencies.dialogSupported();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
     this.relayRangeChunks = dependencies.relayRangeChunks();
@@ -106,7 +104,8 @@ public class SessionManager {
             wireMaterial,
             storageCarrier,
             relayCarrier,
-            terminalCarrier);
+            terminalCarrier,
+            dependencies.regionProtection());
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();
     this.storageChangeListener = dependencies.storageChangeListener();
@@ -168,7 +167,8 @@ public class SessionManager {
                   for (GuiSession session : snapshot) {
                     if (!(session instanceof AbstractStorageSession storageSession)) continue;
                     if (!storageSession.isWireless()) {
-                      if (sessionValidator.shouldClosePhysicalSession(storageSession)) {
+                      if (sessionValidator.shouldClosePhysicalSession(storageSession)
+                          || !sessionValidator.isSessionValid(storageSession)) {
                         physicalToClose.add(storageSession.getViewer());
                       }
                       continue;
@@ -285,8 +285,10 @@ public class SessionManager {
       forceCloseSession(player);
     }
     boolean readOnly =
-        forceReadOnly || (!forceWrite && registry.hasStorageSessions(cache.getStorageId()));
-    if (forceWrite) {
+        cache.isReadOnly()
+            || forceReadOnly
+            || (!forceWrite && registry.hasStorageSessions(cache.getStorageId()));
+    if (forceWrite && !readOnly) {
       registry.makeForcedWriter(cache.getStorageId(), player.getUniqueId());
     }
     // Close peek bossbar if any before opening full GUI bar
@@ -365,10 +367,6 @@ public class SessionManager {
 
   public boolean openSearch(Player player, SearchableSession parent) {
     if (parent == null) return false;
-    if (!dialogSupported.getAsBoolean()) {
-      playerFeedback().error(player, "error.search.dialogs_unsupported");
-      return false;
-    }
     SearchableSession existing = searchCoordinator.pendingFor(player);
     if (existing != null) {
       searchCoordinator.discard(player);
@@ -487,6 +485,32 @@ public class SessionManager {
 
   public Collection<GuiSession> allSessions() {
     return registry.allSessions();
+  }
+
+  public boolean authorizeInteraction(GuiSession session) {
+    if (!(session instanceof AbstractStorageSession storageSession)) {
+      return true;
+    }
+    if (!storageSession.isWireless()) {
+      if (!sessionValidator.shouldClosePhysicalSession(storageSession)
+          && sessionValidator.isSessionValid(storageSession)) {
+        return true;
+      }
+      forceCloseSession(storageSession.getViewer());
+      return false;
+    }
+    GuiSessionValidator.WirelessValidationResult validation =
+        sessionValidator.wirelessValidation(
+            storageSession, wirelessService.get(), wirelessTransmitterService.get());
+    if (validation.isValid()) {
+      return true;
+    }
+    Player player = storageSession.getViewer();
+    forceCloseSession(player);
+    if (player != null && player.isOnline() && validation.messageKey() != null) {
+      playerFeedback().error(player, validation.messageKey());
+    }
+    return false;
   }
 
   public void closeSessionsForTerminal(Block block) {
@@ -620,8 +644,8 @@ public class SessionManager {
     if (player == null) return;
     try {
       player.closeDialog();
-    } catch (Throwable ignored) {
-      // Dialogs are available only on supported Paper versions.
+    } catch (RuntimeException | LinkageError ignored) {
+      // A disconnect or optional Paper linkage failure must not break session cleanup.
     }
   }
 

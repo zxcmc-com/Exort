@@ -13,11 +13,10 @@ import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -27,7 +26,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,19 +36,12 @@ class NetworkGraphCacheRelayTest {
   private Plugin plugin;
   private StorageKeys keys;
   private StorageTier tier;
-  private Map<String, StorageTier> savedTiers;
 
   @BeforeEach
   void setUp() {
-    savedTiers = snapshotTiers();
     plugin = BukkitTestDoubles.plugin();
     keys = new StorageKeys(plugin);
     tier = loadTier();
-  }
-
-  @AfterEach
-  void tearDown() {
-    restoreTiers(savedTiers);
   }
 
   @Test
@@ -71,6 +62,65 @@ class NetworkGraphCacheRelayTest {
   }
 
   @Test
+  void sameStorageTouchingTwoWiresIsCountedOnce() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("wire-storage-dedup", uuid(17));
+    Block terminal = world.block(0, 64, 0, CARRIER);
+    Block first = world.block(1, 64, 0, WIRE);
+    Block east = world.block(2, 64, 0, WIRE);
+    Block south = world.block(1, 64, 1, WIRE);
+    Block storage = world.block(2, 64, 1, CARRIER);
+    TerminalMarker.set(plugin, terminal);
+    WireMarker.setWire(plugin, first);
+    WireMarker.setWire(plugin, east);
+    WireMarker.setWire(plugin, south);
+    StorageMarker.set(plugin, storage, "storage-a", tier);
+
+    TerminalLinkFinder.StorageSearchResult result = scan(terminal, 8, 16, 0);
+
+    assertEquals(TerminalLinkFinder.StorageSearchStatus.OK, result.status());
+    assertEquals(1, result.count());
+    assertEquals("storage-a", result.data().storageId());
+  }
+
+  @Test
+  void hardCapOverflowFailsClosedEvenWhenStorageWasAlreadyFound() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("wire-hard-cap", uuid(18));
+    Block terminal = world.block(0, 64, 0, CARRIER);
+    Block first = world.block(1, 64, 0, WIRE);
+    Block second = world.block(2, 64, 0, WIRE);
+    Block third = world.block(3, 64, 0, WIRE);
+    Block storage = world.block(1, 65, 0, CARRIER);
+    TerminalMarker.set(plugin, terminal);
+    WireMarker.setWire(plugin, first);
+    WireMarker.setWire(plugin, second);
+    WireMarker.setWire(plugin, third);
+    StorageMarker.set(plugin, storage, "storage-a", tier);
+
+    TerminalLinkFinder.StorageSearchResult result = scan(terminal, 8, 2, 0);
+
+    assertEquals(TerminalLinkFinder.StorageSearchStatus.HARD_CAP, result.status());
+    assertEquals(0, result.count());
+    assertTrue(result.data() == null);
+  }
+
+  @Test
+  void wireLimitOverflowFailsClosed() {
+    BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("wire-limit", uuid(19));
+    Block terminal = world.block(0, 64, 0, CARRIER);
+    Block first = world.block(1, 64, 0, WIRE);
+    Block second = world.block(2, 64, 0, WIRE);
+    TerminalMarker.set(plugin, terminal);
+    WireMarker.setWire(plugin, first);
+    WireMarker.setWire(plugin, second);
+
+    TerminalLinkFinder.StorageSearchResult result = scan(terminal, 1, 16, 0);
+
+    assertEquals(TerminalLinkFinder.StorageSearchStatus.WIRE_LIMIT, result.status());
+    assertEquals(0, result.count());
+    assertTrue(result.data() == null);
+  }
+
+  @Test
   void disabledRelayTraversalDoesNotConnectLinkedRelays() {
     BukkitTestDoubles.TestWorld world = BukkitTestDoubles.world("relay-graph-disabled", uuid(16));
     Block terminal = world.block(0, 64, 0, CARRIER);
@@ -88,7 +138,7 @@ class NetworkGraphCacheRelayTest {
   }
 
   @Test
-  void scanUsesStorageMarkerFallbackWhenTierWasRemoved() {
+  void scanPreservesMissingTierAsReadOnlyOrphan() {
     ConfigurationSection gold =
         config(Map.of("maxItems", 45L * 64L, "material", "minecraft:gold_block"));
     ConfigurationSection diamond =
@@ -112,7 +162,9 @@ class NetworkGraphCacheRelayTest {
 
     assertEquals(1, result.count());
     assertEquals("storage-a", result.data().storageId());
-    assertEquals("DIAMOND", result.data().tier().key());
+    assertEquals("OBSIDIAN", result.data().tier().key());
+    assertEquals(20L * 45L * 64L, result.data().tier().maxItems());
+    assertTrue(result.data().tier().isReadOnly());
   }
 
   @Test
@@ -194,32 +246,6 @@ class NetworkGraphCacheRelayTest {
   private static StorageTier loadTier() {
     StorageTier.loadFromConfig(tiersSection(), Logger.getLogger("ExortTest"));
     return StorageTier.fromString("BASIC").orElseThrow();
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Map<String, StorageTier> snapshotTiers() {
-    try {
-      Field field = StorageTier.class.getDeclaredField("REGISTRY");
-      field.setAccessible(true);
-      return new LinkedHashMap<>((Map<String, StorageTier>) field.get(null));
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("Unable to snapshot storage tiers", e);
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static void restoreTiers(Map<String, StorageTier> tiers) {
-    try {
-      Field field = StorageTier.class.getDeclaredField("REGISTRY");
-      field.setAccessible(true);
-      Map<String, StorageTier> registry = (Map<String, StorageTier>) field.get(null);
-      registry.clear();
-      if (tiers != null) {
-        registry.putAll(tiers);
-      }
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("Unable to restore storage tiers", e);
-    }
   }
 
   private static ConfigurationSection tiersSection() {

@@ -16,6 +16,8 @@ message:
   relay_disabled: "Fierpmádatreléat leat jávkkahuvvon servera konfigurašuvnnas."
   chunk_loader_duplicate: "Dát Chunk-loader lea juo aktiiva eará sajis."
   chunk_loader_feature_disabled: "Chunk-loaderat leat jávkkahuvvon servera konfigurašuvnnas."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk-loader: Aktiivvalaš."
   chunk_loader_disabled: "Chunk-loader: Jávkkahuvvon."
   chunk_loader_already_enabled: "Chunk-loader: Aktiivvalaš."

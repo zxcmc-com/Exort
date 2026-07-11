@@ -43,6 +43,7 @@ import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.logging.ExortLog;
+import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.integration.worldedit.fawe.FaweExtentAccess;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkLoaderMarker;
@@ -55,6 +56,9 @@ import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
+import com.zxcmc.exort.storage.StorageClaim;
+import com.zxcmc.exort.storage.StorageClaimLocation;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.transmitter.TransmitterMode;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
@@ -76,6 +80,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -94,6 +99,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -142,6 +148,7 @@ public final class WorldEditBridge implements Listener {
   private static final String FIELD_PLACED_BY_NAME = "placed_by_name";
   private static final String FIELD_CREATED_AT = "created_at";
   private static final String FIELD_ENABLED = "enabled";
+  private static final String FIELD_BYPASS_LIMITS = "bypass_limits";
 
   private static final int BUS_FILTER_SLOTS = 10;
 
@@ -178,12 +185,15 @@ public final class WorldEditBridge implements Listener {
   private final Map<UUID, PendingClipboardPatch> clipboardPatches = new ConcurrentHashMap<>();
   private final Map<UUID, PendingClipboardPatch> pendingCutSourcePatches =
       new ConcurrentHashMap<>();
+  private final Set<UUID> pendingCutClipboardTransfers = ConcurrentHashMap.newKeySet();
   private final Map<UUID, PendingPasteCommand> pendingPasteCommands = new ConcurrentHashMap<>();
   private final Map<UUID, PendingHistoryCommand> pendingHistoryCommands = new ConcurrentHashMap<>();
   private final Map<UUID, PendingMovePatch> pendingMovePatches = new ConcurrentHashMap<>();
   private final Map<UUID, PendingOperationSnapshot> pendingOperationSnapshots =
       new ConcurrentHashMap<>();
   private final WorldEditOperationTracker operationTracker = new WorldEditOperationTracker();
+  private final Map<StoragePreparationKey, CompletableFuture<Boolean>> storagePreparations =
+      new ConcurrentHashMap<>();
   private final Object flushTaskLock = new Object();
   private BukkitTask flushTask;
   private boolean shuttingDown;
@@ -202,40 +212,53 @@ public final class WorldEditBridge implements Listener {
     Plugin plugin = deps.plugin();
     Plugin worldEdit = Bukkit.getPluginManager().getPlugin("WorldEdit");
     Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-    if (worldEdit == null && fawe == null) return null;
+    if (!isEnabled(worldEdit) && !isEnabled(fawe)) return null;
+    WorldEditBridge bridge = null;
+    boolean eventBusRegistered = false;
     try {
-      if (fawe != null) {
-        allowFaweExtent(plugin, fawe, "marker", MarkerExtent.class.getName());
-        if (Bukkit.getPluginManager().getPlugin(ORAXEN_PLUGIN_NAME) != null) {
-          allowFaweExtent(plugin, fawe, "Oraxen", ORAXEN_WORLDEDIT_EXTENT);
+      if (isEnabled(fawe)) {
+        allowFaweExtent(
+            plugin, fawe, "marker", MarkerExtent.class.getName(), deps.autoConfigureFawe());
+        if (Bukkit.getPluginManager().isPluginEnabled(ORAXEN_PLUGIN_NAME)) {
+          allowFaweExtent(
+              plugin, fawe, "Oraxen", ORAXEN_WORLDEDIT_EXTENT, deps.autoConfigureFawe());
         }
-        if (Bukkit.getPluginManager().getPlugin(NEXO_PLUGIN_NAME) != null) {
-          allowFaweExtent(plugin, fawe, "Nexo", NEXO_WORLDEDIT_EXTENT);
+        if (Bukkit.getPluginManager().isPluginEnabled(NEXO_PLUGIN_NAME)) {
+          allowFaweExtent(plugin, fawe, "Nexo", NEXO_WORLDEDIT_EXTENT, deps.autoConfigureFawe());
         }
       }
-      WorldEditBridge bridge = new WorldEditBridge(deps);
+      bridge = new WorldEditBridge(deps);
       WorldEdit.getInstance().getEventBus().register(bridge);
+      eventBusRegistered = true;
       Bukkit.getPluginManager().registerEvents(bridge, plugin);
       ExortLog.success("[WorldEdit] Integration enabled.");
       return bridge;
     } catch (NoClassDefFoundError err) {
+      rollbackRegistration(bridge, eventBusRegistered);
       ExortLog.warn("[WorldEdit] Integration disabled: missing classes.");
       return null;
-    } catch (Throwable err) {
+    } catch (RuntimeException | LinkageError err) {
+      rollbackRegistration(bridge, eventBusRegistered);
       ExortLog.warn("[WorldEdit] Integration disabled: " + err.getMessage());
       return null;
     }
   }
 
   private static void allowFaweExtent(
-      Plugin plugin, Plugin fawe, String label, String extentClass) {
-    FaweExtentAccess.Result result = FaweExtentAccess.allowExtent(fawe, extentClass);
+      Plugin plugin, Plugin fawe, String label, String extentClass, boolean autoConfigureFawe) {
+    FaweExtentAccess.Result result =
+        FaweExtentAccess.allowExtent(fawe, extentClass, autoConfigureFawe);
     if (result == null) {
       return;
     }
     if (result.hasFailure()) {
       if (FaweExtentAccess.shouldLogWarning(result, extentClass)) {
-        plugin.getLogger().warning(result.warningMessage(label, extentClass));
+        String optIn =
+            autoConfigureFawe
+                ? ""
+                : "; add the class to FAWE extent.allowed-plugins manually or set "
+                    + "integrations.fawe.autoConfigure=true in Exort config";
+        plugin.getLogger().warning(result.warningMessage(label, extentClass) + optIn);
       }
       return;
     }
@@ -244,10 +267,28 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
+  private static boolean isEnabled(Plugin plugin) {
+    return plugin != null && plugin.isEnabled();
+  }
+
+  private static void rollbackRegistration(WorldEditBridge bridge, boolean eventBusRegistered) {
+    if (bridge == null) {
+      return;
+    }
+    HandlerList.unregisterAll(bridge);
+    if (eventBusRegistered) {
+      try {
+        WorldEdit.getInstance().getEventBus().unregister(bridge);
+      } catch (RuntimeException | LinkageError ignored) {
+        // The original registration failure remains the actionable error.
+      }
+    }
+  }
+
   public void shutdown() {
     try {
       WorldEdit.getInstance().getEventBus().unregister(this);
-    } catch (Throwable ignored) {
+    } catch (RuntimeException | LinkageError ignored) {
     }
     HandlerList.unregisterAll(this);
     synchronized (flushTaskLock) {
@@ -265,10 +306,12 @@ public final class WorldEditBridge implements Listener {
     markerHistory.clear();
     clipboardPatches.clear();
     pendingCutSourcePatches.clear();
+    pendingCutClipboardTransfers.clear();
     pendingPasteCommands.clear();
     pendingHistoryCommands.clear();
     pendingMovePatches.clear();
     pendingOperationSnapshots.clear();
+    storagePreparations.clear();
     operationTracker.clear();
   }
 
@@ -386,11 +429,7 @@ public final class WorldEditBridge implements Listener {
       return;
     }
     if (WorldEditCommandParser.isClipboardClearCommand(command)) {
-      clipboardPatches.remove(player.getUniqueId());
-      pendingCutSourcePatches.remove(player.getUniqueId());
-      pendingPasteCommands.remove(player.getUniqueId());
-      pendingMovePatches.remove(player.getUniqueId());
-      pendingOperationSnapshots.remove(player.getUniqueId());
+      clearActorClipboardState(player.getUniqueId());
     }
   }
 
@@ -423,6 +462,17 @@ public final class WorldEditBridge implements Listener {
       }
     }
     reconcileDeferredSnapshotChunk(key, "chunk_load");
+  }
+
+  @EventHandler
+  public void onPlayerQuit(PlayerQuitEvent event) {
+    if (event == null || event.getPlayer() == null) {
+      return;
+    }
+    UUID actorId = event.getPlayer().getUniqueId();
+    clearActorClipboardState(actorId);
+    pendingHistoryCommands.remove(actorId);
+    markerHistory.clearActor(actorId);
   }
 
   @Subscribe
@@ -523,6 +573,7 @@ public final class WorldEditBridge implements Listener {
     pendingPasteCommands.remove(actorId);
     pendingMovePatches.remove(actorId);
     pendingCutSourcePatches.remove(actorId);
+    pendingCutClipboardTransfers.remove(actorId);
     pendingOperationSnapshots.remove(actorId);
     PendingHistoryCommand command =
         new PendingHistoryCommand(
@@ -594,6 +645,7 @@ public final class WorldEditBridge implements Listener {
         || patch == null
         || patch.markers().isEmpty()) {
       pendingCutSourcePatches.remove(actorId);
+      pendingCutClipboardTransfers.remove(actorId);
       return;
     }
     PendingClipboardPatch sourcePatch = captureClipboardPatch(actor, true);
@@ -601,6 +653,7 @@ public final class WorldEditBridge implements Listener {
       sourcePatch = patch;
     }
     pendingCutSourcePatches.put(actorId, sourcePatch);
+    pendingCutClipboardTransfers.add(actorId);
     PendingClipboardPatch retainedPatch = sourcePatch;
     Bukkit.getScheduler()
         .runTaskLater(plugin, () -> pendingCutSourcePatches.remove(actorId, retainedPatch), 100L);
@@ -613,11 +666,18 @@ public final class WorldEditBridge implements Listener {
 
   private void clearClipboardPatch(Actor actor) {
     if (actor == null || actor.getUniqueId() == null) return;
-    clipboardPatches.remove(actor.getUniqueId());
-    pendingCutSourcePatches.remove(actor.getUniqueId());
-    pendingPasteCommands.remove(actor.getUniqueId());
-    pendingMovePatches.remove(actor.getUniqueId());
-    pendingOperationSnapshots.remove(actor.getUniqueId());
+    clearActorClipboardState(actor.getUniqueId());
+  }
+
+  private void clearActorClipboardState(UUID actorId) {
+    if (actorId == null) return;
+    clipboardPatcher.cancel(actorId);
+    clipboardPatches.remove(actorId);
+    pendingCutSourcePatches.remove(actorId);
+    pendingCutClipboardTransfers.remove(actorId);
+    pendingPasteCommands.remove(actorId);
+    pendingMovePatches.remove(actorId);
+    pendingOperationSnapshots.remove(actorId);
   }
 
   private PendingPastePatch resolvePendingPastePatch(Actor actor, UUID destinationWorldId) {
@@ -721,13 +781,18 @@ public final class WorldEditBridge implements Listener {
       pendingPasteCommands.remove(actorId, command);
       return null;
     }
+    boolean preserveStorageIdentity = pendingCutClipboardTransfers.contains(actorId);
+    boolean finalPasteStage = command.usesRemaining() <= 1;
     consumePasteCommand(actorId, command);
+    if (finalPasteStage) {
+      pendingCutClipboardTransfers.remove(actorId);
+    }
     WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent(
           "we paste sidecar markers=" + destinationMarkers.size(), NamedTextColor.DARK_GREEN);
     }
-    return new PendingPastePatch(destinationMarkers, undoMarkers);
+    return new PendingPastePatch(destinationMarkers, undoMarkers, preserveStorageIdentity);
   }
 
   private boolean hasPendingPasteCommand(Actor actor) {
@@ -1342,9 +1407,13 @@ public final class WorldEditBridge implements Listener {
           Set<String> removedStorageIds =
               removedStorageIdsByOperation.getOrDefault(update.operationId(), Set.of());
           boolean moveStorage =
-              storageId != null
-                  && (update.moveOperation() || removedStorageIds.contains(storageId));
+              storageIdentityAction(update, removedStorageIds)
+                  == StorageIdentityAction.PRESERVE_IDENTITY;
           if (moveStorage) {
+            if (!update.moveOperation()) {
+              update = update.asMove();
+              pending.update = update;
+            }
             WorldEditDebugService debug = deps.debugService();
             if (debug != null && debug.isFull()) {
               debug.recordEvent(
@@ -1364,20 +1433,6 @@ public final class WorldEditBridge implements Listener {
             }
           } else if (storageId != null) {
             String newId = UUID.randomUUID().toString();
-            var storageManager = deps.storageManager();
-            if (storageManager == null) {
-              plugin
-                  .getLogger()
-                  .warning(
-                      "Skipping WorldEdit storage paste at "
-                          + update.x()
-                          + ","
-                          + update.y()
-                          + ","
-                          + update.z()
-                          + ": storage manager is unavailable");
-              continue;
-            }
             MarkerSnapshot clonedSnapshot = withStorageId(resolveStorageTier(snapshot), newId);
             MarkerUpdate clonedUpdate =
                 new MarkerUpdate(
@@ -1407,25 +1462,7 @@ public final class WorldEditBridge implements Listener {
                       + newId,
                   NamedTextColor.LIGHT_PURPLE);
             }
-            storageManager
-                .cloneStorage(
-                    storageId,
-                    newId,
-                    clonedSnapshot.storage().tier(),
-                    clonedSnapshot.storage().tierMaxItems())
-                .whenComplete(
-                    (ignored, err) -> {
-                      if (err != null) {
-                        plugin
-                            .getLogger()
-                            .log(
-                                Level.WARNING,
-                                "Failed to clone WorldEdit storage " + storageId + " to " + newId,
-                                unwrap(err));
-                        return;
-                      }
-                      enqueue(clonedUpdate);
-                    });
+            prepareEmptyStorageClone(world, clonedUpdate, storageId);
             continue;
           }
         }
@@ -1559,6 +1596,7 @@ public final class WorldEditBridge implements Listener {
     Block block = world.getBlockAt(update.x(), update.y(), update.z());
     MarkerSnapshot snapshot = update.snapshot();
     if (snapshot == null) {
+      releaseRemovedStorageClaim(block);
       removeExistingBlockState(block);
       ChunkMarkerStore.clearBlock(plugin, block);
       return true;
@@ -1591,6 +1629,9 @@ public final class WorldEditBridge implements Listener {
     if (snapshot.wire() && !Carriers.matchesCarrier(block, deps.wireMaterial())) {
       return false;
     }
+    if (snapshot.storage() != null && !ensureStorageClaim(block, update)) {
+      return false;
+    }
     removeExistingBlockState(block);
     ChunkMarkerStore.clearBlock(plugin, block);
     if (snapshot.storage() != null && Carriers.matchesCarrier(block, deps.storageCarrier())) {
@@ -1610,9 +1651,7 @@ public final class WorldEditBridge implements Listener {
         if (hologramManager != null) {
           hologramManager.registerStorage(block);
         }
-        if (update.moveOperation()) {
-          updateMovedStorageLocation(storageId, block);
-        }
+        updateMovedStorageLocation(storageId, block);
       } else {
         StorageMarker.setRaw(
             plugin,
@@ -1694,7 +1733,8 @@ public final class WorldEditBridge implements Listener {
           data.placedByUuid(),
           data.placedByName(),
           data.createdAt(),
-          data.enabled());
+          data.enabled(),
+          data.bypassLimits());
       ChunkLoaderService chunkLoaderService = deps.chunkLoaderService();
       if (chunkLoaderService != null) {
         chunkLoaderService.reconcileBlock(block);
@@ -1742,6 +1782,201 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
+  private void prepareEmptyStorageClone(
+      World world, MarkerUpdate clonedUpdate, String sourceStorageId) {
+    MarkerSnapshot snapshot = clonedUpdate == null ? null : clonedUpdate.snapshot();
+    StorageData storage = snapshot == null ? null : snapshot.storage();
+    if (world == null
+        || storage == null
+        || storage.tierMaxItems() == null
+        || storage.tierMaxItems() <= 0L) {
+      if (clonedUpdate != null) {
+        removeFailedStorageCarrier(clonedUpdate, "missing tier capacity");
+      }
+      return;
+    }
+    Block target = world.getBlockAt(clonedUpdate.x(), clonedUpdate.y(), clonedUpdate.z());
+    StorageClaimLocation destination = StorageClaimLocation.fromBlock(target);
+    releaseDifferentStorageAt(target, storage.storageId())
+        .thenCompose(
+            released -> {
+              if (!released) {
+                return CompletableFuture.failedFuture(
+                    new IllegalStateException("destination storage claim could not be released"));
+              }
+              StorageClaimRegistry.ReservationResult reservation =
+                  deps.storageClaimRegistry().reserve(storage.storageId(), destination);
+              if (!reservation.allowed()) {
+                return CompletableFuture.failedFuture(
+                    new IllegalStateException(
+                        "destination storage claim was denied: " + reservation.denial()));
+              }
+              return deps.storageClaimRegistry()
+                  .persist(
+                      reservation.reservation(),
+                      storage.tier(),
+                      storage.tierMaxItems(),
+                      storage.displayName());
+            })
+        .whenComplete(
+            (ignored, error) -> {
+              if (error == null) {
+                enqueue(clonedUpdate);
+                return;
+              }
+              plugin
+                  .getLogger()
+                  .log(
+                      Level.WARNING,
+                      "Failed to create empty WorldEdit storage copy from "
+                          + sourceStorageId
+                          + " at "
+                          + clonedUpdate.x()
+                          + ","
+                          + clonedUpdate.y()
+                          + ","
+                          + clonedUpdate.z(),
+                      unwrap(error));
+              removeFailedStorageCarrier(clonedUpdate, "empty copy persistence failed");
+            });
+  }
+
+  private boolean ensureStorageClaim(Block block, MarkerUpdate update) {
+    StorageData storage = update.snapshot().storage();
+    StorageClaimLocation destination = StorageClaimLocation.fromBlock(block);
+    StorageClaimRegistry registry = deps.storageClaimRegistry();
+    if (registry.exactClaim(storage.storageId(), destination)
+        == StorageClaimRegistry.ExactClaim.MATCHED) {
+      return true;
+    }
+    StoragePreparationKey key =
+        new StoragePreparationKey(
+            update.operationId(),
+            update.worldId(),
+            update.x(),
+            update.y(),
+            update.z(),
+            storage.storageId());
+    storagePreparations.computeIfAbsent(
+        key,
+        ignored ->
+            releaseDifferentStorageAt(block, storage.storageId())
+                .thenCompose(
+                    released -> {
+                      if (!released) return CompletableFuture.completedFuture(false);
+                      if (registry.exactClaim(storage.storageId(), destination)
+                          == StorageClaimRegistry.ExactClaim.MATCHED) {
+                        return CompletableFuture.completedFuture(true);
+                      }
+                      StorageClaim source = registry.claim(storage.storageId()).orElse(null);
+                      if (source != null) {
+                        return registry.moveExact(storage.storageId(), destination);
+                      }
+                      if (storage.tierMaxItems() == null || storage.tierMaxItems() <= 0L) {
+                        return CompletableFuture.completedFuture(false);
+                      }
+                      StorageClaimRegistry.ReservationResult reservation =
+                          registry.reserve(storage.storageId(), destination);
+                      if (!reservation.allowed()) {
+                        return CompletableFuture.completedFuture(false);
+                      }
+                      return registry
+                          .persist(
+                              reservation.reservation(),
+                              storage.tier(),
+                              storage.tierMaxItems(),
+                              storage.displayName())
+                          .thenApply(nothing -> true);
+                    })
+                .whenComplete(
+                    (prepared, error) -> {
+                      storagePreparations.remove(key);
+                      if (error != null || !Boolean.TRUE.equals(prepared)) {
+                        plugin
+                            .getLogger()
+                            .log(
+                                Level.WARNING,
+                                "WorldEdit could not claim storage "
+                                    + storage.storageId()
+                                    + " at "
+                                    + update.x()
+                                    + ","
+                                    + update.y()
+                                    + ","
+                                    + update.z(),
+                                error == null
+                                    ? new IllegalStateException("physical claim was denied")
+                                    : unwrap(error));
+                      }
+                    }));
+    return false;
+  }
+
+  private CompletableFuture<Boolean> releaseDifferentStorageAt(
+      Block target, String incomingStorageId) {
+    Optional<StorageMarker.Data> existing = StorageMarker.get(plugin, target);
+    if (existing.isEmpty() || incomingStorageId.equals(existing.get().storageId())) {
+      return CompletableFuture.completedFuture(true);
+    }
+    StorageClaimLocation location = StorageClaimLocation.fromBlock(target);
+    StorageClaimRegistry registry = deps.storageClaimRegistry();
+    StorageClaimRegistry.ExactClaim exact =
+        registry.exactClaim(existing.get().storageId(), location);
+    if (exact == StorageClaimRegistry.ExactClaim.ABSENT) {
+      return CompletableFuture.completedFuture(true);
+    }
+    if (exact != StorageClaimRegistry.ExactClaim.MATCHED) {
+      return CompletableFuture.completedFuture(false);
+    }
+    return registry.releaseExact(existing.get().storageId(), location);
+  }
+
+  private void releaseRemovedStorageClaim(Block block) {
+    Optional<StorageMarker.Data> existing = StorageMarker.get(plugin, block);
+    if (existing.isEmpty()) return;
+    StorageClaimLocation location = StorageClaimLocation.fromBlock(block);
+    deps.storageClaimRegistry()
+        .releaseExact(existing.get().storageId(), location)
+        .whenComplete(
+            (released, error) -> {
+              if (error != null) {
+                plugin
+                    .getLogger()
+                    .log(
+                        Level.WARNING,
+                        "Failed to release WorldEdit-removed storage claim "
+                            + existing.get().storageId(),
+                        unwrap(error));
+              }
+            });
+  }
+
+  private void removeFailedStorageCarrier(MarkerUpdate update, String reason) {
+    PluginTasks.runSyncIfEnabled(
+        plugin,
+        () -> {
+          World world = Bukkit.getWorld(update.worldId());
+          if (world == null || !world.isChunkLoaded(update.chunkX(), update.chunkZ())) return;
+          Block block = world.getBlockAt(update.x(), update.y(), update.z());
+          if (Carriers.matchesCarrier(block, deps.storageCarrier())
+              && StorageMarker.get(plugin, block).isEmpty()) {
+            block.setType(Material.AIR, false);
+            ChunkMarkerStore.clearBlock(plugin, block);
+            plugin
+                .getLogger()
+                .warning(
+                    "Removed bare WorldEdit storage carrier at "
+                        + update.x()
+                        + ","
+                        + update.y()
+                        + ","
+                        + update.z()
+                        + ": "
+                        + reason);
+          }
+        });
+  }
+
   static void unlinkExistingRelayForReplacement(Plugin plugin, Block block) {
     if (RelayMarker.isRelay(plugin, block)) {
       RelayMarker.unlinkLoadedPair(plugin, block);
@@ -1771,6 +2006,28 @@ public final class WorldEditBridge implements Listener {
   private static boolean shouldRefreshWireNetworkAfterUpdate(MarkerUpdate update) {
     return update != null;
   }
+
+  enum StorageIdentityAction {
+    PRESERVE_IDENTITY,
+    CREATE_EMPTY
+  }
+
+  static StorageIdentityAction storageIdentityAction(
+      MarkerUpdate update, Set<String> removedStorageIds) {
+    if (update == null || update.snapshot() == null || update.snapshot().storage() == null) {
+      return StorageIdentityAction.CREATE_EMPTY;
+    }
+    String storageId = update.snapshot().storage().storageId();
+    return update.moveOperation()
+            || (storageId != null
+                && removedStorageIds != null
+                && removedStorageIds.contains(storageId))
+        ? StorageIdentityAction.PRESERVE_IDENTITY
+        : StorageIdentityAction.CREATE_EMPTY;
+  }
+
+  private record StoragePreparationKey(
+      long operationId, UUID worldId, int x, int y, int z, String storageId) {}
 
   private static TerminalKind parseTerminalKind(TerminalData data) {
     String raw = data.type();
@@ -1967,6 +2224,7 @@ public final class WorldEditBridge implements Listener {
         chunkLoaderTag.putString(FIELD_CREATED_AT, Long.toString(data.createdAt()));
       }
       chunkLoaderTag.putString(FIELD_ENABLED, Boolean.toString(data.enabled()));
+      chunkLoaderTag.putString(FIELD_BYPASS_LIMITS, Boolean.toString(data.bypassLimits()));
       exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
       any = true;
     }
@@ -2191,6 +2449,8 @@ public final class WorldEditBridge implements Listener {
             FIELD_CREATED_AT, Long.toString(snapshot.chunkLoader().createdAt()));
       }
       chunkLoaderTag.putString(FIELD_ENABLED, Boolean.toString(snapshot.chunkLoader().enabled()));
+      chunkLoaderTag.putString(
+          FIELD_BYPASS_LIMITS, Boolean.toString(snapshot.chunkLoader().bypassLimits()));
       exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
       any = true;
     }
@@ -2248,8 +2508,12 @@ public final class WorldEditBridge implements Listener {
   }
 
   private static boolean readEnabled(LinCompoundTag root) {
-    String raw = readString(root, FIELD_ENABLED);
-    return raw == null || raw.isBlank() || Boolean.parseBoolean(raw.trim());
+    return readBooleanString(root, FIELD_ENABLED, true);
+  }
+
+  private static boolean readBooleanString(LinCompoundTag root, String key, boolean defaultValue) {
+    String raw = readString(root, key);
+    return raw == null || raw.isBlank() ? defaultValue : Boolean.parseBoolean(raw.trim());
   }
 
   private static UUID readUuid(LinCompoundTag root, String key) {
@@ -2350,7 +2614,8 @@ public final class WorldEditBridge implements Listener {
                   placedByUuid,
                   placedByName,
                   createdAt == null ? 0L : createdAt,
-                  readEnabled(chunkLoaderTag));
+                  readEnabled(chunkLoaderTag),
+                  readBooleanString(chunkLoaderTag, FIELD_BYPASS_LIMITS, false));
         }
       }
     }
@@ -2494,7 +2759,8 @@ public final class WorldEditBridge implements Listener {
       this.movePatch = movePatch;
       this.cutSourcePatch = cutSourcePatch;
       this.operationSnapshot = operationSnapshot;
-      this.moveOperation = movePatch != null;
+      this.moveOperation =
+          movePatch != null || pastePatch != null && pastePatch.preserveStorageIdentity();
       Transform transform = resolveTransform(extent);
       this.facingTransform =
           clipboardTransform != null
@@ -2711,7 +2977,8 @@ public final class WorldEditBridge implements Listener {
             actorId, world.getUID(), resolved.x(), resolved.y(), resolved.z());
         if (parsed != null) {
           boolean redoStorageCloneRequired =
-              shouldCloneStorageForNormalSet(parsed, fromClipboard, moveHit, historyAction);
+              !moveOperation
+                  && shouldCloneStorageForNormalSet(parsed, fromClipboard, moveHit, historyAction);
           bridge.markerHistory.rememberRedoTarget(
               actorId,
               world.getUID(),
@@ -2753,7 +3020,9 @@ public final class WorldEditBridge implements Listener {
               && parsed.storage() != null
               && (historyHit
                   ? historyStorageCloneRequired
-                  : shouldCloneStorageForNormalSet(parsed, fromClipboard, moveHit, historyAction));
+                  : !moveOperation
+                      && shouldCloneStorageForNormalSet(
+                          parsed, fromClipboard, moveHit, historyAction));
       WorldEditDebugService debug = bridge.deps.debugService();
       if (debug != null && debug.isFull()) {
         String baseType = base == null ? "null" : base.getBlockType().getId();

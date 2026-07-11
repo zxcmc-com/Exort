@@ -7,6 +7,7 @@ import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.bus.InventorySideRules;
 import com.zxcmc.exort.bus.loop.BusLoopGuard;
+import com.zxcmc.exort.bus.loop.BusStorageCycleGuard;
 import com.zxcmc.exort.bus.resolver.BusTargetResolver;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntSupplier;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -179,7 +181,7 @@ public final class BusEngine implements Runnable {
   }
 
   private boolean tickBus(BusState state, long tick, Set<String> changedStorages) {
-    if (state.type() == BusType.EXPORT && loopDisabled.contains(state.pos())) {
+    if (loopDisabled.contains(state.pos())) {
       return false;
     }
     ResolvedContext ctx = contextFor(state, tick);
@@ -187,7 +189,7 @@ public final class BusEngine implements Runnable {
     String storageId = ctx.storageId();
     StorageTier tier = ctx.tier();
     BusTargetResolver.BusTarget target = ctx.target();
-    if (storageId == null || target == null || tier == null) return false;
+    if (storageId == null || target == null || tier == null || tier.isReadOnly()) return false;
     if (state.type() == BusType.EXPORT && isPaused(storageId, tick)) return false;
     if (state.type() == BusType.IMPORT
         && target instanceof BusTargetResolver.StorageTarget storageTarget
@@ -199,6 +201,7 @@ public final class BusEngine implements Runnable {
       preloadStorage(storageId);
       return false;
     }
+    if (cache.isReadOnly()) return false;
     return PerfStats.measure(
         "bus.move",
         () ->
@@ -235,11 +238,13 @@ public final class BusEngine implements Runnable {
     }
     if (target instanceof BusTargetResolver.StorageTarget storageTarget) {
       if (storageTarget.storageId().equals(cache.getStorageId())) return false;
+      if (storageTarget.tier() == null || storageTarget.tier().isReadOnly()) return false;
       StorageCache source = storageManager.getLoadedCache(storageTarget.storageId()).orElse(null);
       if (source == null || !source.isLoaded()) {
         preloadStorage(storageTarget.storageId());
         return false;
       }
+      if (source.isReadOnly()) return false;
       boolean moved = tickStorageTransfer(state, source, cache, tier);
       if (moved) {
         changedStorages.add(source.getStorageId());
@@ -266,12 +271,13 @@ public final class BusEngine implements Runnable {
     if (target instanceof BusTargetResolver.StorageTarget storageTarget) {
       if (storageTarget.storageId().equals(cache.getStorageId())) return false;
       StorageTier destTier = storageTarget.tier();
-      if (destTier == null) return false;
+      if (destTier == null || destTier.isReadOnly()) return false;
       StorageCache dest = storageManager.getLoadedCache(storageTarget.storageId()).orElse(null);
       if (dest == null || !dest.isLoaded()) {
         preloadStorage(storageTarget.storageId());
         return false;
       }
+      if (dest.isReadOnly()) return false;
       boolean moved = tickStorageTransfer(state, cache, dest, destTier);
       if (moved) {
         changedStorages.add(cache.getStorageId());
@@ -339,13 +345,18 @@ public final class BusEngine implements Runnable {
       }
       int move = (int) Math.min(stack.getAmount(), Math.min(itemsPerOperation, maxBySpace));
       if (move <= 0) continue;
-      stack.setAmount(stack.getAmount() - move);
-      if (stack.getAmount() <= 0) {
-        inventory.setItem(slot, null);
-      } else {
-        inventory.setItem(slot, stack);
+      ItemStack original = stack.clone();
+      boolean imported =
+          BusItemTransfer.importItem(
+              cache,
+              data.key(),
+              data.sample(),
+              move,
+              () -> setSlotAfterExtraction(inventory, slot, original, move),
+              () -> inventory.setItem(slot, original.clone()));
+      if (!imported) {
+        continue;
       }
-      cache.addItem(data.key(), data.sample(), move);
       refreshVisualInventory(target);
       state.setSlotCursor(idx + 1);
       return true;
@@ -373,14 +384,21 @@ public final class BusEngine implements Runnable {
         outputSample = wirelessService.extractFromStorage(outputSample);
         outputKey = ItemKeyUtil.keyFor(outputSample);
       }
-      long removed = cache.removeItem(entry.key(), desired);
-      if (removed <= 0) continue;
+      ItemStack finalOutputSample = outputSample;
+      String finalOutputKey = outputKey;
       int moved =
-          InventorySideRules.insert(
-              inventory, target.state(), target.side(), outputSample, outputKey, (int) removed);
-      if (moved < removed) {
-        cache.addItem(entry.key(), entry.sampleCopy(), removed - moved);
-      }
+          BusItemTransfer.exportItem(
+              cache,
+              entry.key(),
+              desired,
+              (ignoredStoredSample, reservedAmount) ->
+                  insertInventoryAtomic(
+                      inventory,
+                      target.state(),
+                      target.side(),
+                      finalOutputSample,
+                      finalOutputKey,
+                      reservedAmount));
       if (moved > 0) {
         refreshVisualInventory(target);
         state.setStorageCursor(idx + 1);
@@ -415,9 +433,9 @@ public final class BusEngine implements Runnable {
       }
       int move = (int) Math.min(desired, maxBySpace);
       if (move <= 0) continue;
-      long removed = source.removeItem(entry.key(), move);
-      if (removed <= 0) continue;
-      dest.addItem(entry.key(), entry.sampleCopy(), removed);
+      int moved =
+          BusItemTransfer.transferStorage(source, dest, entry.key(), entry.sampleCopy(), move);
+      if (moved <= 0) continue;
       state.setStorageCursor(idx + 1);
       return true;
     }
@@ -454,6 +472,53 @@ public final class BusEngine implements Runnable {
     if (block == null || block.getWorld() == null) return;
     if (!block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) return;
     block.getState().update(false, false);
+  }
+
+  private static void setSlotAfterExtraction(
+      Inventory inventory, int slot, ItemStack original, int extracted) {
+    int remaining = original.getAmount() - extracted;
+    if (remaining <= 0) {
+      inventory.setItem(slot, null);
+      return;
+    }
+    ItemStack replacement = original.clone();
+    replacement.setAmount(remaining);
+    inventory.setItem(slot, replacement);
+  }
+
+  static int insertInventoryAtomic(
+      Inventory inventory,
+      org.bukkit.block.BlockState state,
+      BlockFace side,
+      ItemStack sample,
+      String key,
+      int amount) {
+    int[] slots = InventorySideRules.insertSlots(inventory, state, side);
+    return mutateInventoryAtomic(
+        inventory,
+        slots,
+        () -> InventorySideRules.insert(inventory, state, side, sample, key, amount));
+  }
+
+  static int mutateInventoryAtomic(Inventory inventory, int[] slots, IntSupplier mutation) {
+    Map<Integer, ItemStack> snapshot = new HashMap<>(slots.length);
+    for (int slot : slots) {
+      ItemStack existing = inventory.getItem(slot);
+      snapshot.put(slot, existing == null ? null : existing.clone());
+    }
+    try {
+      return mutation.getAsInt();
+    } catch (RuntimeException failure) {
+      for (Map.Entry<Integer, ItemStack> entry : snapshot.entrySet()) {
+        try {
+          ItemStack original = entry.getValue();
+          inventory.setItem(entry.getKey(), original == null ? null : original.clone());
+        } catch (RuntimeException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+      }
+      throw failure;
+    }
   }
 
   private boolean isVisualInventory(Inventory inventory) {
@@ -569,9 +634,25 @@ public final class BusEngine implements Runnable {
   private void rebuildLoopDisabledSnapshot(List<BusState> list, long tick) {
     loopDisabled.clear();
     Map<StorageInvKey, List<ResolvedContext>> grouped = new HashMap<>();
+    List<BusStorageCycleGuard.Edge> storageEdges = new ArrayList<>();
     for (BusState state : list) {
       ResolvedContext ctx = contextFor(state, tick);
-      if (ctx == null || ctx.invKey() == null || ctx.storageId() == null) continue;
+      if (ctx == null || ctx.storageId() == null) continue;
+      if (ctx.target() instanceof BusTargetResolver.StorageTarget storageTarget
+          && !ctx.storageId().equals(storageTarget.storageId())) {
+        String fromStorage =
+            ctx.type() == BusType.IMPORT ? storageTarget.storageId() : ctx.storageId();
+        String toStorage =
+            ctx.type() == BusType.IMPORT ? ctx.storageId() : storageTarget.storageId();
+        storageEdges.add(
+            new BusStorageCycleGuard.Edge(
+                ctx.state().pos(),
+                fromStorage,
+                toStorage,
+                ctx.state().mode(),
+                ctx.state().filterKeys()));
+      }
+      if (ctx.invKey() == null) continue;
       StorageInvKey key = conflictKey(ctx);
       grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(ctx);
     }
@@ -589,6 +670,7 @@ public final class BusEngine implements Runnable {
         loopDisabled.add(exp.state().pos());
       }
     }
+    loopDisabled.addAll(BusStorageCycleGuard.cyclicBuses(storageEdges));
   }
 
   private StorageInvKey conflictKey(ResolvedContext ctx) {

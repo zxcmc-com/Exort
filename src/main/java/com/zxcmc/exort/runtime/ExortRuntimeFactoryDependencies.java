@@ -49,10 +49,8 @@ public record ExortRuntimeFactoryDependencies(
     boolean resourceMode,
     boolean resourceWireUsesBarrier,
     Runnable reloadDefaultSortMode,
-    Runnable stopReloadableRuntime,
     Runnable unregisterReloadableRuntimeListeners,
     Runnable setupRegionProtection,
-    Runnable resetReloadableDisplayState,
     Runnable revalidateSessions,
     Consumer<String> pickDebugSink,
     Consumer<String> pickDebugFullSink,
@@ -83,11 +81,9 @@ public record ExortRuntimeFactoryDependencies(
     Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(reloadDefaultSortMode, "reloadDefaultSortMode");
-    Objects.requireNonNull(stopReloadableRuntime, "stopReloadableRuntime");
     Objects.requireNonNull(
         unregisterReloadableRuntimeListeners, "unregisterReloadableRuntimeListeners");
     Objects.requireNonNull(setupRegionProtection, "setupRegionProtection");
-    Objects.requireNonNull(resetReloadableDisplayState, "resetReloadableDisplayState");
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");
     Objects.requireNonNull(pickDebugSink, "pickDebugSink");
     Objects.requireNonNull(pickDebugFullSink, "pickDebugFullSink");

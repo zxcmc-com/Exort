@@ -12,9 +12,18 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.storage.StorageClaim;
+import com.zxcmc.exort.storage.StorageClaimConflictException;
+import com.zxcmc.exort.storage.StorageClaimLocation;
+import com.zxcmc.exort.storage.StorageClaimStore;
+import com.zxcmc.exort.storage.StorageCorruption;
 import com.zxcmc.exort.storage.StorageDisplayName;
+import com.zxcmc.exort.storage.StorageLoadResult;
+import com.zxcmc.exort.storage.StorageQuarantineEntry;
 import com.zxcmc.exort.storage.StorageTier;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -23,11 +32,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,21 +47,35 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Database implements AutoCloseable {
+public class Database implements AutoCloseable, StorageClaimStore {
   private static final long CLOSE_TIMEOUT_SECONDS = 15L;
+  private static final long FORCED_CLOSE_TIMEOUT_SECONDS = 2L;
   private static final int MAX_ITEM_BLOB_BYTES = 1_048_576;
+  private static final int DB_QUEUE_CAPACITY = 8_192;
+  private static final int AUDIT_OBSERVATION_CAPACITY = 4_096;
+  private static final int AUDIT_OBSERVATION_BATCH = 128;
 
   private final Logger logger;
   private final Supplier<String> defaultSortModeName;
   private final AtomicBoolean closing = new AtomicBoolean();
   private final AtomicInteger queuedOperations = new AtomicInteger();
+  private final AtomicBoolean auditDrainScheduled = new AtomicBoolean();
+  private final Map<UUID, PendingAuditObservation> pendingAuditObservations =
+      new ConcurrentHashMap<>();
+  private final Set<CompletableFuture<?>> pendingDbFutures = ConcurrentHashMap.newKeySet();
   private final ExecutorService executor =
-      Executors.newSingleThreadExecutor(
+      new ThreadPoolExecutor(
+          1,
+          1,
+          0L,
+          TimeUnit.MILLISECONDS,
+          new ArrayBlockingQueue<>(DB_QUEUE_CAPACITY),
           r -> {
             Thread t = new Thread(r, "exort-db");
             t.setDaemon(true);
             return t;
-          });
+          },
+          new ThreadPoolExecutor.AbortPolicy());
   private Connection connection;
 
   public record DeltaWrite(
@@ -69,13 +95,28 @@ public class Database implements AutoCloseable {
 
   public void init(File file) throws SQLException {
     File parent = file.getParentFile();
-    if (parent != null && !parent.exists()) {
-      parent.mkdirs();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent.toPath());
+      } catch (IOException e) {
+        throw new SQLException("Failed to create database directory " + parent, e);
+      }
     }
     String url = "jdbc:sqlite:" + file.getAbsolutePath();
     connection = DriverManager.getConnection(url);
-    applyPragmas();
-    ensureSchema();
+    try {
+      applyPragmas();
+      initializeSchema();
+    } catch (SQLException | RuntimeException e) {
+      try {
+        connection.close();
+      } catch (SQLException closeFailure) {
+        e.addSuppressed(closeFailure);
+      } finally {
+        connection = null;
+      }
+      throw e;
+    }
   }
 
   private void applyPragmas() throws SQLException {
@@ -109,6 +150,35 @@ public class Database implements AutoCloseable {
                   item_blob BLOB NOT NULL,
                   amount INTEGER NOT NULL,
                   PRIMARY KEY (storage_id, item_key),
+                  FOREIGN KEY (storage_id) REFERENCES storages(id) ON DELETE CASCADE
+              )
+          """);
+      stmt.execute(
+          """
+              CREATE TABLE IF NOT EXISTS storage_item_quarantine (
+                  storage_id TEXT NOT NULL,
+                  item_key TEXT NOT NULL,
+                  item_blob BLOB NULL,
+                  amount INTEGER NOT NULL,
+                  reason TEXT NOT NULL,
+                  quarantined_at INTEGER NOT NULL,
+                  PRIMARY KEY (storage_id, item_key),
+                  FOREIGN KEY (storage_id) REFERENCES storages(id) ON DELETE CASCADE
+              )
+          """);
+      stmt.execute(
+          """
+              CREATE TABLE IF NOT EXISTS storage_claims (
+                  storage_id TEXT PRIMARY KEY,
+                  world_uuid TEXT NOT NULL,
+                  world_key TEXT NOT NULL,
+                  world_name TEXT NOT NULL,
+                  x INTEGER NOT NULL,
+                  y INTEGER NOT NULL,
+                  z INTEGER NOT NULL,
+                  claimed_at INTEGER NOT NULL,
+                  updated_at INTEGER NOT NULL,
+                  UNIQUE(world_uuid, x, y, z),
                   FOREIGN KEY (storage_id) REFERENCES storages(id) ON DELETE CASCADE
               )
           """);
@@ -167,6 +237,7 @@ public class Database implements AutoCloseable {
                   placed_by_name TEXT NOT NULL,
                   radius INTEGER NOT NULL,
                   enabled INTEGER NOT NULL DEFAULT 1,
+                  bypass_limits INTEGER NOT NULL DEFAULT 0,
                   created_at INTEGER NOT NULL,
                   updated_at INTEGER NOT NULL,
                   UNIQUE(world, x, y, z)
@@ -214,31 +285,36 @@ public class Database implements AutoCloseable {
     }
   }
 
-  private void ensureSchema() throws SQLException {
+  private void initializeSchema() throws SQLException {
     createTables();
-    ensureColumn("storages", "sort_mode", "TEXT");
-    ensureColumn("storages", "tier_max_items", "INTEGER");
-    ensureColumn("storages", "display_name", "TEXT");
-    ensureColumn("chunk_loaders", "enabled", "INTEGER NOT NULL DEFAULT 1");
+    validateColumns(
+        "storages", Set.of("id", "tier", "tier_max_items", "display_name", "sort_mode"));
+    validateColumns(
+        "storage_claims", Set.of("storage_id", "world_uuid", "world_key", "x", "y", "z"));
+    validateColumns(
+        "storage_item_quarantine",
+        Set.of("storage_id", "item_key", "item_blob", "amount", "reason", "quarantined_at"));
+    validateColumns("chunk_loaders", Set.of("id", "enabled", "bypass_limits"));
   }
 
-  private void ensureColumn(String table, String column, String type) throws SQLException {
-    boolean exists = false;
+  private void validateColumns(String table, Set<String> requiredColumns) throws SQLException {
+    Set<String> actualColumns = new HashSet<>();
     try (PreparedStatement ps = connection.prepareStatement("PRAGMA table_info(" + table + ")")) {
       try (ResultSet rs = ps.executeQuery()) {
         while (rs.next()) {
-          String name = rs.getString("name");
-          if (column.equalsIgnoreCase(name)) {
-            exists = true;
-            break;
-          }
+          actualColumns.add(rs.getString("name").toLowerCase(Locale.ROOT));
         }
       }
     }
-    if (!exists) {
-      try (Statement stmt = connection.createStatement()) {
-        stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
-      }
+    Set<String> missing = new TreeSet<>(requiredColumns);
+    missing.removeAll(actualColumns);
+    if (!missing.isEmpty()) {
+      throw new SQLException(
+          "Unsupported Exort database schema: table '"
+              + table
+              + "' is missing columns "
+              + missing
+              + ". Back up the database and recreate it for Exort 0.19.0.");
     }
   }
 
@@ -334,6 +410,197 @@ public class Database implements AutoCloseable {
         });
   }
 
+  @Override
+  public CompletableFuture<List<StorageClaim>> loadStorageClaims() {
+    return supplyDbTask(
+        "load physical storage claims",
+        () -> {
+          List<StorageClaim> claims = new ArrayList<>();
+          String sql =
+              "SELECT storage_id, world_uuid, world_key, world_name, x, y, z, claimed_at,"
+                  + " updated_at FROM storage_claims ORDER BY claimed_at, storage_id";
+          try (PreparedStatement ps = connection.prepareStatement(sql);
+              ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+              claims.add(
+                  new StorageClaim(
+                      rs.getString("storage_id"),
+                      UUID.fromString(rs.getString("world_uuid")),
+                      rs.getString("world_key"),
+                      rs.getString("world_name"),
+                      rs.getInt("x"),
+                      rs.getInt("y"),
+                      rs.getInt("z"),
+                      rs.getLong("claimed_at"),
+                      rs.getLong("updated_at")));
+            }
+          } catch (SQLException | IllegalArgumentException e) {
+            log(Level.SEVERE, "Failed to load physical storage claims", e);
+            throw new CompletionException(e);
+          }
+          return List.copyOf(claims);
+        });
+  }
+
+  @Override
+  public CompletableFuture<Void> insertStorageClaim(
+      StorageClaim claim, String tierKey, long tierMaxItems, String displayName) {
+    Objects.requireNonNull(claim, "claim");
+    Objects.requireNonNull(tierKey, "tierKey");
+    if (tierMaxItems <= 0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("tierMaxItems must be positive"));
+    }
+    String normalizedName = StorageDisplayName.normalize(displayName);
+    String defaultSort = defaultSortModeName();
+    return runDbTask(
+        "claim physical storage " + claim.storageId(),
+        () -> {
+          try {
+            connection.setAutoCommit(false);
+            String storageSql =
+                "INSERT INTO storages(id, tier, tier_max_items, display_name, sort_mode,"
+                    + " created_at, updated_at) VALUES(?, ?, ?, ?, COALESCE((SELECT sort_mode FROM"
+                    + " storages WHERE id = ?), ?), ?, ?) ON CONFLICT(id) DO UPDATE SET tier ="
+                    + " excluded.tier, tier_max_items = excluded.tier_max_items, display_name ="
+                    + " excluded.display_name, updated_at = excluded.updated_at";
+            try (PreparedStatement ps = connection.prepareStatement(storageSql)) {
+              ps.setString(1, claim.storageId());
+              ps.setString(2, tierKey);
+              ps.setLong(3, tierMaxItems);
+              ps.setString(4, normalizedName);
+              ps.setString(5, claim.storageId());
+              ps.setString(6, defaultSort);
+              ps.setLong(7, claim.claimedAt());
+              ps.setLong(8, claim.updatedAt());
+              ps.executeUpdate();
+            }
+            String claimSql =
+                "INSERT INTO storage_claims(storage_id, world_uuid, world_key, world_name, x, y,"
+                    + " z, claimed_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = connection.prepareStatement(claimSql)) {
+              ps.setString(1, claim.storageId());
+              ps.setString(2, claim.worldId().toString());
+              ps.setString(3, claim.worldKey());
+              ps.setString(4, claim.worldName());
+              ps.setInt(5, claim.x());
+              ps.setInt(6, claim.y());
+              ps.setInt(7, claim.z());
+              ps.setLong(8, claim.claimedAt());
+              ps.setLong(9, claim.updatedAt());
+              ps.executeUpdate();
+            }
+            connection.commit();
+          } catch (SQLException e) {
+            rollbackQuietly("storage claim " + claim.storageId(), e);
+            throw new CompletionException(storageClaimConflict(claim, e));
+          } finally {
+            restoreAutoCommit();
+          }
+        });
+  }
+
+  @Override
+  public CompletableFuture<Boolean> deleteStorageClaimExact(
+      String storageId, StorageClaimLocation location) {
+    Objects.requireNonNull(storageId, "storageId");
+    Objects.requireNonNull(location, "location");
+    return supplyDbTask(
+        "release physical storage claim " + storageId,
+        () -> {
+          String sql =
+              "DELETE FROM storage_claims WHERE storage_id = ? AND world_uuid = ? AND x = ? AND y"
+                  + " = ? AND z = ?";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, storageId);
+            ps.setString(2, location.worldId().toString());
+            ps.setInt(3, location.x());
+            ps.setInt(4, location.y());
+            ps.setInt(5, location.z());
+            return ps.executeUpdate() == 1;
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to release physical storage claim " + storageId, e);
+            throw new CompletionException(e);
+          }
+        });
+  }
+
+  @Override
+  public CompletableFuture<Boolean> moveStorageClaimExact(
+      StorageClaim source, StorageClaim destination) {
+    Objects.requireNonNull(source, "source");
+    Objects.requireNonNull(destination, "destination");
+    if (!source.storageId().equals(destination.storageId())) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Storage claim identity cannot change during a move"));
+    }
+    return supplyDbTask(
+        "move physical storage claim " + source.storageId(),
+        () -> {
+          String sql =
+              "UPDATE storage_claims SET world_uuid = ?, world_key = ?, world_name = ?, x = ?, y"
+                  + " = ?, z = ?, updated_at = ? WHERE storage_id = ? AND world_uuid = ? AND x = ?"
+                  + " AND y = ? AND z = ?";
+          try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, destination.worldId().toString());
+            ps.setString(2, destination.worldKey());
+            ps.setString(3, destination.worldName());
+            ps.setInt(4, destination.x());
+            ps.setInt(5, destination.y());
+            ps.setInt(6, destination.z());
+            ps.setLong(7, destination.updatedAt());
+            ps.setString(8, source.storageId());
+            ps.setString(9, source.worldId().toString());
+            ps.setInt(10, source.x());
+            ps.setInt(11, source.y());
+            ps.setInt(12, source.z());
+            return ps.executeUpdate() == 1;
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to move physical storage claim " + source.storageId(), e);
+            throw new CompletionException(storageClaimConflict(destination, e));
+          }
+        });
+  }
+
+  private void rollbackQuietly(String operation, SQLException original) {
+    log(Level.SEVERE, "Failed to persist " + operation, original);
+    try {
+      connection.rollback();
+    } catch (SQLException rollbackFailure) {
+      original.addSuppressed(rollbackFailure);
+      log(Level.SEVERE, "Failed to roll back " + operation, rollbackFailure);
+    }
+  }
+
+  private RuntimeException storageClaimConflict(StorageClaim claim, SQLException error) {
+    if (error.getErrorCode() != 19) {
+      return new IllegalStateException(
+          "Failed to persist storage claim " + claim.storageId(), error);
+    }
+    String message = String.valueOf(error.getMessage()).toLowerCase(Locale.ROOT);
+    StorageClaimConflictException.Kind kind =
+        message.contains("storage_claims.storage_id")
+            ? StorageClaimConflictException.Kind.STORAGE_ID
+            : message.contains("storage_claims.world_uuid")
+                ? StorageClaimConflictException.Kind.POSITION
+                : StorageClaimConflictException.Kind.UNKNOWN;
+    return new StorageClaimConflictException(
+        kind,
+        "Physical storage claim conflicts with an existing "
+            + (kind == StorageClaimConflictException.Kind.POSITION ? "position" : "identity")
+            + ": "
+            + claim.storageId(),
+        error);
+  }
+
+  private void restoreAutoCommit() {
+    try {
+      connection.setAutoCommit(true);
+    } catch (SQLException e) {
+      log(Level.SEVERE, "Failed to restore SQLite auto-commit", e);
+    }
+  }
+
   public CompletableFuture<Boolean> saveChunkLoader(ChunkLoaderRecord record) {
     Objects.requireNonNull(record, "record");
     return supplyDbTask(
@@ -358,8 +625,9 @@ public class Database implements AutoCloseable {
                 """
                 INSERT INTO chunk_loaders(
                     id, loader_type, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
-                    placed_by_uuid, placed_by_name, radius, enabled, created_at, updated_at
-                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    placed_by_uuid, placed_by_name, radius, enabled, bypass_limits, created_at,
+                    updated_at
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     loader_type = excluded.loader_type,
                     world = excluded.world,
@@ -374,6 +642,7 @@ public class Database implements AutoCloseable {
                     placed_by_name = excluded.placed_by_name,
                     radius = excluded.radius,
                     enabled = excluded.enabled,
+                    bypass_limits = excluded.bypass_limits,
                     updated_at = excluded.updated_at
                 """;
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -433,6 +702,75 @@ public class Database implements AutoCloseable {
         });
   }
 
+  /** Coalesced best-effort audit path that cannot crowd out integrity-sensitive DB work. */
+  public CompletableFuture<Boolean> recordChunkLoaderObservationBestEffort(
+      ChunkLoaderObservation observation) {
+    Objects.requireNonNull(observation, "observation");
+    if (closing.get()) {
+      return CompletableFuture.failedFuture(
+          new RejectedExecutionException("Database is closing; audit observation rejected"));
+    }
+    CompletableFuture<Boolean> result = new CompletableFuture<>();
+    synchronized (pendingAuditObservations) {
+      if (!pendingAuditObservations.containsKey(observation.id())
+          && pendingAuditObservations.size() >= AUDIT_OBSERVATION_CAPACITY) {
+        PerfStats.incrementCounter("storage-db.auditDropped");
+        return CompletableFuture.completedFuture(false);
+      }
+      PendingAuditObservation previous =
+          pendingAuditObservations.put(
+              observation.id(), new PendingAuditObservation(observation, result));
+      if (previous != null) previous.result().complete(false);
+    }
+    scheduleAuditDrain();
+    return result;
+  }
+
+  private void scheduleAuditDrain() {
+    if (closing.get() || !auditDrainScheduled.compareAndSet(false, true)) return;
+    incrementQueueDepth();
+    try {
+      executor.execute(this::drainAuditObservations);
+    } catch (RejectedExecutionException rejected) {
+      auditDrainScheduled.set(false);
+      decrementQueueDepth();
+      dropPendingAuditObservations();
+    }
+  }
+
+  private void dropPendingAuditObservations() {
+    List<PendingAuditObservation> dropped;
+    synchronized (pendingAuditObservations) {
+      dropped = List.copyOf(pendingAuditObservations.values());
+      pendingAuditObservations.clear();
+    }
+    dropped.forEach(pending -> pending.result().complete(false));
+    for (int i = 0; i < dropped.size(); i++) {
+      PerfStats.incrementCounter("storage-db.auditDropped");
+    }
+  }
+
+  private void drainAuditObservations() {
+    try {
+      int processed = 0;
+      for (var entry : pendingAuditObservations.entrySet()) {
+        if (processed++ >= AUDIT_OBSERVATION_BATCH) break;
+        PendingAuditObservation pending = entry.getValue();
+        if (!pendingAuditObservations.remove(entry.getKey(), pending)) continue;
+        try {
+          pending.result().complete(upsertChunkLoaderRegistryObservation(pending.observation()));
+        } catch (SQLException error) {
+          log(Level.WARNING, "Failed to persist coalesced Chunk Loader audit observation", error);
+          pending.result().completeExceptionally(error);
+        }
+      }
+    } finally {
+      auditDrainScheduled.set(false);
+      decrementQueueDepth();
+      if (!pendingAuditObservations.isEmpty()) scheduleAuditDrain();
+    }
+  }
+
   public CompletableFuture<List<ChunkLoaderRecord>> listChunkLoaders() {
     return supplyDbTask(
         "list chunk loaders",
@@ -441,7 +779,8 @@ public class Database implements AutoCloseable {
           String sql =
               """
               SELECT id, loader_type, world, world_key, world_name, x, y, z, chunk_x, chunk_z,
-                     placed_by_uuid, placed_by_name, radius, enabled, created_at, updated_at
+                     placed_by_uuid, placed_by_name, radius, enabled, bypass_limits, created_at,
+                     updated_at
               FROM chunk_loaders
               """;
           try (PreparedStatement ps = connection.prepareStatement(sql);
@@ -831,8 +1170,9 @@ public class Database implements AutoCloseable {
     ps.setString(12, record.placedByName());
     ps.setInt(13, record.radius());
     ps.setInt(14, record.enabled() ? 1 : 0);
-    ps.setLong(15, record.createdAt());
-    ps.setLong(16, record.updatedAt());
+    ps.setInt(15, record.bypassLimits() ? 1 : 0);
+    ps.setLong(16, record.createdAt());
+    ps.setLong(17, record.updatedAt());
   }
 
   private ChunkLoaderRecord readChunkLoader(ResultSet rs) throws SQLException {
@@ -854,6 +1194,7 @@ public class Database implements AutoCloseable {
           rs.getString("placed_by_name"),
           rs.getInt("radius"),
           rs.getInt("enabled") != 0,
+          rs.getInt("bypass_limits") != 0,
           rs.getLong("created_at"),
           rs.getLong("updated_at"));
     } catch (IllegalArgumentException e) {
@@ -980,6 +1321,7 @@ public class Database implements AutoCloseable {
       return rejectDbTask(action, null);
     }
     CompletableFuture<T> future = new CompletableFuture<>();
+    pendingDbFutures.add(future);
     incrementQueueDepth();
     try {
       executor.execute(
@@ -988,13 +1330,17 @@ public class Database implements AutoCloseable {
             Throwable failure = null;
             try {
               result = PerfStats.measure(PerfStats.Area.STORAGE_DB, task);
-            } catch (Throwable thrown) {
+            } catch (RuntimeException thrown) {
               failure = unwrapCompletion(thrown);
               if (!(failure instanceof SQLException)) {
                 log(Level.SEVERE, "Async database task failed: " + action, failure);
               }
+            } catch (Error fatal) {
+              future.completeExceptionally(fatal);
+              throw fatal;
             } finally {
               decrementQueueDepth();
+              pendingDbFutures.remove(future);
             }
             if (failure == null) {
               future.complete(result);
@@ -1004,7 +1350,10 @@ public class Database implements AutoCloseable {
           });
     } catch (RejectedExecutionException error) {
       decrementQueueDepth();
-      return rejectDbTask(action, error);
+      pendingDbFutures.remove(future);
+      log(Level.WARNING, "Rejected async database task: " + action, error);
+      future.completeExceptionally(error);
+      return future;
     }
     return future;
   }
@@ -1025,7 +1374,9 @@ public class Database implements AutoCloseable {
   }
 
   private void decrementQueueDepth() {
-    PerfStats.setGauge("storage-db.queueDepth", queuedOperations.decrementAndGet());
+    PerfStats.setGauge(
+        "storage-db.queueDepth",
+        queuedOperations.updateAndGet(current -> Math.max(0, current - 1)));
   }
 
   private static Throwable unwrapCompletion(Throwable thrown) {
@@ -1035,6 +1386,9 @@ public class Database implements AutoCloseable {
     }
     return current;
   }
+
+  private record PendingAuditObservation(
+      ChunkLoaderObservation observation, CompletableFuture<Boolean> result) {}
 
   public CompletableFuture<Optional<String>> getStorageSortMode(String storageId) {
     Objects.requireNonNull(storageId, "storageId");
@@ -1749,11 +2103,17 @@ public class Database implements AutoCloseable {
   }
 
   public CompletableFuture<Map<String, DbItem>> loadStorage(String storageId) {
+    return loadStorageWithHealth(storageId).thenApply(StorageLoadResult::items);
+  }
+
+  public CompletableFuture<StorageLoadResult> loadStorageWithHealth(String storageId) {
     Objects.requireNonNull(storageId, "storageId");
     return supplyDbTask(
         "load storage " + storageId,
         () -> {
           Map<String, DbItem> items = new HashMap<>();
+          List<StorageCorruption> corruptions = new ArrayList<>();
+          long detectedAt = Instant.now().getEpochSecond();
           String sql =
               "SELECT item_key, item_blob, amount, length(item_blob) AS blob_len FROM"
                   + " storage_items WHERE storage_id = ?";
@@ -1765,33 +2125,106 @@ public class Database implements AutoCloseable {
                 long amount = rs.getLong("amount");
                 long blobLen = rs.getLong("blob_len");
                 if (amount <= 0) {
-                  warnInvalidStorageRow(storageId, key, amount, blobLen, "amount must be positive");
+                  String reason = "amount must be positive";
+                  warnInvalidStorageRow(storageId, key, amount, blobLen, reason);
+                  corruptions.add(new StorageCorruption(key, amount, reason, detectedAt));
                   continue;
                 }
                 if (blobLen <= 0 || blobLen > MAX_ITEM_BLOB_BYTES) {
-                  warnInvalidStorageRow(
-                      storageId, key, amount, blobLen, "invalid serialized item blob length");
+                  String reason = "invalid serialized item blob length";
+                  warnInvalidStorageRow(storageId, key, amount, blobLen, reason);
+                  corruptions.add(new StorageCorruption(key, amount, reason, detectedAt));
                   continue;
                 }
                 byte[] blob = rs.getBytes("item_blob");
                 if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+                  String reason = "invalid serialized item blob";
                   warnInvalidStorageRow(
-                      storageId,
-                      key,
-                      amount,
-                      blob == null ? 0L : blob.length,
-                      "invalid serialized item blob");
+                      storageId, key, amount, blob == null ? 0L : blob.length, reason);
+                  corruptions.add(new StorageCorruption(key, amount, reason, detectedAt));
                   continue;
                 }
                 items.put(key, new DbItem(key, blob, amount));
               }
             }
+            quarantineStructuralRows(storageId, corruptions);
           } catch (SQLException e) {
             log(Level.SEVERE, "Failed to load storage " + storageId, e);
             throw new CompletionException(e);
           }
-          return items;
+          return new StorageLoadResult(items, corruptions);
         });
+  }
+
+  public CompletableFuture<Void> quarantineStorageItems(
+      String storageId, Collection<StorageQuarantineEntry> entries) {
+    Objects.requireNonNull(storageId, "storageId");
+    List<StorageQuarantineEntry> safeEntries =
+        entries == null ? List.of() : entries.stream().filter(Objects::nonNull).toList();
+    if (safeEntries.isEmpty()) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return runDbTask(
+        "quarantine corrupt storage items for " + storageId,
+        () -> {
+          String sql =
+              """
+              INSERT INTO storage_item_quarantine(
+                  storage_id, item_key, item_blob, amount, reason, quarantined_at)
+              VALUES(?, ?, ?, ?, ?, ?)
+              ON CONFLICT(storage_id, item_key) DO UPDATE SET
+                  item_blob = excluded.item_blob,
+                  amount = excluded.amount,
+                  reason = excluded.reason,
+                  quarantined_at = excluded.quarantined_at
+              """;
+          try (PreparedStatement insert = connection.prepareStatement(sql)) {
+            for (StorageQuarantineEntry entry : safeEntries) {
+              StorageCorruption corruption = entry.corruption();
+              insert.setString(1, storageId);
+              insert.setString(2, corruption.itemKey());
+              insert.setBytes(3, entry.originalBlob());
+              insert.setLong(4, corruption.amount());
+              insert.setString(5, corruption.reason());
+              insert.setLong(6, corruption.detectedAt());
+              insert.addBatch();
+            }
+            insert.executeBatch();
+          } catch (SQLException e) {
+            log(Level.SEVERE, "Failed to quarantine corrupt items for storage " + storageId, e);
+            throw new CompletionException(e);
+          }
+        });
+  }
+
+  private void quarantineStructuralRows(String storageId, Collection<StorageCorruption> corruptions)
+      throws SQLException {
+    if (corruptions == null || corruptions.isEmpty()) {
+      return;
+    }
+    String sql =
+        """
+        INSERT INTO storage_item_quarantine(
+            storage_id, item_key, item_blob, amount, reason, quarantined_at)
+        SELECT storage_id, item_key, item_blob, amount, ?, ?
+        FROM storage_items
+        WHERE storage_id = ? AND item_key = ?
+        ON CONFLICT(storage_id, item_key) DO UPDATE SET
+            item_blob = excluded.item_blob,
+            amount = excluded.amount,
+            reason = excluded.reason,
+            quarantined_at = excluded.quarantined_at
+        """;
+    try (PreparedStatement insert = connection.prepareStatement(sql)) {
+      for (StorageCorruption corruption : corruptions) {
+        insert.setString(1, corruption.reason());
+        insert.setLong(2, corruption.detectedAt());
+        insert.setString(3, storageId);
+        insert.setString(4, corruption.itemKey());
+        insert.addBatch();
+      }
+      insert.executeBatch();
+    }
   }
 
   public CompletableFuture<Void> writeSnapshot(String storageId, Collection<DbItem> items) {
@@ -2147,12 +2580,25 @@ public class Database implements AutoCloseable {
                 + CLOSE_TIMEOUT_SECONDS
                 + "s; forcing shutdown");
         executor.shutdownNow();
+        executor.awaitTermination(FORCED_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       log(Level.WARNING, "Interrupted while waiting for database shutdown", e);
       executor.shutdownNow();
     }
+    CancellationException databaseClosed =
+        new CancellationException("Database closed before queued operation completed");
+    pendingDbFutures.forEach(future -> future.completeExceptionally(databaseClosed));
+    pendingDbFutures.clear();
+    queuedOperations.set(0);
+    PerfStats.setGauge("storage-db.queueDepth", 0);
+    CancellationException auditClosed =
+        new CancellationException("Database closed before audit observation was persisted");
+    pendingAuditObservations
+        .values()
+        .forEach(pending -> pending.result().completeExceptionally(auditClosed));
+    pendingAuditObservations.clear();
     if (connection != null) {
       try {
         connection.close();

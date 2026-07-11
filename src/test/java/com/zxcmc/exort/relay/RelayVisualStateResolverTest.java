@@ -7,9 +7,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -18,7 +16,6 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,20 +27,13 @@ class RelayVisualStateResolverTest {
   private StorageKeys keys;
   private StorageTier tier;
   private RelaySetupTracker setupTracker;
-  private Map<String, StorageTier> savedTiers;
 
   @BeforeEach
   void setUp() {
-    savedTiers = snapshotTiers();
     plugin = BukkitTestDoubles.plugin();
     keys = new StorageKeys(plugin);
     tier = loadTier();
     setupTracker = new RelaySetupTracker(60_000L);
-  }
-
-  @AfterEach
-  void tearDown() {
-    restoreTiers(savedTiers);
   }
 
   @Test
@@ -161,32 +151,6 @@ class RelayVisualStateResolverTest {
   private static StorageTier loadTier() {
     StorageTier.loadFromConfig(tiersSection(), Logger.getLogger("ExortTest"));
     return StorageTier.fromString("BASIC").orElseThrow();
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Map<String, StorageTier> snapshotTiers() {
-    try {
-      Field field = StorageTier.class.getDeclaredField("REGISTRY");
-      field.setAccessible(true);
-      return new LinkedHashMap<>((Map<String, StorageTier>) field.get(null));
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("Unable to snapshot storage tiers", e);
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static void restoreTiers(Map<String, StorageTier> tiers) {
-    try {
-      Field field = StorageTier.class.getDeclaredField("REGISTRY");
-      field.setAccessible(true);
-      Map<String, StorageTier> registry = (Map<String, StorageTier>) field.get(null);
-      registry.clear();
-      if (tiers != null) {
-        registry.putAll(tiers);
-      }
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("Unable to restore storage tiers", e);
-    }
   }
 
   private static ConfigurationSection tiersSection() {

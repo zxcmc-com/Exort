@@ -57,11 +57,14 @@ public final class PackExporter {
 
   static Result exportPack(
       Path source, String resourceRoot, File packDir, java.util.logging.Logger logger) {
-    if (!packDir.exists()) {
-      packDir.mkdirs();
-    }
     File rawFile = new File(packDir, RAW_OUTPUT_NAME);
     File outputFile = new File(packDir, OUTPUT_NAME);
+    try {
+      Files.createDirectories(packDir.toPath());
+    } catch (IOException e) {
+      logger.log(Level.WARNING, "Failed to create resource-pack output directory " + packDir, e);
+      return Result.empty(rawFile, outputFile);
+    }
     int entryCount = exportRawPack(logger, source, resourceRoot, rawFile);
     if (entryCount <= 0) {
       return Result.empty(rawFile, outputFile);

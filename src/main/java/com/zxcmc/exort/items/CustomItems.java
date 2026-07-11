@@ -292,9 +292,7 @@ public class CustomItems {
   }
 
   public boolean isCustomItem(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    return pdc.has(keys.type(), PersistentDataType.STRING);
+    return CustomItemClassifier.isCustomItem(keys, stack);
   }
 
   public boolean refreshItem(
@@ -302,12 +300,14 @@ public class CustomItems {
     if (stack == null || !stack.hasItemMeta()) return false;
     ItemMeta meta = stack.getItemMeta();
     PersistentDataContainer pdc = meta.getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
+    String type = CustomItemClassifier.recognizedType(keys, stack);
     if (type == null) return false;
     switch (type) {
       case "storage" -> {
         StorageTierResolver.Resolution resolution = resolveStorageTier(pdc).orElse(null);
         if (resolution == null) return false;
+        pdc.set(keys.storageTier(), PersistentDataType.STRING, resolution.tier().key());
+        pdc.set(keys.storageTierMaxItems(), PersistentDataType.LONG, resolution.tierMaxItems());
         StorageTier tier = resolution.tier();
         String storageId = pdc.get(keys.storageId(), PersistentDataType.STRING);
         long nested = pdc.getOrDefault(keys.nestedCount(), PersistentDataType.LONG, 0L);
@@ -400,38 +400,24 @@ public class CustomItems {
   }
 
   public boolean isWirelessTerminal(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "wireless_terminal".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.WIRELESS_TERMINAL.id());
   }
 
   public boolean isRelay(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "relay".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.RELAY.id());
   }
 
   public boolean isTransmitter(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "transmitter".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.TRANSMITTER.id());
   }
 
   public boolean isChunkLoader(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
+    String type = CustomItemClassifier.recognizedType(keys, stack);
     return ChunkLoaderType.isChunkLoaderId(type);
   }
 
   public boolean isStorageCore(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "storage_core".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.STORAGE_CORE.id());
   }
 
   public void applyWirelessModel(ItemMeta meta, boolean charged, boolean linked, boolean enabled) {
@@ -451,66 +437,42 @@ public class CustomItems {
   }
 
   public Optional<StorageTier> tierFromItem(ItemStack stack) {
-    if (stack == null) return Optional.empty();
-    if (!stack.hasItemMeta()) return Optional.empty();
+    if (!CustomItemClassifier.isType(keys, stack, "storage")) return Optional.empty();
     ItemMeta meta = stack.getItemMeta();
     PersistentDataContainer pdc = meta.getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    if (!"storage".equalsIgnoreCase(type)) return Optional.empty();
-    Optional<StorageTierResolver.Resolution> resolution = resolveStorageTier(pdc);
-    if (resolution.isPresent()) {
-      stack.setItemMeta(meta);
-    }
-    return resolution.map(StorageTierResolver.Resolution::tier);
+    return resolveStorageTier(pdc).map(StorageTierResolver.Resolution::tier);
   }
 
   public boolean isTerminal(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "terminal".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.TERMINAL.id());
   }
 
   public boolean isCraftingTerminal(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "crafting_terminal".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.CRAFTING_TERMINAL.id());
   }
 
   public boolean isAnyTerminal(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "terminal".equalsIgnoreCase(type) || "crafting_terminal".equalsIgnoreCase(type);
+    return isTerminal(stack) || isCraftingTerminal(stack);
   }
 
   public boolean isMonitor(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "monitor".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.MONITOR.id());
   }
 
   public boolean isImportBus(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "import_bus".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.IMPORT_BUS.id());
   }
 
   public boolean isExportBus(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "export_bus".equalsIgnoreCase(type);
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.EXPORT_BUS.id());
   }
 
   public boolean isAnyBus(ItemStack stack) {
-    if (stack == null || !stack.hasItemMeta()) return false;
-    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String type = pdc.get(keys.type(), PersistentDataType.STRING);
-    return "import_bus".equalsIgnoreCase(type) || "export_bus".equalsIgnoreCase(type);
+    return isImportBus(stack) || isExportBus(stack);
+  }
+
+  public boolean isWire(ItemStack stack) {
+    return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.WIRE.id());
   }
 
   public Optional<String> storageId(ItemStack stack) {
@@ -563,14 +525,7 @@ public class CustomItems {
   private Optional<StorageTierResolver.Resolution> resolveStorageTier(PersistentDataContainer pdc) {
     String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
     Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
-    Optional<StorageTierResolver.Resolution> resolution =
-        StorageTierResolver.resolve(tierRaw, tierMaxItems);
-    resolution.ifPresent(
-        resolved -> {
-          pdc.set(keys.storageTier(), PersistentDataType.STRING, resolved.tier().key());
-          pdc.set(keys.storageTierMaxItems(), PersistentDataType.LONG, resolved.tierMaxItems());
-        });
-    return resolution;
+    return StorageTierResolver.resolve(tierRaw, tierMaxItems);
   }
 
   private void applyLore(ItemMeta meta, StorageTier tier, String storageId, long currentAmount) {

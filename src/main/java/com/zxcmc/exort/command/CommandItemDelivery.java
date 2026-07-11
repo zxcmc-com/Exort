@@ -9,7 +9,7 @@ import org.bukkit.inventory.ItemStack;
 final class CommandItemDelivery {
   private CommandItemDelivery() {}
 
-  record Result(int inventory, int dropped) {
+  record Result(int inventory, int dropped, int undelivered) {
     int total() {
       return inventory + dropped;
     }
@@ -23,26 +23,50 @@ final class CommandItemDelivery {
     int remaining = Math.max(0, amount);
     int inventory = 0;
     int dropped = 0;
+    int undelivered = 0;
     while (remaining > 0) {
       ItemStack prototype = itemFactory.get();
-      if (isEmpty(prototype)) break;
+      if (isEmpty(prototype)) {
+        undelivered += remaining;
+        break;
+      }
       int stackSize = Math.max(1, prototype.getMaxStackSize());
       int move = Math.min(stackSize, remaining);
       ItemStack stack = prototype.clone();
       stack.setAmount(move);
       Map<Integer, ItemStack> leftovers = target.getInventory().addItem(stack);
-      int leftoverAmount = leftovers.values().stream().mapToInt(ItemStack::getAmount).sum();
+      long reportedLeftover =
+          leftovers.values().stream()
+              .filter(leftover -> leftover != null)
+              .mapToLong(ItemStack::getAmount)
+              .sum();
+      int leftoverAmount = (int) Math.min(move, Math.max(0L, reportedLeftover));
       inventory += move - leftoverAmount;
+      int failedDrop = 0;
+      int dropBudget = leftoverAmount;
       for (ItemStack leftover : leftovers.values()) {
-        if (isEmpty(leftover)) {
+        if (isEmpty(leftover) || dropBudget <= 0) {
           continue;
         }
-        target.getWorld().dropItemNaturally(target.getLocation(), leftover);
-        dropped += leftover.getAmount();
+        int dropAmount = Math.min(dropBudget, leftover.getAmount());
+        ItemStack safeLeftover = leftover.clone();
+        safeLeftover.setAmount(dropAmount);
+        try {
+          target.getWorld().dropItemNaturally(target.getLocation(), safeLeftover);
+          dropped += dropAmount;
+        } catch (RuntimeException failure) {
+          failedDrop += dropAmount;
+        }
+        dropBudget -= dropAmount;
       }
       remaining -= move;
+      int failedDelivery = failedDrop + dropBudget;
+      if (failedDelivery > 0) {
+        undelivered += failedDelivery + remaining;
+        break;
+      }
     }
-    return new Result(inventory, dropped);
+    return new Result(inventory, dropped, undelivered);
   }
 
   private static boolean isEmpty(ItemStack stack) {

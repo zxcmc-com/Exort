@@ -24,8 +24,13 @@ public final class RuntimeTaskScheduler {
   }
 
   public void schedule() {
-    scheduleFlushTask();
-    scheduleCacheEviction();
+    schedule(storageConfig.get());
+  }
+
+  public void schedule(StorageRuntimeConfig config) {
+    Objects.requireNonNull(config, "config");
+    scheduleFlushTask(config);
+    scheduleCacheEviction(config);
   }
 
   public void cancel() {
@@ -39,14 +44,13 @@ public final class RuntimeTaskScheduler {
     }
   }
 
-  private void scheduleCacheEviction() {
+  private void scheduleCacheEviction(StorageRuntimeConfig config) {
     if (cacheEvictTaskId != -1) {
       Bukkit.getScheduler().cancelTask(cacheEvictTaskId);
       cacheEvictTaskId = -1;
     }
     StorageManager manager = storageManager.get();
     if (manager == null) return;
-    StorageRuntimeConfig config = storageConfig.get();
     long idleSeconds = config.cacheIdleUnloadSeconds();
     long checkSeconds = config.cacheIdleCheckSeconds();
     if (idleSeconds <= 0 || checkSeconds <= 0) return;
@@ -60,14 +64,14 @@ public final class RuntimeTaskScheduler {
                 checkSeconds * 20L);
   }
 
-  private void scheduleFlushTask() {
+  private void scheduleFlushTask(StorageRuntimeConfig config) {
     if (flushTaskId != -1) {
       Bukkit.getScheduler().cancelTask(flushTaskId);
       flushTaskId = -1;
     }
     StorageManager manager = storageManager.get();
     if (manager == null) return;
-    int flushSeconds = storageConfig.get().flushIntervalSeconds();
+    int flushSeconds = config.flushIntervalSeconds();
     if (flushSeconds <= 0) return;
     flushTaskId =
         Bukkit.getScheduler()

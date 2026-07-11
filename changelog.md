@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.19.0 — 2026-07-10
+- Exort now requires Minecraft/Paper/Purpur `1.21.11` or newer and supports versions through `26.2`; version 0.19.0 will not load on earlier server versions.
+- Storage blocks now have a persistent physical identity: duplicate identities or positions are rejected, moving a Storage with WorldEdit keeps its identity and contents, and normal clipboard copies create a new empty Storage instead of duplicating items. Corrupt or unknown-tier Storages remain read-only with their original data retained for recovery.
+- Item data is now validated before terminals, crafting, Buses, admin delivery, Wireless Transmitters, or Monitors change the source state. Failed transfers preserve or restore the original items, and corrupt or oversized data no longer replaces the previous valid state.
+- Storage and wireless screens now re-check the device, connection, terminal possession, and protection access before changing data, preventing stale screens from bypassing current restrictions.
+- Pick-block and custom-breaking packets must now match what the player is actually targeting. Protection access is checked again when breaking completes, and multiple players can no longer multiply custom-breaking damage.
+- Wireless Terminal unbinding now consistently clears its owner and Storage link while retaining charge and returning exactly one terminal.
+- `/exort help` and `/exort version` are now available to all players while privileged help entries remain permission-filtered. Frequent denial messages use throttled action bars, while less common failures remain visible in chat without causing spam.
+- Added configurable global, per-world, per-player, and unique-chunk limits for Chunk Loaders. Overlapping loaders share chunk tickets, and operators can grant `exort.chunkloader.bypass-limits` where higher limits are intentional.
+- Chunk Loaders now start in bounded oldest-first batches, remain unavailable until their saved state is loaded, and restore their previous state when an update fails. Audit queues and files are also bounded so logging cannot grow without limit or delay Storage database work.
+- `/exort reload` now replaces runtime services, configuration, Storage tiers, recipes, displays, and optional integrations safely. If the new state cannot start, Exort restores the last working state or disables itself instead of running partially; invalid configuration, tiers, or recipes no longer replace working ones.
+- Resource-pack provider handoffs now validate replacements and preserve the previous usable pack when generation fails. `AUTO` uses only enabled providers or configured official hosting and never opens the built-in HTTP server, while `SELFHOST` must be selected explicitly and limits concurrent requests.
+- Optional integrations now refresh consistently when WorldEdit/FAWE or resource-pack providers are enabled or disabled. Exort changes the FAWE allowlist only when `integrations.fawe.autoConfigure` is explicitly enabled.
+- Network scans now count each Storage position once, stop safely when traversal limits are reached, and no longer mistake ordinary chorus plants for Exort wires. Background queues, scans, and bulk WorldEdit refreshes are bounded and limited to affected areas to reduce server load and stale state.
+- Removed automatic upgrades for obsolete pre-release SQLite layouts. Exort now stops with recovery instructions when required Storage or Chunk Loader columns are missing; back up and recreate old dev/test databases before starting 0.19.0.
+- Updated the build to Gradle `9.2.1` with dependency verification and automatic checks of the deployable plugin JAR.
+
 ## 0.18.12 — 2026-07-09
 - Wireless Transmitter WorldEdit/FAWE handling now preserves transmitter mode and stored terminal state for move, destructive edit history, and undo/redo flows, while ordinary clipboard copies still omit the stored terminal to prevent duplication.
 

@@ -33,6 +33,7 @@ class CommandItemDeliveryTest {
     assertEquals(70, result.inventory());
     assertEquals(0, result.dropped());
     assertEquals(70, result.total());
+    assertEquals(0, result.undelivered());
     assertEquals(70, harness.inventoryAccepted());
     assertEquals(0, harness.droppedAmount());
   }
@@ -47,6 +48,7 @@ class CommandItemDeliveryTest {
     assertEquals(10, result.inventory());
     assertEquals(60, result.dropped());
     assertEquals(70, result.total());
+    assertEquals(0, result.undelivered());
     assertEquals(10, harness.inventoryAccepted());
     assertEquals(60, harness.droppedAmount());
     assertEquals(2, harness.drops().size());
@@ -62,12 +64,48 @@ class CommandItemDeliveryTest {
     assertEquals(0, result.inventory());
     assertEquals(130, result.dropped());
     assertEquals(130, result.total());
+    assertEquals(0, result.undelivered());
     assertEquals(0, harness.inventoryAccepted());
     assertEquals(130, harness.droppedAmount());
     assertEquals(List.of(64, 64, 2), harness.dropAmounts());
   }
 
+  @Test
+  void failedWorldDropIsReportedAsUndeliveredInsteadOfAsSuccess() {
+    DeliveryHarness harness = deliveryHarness(10, true);
+
+    CommandItemDelivery.Result result =
+        CommandItemDelivery.deliver(harness.player(), () -> item(1), 64);
+
+    assertEquals(10, result.inventory());
+    assertEquals(0, result.dropped());
+    assertEquals(10, result.total());
+    assertEquals(54, result.undelivered());
+  }
+
+  @Test
+  void inflatedInventoryLeftoversCannotMintExtraItems() {
+    DeliveryHarness harness = deliveryHarness(0, false, true);
+
+    CommandItemDelivery.Result result =
+        CommandItemDelivery.deliver(harness.player(), () -> item(1), 1);
+
+    assertEquals(0, result.inventory());
+    assertEquals(1, result.dropped());
+    assertEquals(1, result.total());
+    assertEquals(0, result.undelivered());
+  }
+
   private static DeliveryHarness deliveryHarness(int inventoryCapacity) {
+    return deliveryHarness(inventoryCapacity, false);
+  }
+
+  private static DeliveryHarness deliveryHarness(int inventoryCapacity, boolean failDrops) {
+    return deliveryHarness(inventoryCapacity, failDrops, false);
+  }
+
+  private static DeliveryHarness deliveryHarness(
+      int inventoryCapacity, boolean failDrops, boolean inflateLeftovers) {
     List<ItemStack> drops = new ArrayList<>();
     World world =
         (World)
@@ -77,6 +115,9 @@ class CommandItemDeliveryTest {
                 (proxy, method, args) -> {
                   return switch (method.getName()) {
                     case "dropItemNaturally" -> {
+                      if (failDrops) {
+                        throw new IllegalStateException("drop failed");
+                      }
                       ItemStack item = (ItemStack) args[1];
                       drops.add(item.clone());
                       yield null;
@@ -89,7 +130,7 @@ class CommandItemDeliveryTest {
                   };
                 });
     Location location = new Location(world, 1.0, 2.0, 3.0);
-    InventoryState inventory = new InventoryState(inventoryCapacity);
+    InventoryState inventory = new InventoryState(inventoryCapacity, inflateLeftovers);
     PlayerInventory playerInventory =
         (PlayerInventory)
             Proxy.newProxyInstance(
@@ -145,9 +186,11 @@ class CommandItemDeliveryTest {
   private static final class InventoryState {
     private int capacity;
     private int accepted;
+    private final boolean inflateLeftovers;
 
-    InventoryState(int capacity) {
+    InventoryState(int capacity, boolean inflateLeftovers) {
       this.capacity = Math.max(0, capacity);
+      this.inflateLeftovers = inflateLeftovers;
     }
 
     Map<Integer, ItemStack> add(ItemStack[] items) {
@@ -160,7 +203,7 @@ class CommandItemDeliveryTest {
         int leftover = item.getAmount() - move;
         if (leftover > 0) {
           ItemStack leftoverStack = item.clone();
-          leftoverStack.setAmount(leftover);
+          leftoverStack.setAmount(inflateLeftovers ? leftover + 100 : leftover);
           leftovers.put(i, leftoverStack);
         }
       }

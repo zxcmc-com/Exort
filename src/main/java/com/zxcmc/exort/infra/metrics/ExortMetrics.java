@@ -1,20 +1,23 @@
 package com.zxcmc.exort.infra.metrics;
 
 import com.zxcmc.exort.bus.BusRuntimeConfig;
+import com.zxcmc.exort.i18n.LocalizationFiles;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
 import com.zxcmc.exort.recipes.RecipeRuntimeConfig;
 import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
+import java.io.InputStream;
+import java.util.LinkedHashSet;
 import java.util.Locale;
-import java.util.regex.Pattern;
+import java.util.Set;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ExortMetrics {
   private static final int BSTATS_PLUGIN_ID = 28841;
-  private static final Pattern LANGUAGE_CODE_PATTERN =
-      Pattern.compile("[a-z]{2,3}(?:_[a-z0-9]{2,4})?");
+  private static final String OTHER_LANGUAGE = "other";
+  private static final Set<String> BUNDLED_LANGUAGES = loadBundledLanguages();
 
   private ExortMetrics() {}
 
@@ -90,11 +93,30 @@ public final class ExortMetrics {
   }
 
   static String languageChartValue(String rawLanguage) {
-    String normalized =
-        rawLanguage == null
-            ? "en_us"
-            : rawLanguage.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-    return LANGUAGE_CODE_PATTERN.matcher(normalized).matches() ? normalized : "custom_or_invalid";
+    if (rawLanguage != null && rawLanguage.isBlank()) {
+      return OTHER_LANGUAGE;
+    }
+    String normalized = LocalizationFiles.normalizeLanguage(rawLanguage);
+    return BUNDLED_LANGUAGES.contains(normalized) ? normalized : OTHER_LANGUAGE;
+  }
+
+  static Set<String> bundledLanguageChartValues() {
+    return BUNDLED_LANGUAGES;
+  }
+
+  private static Set<String> loadBundledLanguages() {
+    try (InputStream input =
+        ExortMetrics.class.getClassLoader().getResourceAsStream(LocalizationFiles.LANG_INDEX)) {
+      if (input == null) {
+        return Set.of(LocalizationFiles.DEFAULT_LANGUAGE);
+      }
+      LinkedHashSet<String> languages =
+          new LinkedHashSet<>(LocalizationFiles.readLanguageIndex(input));
+      languages.add(LocalizationFiles.DEFAULT_LANGUAGE);
+      return Set.copyOf(languages);
+    } catch (Exception ignored) {
+      return Set.of(LocalizationFiles.DEFAULT_LANGUAGE);
+    }
   }
 
   static String protectionStateChartValue(

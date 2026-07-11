@@ -3,7 +3,6 @@ package com.zxcmc.exort.core;
 import com.zxcmc.exort.api.ExortApi;
 import com.zxcmc.exort.api.model.StorageTierDescriptor;
 import com.zxcmc.exort.block.ExortBlockClassifier;
-import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.breaking.overlay.DisplayBreakAnimationSender;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
@@ -48,7 +47,6 @@ import com.zxcmc.exort.integration.protection.MutableRegionProtection;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
 import com.zxcmc.exort.integration.protection.ProtectionStatus;
 import com.zxcmc.exort.integration.protection.RegionProtection;
-import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.resourcepack.nexo.NexoResourcePackIntegration;
 import com.zxcmc.exort.integration.resourcepack.oraxen.OraxenResourcePackIntegration;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
@@ -58,18 +56,19 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.NetworkGraphCacheProvider;
 import com.zxcmc.exort.placement.RecentPlacementTracker;
-import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.platform.MinecraftVersionRequirement;
 import com.zxcmc.exort.platform.ModePolicy;
 import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
 import com.zxcmc.exort.platform.RuntimeModeCoordinator;
+import com.zxcmc.exort.platform.RuntimeModeState;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
-import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.runtime.ExortRuntimeFactory;
 import com.zxcmc.exort.runtime.ExortRuntimeFactoryDependencies;
 import com.zxcmc.exort.runtime.ExortRuntimeServices;
+import com.zxcmc.exort.runtime.RuntimeHandle;
 import com.zxcmc.exort.runtime.RuntimeMaterials;
+import com.zxcmc.exort.runtime.RuntimeReloadCoordinator;
 import com.zxcmc.exort.runtime.RuntimeTaskScheduler;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageRuntimeConfig;
@@ -94,16 +93,19 @@ import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCacheProvider {
   static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
   private static final MinecraftVersionRequirement MIN_MC_VERSION =
-      MinecraftVersionRequirement.atLeast(1, 21, 7);
+      MinecraftVersionRequirement.atLeast(1, 21, 11);
   private Database database;
   private StorageManager storageManager;
   private SessionManager sessionManager;
@@ -132,13 +134,11 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private RuntimeMaterials runtimeMaterials;
   private ExortBlockClassifier blockClassifier;
   private ItemHologramManager hologramManager;
-  private boolean dialogSupported;
   private MonitorDisplayManager monitorDisplayManager;
   private ExortBlockProxyService blockProxyService;
   private DisplayCullingService displayCullingService;
   private BusService busService;
   private BusSessionManager busSessionManager;
-  private CustomBlockBreaker customBlockBreaker;
   private CraftingRules craftingRules;
   private RecipeService recipeService;
   private LoadTestService loadTestService;
@@ -146,19 +146,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private PickDebugService pickDebugService;
   private WorldEditDebugService worldEditDebugService;
   private Metrics metrics;
-  private WorldEditIntegration worldEditIntegration;
   private ResourcePackService resourcePackService;
   private NexoResourcePackIntegration nexoResourcePackIntegration;
-  private RelaySetupTracker relaySetupTracker;
-  private PacketEnhancements packetEnhancements;
-  private RightClickPlacementGuard placementGuard;
+  private OraxenResourcePackIntegration oraxenResourcePackIntegration;
   private EmbeddedChorusfixController embeddedChorusfix;
   private NetworkGraphCache networkGraphCache;
+  private RuntimeHandle<ExortRuntimeServices> runtimeHandle;
+  private FileConfiguration activeRuntimeConfig;
   private boolean resourceMode;
   private boolean resourceWireUsesBarrier;
   private boolean resourceWireCarrierFallback;
   private boolean chorusfixIntegrationLogged;
-  private boolean oraxenResourcePackIntegrationRegistered;
   private String configuredMode = "RESOURCE";
   private volatile String defaultSortModeName = SortMode.AMOUNT.name();
   private final MutableRegionProtection regionProtection =
@@ -172,33 +170,40 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       getServer().getPluginManager().disablePlugin(this);
       return;
     }
-    prepareConfigFiles();
+    if (!prepareConfigFiles()) {
+      getServer().getPluginManager().disablePlugin(this);
+      return;
+    }
+    activeRuntimeConfig = getConfig();
     new UpdateChecker(this).checkAsync();
-    evaluateModePolicy();
+    applyModePolicy(evaluateModePolicy(activeRuntimeConfig));
     if (!initCoreServices()) {
       return;
     }
     registerRuntime(true);
-    registerChorusfixIntegrationWatcher();
-    registerNexoResourcePackIntegrationWatcher();
-    registerOraxenResourcePackIntegrationWatcher();
     reloadResourcePackService();
     registerBrigadierCommands();
     scheduleEmbeddedChorusfixFinalLog();
   }
 
-  private void prepareConfigFiles() {
+  private boolean prepareConfigFiles() {
     saveDefaultConfig();
-    ConfigUpdater.update(this, "config.yml");
+    if (!ConfigUpdater.update(this, "config.yml")) {
+      return false;
+    }
     reloadConfig();
-    ensureStorageTiersFile();
+    if (!ensureStorageTiersFile()) {
+      return false;
+    }
     ensureRecipesFile();
+    return true;
   }
 
   private boolean initCoreServices() {
     lang = new Lang(this);
     itemNameService = new ItemNameService(this);
     nexoResourcePackIntegration = new NexoResourcePackIntegration();
+    oraxenResourcePackIntegration = new OraxenResourcePackIntegration();
     resourcePackService =
         new ResourcePackService(
             this,
@@ -257,7 +262,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> busService,
                 () -> craftingRules,
                 () -> resourceMode,
-                () -> dialogSupported,
+                () -> regionProtection,
                 () -> wireLimit,
                 () -> wireHardCap,
                 () -> relayRangeChunks,
@@ -307,11 +312,17 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       metrics.shutdown();
     }
     stopEmbeddedChorusfix();
-    stopReloadableRuntime();
+    closeRuntimeHandle();
     stopBusService();
     stopRecipeService();
     stopDisplayState();
     stopResourcePackService();
+    if (nexoResourcePackIntegration != null) {
+      nexoResourcePackIntegration.clearRegistration();
+    }
+    if (oraxenResourcePackIntegration != null) {
+      oraxenResourcePackIntegration.clearRegistration();
+    }
     busSessionManager = null;
     DisplayBreakAnimationSender.clearStaleOverlays();
     if (database != null) {
@@ -420,14 +431,80 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   public CompletableFuture<ItemNameService.Status> reloadRuntime() {
     boolean wasResourceMode = resourceMode;
-    ConfigUpdater.update(this, "config.yml");
-    reloadConfig();
-    closeRuntimeSessions();
-    ensureStorageTiersFile();
+    FileConfiguration previousConfig =
+        activeRuntimeConfig == null ? getConfig() : activeRuntimeConfig;
+    RuntimeModeState previousMode = currentModeState();
+    RuntimeHandle<ExortRuntimeServices> previousHandle = runtimeHandle;
+    if (previousHandle == null) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("No active runtime is available to reload"));
+    }
+    if (!ConfigUpdater.update(this, "config.yml")) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("config.yml update failed; runtime was not reloaded"));
+    }
+    if (!ensureStorageTiersFile()) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("storage-tiers.yml update failed; runtime was not reloaded"));
+    }
     ensureRecipesFile();
-    evaluateModePolicy();
-    boolean switchedToResourceMode = !wasResourceMode && resourceMode;
-    CompletableFuture<ItemNameService.Status> future = registerRuntime(false);
+    FileConfiguration candidateConfig;
+    try {
+      YamlConfiguration loaded = new YamlConfiguration();
+      loaded.load(new File(getDataFolder(), "config.yml"));
+      loaded.setDefaults(previousConfig.getDefaults());
+      candidateConfig = loaded;
+    } catch (Exception error) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("config.yml is invalid; runtime was not reloaded", error));
+    }
+    RuntimeModeState candidateMode = evaluateModePolicy(candidateConfig);
+    try {
+      ExortRuntimeFactory.preflight(
+          this,
+          candidateConfig,
+          candidateMode.resourceMode(),
+          candidateMode.resourceWireUsesBarrier());
+    } catch (RuntimeException | LinkageError preflightFailure) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException(
+              "Runtime preflight failed; the active runtime was not changed", preflightFailure));
+    }
+    closeRuntimeSessions();
+    boolean switchedToResourceMode = !wasResourceMode && candidateMode.resourceMode();
+    runtimeHandle = null;
+    RuntimeReloadCoordinator.Outcome<ExortRuntimeServices> outcome =
+        RuntimeReloadCoordinator.replace(
+            previousHandle,
+            () -> createRuntimeHandle(false, candidateConfig, candidateMode),
+            services -> publishRuntime(services, candidateConfig),
+            () -> createRuntimeHandle(false, previousConfig, previousMode),
+            services -> publishRuntime(services, previousConfig));
+    runtimeHandle = outcome.handle();
+    if (outcome.failure() != null) {
+      applyModePolicy(previousMode);
+      if (outcome.restored()) {
+        outcome.handle().value().itemNamesStatus();
+      }
+      if (outcome.fatal()) {
+        getLogger()
+            .log(
+                Level.SEVERE,
+                "Runtime reload could not be rolled back safely; disabling Exort",
+                outcome.failure());
+        getServer().getPluginManager().disablePlugin(this);
+      }
+      return CompletableFuture.failedFuture(
+          new IllegalStateException(
+              outcome.restored()
+                  ? "Runtime activation failed; last-known-good runtime was restored"
+                  : "Runtime activation failed and safe rollback was not possible",
+              outcome.failure()));
+    }
+    applyModePolicy(candidateMode);
+    CompletableFuture<ItemNameService.Status> future = outcome.handle().value().itemNamesStatus();
+    reloadConfig();
+    activeRuntimeConfig = getConfig();
     reloadResourcePackService();
     if (switchedToResourceMode && resourcePackService != null) {
       resourcePackService.requestSendOnlineWhenReady();
@@ -458,64 +535,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
   }
 
-  private void stopPacketEnhancements() {
-    if (packetEnhancements == null) {
-      return;
-    }
-    packetEnhancements.unregister();
-    packetEnhancements = null;
-  }
-
-  private void stopPlacementGuard() {
-    if (placementGuard == null) {
-      return;
-    }
-    placementGuard.stop();
-    placementGuard = null;
-  }
-
-  private void stopWorldEditIntegration() {
-    if (worldEditIntegration == null) {
-      return;
-    }
-    worldEditIntegration.shutdown();
-    worldEditIntegration = null;
-  }
-
-  private void stopReloadableRuntime() {
+  private void closeRuntimeHandle() {
+    RuntimeHandle<ExortRuntimeServices> current = runtimeHandle;
+    runtimeHandle = null;
     if (loadTestService != null) {
       loadTestService.clearRuntimeDependencies();
     }
-    stopEmbeddedChorusfix();
-    stopWorldEditIntegration();
-    stopPlacementGuard();
-    if (transmitterSessionManager != null) {
-      transmitterSessionManager.shutdown();
-      transmitterSessionManager = null;
-    }
-    stopRelaySetupTracker();
-    stopPacketEnhancements();
-    stopChunkLoaderService();
-    if (customBlockBreaker != null) {
-      customBlockBreaker.shutdown();
-      customBlockBreaker = null;
-    }
-  }
-
-  private void stopChunkLoaderService() {
-    if (chunkLoaderService == null) {
+    if (current == null) {
       return;
     }
-    chunkLoaderService.stop();
-    chunkLoaderService = null;
-  }
-
-  private void stopRelaySetupTracker() {
-    if (relaySetupTracker == null) {
-      return;
+    try {
+      current.close();
+    } catch (RuntimeException error) {
+      getLogger().log(Level.WARNING, "One or more runtime resources failed to close", error);
     }
-    relaySetupTracker.stop();
-    relaySetupTracker = null;
   }
 
   private void unregisterReloadableRuntimeListeners() {
@@ -529,44 +562,59 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     if (nexoResourcePackIntegration != null) {
       nexoResourcePackIntegration.clearRegistration();
     }
-    oraxenResourcePackIntegrationRegistered = false;
+    if (oraxenResourcePackIntegration != null) {
+      oraxenResourcePackIntegration.clearRegistration();
+    }
     registerChorusfixIntegrationWatcher();
     registerNexoResourcePackIntegrationWatcher();
     registerOraxenResourcePackIntegrationWatcher();
-  }
-
-  private void resetReloadableDisplayState() {
-    stopBusService();
-    if (blockProxyService != null) {
-      blockProxyService.stop();
-      blockProxyService = null;
-    }
-    if (displayCullingService != null) {
-      displayCullingService.stop();
-      displayCullingService = null;
-    }
-    if (hologramManager != null) {
-      hologramManager.stop();
-    }
-    if (monitorDisplayManager != null) {
-      monitorDisplayManager.stopForReload();
-    }
-    monitorDisplayManager = null;
+    registerProtectionLifecycleWatcher();
   }
 
   private CompletableFuture<ItemNameService.Status> registerRuntime(
       boolean refreshItemDictionaries) {
-    ExortRuntimeServices services =
-        ExortRuntimeFactory.create(createRuntimeFactoryDependencies(), refreshItemDictionaries);
-    applyRuntimeServices(services);
-    refreshEmbeddedChorusfix();
-    return services.itemNamesStatus();
+    return registerRuntime(
+        refreshItemDictionaries, activeRuntimeConfig == null ? getConfig() : activeRuntimeConfig);
   }
 
-  private ExortRuntimeFactoryDependencies createRuntimeFactoryDependencies() {
+  private CompletableFuture<ItemNameService.Status> registerRuntime(
+      boolean refreshItemDictionaries, FileConfiguration config) {
+    FileConfiguration previousConfig = activeRuntimeConfig;
+    RuntimeHandle<ExortRuntimeServices> candidate =
+        ExortRuntimeFactory.create(
+            createRuntimeFactoryDependencies(config), refreshItemDictionaries);
+    ExortRuntimeServices services = candidate.value();
+    try {
+      applyRuntimeServices(services);
+      runtimeHandle = candidate;
+      activeRuntimeConfig = config;
+      refreshEmbeddedChorusfix();
+      return services.itemNamesStatus();
+    } catch (RuntimeException | LinkageError error) {
+      activeRuntimeConfig = previousConfig;
+      candidate.close();
+      throw error;
+    }
+  }
+
+  private RuntimeHandle<ExortRuntimeServices> createRuntimeHandle(
+      boolean refreshItemDictionaries, FileConfiguration config, RuntimeModeState mode) {
+    applyModePolicy(mode);
+    return ExortRuntimeFactory.create(
+        createRuntimeFactoryDependencies(config), refreshItemDictionaries);
+  }
+
+  private void publishRuntime(ExortRuntimeServices services, FileConfiguration config) {
+    applyRuntimeServices(services);
+    activeRuntimeConfig = config;
+    refreshEmbeddedChorusfix();
+  }
+
+  private ExortRuntimeFactoryDependencies createRuntimeFactoryDependencies(
+      FileConfiguration config) {
     return new ExortRuntimeFactoryDependencies(
         this,
-        getConfig(),
+        config,
         lang,
         itemNameService,
         searchDialogService,
@@ -585,11 +633,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         runtimeTasks,
         resourceMode,
         resourceWireUsesBarrier,
-        this::reloadDefaultSortMode,
-        this::stopReloadableRuntime,
+        () -> reloadDefaultSortMode(config),
         this::unregisterReloadableRuntimeListeners,
-        this::setupRegionProtection,
-        this::resetReloadableDisplayState,
+        () -> setupRegionProtection(config),
         () -> {
           if (sessionManager != null) {
             sessionManager.revalidateSessions();
@@ -609,11 +655,11 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
           }
         },
         block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
-        () -> GuiRuntimeConfig.fromConfig(getConfig()),
+        () -> GuiRuntimeConfig.fromConfig(config),
         GuiOverlayConfig::defaults,
         storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE),
         WorldEditIntegration::tryRegister,
-        integration -> worldEditIntegration = integration);
+        ignored -> {});
   }
 
   private void applyRuntimeServices(ExortRuntimeServices services) {
@@ -622,7 +668,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     wirelessTransmitterService = services.wirelessTransmitterService();
     transmitterSessionManager = services.transmitterSessionManager();
     chunkLoaderService = services.chunkLoaderService();
-    relaySetupTracker = services.relaySetupTracker();
     RuntimeMaterials materials = services.materials();
     runtimeMaterials = materials;
     blockClassifier = new ExortBlockClassifier(this, materials);
@@ -639,13 +684,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     displayCullingService = services.displayCullingService();
     busService = services.busService();
     busSessionManager = services.busSessionManager();
-    customBlockBreaker = services.customBlockBreaker();
     craftingRules = services.craftingRules();
     recipeService = services.recipeService();
-    packetEnhancements = services.packetEnhancements();
-    placementGuard = services.placementGuard();
-    worldEditIntegration = services.worldEditIntegration();
-    dialogSupported = services.dialogSupported();
     if (playerLocaleService != null) {
       Bukkit.getOnlinePlayers().forEach(playerLocaleService::preloadItemDictionary);
     }
@@ -667,17 +707,24 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
   }
 
-  private void evaluateModePolicy() {
-    var state =
-        RuntimeModeCoordinator.evaluate(
-            getConfig().getString("mode", ModePolicy.DEFAULT_MODE),
-            WireCarrierMode.fromConfig(getConfig()),
-            this::isChorusUpdatesDisabled,
-            MODE_FIX_RESOURCE_COMMAND);
+  private RuntimeModeState evaluateModePolicy(FileConfiguration config) {
+    return RuntimeModeCoordinator.evaluate(
+        config.getString("mode", ModePolicy.DEFAULT_MODE),
+        WireCarrierMode.fromConfig(config),
+        this::isChorusUpdatesDisabled,
+        MODE_FIX_RESOURCE_COMMAND);
+  }
+
+  private void applyModePolicy(RuntimeModeState state) {
     configuredMode = state.configuredMode();
     resourceMode = state.resourceMode();
     resourceWireUsesBarrier = state.resourceWireUsesBarrier();
     resourceWireCarrierFallback = state.resourceWireCarrierFallback();
+  }
+
+  private RuntimeModeState currentModeState() {
+    return new RuntimeModeState(
+        configuredMode, resourceMode, resourceWireUsesBarrier, resourceWireCarrierFallback);
   }
 
   static List<String> resourceWireCarrierWarningLines() {
@@ -753,6 +800,27 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                   logChorusfixIntegrationIfEnabled(event.getPlugin());
                 }
                 refreshEmbeddedChorusfix();
+                if ("ItemsAdder".equals(pluginName)) {
+                  reloadResourcePackService();
+                }
+              }
+
+              @EventHandler
+              public void onPluginDisable(PluginDisableEvent event) {
+                String pluginName = event.getPlugin().getName();
+                boolean chorusfixDisabled = ChorusfixIntegration.PLUGIN_NAME.equals(pluginName);
+                boolean knownProviderDisabled =
+                    embeddedChorusfix != null && embeddedChorusfix.isKnownProvider(pluginName);
+                if (!chorusfixDisabled && !knownProviderDisabled) {
+                  return;
+                }
+                if (chorusfixDisabled) {
+                  chorusfixIntegrationLogged = false;
+                }
+                refreshEmbeddedChorusfix();
+                if ("ItemsAdder".equals(pluginName)) {
+                  reloadResourcePackService();
+                }
               }
             },
             this);
@@ -766,18 +834,35 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
             new Listener() {
               @EventHandler
               public void onPluginEnable(PluginEnableEvent event) {
-                registerOraxenResourcePackIntegrationIfEnabled(event.getPlugin());
+                if (!OraxenResourcePackIntegration.PLUGIN_NAME.equals(
+                    event.getPlugin().getName())) {
+                  return;
+                }
+                if (registerOraxenResourcePackIntegrationIfEnabled(event.getPlugin())) {
+                  reloadResourcePackService();
+                }
+              }
+
+              @EventHandler
+              public void onPluginDisable(PluginDisableEvent event) {
+                if (!OraxenResourcePackIntegration.PLUGIN_NAME.equals(
+                    event.getPlugin().getName())) {
+                  return;
+                }
+                if (oraxenResourcePackIntegration != null) {
+                  oraxenResourcePackIntegration.clearRegistration();
+                }
+                reloadResourcePackService();
               }
             },
             this);
   }
 
-  private void registerOraxenResourcePackIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {
-    if (oraxenResourcePackIntegrationRegistered) {
-      return;
+  private boolean registerOraxenResourcePackIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {
+    if (oraxenResourcePackIntegration == null) {
+      return false;
     }
-    oraxenResourcePackIntegrationRegistered =
-        OraxenResourcePackIntegration.registerIfEnabled(this, plugin);
+    return oraxenResourcePackIntegration.registerIfEnabled(this, plugin);
   }
 
   private void registerNexoResourcePackIntegrationWatcher() {
@@ -788,17 +873,33 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
             new Listener() {
               @EventHandler
               public void onPluginEnable(PluginEnableEvent event) {
-                registerNexoResourcePackIntegrationIfAvailable(event.getPlugin());
+                if (!NexoResourcePackIntegration.PLUGIN_NAME.equals(event.getPlugin().getName())) {
+                  return;
+                }
+                if (registerNexoResourcePackIntegrationIfAvailable(event.getPlugin())) {
+                  reloadResourcePackService();
+                }
+              }
+
+              @EventHandler
+              public void onPluginDisable(PluginDisableEvent event) {
+                if (!NexoResourcePackIntegration.PLUGIN_NAME.equals(event.getPlugin().getName())) {
+                  return;
+                }
+                if (nexoResourcePackIntegration != null) {
+                  nexoResourcePackIntegration.clearRegistration();
+                }
+                reloadResourcePackService();
               }
             },
             this);
   }
 
-  private void registerNexoResourcePackIntegrationIfAvailable(org.bukkit.plugin.Plugin plugin) {
+  private boolean registerNexoResourcePackIntegrationIfAvailable(org.bukkit.plugin.Plugin plugin) {
     if (nexoResourcePackIntegration == null || nexoResourcePackIntegration.isRegistered()) {
-      return;
+      return nexoResourcePackIntegration != null && nexoResourcePackIntegration.isRegistered();
     }
-    nexoResourcePackIntegration.registerIfAvailable(this, plugin);
+    return nexoResourcePackIntegration.registerIfAvailable(this, plugin);
   }
 
   private void logChorusfixIntegrationIfEnabled(org.bukkit.plugin.Plugin plugin) {
@@ -810,14 +911,21 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   }
 
   private void setupRegionProtection() {
+    setupRegionProtection(activeRuntimeConfig == null ? getConfig() : activeRuntimeConfig);
+  }
+
+  private void setupRegionProtection(FileConfiguration config) {
     regionProtection.setDelegate(RegionProtection.allowAll());
-    ProtectionRuntimeConfig protectionConfig = ProtectionRuntimeConfig.fromConfig(getConfig());
+    ProtectionRuntimeConfig protectionConfig = ProtectionRuntimeConfig.fromConfig(config);
     if (!protectionConfig.enabled()) {
       protectionStatus = ProtectionStatus.disabledByConfig();
       ExortLog.info(ProtectionStartupLog.disabledByConfig());
       return;
     }
     boolean failClosed = protectionConfig.failClosedOnError();
+    if (!failClosed) {
+      ExortLog.warn(ProtectionStartupLog.failOpenOverride());
+    }
     ProtectionRuntimeConfig.Adapters enabledAdapters = protectionConfig.adapters();
     List<CompositeRegionProtection.Adapter> adapters = new ArrayList<>();
     Set<String> missingPlugins = new LinkedHashSet<>();
@@ -888,7 +996,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
               ? ProtectionStatus.noProvider(failClosed, missingPlugins)
               : ProtectionStatus.active(failClosed, List.of(), missingPlugins, failedAdapters);
       ExortLog.info(ProtectionStartupLog.noSupportedProvider());
-      registerProtectionEnableHook(retryableProtectionPlugins(missingPlugins, failedAdapters));
       return;
     }
 
@@ -899,7 +1006,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         ProtectionStatus.active(
             failClosed, composite.adapterNames(), missingPlugins, failedAdapters);
     ExortLog.success(ProtectionStartupLog.enabled(composite.adapterNames()));
-    registerProtectionEnableHook(retryableProtectionPlugins(missingPlugins, failedAdapters));
   }
 
   private boolean addProtectionAdapter(
@@ -931,7 +1037,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         protectionStatus =
             ProtectionStatus.degradedFailClosed(
                 true, adapterNames(adapters), missingPlugins, failedAdapters);
-        registerProtectionEnableHook(Set.of(pluginName));
         return false;
       }
       return true;
@@ -944,13 +1049,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
       status = status.withRuntimeFailures(composite.runtimeFailureKeys());
     }
     return status;
-  }
-
-  private static Set<String> retryableProtectionPlugins(
-      Set<String> missingPlugins, Set<String> failedAdapters) {
-    Set<String> retryable = new LinkedHashSet<>(missingPlugins);
-    retryable.addAll(failedAdapters);
-    return retryable;
   }
 
   private static List<String> adapterNames(List<CompositeRegionProtection.Adapter> adapters) {
@@ -990,24 +1088,34 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     }
   }
 
-  private void registerProtectionEnableHook(Set<String> pluginNames) {
-    if (pluginNames.isEmpty()) {
-      return;
-    }
-    Set<String> watchedPluginNames = Set.copyOf(pluginNames);
+  private void registerProtectionLifecycleWatcher() {
     Bukkit.getPluginManager()
         .registerEvents(
             new Listener() {
               @EventHandler
               public void onPluginEnable(PluginEnableEvent event) {
-                if (!watchedPluginNames.contains(event.getPlugin().getName())) {
+                if (!isProtectionProvider(event.getPlugin().getName())) {
                   return;
                 }
                 setupRegionProtection();
-                HandlerList.unregisterAll(this);
+              }
+
+              @EventHandler
+              public void onPluginDisable(PluginDisableEvent event) {
+                if (!isProtectionProvider(event.getPlugin().getName())) {
+                  return;
+                }
+                setupRegionProtection();
               }
             },
             this);
+  }
+
+  private static boolean isProtectionProvider(String pluginName) {
+    return switch (pluginName) {
+      case "WorldGuard", "GriefPrevention", "Towny", "Lands", "Residence" -> true;
+      default -> false;
+    };
   }
 
   private interface ProtectionFactory {
@@ -1077,12 +1185,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     return networkGraphCache;
   }
 
-  private void reloadDefaultSortMode() {
-    defaultSortModeName = StorageRuntimeConfig.fromConfig(getConfig()).defaultSortModeName();
+  private void reloadDefaultSortMode(FileConfiguration config) {
+    defaultSortModeName = StorageRuntimeConfig.fromConfig(config).defaultSortModeName();
   }
 
-  private void ensureStorageTiersFile() {
-    ConfigUpdater.update(this, "storage-tiers.yml");
+  private boolean ensureStorageTiersFile() {
+    return ConfigUpdater.update(this, "storage-tiers.yml");
   }
 
   private void ensureRecipesFile() {

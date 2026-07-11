@@ -16,6 +16,8 @@ message:
   relay_disabled: "Netzwierk-Relaisen sinn an der Server-Konfiguratioun deaktivéiert."
   chunk_loader_duplicate: "Dëse Chunk-Loader ass schonn op enger anerer Positioun aktiv."
   chunk_loader_feature_disabled: "Chunk-Loader sinn an der Server-Konfiguratioun deaktivéiert."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk-Loader: Aktiv."
   chunk_loader_disabled: "Chunk-Loader: Aus."
   chunk_loader_already_enabled: "Chunk-Loader: Aktiv."

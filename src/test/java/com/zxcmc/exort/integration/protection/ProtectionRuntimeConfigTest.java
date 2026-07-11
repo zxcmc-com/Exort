@@ -8,6 +8,14 @@ import org.junit.jupiter.api.Test;
 
 class ProtectionRuntimeConfigTest {
   @Test
+  void defaultsToFailClosedProtectionChecks() {
+    ProtectionRuntimeConfig config = ProtectionRuntimeConfig.fromConfig(new YamlConfiguration());
+
+    assertTrue(config.enabled());
+    assertTrue(config.failClosedOnError());
+  }
+
+  @Test
   void readsConfiguredPublicFlags() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("protection.enabled", false);

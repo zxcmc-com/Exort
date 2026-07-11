@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityRemoveEvent;
 import org.junit.jupiter.api.Test;
 
@@ -42,23 +41,23 @@ class ChunkLoaderAuditListenerTest {
 
   @Test
   void entityRemovePhysicalDamageCausesAreRemoved() {
-    for (EntityDamageEvent.DamageCause cause :
+    for (String cause :
         List.of(
-            EntityDamageEvent.DamageCause.CONTACT,
-            EntityDamageEvent.DamageCause.BLOCK_EXPLOSION,
-            EntityDamageEvent.DamageCause.ENTITY_EXPLOSION,
-            EntityDamageEvent.DamageCause.KILL,
-            EntityDamageEvent.DamageCause.FIRE,
-            EntityDamageEvent.DamageCause.LAVA,
-            EntityDamageEvent.DamageCause.HOT_FLOOR,
-            EntityDamageEvent.DamageCause.CAMPFIRE,
-            EntityDamageEvent.DamageCause.VOID,
-            EntityDamageEvent.DamageCause.LIGHTNING)) {
+            "minecraft:cactus",
+            "minecraft:explosion",
+            "minecraft:player_explosion",
+            "minecraft:generic_kill",
+            "minecraft:in_fire",
+            "minecraft:lava",
+            "minecraft:hot_floor",
+            "minecraft:campfire",
+            "minecraft:out_of_world",
+            "minecraft:lightning_bolt")) {
       assertEquals(
           ChunkLoaderRegistryStatus.REMOVED,
           ChunkLoaderAuditListener.registryStatusForEntityRemove(
               EntityRemoveEvent.Cause.DEATH, cause),
-          cause.name());
+          cause);
     }
   }
 

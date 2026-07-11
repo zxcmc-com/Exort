@@ -40,11 +40,9 @@ public final class WirelessTransmitterService implements Listener {
     }
   }
 
-  private record TransmitterPos(UUID worldId, int x, int y, int z) {
-    static TransmitterPos of(Block block) {
-      return new TransmitterPos(
-          block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
-    }
+  private static TransmitterSpatialIndex.Position position(Block block) {
+    return new TransmitterSpatialIndex.Position(
+        block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
   }
 
   private record CachedStatus(long graphVersion, Status status) {}
@@ -61,8 +59,9 @@ public final class WirelessTransmitterService implements Listener {
   private final Material transmitterCarrier;
   private final Material relayCarrier;
   private final Supplier<NetworkGraphCache> graphCache;
-  private final Map<TransmitterPos, Boolean> transmitters = new ConcurrentHashMap<>();
-  private final Map<TransmitterPos, CachedStatus> statusCache = new ConcurrentHashMap<>();
+  private final TransmitterSpatialIndex transmitters = new TransmitterSpatialIndex();
+  private final Map<TransmitterSpatialIndex.Position, CachedStatus> statusCache =
+      new ConcurrentHashMap<>();
 
   public WirelessTransmitterService(
       Plugin plugin,
@@ -134,8 +133,8 @@ public final class WirelessTransmitterService implements Listener {
     if (!enabled || !isValidTransmitter(block)) {
       return;
     }
-    TransmitterPos pos = TransmitterPos.of(block);
-    transmitters.put(pos, Boolean.TRUE);
+    TransmitterSpatialIndex.Position pos = position(block);
+    transmitters.add(pos);
     statusCache.remove(pos);
   }
 
@@ -143,7 +142,7 @@ public final class WirelessTransmitterService implements Listener {
     if (block == null || block.getWorld() == null) {
       return;
     }
-    TransmitterPos pos = TransmitterPos.of(block);
+    TransmitterSpatialIndex.Position pos = position(block);
     transmitters.remove(pos);
     statusCache.remove(pos);
   }
@@ -152,7 +151,7 @@ public final class WirelessTransmitterService implements Listener {
     if (block == null || block.getWorld() == null) {
       return;
     }
-    statusCache.remove(TransmitterPos.of(block));
+    statusCache.remove(position(block));
   }
 
   public Status status(Block block) {
@@ -162,7 +161,7 @@ public final class WirelessTransmitterService implements Listener {
     if (block == null || block.getWorld() == null || !isChunkLoaded(block)) {
       return new Status(State.MISSING, 0, null);
     }
-    TransmitterPos pos = TransmitterPos.of(block);
+    TransmitterSpatialIndex.Position pos = position(block);
     if (!isValidTransmitter(block)) {
       unregister(block);
       return new Status(State.MISSING, 0, null);
@@ -171,7 +170,7 @@ public final class WirelessTransmitterService implements Listener {
       statusCache.remove(pos);
       return new Status(State.MODE_DISABLED, 0, null);
     }
-    transmitters.put(pos, Boolean.TRUE);
+    transmitters.add(pos);
     long version = graphVersion();
     CachedStatus cached = statusCache.get(pos);
     if (version >= 0 && cached != null && cached.graphVersion() == version) {
@@ -199,7 +198,12 @@ public final class WirelessTransmitterService implements Listener {
     if (!enabled || storageId == null || storageId.isBlank() || playerLocation == null) {
       return false;
     }
-    for (TransmitterPos pos : transmitters.keySet()) {
+    for (TransmitterSpatialIndex.Position pos :
+        transmitters.candidates(
+            playerLocation.getWorld().getUID(),
+            playerLocation.getBlockX(),
+            playerLocation.getBlockZ(),
+            rangeBlocks)) {
       if (!withinHorizontalRange(pos.worldId(), pos.x(), pos.z(), playerLocation)) {
         continue;
       }
@@ -268,7 +272,7 @@ public final class WirelessTransmitterService implements Listener {
     return dx * dx + dz * dz <= range * range;
   }
 
-  private Block blockAtLoaded(TransmitterPos pos) {
+  private Block blockAtLoaded(TransmitterSpatialIndex.Position pos) {
     if (pos == null || pos.worldId() == null) {
       return null;
     }
@@ -290,11 +294,7 @@ public final class WirelessTransmitterService implements Listener {
     UUID worldId = chunk.getWorld().getUID();
     int chunkX = chunk.getX();
     int chunkZ = chunk.getZ();
-    transmitters
-        .keySet()
-        .removeIf(
-            pos ->
-                pos.worldId().equals(worldId) && pos.x() >> 4 == chunkX && pos.z() >> 4 == chunkZ);
+    transmitters.removeChunk(worldId, chunkX, chunkZ);
     statusCache
         .keySet()
         .removeIf(
@@ -302,7 +302,7 @@ public final class WirelessTransmitterService implements Listener {
                 pos.worldId().equals(worldId) && pos.x() >> 4 == chunkX && pos.z() >> 4 == chunkZ);
   }
 
-  private void unregister(TransmitterPos pos) {
+  private void unregister(TransmitterSpatialIndex.Position pos) {
     transmitters.remove(pos);
     statusCache.remove(pos);
   }

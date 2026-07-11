@@ -12,8 +12,14 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderObservation;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRecord;
 import com.zxcmc.exort.chunkloader.ChunkLoaderRegistryStatus;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
+import com.zxcmc.exort.storage.StorageClaim;
+import com.zxcmc.exort.storage.StorageClaimConflictException;
+import com.zxcmc.exort.storage.StorageClaimLocation;
+import com.zxcmc.exort.storage.StorageCorruption;
+import com.zxcmc.exort.storage.StorageQuarantineEntry;
 import java.io.File;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +36,75 @@ import org.junit.jupiter.api.io.TempDir;
 
 class DatabaseTest {
   @TempDir java.nio.file.Path tempDir;
+
+  @Test
+  void semanticQuarantineCopiesOriginalBlobWithoutChangingSourceRow() throws Exception {
+    File file = tempDir.resolve("semantic-quarantine.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      String storageId = "storage";
+      String itemKey = "item";
+      byte[] original = new byte[] {3, 1, 4};
+      long now = Instant.now().getEpochSecond();
+      try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
+        insertStorage(connection, storageId, now);
+        insertItem(connection, storageId, itemKey, original, 7L);
+      }
+
+      database
+          .quarantineStorageItems(
+              storageId,
+              List.of(
+                  new StorageQuarantineEntry(
+                      new StorageCorruption(itemKey, 7L, "decode failed", now), original)))
+          .get(5, TimeUnit.SECONDS);
+
+      try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
+        try (var source =
+            connection.prepareStatement(
+                "SELECT item_blob, amount FROM storage_items"
+                    + " WHERE storage_id = ? AND item_key = ?")) {
+          source.setString(1, storageId);
+          source.setString(2, itemKey);
+          try (var result = source.executeQuery()) {
+            assertTrue(result.next());
+            assertArrayEquals(original, result.getBytes("item_blob"));
+            assertEquals(7L, result.getLong("amount"));
+          }
+        }
+        try (var quarantine =
+            connection.prepareStatement(
+                "SELECT item_blob, amount, reason, quarantined_at"
+                    + " FROM storage_item_quarantine WHERE storage_id = ? AND item_key = ?")) {
+          quarantine.setString(1, storageId);
+          quarantine.setString(2, itemKey);
+          try (var result = quarantine.executeQuery()) {
+            assertTrue(result.next());
+            assertArrayEquals(original, result.getBytes("item_blob"));
+            assertEquals(7L, result.getLong("amount"));
+            assertEquals("decode failed", result.getString("reason"));
+            assertEquals(now, result.getLong("quarantined_at"));
+          }
+        }
+      }
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void initRejectsDatabasePathBelowRegularFile() throws Exception {
+    java.nio.file.Path parentFile = tempDir.resolve("not-a-directory");
+    java.nio.file.Files.writeString(parentFile, "occupied");
+    try (Database database = new Database()) {
+      SQLException failure =
+          assertThrows(
+              SQLException.class, () -> database.init(parentFile.resolve("storage.db").toFile()));
+
+      assertTrue(failure.getMessage().contains("Failed to create database directory"));
+    }
+  }
 
   @Test
   void chunkLoaderRecordsCanBeSavedListedReplacedByPositionAndDeleted() throws Exception {
@@ -56,6 +131,7 @@ class DatabaseTest {
               placerId,
               "Alex",
               1,
+              true,
               true,
               100L,
               100L);
@@ -220,8 +296,8 @@ class DatabaseTest {
   }
 
   @Test
-  void chunkLoaderRowsWithoutEnabledColumnDefaultToEnabled() throws Exception {
-    File file = tempDir.resolve("chunk-loader-enabled-default.db").toFile();
+  void rejectsLegacyChunkLoaderSchemaInsteadOfMutatingIt() throws Exception {
+    File file = tempDir.resolve("legacy-chunk-loader.db").toFile();
     UUID worldId = new UUID(0L, 31L);
     UUID loaderId = new UUID(0L, 32L);
 
@@ -260,14 +336,17 @@ class DatabaseTest {
     }
 
     Database database = new Database();
-    database.init(file);
-    try {
-      List<ChunkLoaderRecord> records = database.listChunkLoaders().get(5, TimeUnit.SECONDS);
-      assertEquals(1, records.size());
-      assertTrue(records.getFirst().enabled());
-    } finally {
-      database.close();
+    SQLException error = assertThrows(SQLException.class, () -> database.init(file));
+    assertTrue(error.getMessage().contains("chunk_loaders"));
+    assertTrue(error.getMessage().contains("enabled"));
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+        var statement = connection.createStatement();
+        var columns = statement.executeQuery("PRAGMA table_info(chunk_loaders)")) {
+      while (columns.next()) {
+        assertFalse("enabled".equalsIgnoreCase(columns.getString("name")));
+      }
     }
+    database.close();
   }
 
   @Test
@@ -283,6 +362,117 @@ class DatabaseTest {
 
       assertEquals("OBSIDIAN", state.tier());
       assertEquals(20L * 45L * 64L, state.tierMaxItems());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void physicalStorageClaimAndTierMetadataCommitAtomically() throws Exception {
+    File file = tempDir.resolve("storage-claims.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID worldId = new UUID(0L, 91L);
+      StorageClaim claim =
+          new StorageClaim(
+              "storage-a", worldId, "minecraft:overworld", "world", 10, 64, -2, 100, 100);
+
+      database
+          .insertStorageClaim(claim, "OBSIDIAN", 57_600L, "Main Vault")
+          .get(5, TimeUnit.SECONDS);
+
+      assertEquals(List.of(claim), database.loadStorageClaims().get(5, TimeUnit.SECONDS));
+      assertEquals(
+          new Database.StorageTierState("OBSIDIAN", 57_600L),
+          database.getStorageTierState("storage-a").get(5, TimeUnit.SECONDS).orElseThrow());
+      assertEquals(
+          "Main Vault",
+          database.getStorageDisplayName("storage-a").get(5, TimeUnit.SECONDS).orElseThrow());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void physicalStorageClaimsEnforceUniqueIdentityAndPositionWithoutPartialMetadata()
+      throws Exception {
+    File file = tempDir.resolve("storage-claim-conflict.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID worldId = new UUID(0L, 92L);
+      StorageClaim first =
+          new StorageClaim(
+              "storage-a", worldId, "minecraft:overworld", "world", 1, 64, 1, 100, 100);
+      StorageClaim samePosition =
+          new StorageClaim(
+              "storage-b", worldId, "minecraft:overworld", "world", 1, 64, 1, 101, 101);
+      database.insertStorageClaim(first, "BASIC", 100, null).get(5, TimeUnit.SECONDS);
+
+      ExecutionException conflict =
+          assertThrows(
+              ExecutionException.class,
+              () ->
+                  database
+                      .insertStorageClaim(samePosition, "DIAMOND", 200, null)
+                      .get(5, TimeUnit.SECONDS));
+      StorageClaimConflictException typed =
+          assertInstanceOf(StorageClaimConflictException.class, conflict.getCause());
+      assertEquals(StorageClaimConflictException.Kind.POSITION, typed.kind());
+
+      assertFalse(database.storageExists("storage-b").get(5, TimeUnit.SECONDS));
+      assertEquals(List.of(first), database.loadStorageClaims().get(5, TimeUnit.SECONDS));
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void physicalStorageClaimReleaseRequiresExactLocation() throws Exception {
+    File file = tempDir.resolve("storage-claim-release.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID worldId = new UUID(0L, 93L);
+      StorageClaim claim =
+          new StorageClaim(
+              "storage-a", worldId, "minecraft:overworld", "world", 5, 70, 6, 100, 100);
+      database.insertStorageClaim(claim, "BASIC", 100, null).get(5, TimeUnit.SECONDS);
+
+      assertFalse(
+          database
+              .deleteStorageClaimExact(
+                  "storage-a",
+                  new StorageClaimLocation(worldId, "minecraft:overworld", "world", 6, 70, 6))
+              .get(5, TimeUnit.SECONDS));
+      assertEquals(1, database.loadStorageClaims().get(5, TimeUnit.SECONDS).size());
+      assertTrue(
+          database.deleteStorageClaimExact("storage-a", claim.location()).get(5, TimeUnit.SECONDS));
+      assertTrue(database.loadStorageClaims().get(5, TimeUnit.SECONDS).isEmpty());
+    } finally {
+      database.close();
+    }
+  }
+
+  @Test
+  void physicalStorageClaimMoveRequiresExactSourceAndKeepsIdentity() throws Exception {
+    File file = tempDir.resolve("storage-claim-move.db").toFile();
+    Database database = new Database();
+    database.init(file);
+    try {
+      UUID worldId = new UUID(0L, 94L);
+      StorageClaim source =
+          new StorageClaim(
+              "storage-a", worldId, "minecraft:overworld", "world", 5, 70, 6, 100, 100);
+      StorageClaim destination =
+          new StorageClaim(
+              "storage-a", worldId, "minecraft:overworld", "world", 9, 72, 10, 100, 200);
+      database.insertStorageClaim(source, "BASIC", 100, null).get(5, TimeUnit.SECONDS);
+
+      assertTrue(database.moveStorageClaimExact(source, destination).get(5, TimeUnit.SECONDS));
+      assertEquals(List.of(destination), database.loadStorageClaims().get(5, TimeUnit.SECONDS));
+      assertFalse(database.moveStorageClaimExact(source, destination).get(5, TimeUnit.SECONDS));
     } finally {
       database.close();
     }
@@ -308,8 +498,8 @@ class DatabaseTest {
   }
 
   @Test
-  void migratesAndPersistsStorageDisplayName() throws Exception {
-    File file = tempDir.resolve("display-name-migration.db").toFile();
+  void rejectsLegacyStorageSchemaInsteadOfMutatingIt() throws Exception {
+    File file = tempDir.resolve("legacy-storage.db").toFile();
     long now = Instant.now().getEpochSecond();
     try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
         var statement = connection.createStatement()) {
@@ -334,22 +524,17 @@ class DatabaseTest {
     }
 
     Database database = new Database();
-    database.init(file);
-    try {
-      database
-          .setStorageMetadata("storage", "BASIC", 100L, "  Main\u0000 Vault  ")
-          .get(5, TimeUnit.SECONDS);
-
-      assertEquals(
-          "Main Vault",
-          database.getStorageDisplayName("storage").get(5, TimeUnit.SECONDS).orElseThrow());
-
-      database.setStorageDisplayName("storage", " ").get(5, TimeUnit.SECONDS);
-
-      assertTrue(database.getStorageDisplayName("storage").get(5, TimeUnit.SECONDS).isEmpty());
-    } finally {
-      database.close();
+    SQLException error = assertThrows(SQLException.class, () -> database.init(file));
+    assertTrue(error.getMessage().contains("storages"));
+    assertTrue(error.getMessage().contains("display_name"));
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+        var statement = connection.createStatement();
+        var columns = statement.executeQuery("PRAGMA table_info(storages)")) {
+      while (columns.next()) {
+        assertFalse("display_name".equalsIgnoreCase(columns.getString("name")));
+      }
     }
+    database.close();
   }
 
   @Test
@@ -373,7 +558,7 @@ class DatabaseTest {
   }
 
   @Test
-  void loadStorageSkipsClearlyInvalidRowsBeforeCacheDecode() throws Exception {
+  void loadStorageQuarantinesInvalidRowsWithoutDeletingOriginals() throws Exception {
     File file = tempDir.resolve("exort.db").toFile();
     Database database = new Database();
     database.init(file);
@@ -407,6 +592,47 @@ class DatabaseTest {
       assertTrue(loaded.containsKey("valid"));
       assertArrayEquals(nonEmptyBlob, loaded.get("valid").blob());
       assertEquals(3, loaded.get("valid").amount());
+
+      try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
+        try (var rows =
+            connection.prepareStatement(
+                "SELECT COUNT(*) FROM storage_items WHERE storage_id = ?")) {
+          rows.setString(1, storageId);
+          try (var result = rows.executeQuery()) {
+            assertTrue(result.next());
+            assertEquals(4, result.getInt(1));
+          }
+        }
+        try (var quarantine =
+            connection.prepareStatement(
+                "SELECT item_key, item_blob, amount, reason, quarantined_at"
+                    + " FROM storage_item_quarantine WHERE storage_id = ? ORDER BY item_key")) {
+          quarantine.setString(1, storageId);
+          try (var result = quarantine.executeQuery()) {
+            assertTrue(result.next());
+            assertEquals("empty", result.getString("item_key"));
+            assertArrayEquals(new byte[0], result.getBytes("item_blob"));
+            assertEquals(1L, result.getLong("amount"));
+            assertTrue(result.getString("reason").contains("blob length"));
+            assertTrue(result.getLong("quarantined_at") > 0L);
+
+            assertTrue(result.next());
+            assertEquals("negative", result.getString("item_key"));
+            assertArrayEquals(nonEmptyBlob, result.getBytes("item_blob"));
+            assertEquals(-2L, result.getLong("amount"));
+            assertTrue(result.getString("reason").contains("positive"));
+            assertTrue(result.getLong("quarantined_at") > 0L);
+
+            assertTrue(result.next());
+            assertEquals("oversized", result.getString("item_key"));
+            assertEquals(oversizedBlob.length, result.getBytes("item_blob").length);
+            assertEquals(1L, result.getLong("amount"));
+            assertTrue(result.getString("reason").contains("blob length"));
+            assertTrue(result.getLong("quarantined_at") > 0L);
+            assertFalse(result.next());
+          }
+        }
+      }
     } finally {
       database.close();
     }

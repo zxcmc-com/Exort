@@ -2,6 +2,7 @@ package com.zxcmc.exort.wireless.listener;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.infra.logging.ExortLog;
@@ -248,12 +249,13 @@ public class WirelessListener implements Listener {
         plugin,
         () -> {
           if (player == null || !player.isOnline()) return;
-          feedbackError(player, "message.storage_load_failed");
+          playerFeedback.respond(
+              player, FeedbackReason.STORAGE_FAILURE, "message.storage_load_failed");
         });
   }
 
   private void feedbackError(Player player, String key) {
-    playerFeedback.error(player, key);
+    playerFeedback.respond(player, FeedbackReason.WIRELESS_ACCESS, key);
   }
 
   private void updateHand(Player player, ItemStack stack, EquipmentSlot hand) {

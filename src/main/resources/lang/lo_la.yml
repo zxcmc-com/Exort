@@ -16,6 +16,8 @@ message:
   relay_disabled: "ຣີເລເຄືອຂ່າຍຖືກປິດໃຊ້ໂດຍການຕັ້ງຄ່າເຊີບເວີ."
   chunk_loader_duplicate: "ຕົວໂຫຼດ Chunk ນີ້ກໍາລັງໃຊ້ງານຢູ່ຕໍາແໜ່ງອື່ນແລ້ວ."
   chunk_loader_feature_disabled: "ຕົວໂຫຼດ Chunk ຖືກປິດໃຊ້ໂດຍການຕັ້ງຄ່າເຊີບເວີ."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "ຕົວໂຫຼດ Chunk: ໃຊ້ງານ."
   chunk_loader_disabled: "ຕົວໂຫຼດ Chunk: ປິດໃຊ້."
   chunk_loader_already_enabled: "ຕົວໂຫຼດ Chunk: ໃຊ້ງານ."

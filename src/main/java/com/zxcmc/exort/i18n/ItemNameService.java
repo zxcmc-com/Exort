@@ -11,9 +11,15 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.BooleanSupplier;
+import java.util.function.LongFunction;
+import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -39,29 +45,62 @@ public class ItemNameService {
   private final File langDir;
   private final File itemsDir;
   private final File indexFile;
+  private final Executor asyncExecutor;
+  private final Executor syncExecutor;
+  private final BooleanSupplier enabled;
+  private final Supplier<String> serverVersionSupplier;
+  private final Object transitionLock = new Object();
+  private final Object inFlightLock = new Object();
+  private final Map<ReloadRequest, CompletableFuture<Status>> reloadsInFlight = new HashMap<>();
+  private final Map<String, CompletableFuture<Boolean>> preloadsInFlight = new HashMap<>();
+  private CompletableFuture<Void> transitionTail = CompletableFuture.completedFuture(null);
+  private long requestedGeneration;
 
-  private volatile Map<String, String> active = new HashMap<>();
-  private volatile Map<String, String> fallback = new HashMap<>();
-  private volatile Map<String, Map<String, String>> dictionaries = new HashMap<>();
-  private volatile Set<String> availableLanguages = new HashSet<>();
-  private volatile Map<String, String> langHashes = new HashMap<>();
-  private volatile Map<String, String> dictVersions = new HashMap<>();
-  private volatile Map<String, Integer> dictSizes = new HashMap<>();
-  private volatile String assetIndexUrl;
-  private volatile String activeLanguage = "en_us";
-  private volatile String serverVersion = "unknown";
-  private volatile boolean indexFetched;
-  private volatile long version;
+  // Mutable transition state. It is owned exclusively by transitionTail.
+  private Map<String, String> active = new HashMap<>();
+  private Map<String, String> fallback = new HashMap<>();
+  private Map<String, Map<String, String>> dictionaries = new HashMap<>();
+  private Set<String> availableLanguages = new HashSet<>();
+  private Map<String, String> langHashes = new HashMap<>();
+  private Map<String, String> dictVersions = new HashMap<>();
+  private Map<String, Integer> dictSizes = new HashMap<>();
+  private String assetIndexUrl;
+  private String activeLanguage = "en_us";
+  private String serverVersion = "unknown";
+  private boolean indexFetched;
+  private long version;
+  private volatile PublishedState publishedState = PublishedState.initial();
 
   public ItemNameService(JavaPlugin plugin) {
-    this(plugin, plugin.getDataFolder());
+    this(
+        plugin,
+        plugin.getDataFolder(),
+        command -> Bukkit.getScheduler().runTaskAsynchronously(plugin, command),
+        command -> Bukkit.getScheduler().runTask(plugin, command),
+        plugin::isEnabled,
+        Bukkit::getMinecraftVersion);
   }
 
   ItemNameService(JavaPlugin plugin, File dataFolder) {
+    this(plugin, dataFolder, Runnable::run, Runnable::run, () -> false, () -> "unknown");
+  }
+
+  ItemNameService(
+      JavaPlugin plugin,
+      File dataFolder,
+      Executor asyncExecutor,
+      Executor syncExecutor,
+      BooleanSupplier enabled,
+      Supplier<String> serverVersionSupplier) {
     this.plugin = plugin;
     this.langDir = new File(Objects.requireNonNull(dataFolder, "dataFolder"), "lang");
     this.itemsDir = new File(langDir, ITEMS_DIR);
     this.indexFile = new File(langDir, INDEX_FILE);
+    this.asyncExecutor = Objects.requireNonNull(asyncExecutor, "asyncExecutor");
+    this.syncExecutor = Objects.requireNonNull(syncExecutor, "syncExecutor");
+    this.enabled = Objects.requireNonNull(enabled, "enabled");
+    this.serverVersionSupplier =
+        Objects.requireNonNull(serverVersionSupplier, "serverVersionSupplier");
   }
 
   public CompletableFuture<Status> reload(String requestedLanguage) {
@@ -73,27 +112,28 @@ public class ItemNameService {
   }
 
   public String getActiveLanguage() {
-    return activeLanguage;
+    return publishedState.activeLanguage();
   }
 
   public long version() {
-    return version;
+    return publishedState.version();
   }
 
   public long version(String language) {
     String normalized = normalizeLanguage(language);
-    return 31L * version + normalized.hashCode();
+    return 31L * publishedState.version() + normalized.hashCode();
   }
 
   public Status status() {
+    PublishedState state = publishedState;
     return new Status(
-        activeLanguage,
-        serverVersion,
-        indexFile.exists(),
-        indexFetched,
-        availableLanguages.size(),
-        new TreeMap<>(dictVersions),
-        new TreeMap<>(dictSizes));
+        state.activeLanguage(),
+        state.serverVersion(),
+        state.indexCached(),
+        state.indexFetched(),
+        state.availableLanguages().size(),
+        new TreeMap<>(state.dictVersions()),
+        new TreeMap<>(state.dictSizes()));
   }
 
   public boolean isKnownLanguage(String code) {
@@ -110,7 +150,7 @@ public class ItemNameService {
       return local;
     }
     Set<String> fallback = new TreeSet<>();
-    fallback.add(activeLanguage);
+    fallback.add(publishedState.activeLanguage());
     fallback.add("en_us");
     fallback.add("ru_ru");
     return fallback;
@@ -121,7 +161,7 @@ public class ItemNameService {
       return false;
     }
     String normalized = normalizeLanguage(code);
-    if (availableLanguages.contains(normalized)) {
+    if (publishedState.availableLanguages().contains(normalized)) {
       return true;
     }
     return new File(itemsDir, normalized + ".yml").isFile();
@@ -136,56 +176,50 @@ public class ItemNameService {
     if (canUseDictionaryLanguage(fallback)) {
       return fallback;
     }
-    if (canUseDictionaryLanguage(activeLanguage)) {
-      return activeLanguage;
+    String currentLanguage = publishedState.activeLanguage();
+    if (canUseDictionaryLanguage(currentLanguage)) {
+      return currentLanguage;
     }
     return "en_us";
   }
 
   public CompletableFuture<Boolean> preloadDictionary(String requestedLanguage) {
     String code = normalizeLanguage(requestedLanguage);
-    if (!canUseDictionaryLanguage(code) || dictionaries.containsKey(code)) {
-      return CompletableFuture.completedFuture(dictionaries.containsKey(code));
+    if (!canUseDictionaryLanguage(code) || publishedState.dictionaries().containsKey(code)) {
+      return CompletableFuture.completedFuture(publishedState.dictionaries().containsKey(code));
     }
-    CompletableFuture<Boolean> future = new CompletableFuture<>();
-    if (!plugin.isEnabled()) {
-      future.complete(false);
-      return future;
+    if (!enabled.getAsBoolean()) {
+      return CompletableFuture.completedFuture(false);
     }
-    try {
-      Bukkit.getScheduler()
-          .runTaskAsynchronously(
-              plugin,
-              () -> {
-                boolean loaded = false;
-                try {
-                  ensureDirectories();
-                  if (availableLanguages.isEmpty()) {
-                    ensureLanguageIndex();
-                  }
-                  ensureDictionary(code, false);
-                  Map<String, String> dictionary = loadDictionary(code);
-                  if (!dictionary.isEmpty()) {
-                    Map<String, Map<String, String>> next = new HashMap<>(dictionaries);
-                    next.put(code, dictionary);
-                    dictionaries = Map.copyOf(next);
-                    version++;
-                    loaded = true;
-                  }
-                } catch (RuntimeException e) {
-                  plugin
-                      .getLogger()
-                      .log(Level.WARNING, "Failed to preload item dictionary " + code, e);
+
+    synchronized (inFlightLock) {
+      CompletableFuture<Boolean> existing = preloadsInFlight.get(code);
+      if (existing != null) {
+        return existing;
+      }
+      CompletableFuture<Boolean> result = new CompletableFuture<>();
+      preloadsInFlight.put(code, result);
+      enqueueTransition(generation -> preloadDictionaryInternal(code, generation))
+          .whenComplete(
+              (loaded, error) -> {
+                if (error != null) {
+                  log(Level.WARNING, "Failed to preload item dictionary " + code, error);
+                  loaded = false;
                 }
-                future.complete(loaded);
+                result.complete(loaded);
               });
-    } catch (RuntimeException ignored) {
-      future.complete(false);
+      result.whenComplete(
+          (ignored, error) -> {
+            synchronized (inFlightLock) {
+              preloadsInFlight.remove(code, result);
+            }
+          });
+      return result;
     }
-    return future;
   }
 
   public Set<String> localLanguages() {
+    Set<String> known = publishedState.availableLanguages();
     Set<String> result = new TreeSet<>();
     File[] files = langDir.listFiles((dir, name) -> name.endsWith(".yml"));
     if (files != null) {
@@ -194,8 +228,8 @@ public class ItemNameService {
         String normalized = normalizeLanguage(code);
         if (normalized.equals("en_us")
             || normalized.equals("ru_ru")
-            || availableLanguages.isEmpty()
-            || availableLanguages.contains(normalized)) {
+            || known.isEmpty()
+            || known.contains(normalized)) {
           result.add(normalized);
         }
       }
@@ -204,7 +238,7 @@ public class ItemNameService {
   }
 
   public String resolveName(ItemStack stack) {
-    return resolveName(stack, activeLanguage);
+    return resolveName(stack, publishedState.activeLanguage());
   }
 
   public String resolveName(ItemStack stack, String language) {
@@ -219,16 +253,17 @@ public class ItemNameService {
       }
     }
     String key = stack.getType().getKey().getKey();
-    Map<String, String> dictionary = dictionaryFor(language);
+    PublishedState state = publishedState;
+    Map<String, String> dictionary = dictionaryFor(language, state);
     String name = dictionary.get(key);
     if (name != null) return name;
-    name = fallback.get(key);
+    name = state.fallback().get(key);
     if (name != null) return name;
     return key;
   }
 
   public String resolveDisplayName(ItemStack stack) {
-    return resolveDisplayName(stack, activeLanguage);
+    return resolveDisplayName(stack, publishedState.activeLanguage());
   }
 
   public String resolveDisplayName(ItemStack stack, String language) {
@@ -243,10 +278,11 @@ public class ItemNameService {
       }
     }
     String key = stack.getType().getKey().getKey();
-    Map<String, String> dictionary = dictionaryFor(language);
+    PublishedState state = publishedState;
+    Map<String, String> dictionary = dictionaryFor(language, state);
     String name = dictionary.get(key);
     if (name != null) return name;
-    name = fallback.get(key);
+    name = state.fallback().get(key);
     if (name != null) return name;
     return key;
   }
@@ -257,7 +293,7 @@ public class ItemNameService {
   }
 
   public String resolveDictionaryName(String key) {
-    return resolveDictionaryName(key, activeLanguage);
+    return resolveDictionaryName(key, publishedState.activeLanguage());
   }
 
   public String resolveDictionaryName(ItemStack stack, String language) {
@@ -267,29 +303,29 @@ public class ItemNameService {
 
   public String resolveDictionaryName(String key, String language) {
     if (key == null) return "";
-    Map<String, String> dictionary = dictionaryFor(language);
+    PublishedState state = publishedState;
+    Map<String, String> dictionary = dictionaryFor(language, state);
     String name = dictionary.get(key);
     if (name != null) return name;
-    name = fallback.get(key);
+    name = state.fallback().get(key);
     if (name != null) return name;
     return key;
   }
 
-  private Map<String, String> dictionaryFor(String language) {
+  private Map<String, String> dictionaryFor(String language, PublishedState state) {
     String normalized =
-        language == null || language.isBlank() ? activeLanguage : normalizeLanguage(language);
-    Map<String, String> dictionary = dictionaries.get(normalized);
+        language == null || language.isBlank()
+            ? state.activeLanguage()
+            : normalizeLanguage(language);
+    Map<String, String> dictionary = state.dictionaries().get(normalized);
     if (dictionary != null) {
       return dictionary;
     }
-    dictionary = loadDictionary(normalized);
+    dictionary = readDictionary(normalized);
     if (!dictionary.isEmpty()) {
-      Map<String, Map<String, String>> next = new HashMap<>(dictionaries);
-      next.put(normalized, dictionary);
-      dictionaries = Map.copyOf(next);
       return dictionary;
     }
-    return active;
+    return state.active();
   }
 
   public String normalizeLanguage(String input) {
@@ -298,16 +334,23 @@ public class ItemNameService {
   }
 
   public String resolveLanguage(String input) {
+    return resolveLanguage(input, publishedState.availableLanguages());
+  }
+
+  private String resolveLanguageForTransition(String input) {
+    return resolveLanguage(input, availableLanguages);
+  }
+
+  private String resolveLanguage(String input, Set<String> knownLanguages) {
     String normalized = normalizeLanguage(input);
-    if (availableLanguages.isEmpty()) {
+    if (knownLanguages.isEmpty()) {
       return normalized;
     }
     if (normalized.equals("en_us") || normalized.equals("ru_ru")) {
       return normalized;
     }
-    if (!availableLanguages.contains(normalized)) {
-      plugin
-          .getLogger()
+    if (!knownLanguages.contains(normalized)) {
+      logger()
           .warning(
               "Language '"
                   + normalized
@@ -319,55 +362,75 @@ public class ItemNameService {
 
   private CompletableFuture<Status> reloadAsync(
       String requestedLanguage, boolean force, boolean refreshIndex) {
-    CompletableFuture<Status> future = new CompletableFuture<>();
-    if (!plugin.isEnabled()) {
-      future.complete(status());
-      return future;
+    if (!enabled.getAsBoolean()) {
+      return CompletableFuture.completedFuture(status());
     }
-    try {
-      Bukkit.getScheduler()
-          .runTaskAsynchronously(
-              plugin,
-              () -> {
-                try {
-                  reloadInternal(requestedLanguage, force, refreshIndex);
-                } catch (Exception e) {
-                  plugin
-                      .getLogger()
-                      .log(
-                          Level.WARNING,
-                          "Failed to reload item dictionaries: " + e.getMessage(),
-                          e);
-                } finally {
-                  completeStatusSync(future);
+
+    ReloadRequest request =
+        new ReloadRequest(normalizeLanguage(requestedLanguage), force, refreshIndex);
+    synchronized (inFlightLock) {
+      CompletableFuture<Status> existing = reloadsInFlight.get(request);
+      if (existing != null) {
+        return existing;
+      }
+      CompletableFuture<Status> result = new CompletableFuture<>();
+      reloadsInFlight.put(request, result);
+      enqueueTransition(
+              generation -> {
+                if (!enabled.getAsBoolean()) {
+                  return status();
                 }
+                return reloadInternal(request.language(), force, refreshIndex, generation);
+              })
+          .whenComplete(
+              (loadedStatus, error) -> {
+                if (error != null) {
+                  log(Level.WARNING, "Failed to reload item dictionaries", error);
+                  loadedStatus = status();
+                }
+                completeStatusSync(result, loadedStatus);
               });
-    } catch (RuntimeException ignored) {
-      future.complete(status());
+      result.whenComplete(
+          (ignored, error) -> {
+            synchronized (inFlightLock) {
+              reloadsInFlight.remove(request, result);
+            }
+          });
+      return result;
     }
-    return future;
   }
 
-  private void completeStatusSync(CompletableFuture<Status> future) {
-    if (!plugin.isEnabled()) {
-      future.complete(status());
+  private <T> CompletableFuture<T> enqueueTransition(LongFunction<T> transition) {
+    synchronized (transitionLock) {
+      long generation = ++requestedGeneration;
+      CompletableFuture<T> next =
+          transitionTail
+              .handle((ignored, previousError) -> null)
+              .thenApplyAsync(ignored -> transition.apply(generation), asyncExecutor);
+      transitionTail = next.handle((ignored, error) -> null);
+      return next;
+    }
+  }
+
+  private void completeStatusSync(CompletableFuture<Status> future, Status loadedStatus) {
+    if (!enabled.getAsBoolean()) {
+      future.complete(loadedStatus);
       return;
     }
     try {
-      Bukkit.getScheduler()
-          .runTask(
-              plugin,
-              () -> {
-                if (!future.isDone()) {
-                  future.complete(status());
-                }
-              });
+      syncExecutor.execute(
+          () -> {
+            if (!future.isDone()) {
+              future.complete(loadedStatus);
+            }
+          });
     } catch (RuntimeException ignored) {
-      future.complete(status());
+      future.complete(loadedStatus);
     }
   }
 
-  private void reloadInternal(String requestedLanguage, boolean force, boolean refreshIndex) {
+  private Status reloadInternal(
+      String requestedLanguage, boolean force, boolean refreshIndex, long generation) {
     this.serverVersion = safeServerVersion();
     ensureDirectories();
     if (refreshIndex) {
@@ -375,7 +438,7 @@ public class ItemNameService {
     } else {
       indexFetched = ensureLanguageIndex();
     }
-    this.activeLanguage = resolveLanguage(requestedLanguage);
+    this.activeLanguage = resolveLanguageForTransition(requestedLanguage);
     List<String> updated = ensureDictionaries(force);
     Map<String, String> newActive = loadDictionary(activeLanguage);
     Map<String, String> newFallback = loadDictionary("en_us");
@@ -389,7 +452,30 @@ public class ItemNameService {
     fallback = newFallback;
     dictionaries = Map.copyOf(loadedDictionaries);
     version++;
+    publishState(generation);
     logReload(updated);
+    return status();
+  }
+
+  private boolean preloadDictionaryInternal(String code, long generation) {
+    if (!enabled.getAsBoolean()) {
+      return false;
+    }
+    ensureDirectories();
+    if (availableLanguages.isEmpty()) {
+      ensureLanguageIndex();
+    }
+    ensureDictionary(code, false);
+    Map<String, String> dictionary = loadDictionary(code);
+    if (dictionary.isEmpty()) {
+      return false;
+    }
+    Map<String, Map<String, String>> next = new HashMap<>(dictionaries);
+    next.put(code, dictionary);
+    dictionaries = next;
+    version++;
+    publishState(generation);
+    return true;
   }
 
   private Map<String, Map<String, String>> loadLocalDictionaries() {
@@ -409,11 +495,11 @@ public class ItemNameService {
   }
 
   private void ensureDirectories() {
-    if (!langDir.exists()) {
-      langDir.mkdirs();
-    }
-    if (!itemsDir.exists()) {
-      itemsDir.mkdirs();
+    try {
+      Files.createDirectories(itemsDir.toPath());
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Failed to create item dictionary directory " + itemsDir.getAbsolutePath(), e);
     }
   }
 
@@ -426,9 +512,7 @@ public class ItemNameService {
       fetchAndStoreIndex();
       return true;
     } catch (Exception e) {
-      plugin
-          .getLogger()
-          .log(Level.WARNING, "Failed to fetch Minecraft language index: " + e.getMessage(), e);
+      logger().log(Level.WARNING, "Failed to fetch Minecraft language index: " + e.getMessage(), e);
     }
     if (!indexFile.exists()) {
       loadIndex(); // will remain empty
@@ -441,9 +525,7 @@ public class ItemNameService {
       fetchAndStoreIndex();
       return true;
     } catch (Exception e) {
-      plugin
-          .getLogger()
-          .log(Level.WARNING, "Failed to fetch Minecraft language index: " + e.getMessage(), e);
+      logger().log(Level.WARNING, "Failed to fetch Minecraft language index: " + e.getMessage(), e);
       if (indexFile.exists()) {
         loadIndex();
       }
@@ -576,8 +658,7 @@ public class ItemNameService {
     if (translations.isEmpty()) {
       if (!dictFile.exists()) {
         translations = buildFallbackMap();
-        plugin
-            .getLogger()
+        logger()
             .warning(
                 "Language dictionary '" + code + "' not found in assets; using fallback names.");
       } else {
@@ -595,9 +676,8 @@ public class ItemNameService {
       dictVersions.put(code, serverVersion);
       dictSizes.put(code, translations.size());
     } catch (IOException e) {
-      plugin
-          .getLogger()
-          .log(Level.WARNING, "Failed to save item dictionary " + dictFile.getName(), e);
+      logger().log(Level.WARNING, "Failed to save item dictionary " + dictFile.getName(), e);
+      return false;
     }
     return true;
   }
@@ -620,8 +700,7 @@ public class ItemNameService {
       JsonObject json = readJson(url);
       return parseLangJson(json);
     } catch (Exception e) {
-      plugin
-          .getLogger()
+      logger()
           .log(
               Level.WARNING, "Failed to download lang file for " + code + ": " + e.getMessage(), e);
       return Collections.emptyMap();
@@ -653,18 +732,27 @@ public class ItemNameService {
   }
 
   private Map<String, String> loadDictionary(String code) {
+    Map<String, String> map = readDictionary(code);
+    File dictFile = new File(itemsDir, code + ".yml");
+    if (!dictFile.exists()) {
+      return map;
+    }
+    YamlConfiguration cfg = YamlConfiguration.loadConfiguration(dictFile);
+    String dictionaryVersion = cfg.getString(VERSION_KEY, null);
+    if (dictionaryVersion != null) {
+      dictVersions.putIfAbsent(code, dictionaryVersion);
+    }
+    dictSizes.putIfAbsent(code, map.size());
+    return map;
+  }
+
+  private Map<String, String> readDictionary(String code) {
     File dictFile = new File(itemsDir, code + ".yml");
     if (!dictFile.exists()) {
       return Collections.emptyMap();
     }
     YamlConfiguration cfg = YamlConfiguration.loadConfiguration(dictFile);
-    String version = cfg.getString(VERSION_KEY, null);
-    if (version != null) {
-      dictVersions.putIfAbsent(code, version);
-    }
-    Map<String, String> map = dictionaryEntries(cfg);
-    dictSizes.putIfAbsent(code, map.size());
-    return map;
+    return dictionaryEntries(cfg);
   }
 
   private Map<String, String> buildFallbackMap() {
@@ -697,7 +785,7 @@ public class ItemNameService {
   }
 
   private String safeServerVersion() {
-    String version = Bukkit.getMinecraftVersion();
+    String version = serverVersionSupplier.get();
     if (version == null || version.isBlank()) {
       version = "unknown";
     }
@@ -757,6 +845,9 @@ public class ItemNameService {
   }
 
   private void logReload(List<String> updated) {
+    if (plugin == null) {
+      return;
+    }
     boolean indexAvailable = !availableLanguages.isEmpty() || indexFile.exists();
     String source = indexFetched ? "fetched" : (indexFile.exists() ? "cached" : "missing");
     String message =
@@ -794,6 +885,78 @@ public class ItemNameService {
       }
     }
     return entries;
+  }
+
+  private void publishState(long generation) {
+    PublishedState current = publishedState;
+    if (generation < current.generation()) {
+      return;
+    }
+    publishedState =
+        new PublishedState(
+            generation,
+            version,
+            active,
+            fallback,
+            dictionaries,
+            availableLanguages,
+            langHashes,
+            dictVersions,
+            dictSizes,
+            assetIndexUrl,
+            activeLanguage,
+            serverVersion,
+            indexFile.isFile(),
+            indexFetched);
+  }
+
+  private Logger logger() {
+    return plugin == null ? Logger.getLogger(ItemNameService.class.getName()) : plugin.getLogger();
+  }
+
+  private void log(Level level, String message, Throwable error) {
+    logger().log(level, message, error);
+  }
+
+  private static Map<String, Map<String, String>> immutableDictionaries(
+      Map<String, Map<String, String>> source) {
+    Map<String, Map<String, String>> result = new HashMap<>();
+    source.forEach((language, dictionary) -> result.put(language, Map.copyOf(dictionary)));
+    return Map.copyOf(result);
+  }
+
+  private record ReloadRequest(String language, boolean force, boolean refreshIndex) {}
+
+  private record PublishedState(
+      long generation,
+      long version,
+      Map<String, String> active,
+      Map<String, String> fallback,
+      Map<String, Map<String, String>> dictionaries,
+      Set<String> availableLanguages,
+      Map<String, String> langHashes,
+      Map<String, String> dictVersions,
+      Map<String, Integer> dictSizes,
+      String assetIndexUrl,
+      String activeLanguage,
+      String serverVersion,
+      boolean indexCached,
+      boolean indexFetched) {
+    private PublishedState {
+      active = Map.copyOf(active);
+      fallback = Map.copyOf(fallback);
+      dictionaries = immutableDictionaries(dictionaries);
+      availableLanguages = Set.copyOf(availableLanguages);
+      langHashes = Map.copyOf(langHashes);
+      dictVersions = Map.copyOf(dictVersions);
+      dictSizes = Map.copyOf(dictSizes);
+    }
+
+    private static PublishedState initial() {
+      return new PublishedState(
+          0L, 0L, Map.of(), Map.of(), Map.of(), Set.of(), Map.of(), Map.of(), Map.of(), null,
+          "en_us", "unknown", false, false);
+    }
   }
 
   public record Status(

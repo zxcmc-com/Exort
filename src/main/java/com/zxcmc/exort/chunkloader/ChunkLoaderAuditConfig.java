@@ -2,6 +2,7 @@ package com.zxcmc.exort.chunkloader;
 
 import java.util.EnumSet;
 import java.util.Objects;
+import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record ChunkLoaderAuditConfig(
@@ -31,6 +32,10 @@ public record ChunkLoaderAuditConfig(
   }
 
   public static ChunkLoaderAuditConfig fromConfig(ConfigurationSection config) {
+    return fromConfig(config, null);
+  }
+
+  public static ChunkLoaderAuditConfig fromConfig(ConfigurationSection config, Logger logger) {
     boolean enabled = config == null || config.getBoolean("chunkLoader.audit.enabled", true);
     EnumSet<ChunkLoaderAuditEvent> events = EnumSet.noneOf(ChunkLoaderAuditEvent.class);
     for (ChunkLoaderAuditEvent event : ChunkLoaderAuditEvent.values()) {
@@ -41,7 +46,7 @@ public record ChunkLoaderAuditConfig(
       }
     }
     return new ChunkLoaderAuditConfig(
-        enabled, events, ChunkLoaderAuditFileConfig.fromConfig(config));
+        enabled, events, ChunkLoaderAuditFileConfig.fromConfig(config, logger));
   }
 
   public boolean shouldLog(ChunkLoaderAuditEvent event) {

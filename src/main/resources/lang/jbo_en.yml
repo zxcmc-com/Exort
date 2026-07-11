@@ -16,6 +16,8 @@ message:
   relay_disabled: "lo samjoʼe benji cu tolcando kiʼu lo samseʼu se konfigu."
   chunk_loader_duplicate: "lo chunk cargau ti cu pu cando vi lo drata stuzi."
   chunk_loader_feature_disabled: "lo chunk cargau cu tolcando kiʼu lo samseʼu se konfigu."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "chunk cargau: cando."
   chunk_loader_disabled: "chunk cargau: tolcando."
   chunk_loader_already_enabled: "chunk cargau: cando."

@@ -16,6 +16,8 @@ message:
   relay_disabled: "Relaymeh oseui ipan config server."
   chunk_loader_duplicate: "Nin poloka Chunk Loader yeka tekititok ipan okse kan."
   chunk_loader_feature_disabled: "Chunk Loadermeh oseui ipan config server."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk Loader: Axkan."
   chunk_loader_disabled: "Chunk Loader: Oseui."
   chunk_loader_already_enabled: "Chunk Loader: Axkan."

@@ -16,6 +16,8 @@ message:
   relay_disabled: "Retaj relajsoj estas malŝaltitaj en la servila agordo."
   chunk_loader_duplicate: "Ĉi tiu Chunk-ŝargilo jam aktivas en alia loko."
   chunk_loader_feature_disabled: "Chunk-ŝargiloj estas malŝaltitaj en la servila agordo."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk-ŝargilo: Aktiva."
   chunk_loader_disabled: "Chunk-ŝargilo: Malŝaltita."
   chunk_loader_already_enabled: "Chunk-ŝargilo: Aktiva."

@@ -16,6 +16,8 @@ message:
   relay_disabled: "Przekaźniki są wyłączone w konfiguracji serwera."
   chunk_loader_duplicate: "Ta ładowarka chunków jest już aktywna w innej pozycji."
   chunk_loader_feature_disabled: "Ładowarki chunków są wyłączone w konfiguracji serwera."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Ładowarka chunków: Aktywny."
   chunk_loader_disabled: "Ładowarka chunków: Wyłączone."
   chunk_loader_already_enabled: "Ładowarka chunków: Aktywny."

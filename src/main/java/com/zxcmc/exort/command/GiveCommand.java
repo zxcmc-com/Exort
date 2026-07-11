@@ -224,22 +224,21 @@ final class GiveCommand {
     ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
     String label = dependencies.lang().tr(sender, safeType.translationKey());
-    sendGiveResult(
-        sender,
-        target,
-        label,
-        giveAmount,
+    CommandItemDelivery.Result result =
         CommandItemDelivery.deliver(
-            target, () -> dependencies.customItems().chunkLoaderItem(safeType), giveAmount));
-    dependencies
-        .chunkLoaderService()
-        .auditLogger()
-        .logIssue(
-            sender instanceof Player player ? player : null,
-            target,
-            giveAmount,
-            safeType,
-            "/exort give");
+            target, () -> dependencies.customItems().chunkLoaderItem(safeType), giveAmount);
+    sendGiveResult(sender, target, label, giveAmount, result);
+    if (result.total() > 0) {
+      dependencies
+          .chunkLoaderService()
+          .auditLogger()
+          .logIssue(
+              sender instanceof Player player ? player : null,
+              target,
+              result.total(),
+              safeType,
+              "/exort give");
+    }
     return 1;
   }
 

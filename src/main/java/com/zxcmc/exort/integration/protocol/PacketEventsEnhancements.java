@@ -469,7 +469,21 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     if (!player.isOnline()) {
       return;
     }
-    Block block = player.getWorld().getBlockAt(target.x(), target.y(), target.z());
+    World world = player.getWorld();
+    if (target.y() < world.getMinHeight()
+        || target.y() >= world.getMaxHeight()
+        || !world.isChunkLoaded(target.x() >> 4, target.z() >> 4)) {
+      return;
+    }
+    Block block = world.getBlockAt(target.x(), target.y(), target.z());
+    if (action == DiggingAction.START_DIGGING
+        && !PacketTargetValidation.matchesPacketTarget(
+            player.getTargetBlockExact(8, FluidCollisionMode.NEVER),
+            target.x(),
+            target.y(),
+            target.z())) {
+      return;
+    }
     boolean handled =
         switch (action) {
           case START_DIGGING -> controller.handleDestroyStart(player, block, sequence);
@@ -526,8 +540,46 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     if (!player.isOnline()) {
       return;
     }
-    Block packetBlock = player.getWorld().getBlockAt(target.x(), target.y(), target.z());
+    boolean itemsAdderEnabled = Bukkit.getPluginManager().isPluginEnabled("ItemsAdder");
+    if (!PacketTargetValidation.shouldHandleCancelledPick(cancelledBefore, itemsAdderEnabled)) {
+      debugFull(
+          "packet ignored "
+              + PICK_ITEM_FROM_BLOCK
+              + " player="
+              + player.getName()
+              + " reason=cancelled_without_itemsadder");
+      return;
+    }
+    World world = player.getWorld();
+    if (target.y() < world.getMinHeight()
+        || target.y() >= world.getMaxHeight()
+        || !world.isChunkLoaded(target.x() >> 4, target.z() >> 4)) {
+      debugFull(
+          "packet ignored "
+              + PICK_ITEM_FROM_BLOCK
+              + " player="
+              + player.getName()
+              + " reason=unloaded_or_out_of_bounds");
+      return;
+    }
     Block playerTarget = player.getTargetBlockExact(8, FluidCollisionMode.NEVER);
+    if (!PacketTargetValidation.matchesPacketTarget(
+        playerTarget, target.x(), target.y(), target.z())) {
+      debugFull(
+          "packet ignored "
+              + PICK_ITEM_FROM_BLOCK
+              + " player="
+              + player.getName()
+              + " reason=server_target_mismatch packet="
+              + target.x()
+              + ","
+              + target.y()
+              + ","
+              + target.z()
+              + " playerTarget="
+              + pickListener.describeDebugBlock(playerTarget));
+      return;
+    }
     debugFull(
         "packet event "
             + PICK_ITEM_FROM_BLOCK
@@ -536,11 +588,11 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
             + " cancelledBefore="
             + cancelledBefore
             + " packetBlock="
-            + pickListener.describeDebugBlock(packetBlock)
+            + pickListener.describeDebugBlock(playerTarget)
             + " playerTarget="
             + pickListener.describeDebugBlock(playerTarget));
     boolean handled =
-        pickListener.handleDirectPick(player, packetBlock, "PacketEvents " + PICK_ITEM_FROM_BLOCK);
+        pickListener.handleDirectPick(player, playerTarget, "PacketEvents " + PICK_ITEM_FROM_BLOCK);
     if (handled) {
       debugFull(
           "packet handled "
@@ -548,13 +600,17 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
               + " player="
               + player.getName()
               + " packetBlock="
-              + pickListener.describeDebugBlock(packetBlock));
+              + pickListener.describeDebugBlock(playerTarget));
     }
   }
 
   private void handleScheduledEntityPick(
       Player player, PickListener pickListener, int entityId, boolean cancelledBefore) {
     if (!player.isOnline()) {
+      return;
+    }
+    if (!PacketTargetValidation.shouldHandleCancelledPick(
+        cancelledBefore, Bukkit.getPluginManager().isPluginEnabled("ItemsAdder"))) {
       return;
     }
     Entity entity = findNearbyEntity(player, entityId);

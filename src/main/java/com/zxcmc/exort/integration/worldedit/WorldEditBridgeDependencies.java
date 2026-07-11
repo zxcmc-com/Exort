@@ -7,6 +7,7 @@ import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
@@ -19,6 +20,7 @@ public record WorldEditBridgeDependencies(
     Plugin plugin,
     Database database,
     StorageManager storageManager,
+    StorageClaimRegistry storageClaimRegistry,
     Supplier<WorldEditDebugService> debugServiceSource,
     Supplier<NetworkGraphCache> networkGraphCacheSource,
     Supplier<DisplayRefreshService> displayRefreshServiceSource,
@@ -28,11 +30,13 @@ public record WorldEditBridgeDependencies(
     Supplier<TransmitterSessionManager> transmitterSessionManagerSource,
     Supplier<ItemHologramManager> hologramManagerSource,
     WorldEditBridgeMaterials materials,
-    WorldEditBulkConfig bulkConfig) {
+    WorldEditBulkConfig bulkConfig,
+    boolean autoConfigureFawe) {
   public WorldEditBridgeDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");
     Objects.requireNonNull(debugServiceSource, "debugServiceSource");
     Objects.requireNonNull(networkGraphCacheSource, "networkGraphCacheSource");
     Objects.requireNonNull(displayRefreshServiceSource, "displayRefreshServiceSource");

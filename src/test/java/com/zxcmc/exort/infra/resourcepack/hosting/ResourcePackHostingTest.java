@@ -58,9 +58,9 @@ class ResourcePackHostingTest {
   }
 
   @Test
-  void autoHostingFallsBackToSelfHostWithoutProviderOrOfficialPack() {
+  void autoHostingDoesNotOpenSelfHostWithoutExplicitConfiguration() {
     assertEquals(
-        ResourcePackHosting.SELFHOST,
+        ResourcePackHosting.DISABLED,
         ResourcePackService.resolveAutoHosting(false, false, false, false));
   }
 }

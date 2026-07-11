@@ -82,6 +82,9 @@ public final class DisplayCullingService implements Listener {
   private int taskId = -1;
   private int debugSummaryTaskId = -1;
   private long debugSummaryTaskIntervalTicks = -1L;
+  private long clientStateLifecycleGeneration;
+  private long clientStateMutationRevision;
+  private volatile boolean running;
   private volatile boolean debugConsoleExplicit;
   private volatile DebugMode debugMode = DebugMode.NORMAL;
   private long tickSequence;
@@ -106,7 +109,6 @@ public final class DisplayCullingService implements Listener {
     this.metadataService = metadataService;
     this.blockProxyService = blockProxyService;
     this.database = database;
-    loadPersistentClientCullingStates();
     this.translationProbe =
         new ClientCullingTranslationProbe(
             plugin,
@@ -119,6 +121,9 @@ public final class DisplayCullingService implements Listener {
     if (!config.enabled() || taskId != -1) {
       return;
     }
+    running = true;
+    long lifecycleGeneration = ++clientStateLifecycleGeneration;
+    loadPersistentClientCullingStates(lifecycleGeneration, clientStateMutationRevision);
     backend = createBackend();
     normalizeAndIndexLoadedDisplays();
     Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -134,6 +139,8 @@ public final class DisplayCullingService implements Listener {
   }
 
   public void stop() {
+    running = false;
+    clientStateLifecycleGeneration++;
     if (taskId != -1) {
       Bukkit.getScheduler().cancelTask(taskId);
       taskId = -1;
@@ -321,22 +328,71 @@ public final class DisplayCullingService implements Listener {
         : ClientCullingProbeStatus.disabled();
   }
 
-  private void loadPersistentClientCullingStates() {
+  private void loadPersistentClientCullingStates(long lifecycleGeneration, long mutationRevision) {
     if (database == null) {
       return;
     }
-    try {
-      Map<UUID, Database.ClientCullingState> states = database.loadClientCullingStates().join();
-      clientCullingDbStates.clear();
-      clientCullingDbStates.putAll(states);
-      for (Database.ClientCullingState state : states.values()) {
-        if (state.manualBypass()) {
-          clientCullingBypass.add(state.playerId());
-        }
-      }
-    } catch (RuntimeException e) {
-      plugin.getLogger().log(Level.WARNING, "Failed to load client culling bypass states", e);
+    database
+        .loadClientCullingStates()
+        .whenComplete(
+            (states, error) -> {
+              if (error != null) {
+                plugin
+                    .getLogger()
+                    .log(
+                        Level.WARNING,
+                        "Failed to load client culling bypass states",
+                        ExortLog.unwrap(error));
+                return;
+              }
+              try {
+                Bukkit.getScheduler()
+                    .runTask(
+                        plugin,
+                        () ->
+                            installPersistentClientCullingStates(
+                                states, lifecycleGeneration, mutationRevision));
+              } catch (RuntimeException e) {
+                if (running) {
+                  plugin
+                      .getLogger()
+                      .log(Level.WARNING, "Failed to install client culling bypass states", e);
+                }
+              }
+            });
+  }
+
+  private void installPersistentClientCullingStates(
+      Map<UUID, Database.ClientCullingState> states,
+      long lifecycleGeneration,
+      long mutationRevision) {
+    if (!canInstallPersistentClientCullingStates(
+        running,
+        lifecycleGeneration,
+        clientStateLifecycleGeneration,
+        mutationRevision,
+        clientStateMutationRevision)) {
+      return;
     }
+    clientCullingDbStates.clear();
+    clientCullingDbStates.putAll(states);
+    clientCullingBypass.clear();
+    for (Database.ClientCullingState state : states.values()) {
+      if (state.manualBypass()) {
+        clientCullingBypass.add(state.playerId());
+      }
+    }
+  }
+
+  static boolean canInstallPersistentClientCullingStates(
+      boolean running,
+      long expectedLifecycleGeneration,
+      long currentLifecycleGeneration,
+      long expectedMutationRevision,
+      long currentMutationRevision) {
+    return running
+        && expectedLifecycleGeneration == currentLifecycleGeneration
+        && expectedMutationRevision == currentMutationRevision;
   }
 
   private ClientCullingProbeStatus cachedClientProbeStatus(Player player, String brand) {
@@ -383,6 +439,7 @@ public final class DisplayCullingService implements Listener {
     if (playerId == null) {
       return;
     }
+    clientStateMutationRevision++;
     long now = Instant.now().getEpochSecond();
     clientCullingDbStates.compute(
         playerId,
@@ -398,6 +455,7 @@ public final class DisplayCullingService implements Listener {
     if (playerId == null || status == null) {
       return;
     }
+    clientStateMutationRevision++;
     boolean match = status.state() == ClientCullingProbeState.MATCH;
     long now = Instant.now().getEpochSecond();
     clientCullingDbStates.compute(
@@ -415,6 +473,7 @@ public final class DisplayCullingService implements Listener {
     if (playerId == null) {
       return;
     }
+    clientStateMutationRevision++;
     long now = Instant.now().getEpochSecond();
     clientCullingDbStates.compute(
         playerId,

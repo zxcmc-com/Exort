@@ -36,11 +36,7 @@ public final class WireWaterFlowRefresh {
   }
 
   private static void refreshWater(Block water) {
-    try {
-      water.fluidTick();
-    } catch (NoSuchMethodError ignored) {
-      // Paper has fluidTick on the current target API; keep the fallback harmless on older APIs.
-    }
+    water.fluidTick();
     water.getState().update(true, true);
   }
 

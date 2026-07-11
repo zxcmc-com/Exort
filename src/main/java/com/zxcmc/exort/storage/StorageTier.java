@@ -2,6 +2,7 @@ package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.api.model.StorageTierDescriptor;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -16,7 +17,7 @@ import org.bukkit.configuration.ConfigurationSection;
 
 public final class StorageTier {
   private static final long ITEMS_PER_PAGE = 45L * 64L;
-  private static final Map<String, StorageTier> REGISTRY = new LinkedHashMap<>();
+  private static volatile Map<String, StorageTier> registry = Map.of();
 
   private final String key;
   private final long maxItems;
@@ -24,6 +25,7 @@ public final class StorageTier {
   private final String displayName;
   private final String translationKey;
   private final TextColor color;
+  private final boolean readOnly;
 
   StorageTier(
       String key,
@@ -32,6 +34,17 @@ public final class StorageTier {
       String displayName,
       String translationKey,
       TextColor color) {
+    this(key, maxItems, displayMaterial, displayName, translationKey, color, false);
+  }
+
+  private StorageTier(
+      String key,
+      long maxItems,
+      Material displayMaterial,
+      String displayName,
+      String translationKey,
+      TextColor color,
+      boolean readOnly) {
     if (maxItems <= 0) {
       throw new IllegalArgumentException("maxItems must be positive");
     }
@@ -41,6 +54,7 @@ public final class StorageTier {
     this.displayName = Objects.requireNonNull(displayName, "displayName");
     this.translationKey = translationKey;
     this.color = color;
+    this.readOnly = readOnly;
   }
 
   public String key() {
@@ -67,6 +81,44 @@ public final class StorageTier {
     return color;
   }
 
+  /** True for a preserved tier snapshot whose configured tier no longer exists. */
+  public boolean isReadOnly() {
+    return readOnly;
+  }
+
+  static StorageTier orphaned(String rawKey, long maxItems) {
+    if (rawKey == null || rawKey.isBlank()) {
+      throw new IllegalArgumentException("rawKey must not be blank");
+    }
+    Material material = parseMaterialOrNull("STRUCTURE_BLOCK");
+    if (material == null) material = Material.AIR;
+    String normalized = rawKey.trim().toUpperCase(Locale.ROOT);
+    return new StorageTier(
+        normalized,
+        maxItems,
+        material,
+        humanizeTierKey(normalized) + " (orphaned)",
+        null,
+        NamedTextColor.RED,
+        true);
+  }
+
+  /** Returns an immutable read-only view without changing the configured tier catalog. */
+  public static StorageTier readOnlySnapshot(StorageTier source) {
+    Objects.requireNonNull(source, "source");
+    if (source.readOnly) {
+      return source;
+    }
+    return new StorageTier(
+        source.key,
+        source.maxItems,
+        source.displayMaterial,
+        source.displayName,
+        source.translationKey,
+        source.color,
+        true);
+  }
+
   public StorageTierDescriptor descriptor() {
     return new StorageTierDescriptor(
         key, maxItems, displayMaterial.getKey().toString(), displayName);
@@ -74,24 +126,29 @@ public final class StorageTier {
 
   public static Optional<StorageTier> fromString(String raw) {
     if (raw == null) return Optional.empty();
-    return Optional.ofNullable(REGISTRY.get(raw.toLowerCase(Locale.ROOT)));
+    return Optional.ofNullable(registry.get(raw.toLowerCase(Locale.ROOT)));
   }
 
   public static Collection<StorageTier> allTiers() {
-    return List.copyOf(REGISTRY.values());
+    return List.copyOf(registry.values());
   }
 
-  public static void loadFromConfig(ConfigurationSection section, Logger logger) {
-    REGISTRY.clear();
+  public static boolean loadFromConfig(ConfigurationSection section, Logger logger) {
+    Objects.requireNonNull(logger, "logger");
     if (section == null) {
-      logger.warning("No tiers section found in config; storages will be unusable.");
-      return;
+      logger.severe("No tiers section found; keeping the last valid storage tier catalog.");
+      return false;
     }
+    Map<String, StorageTier> candidate = new LinkedHashMap<>();
     Material fallback = parseMaterialOrNull("STRUCTURE_BLOCK");
     if (fallback == null) fallback = Material.AIR;
     for (String key : section.getKeys(false)) {
       ConfigurationSection tierSec = section.getConfigurationSection(key);
-      if (tierSec == null) continue;
+      if (tierSec == null) {
+        logger.severe(
+            "Tier '" + key + "' is not a configuration section; keeping the last valid catalog.");
+        return false;
+      }
       long maxItems = parseMaxItems(tierSec.get("maxItems"), logger, key);
       String matRaw = tierSec.getString("material");
       NameData name = parseName(tierSec, logger, key);
@@ -116,11 +173,25 @@ public final class StorageTier {
               name.displayName(),
               name.translationKey(),
               color);
-      REGISTRY.put(key.toLowerCase(Locale.ROOT), tier);
+      String normalizedKey = key.toLowerCase(Locale.ROOT);
+      if (candidate.putIfAbsent(normalizedKey, tier) != null) {
+        logger.severe(
+            "Storage tier key '"
+                + key
+                + "' duplicates another key after normalization; keeping the last valid catalog.");
+        return false;
+      }
     }
-    if (REGISTRY.isEmpty()) {
-      logger.warning("No storage tiers configured; storages will be unusable.");
+    if (candidate.isEmpty()) {
+      logger.severe("No storage tiers configured; keeping the last valid storage tier catalog.");
+      return false;
     }
+    registry = Collections.unmodifiableMap(new LinkedHashMap<>(candidate));
+    return true;
+  }
+
+  static void resetForTests() {
+    registry = Map.of();
   }
 
   static String humanizeTierKey(String key) {

@@ -12,14 +12,17 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import org.bukkit.Bukkit;
 
 final class SelfHostPackServer {
   private static final String PACK_PATH = "/exort.zip";
+  private static final int MAX_CONCURRENT_REQUESTS = 16;
 
   private HttpServer server;
   private ExecutorService executor;
   private String url;
+  private final Semaphore requestPermits = new Semaphore(MAX_CONCURRENT_REQUESTS);
 
   SelfHostPackServer() {}
 
@@ -57,6 +60,20 @@ final class SelfHostPackServer {
   }
 
   private void servePack(HttpExchange exchange, File packFile) throws IOException {
+    if (!requestPermits.tryAcquire()) {
+      exchange.getResponseHeaders().set("Retry-After", "1");
+      exchange.sendResponseHeaders(503, -1);
+      exchange.close();
+      return;
+    }
+    try {
+      servePackWithPermit(exchange, packFile);
+    } finally {
+      requestPermits.release();
+    }
+  }
+
+  private void servePackWithPermit(HttpExchange exchange, File packFile) throws IOException {
     String method = exchange.getRequestMethod();
     if (!"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
       exchange.sendResponseHeaders(405, -1);

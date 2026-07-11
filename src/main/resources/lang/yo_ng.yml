@@ -16,6 +16,8 @@ message:
   relay_disabled: "Awọn relay nẹ́tíwọ́ọ̀kì ti wa ni pipa ninu config server."
   chunk_loader_duplicate: "Ẹrọ Ikójọpọ̀ Chunk yii ti n ṣiṣẹ tẹlẹ ni ipo miiran."
   chunk_loader_feature_disabled: "Awọn Ẹrọ Ikójọpọ̀ Chunk ti wa ni pipa ninu config server."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Ẹrọ Ikójọpọ̀ Chunk: Nṣiṣẹ."
   chunk_loader_disabled: "Ẹrọ Ikójọpọ̀ Chunk: Paa."
   chunk_loader_already_enabled: "Ẹrọ Ikójọpọ̀ Chunk: Nṣiṣẹ."

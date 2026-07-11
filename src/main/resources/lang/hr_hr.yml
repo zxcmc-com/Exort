@@ -16,6 +16,8 @@ message:
   relay_disabled: "Releji su onemogućeni u konfiguraciji servera."
   chunk_loader_duplicate: "Ovaj loader chunkova već je aktivan na drugoj poziciji."
   chunk_loader_feature_disabled: "Loaderi chunkova su onemogućeni u konfiguraciji servera."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Loader chunkova: Aktivno."
   chunk_loader_disabled: "Loader chunkova: Onemogućeno."
   chunk_loader_already_enabled: "Loader chunkova: Aktivno."

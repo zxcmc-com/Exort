@@ -1,6 +1,7 @@
 package com.zxcmc.exort.wire.placement;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.marker.WireMarker;
 import java.util.ArrayDeque;
@@ -50,7 +51,12 @@ public final class WirePlacementLimitGuard {
       return true;
     }
     if (playerFeedback != null) {
-      playerFeedback.error(player, "message.wire.hard_cap", count, wireHardCap);
+      playerFeedback.respond(
+          player,
+          FeedbackReason.NETWORK_TRAVERSAL_LIMIT,
+          "message.wire.hard_cap",
+          count,
+          wireHardCap);
     }
     return false;
   }

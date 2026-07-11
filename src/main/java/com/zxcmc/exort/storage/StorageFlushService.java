@@ -30,6 +30,9 @@ public final class StorageFlushService {
   }
 
   public CompletableFuture<Void> flushAsync(StorageCache cache) {
+    if (cache.isReadOnly()) {
+      return CompletableFuture.completedFuture(null);
+    }
     String storageId = cache.getStorageId();
     CompletableFuture<Void> placeholder = new CompletableFuture<>();
     CompletableFuture<Void> existing = inFlightFlushes.putIfAbsent(storageId, placeholder);
@@ -57,7 +60,7 @@ public final class StorageFlushService {
     List<PendingDeltaFlush> pendingDeltas = new ArrayList<>();
     int rows = 0;
     for (StorageCache cache : caches) {
-      if (cache == null || !cache.isDirty()) {
+      if (cache == null || cache.isReadOnly() || !cache.isDirty()) {
         continue;
       }
       String storageId = cache.getStorageId();

@@ -1,6 +1,7 @@
 package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
@@ -14,6 +15,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 final class GuiSessionValidator {
@@ -26,6 +28,7 @@ final class GuiSessionValidator {
   private final Supplier<Material> storageCarrier;
   private final Supplier<Material> relayCarrier;
   private final Supplier<Material> terminalCarrier;
+  private final Supplier<RegionProtection> regionProtection;
 
   GuiSessionValidator(
       Plugin plugin,
@@ -36,7 +39,8 @@ final class GuiSessionValidator {
       Supplier<Material> wireMaterial,
       Supplier<Material> storageCarrier,
       Supplier<Material> relayCarrier,
-      Supplier<Material> terminalCarrier) {
+      Supplier<Material> terminalCarrier,
+      Supplier<RegionProtection> regionProtection) {
     this.plugin = plugin;
     this.keys = keys;
     this.wireLimit = wireLimit;
@@ -46,6 +50,7 @@ final class GuiSessionValidator {
     this.storageCarrier = storageCarrier;
     this.relayCarrier = relayCarrier;
     this.terminalCarrier = terminalCarrier;
+    this.regionProtection = regionProtection;
   }
 
   boolean isSessionValid(GuiSession session) {
@@ -54,6 +59,10 @@ final class GuiSessionValidator {
       return true;
     }
     if (termBlock.getType() != terminalCarrier.get()) {
+      return false;
+    }
+    Player player = session.getViewer();
+    if (player == null || !regionProtection.get().canUse(player, termBlock)) {
       return false;
     }
     var link =
@@ -81,6 +90,7 @@ final class GuiSessionValidator {
     if (carrier == null) return false;
     if (!isBlockChunkLoaded(terminal)) return true;
     if (!Carriers.matchesCarrier(terminal, carrier)) return true;
+    if (!regionProtection.get().canUse(player, terminal)) return true;
     return isOutOfDeviceRange(player, terminal);
   }
 
@@ -94,7 +104,7 @@ final class GuiSessionValidator {
     }
     Location anchor = session.getStorageLocation();
     if (wirelessService == null || storageCarrier.get() == null) {
-      return WirelessValidationResult.valid();
+      return new WirelessValidationResult(player, "message.wireless.disabled", false);
     }
     if (!wirelessService.isEnabled()) {
       return new WirelessValidationResult(player, "message.wireless.disabled", false);
@@ -105,11 +115,38 @@ final class GuiSessionValidator {
     if (!hasLiveStorageAnchor(session.getStorageId(), anchor)) {
       return new WirelessValidationResult(player, "message.wireless.missing_storage", false);
     }
+    Block anchorBlock = anchor.getBlock();
+    if (!regionProtection.get().canUse(player, anchorBlock)) {
+      return new WirelessValidationResult(player, "message.no_permission", false);
+    }
+    if (!hasMatchingWirelessTerminal(player, session.getStorageId(), wirelessService)) {
+      return new WirelessValidationResult(player, "message.wireless.not_linked", false);
+    }
     if (transmitterService == null
         || !transmitterService.hasCoverage(session.getStorageId(), player.getLocation())) {
       return new WirelessValidationResult(player, "message.wireless.out_of_range", false);
     }
     return WirelessValidationResult.valid();
+  }
+
+  private boolean hasMatchingWirelessTerminal(
+      Player player, String storageId, WirelessTerminalService wirelessService) {
+    for (ItemStack stack : player.getInventory().getContents()) {
+      if (isMatchingWirelessTerminal(player, storageId, wirelessService, stack)) {
+        return true;
+      }
+    }
+    return isMatchingWirelessTerminal(player, storageId, wirelessService, player.getItemOnCursor());
+  }
+
+  private boolean isMatchingWirelessTerminal(
+      Player player, String storageId, WirelessTerminalService wirelessService, ItemStack stack) {
+    return stack != null
+        && wirelessService.isWireless(stack)
+        && wirelessService.isOwner(player, stack)
+        && wirelessService.isLinked(stack)
+        && storageId.equals(wirelessService.storageId(stack))
+        && wirelessService.currentCharge(stack) > 0;
   }
 
   boolean hasLiveStorageAnchor(String expectedStorageId, Location anchor) {

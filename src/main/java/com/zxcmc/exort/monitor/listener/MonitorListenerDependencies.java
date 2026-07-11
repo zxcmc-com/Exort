@@ -1,6 +1,7 @@
 package com.zxcmc.exort.monitor.listener;
 
 import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -20,6 +21,7 @@ public record MonitorListenerDependencies(
     RegionProtection regionProtection,
     StorageKeys keys,
     BossBarManager bossBarManager,
+    PlayerFeedback playerFeedback,
     ItemNameService itemNameService,
     AuthenticationGate authenticationGate,
     WorldEditWandGuard worldEditWandGuard,
@@ -38,6 +40,7 @@ public record MonitorListenerDependencies(
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(bossBarManager, "bossBarManager");
+    Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(itemNameService, "itemNameService");
     Objects.requireNonNull(authenticationGate, "authenticationGate");
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");

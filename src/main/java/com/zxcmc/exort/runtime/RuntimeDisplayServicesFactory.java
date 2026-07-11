@@ -435,10 +435,9 @@ public final class RuntimeDisplayServicesFactory {
                     materials.transmitterCarrier(),
                     materials.chunkLoaderCarrier())),
             displayRefreshService,
-            deps.worldEditDebugService(),
-            deps.invalidateNetwork());
+            deps.worldEditDebugService());
     var chunkSanityListener =
-        new ChunkSanityListener(deps.plugin(), chunkSanityService, deps.invalidateNetwork());
+        new ChunkSanityListener(deps.plugin(), chunkSanityService, deps.invalidateNetworkChunk());
     Bukkit.getPluginManager().registerEvents(chunkSanityListener, deps.plugin());
     Bukkit.getScheduler().runTask(deps.plugin(), chunkSanityService::scanLoadedChunks);
   }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.items.ItemStackCodec;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
@@ -18,6 +19,22 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 
 class TransmitterStoredTerminalTest {
+  private static final ItemStackCodec TEST_CODEC =
+      new ItemStackCodec() {
+        @Override
+        public byte[] encode(ItemStack stack) {
+          return stack.serializeAsBytes();
+        }
+
+        @Override
+        public ItemStack decode(byte[] bytes) {
+          if (bytes.length != 1) {
+            throw new IllegalArgumentException("invalid test item blob");
+          }
+          return new TestItemStack(Material.ENDER_PEARL, Byte.toUnsignedInt(bytes[0]));
+        }
+      };
+
   @Test
   void modeDefaultsToChargeAndPersists() {
     Plugin plugin = BukkitTestDoubles.plugin();
@@ -32,7 +49,7 @@ class TransmitterStoredTerminalTest {
 
   @Test
   void oldChargeModeIdReadsAsChargeOnly() {
-    assertEquals(TransmitterMode.CHARGE_ONLY, TransmitterMode.fromString("charge"));
+    assertEquals(TransmitterMode.CHARGE_ONLY, TransmitterMode.fromString("charge_only"));
   }
 
   @Test
@@ -41,7 +58,8 @@ class TransmitterStoredTerminalTest {
     Block block = transmitterBlock("stored-terminal-write", 502);
     ItemStack source = new TestItemStack(Material.ENDER_PEARL, 17);
 
-    assertTrue(TransmitterStoredTerminal.set(plugin, block, source, this::acceptsEnderPearl));
+    assertTrue(
+        TransmitterStoredTerminal.set(plugin, block, source, this::acceptsEnderPearl, TEST_CODEC));
 
     assertArrayEquals(
         new byte[] {1},
@@ -57,7 +75,7 @@ class TransmitterStoredTerminalTest {
 
     assertFalse(
         TransmitterStoredTerminal.set(
-            plugin, block, new TestItemStack(Material.DIRT, 1), stack -> false));
+            plugin, block, new TestItemStack(Material.DIRT, 1), stack -> false, TEST_CODEC));
 
     assertTrue(
         ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal").isEmpty());
@@ -72,7 +90,8 @@ class TransmitterStoredTerminalTest {
         plugin, block, TransmitterMarker.SECTION, "terminal", new byte[] {1, 2, 3});
 
     assertTrue(
-        TransmitterStoredTerminal.get(plugin, block, stack -> true, warnings::add).isEmpty());
+        TransmitterStoredTerminal.get(plugin, block, stack -> true, warnings::add, TEST_CODEC)
+            .isEmpty());
 
     assertFalse(warnings.isEmpty());
     assertTrue(
@@ -92,11 +111,103 @@ class TransmitterStoredTerminalTest {
         new byte[TransmitterStoredTerminal.MAX_ITEM_BLOB_BYTES + 1]);
 
     assertTrue(
-        TransmitterStoredTerminal.get(plugin, block, stack -> true, warnings::add).isEmpty());
+        TransmitterStoredTerminal.get(plugin, block, stack -> true, warnings::add, TEST_CODEC)
+            .isEmpty());
 
     assertFalse(warnings.isEmpty());
     assertTrue(
         ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal").isEmpty());
+  }
+
+  @Test
+  void failedReplacementKeepsPreviouslyStoredTerminal() {
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block = transmitterBlock("stored-terminal-replacement", 507);
+    ItemStack original = new TestItemStack(Material.ENDER_PEARL, 1);
+    assertTrue(
+        TransmitterStoredTerminal.set(
+            plugin, block, original, this::acceptsEnderPearl, TEST_CODEC));
+    byte[] originalBlob =
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal")
+            .orElseThrow();
+    ItemStackCodec failingCodec =
+        new ItemStackCodec() {
+          @Override
+          public byte[] encode(ItemStack stack) {
+            throw new IllegalStateException("encode failed");
+          }
+
+          @Override
+          public ItemStack decode(byte[] bytes) {
+            throw new AssertionError("decode must not run");
+          }
+        };
+
+    assertFalse(
+        TransmitterStoredTerminal.set(
+            plugin,
+            block,
+            new TestItemStack(Material.ENDER_PEARL, 1),
+            this::acceptsEnderPearl,
+            failingCodec));
+
+    assertArrayEquals(
+        originalBlob,
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal")
+            .orElseThrow());
+  }
+
+  @Test
+  void committedTakeCanBeRolledBackWithoutDuplicatingTerminal() {
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block = transmitterBlock("stored-terminal-take", 508);
+    assertTrue(
+        TransmitterStoredTerminal.set(
+            plugin,
+            block,
+            new TestItemStack(Material.ENDER_PEARL, 1),
+            this::acceptsEnderPearl,
+            TEST_CODEC));
+
+    TransmitterStoredTerminal.TakeReservation reservation =
+        TransmitterStoredTerminal.reserveTake(
+                plugin, block, this::acceptsEnderPearl, message -> {}, TEST_CODEC)
+            .orElseThrow();
+
+    assertTrue(reservation.commit());
+    assertFalse(reservation.commit());
+    assertTrue(
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal").isEmpty());
+    assertTrue(reservation.rollback());
+    assertFalse(reservation.rollback());
+    assertTrue(
+        TransmitterStoredTerminal.get(
+                plugin, block, this::acceptsEnderPearl, message -> {}, TEST_CODEC)
+            .isPresent());
+  }
+
+  @Test
+  void takeCommitFailsIfStoredTerminalChangedAfterReservation() {
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block = transmitterBlock("stored-terminal-stale-take", 509);
+    assertTrue(
+        TransmitterStoredTerminal.set(
+            plugin,
+            block,
+            new TestItemStack(Material.ENDER_PEARL, 1),
+            this::acceptsEnderPearl,
+            TEST_CODEC));
+    TransmitterStoredTerminal.TakeReservation reservation =
+        TransmitterStoredTerminal.reserveTake(
+                plugin, block, this::acceptsEnderPearl, message -> {}, TEST_CODEC)
+            .orElseThrow();
+    ChunkMarkerStore.setBytes(plugin, block, TransmitterMarker.SECTION, "terminal", new byte[] {2});
+
+    assertFalse(reservation.commit());
+    assertArrayEquals(
+        new byte[] {2},
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal")
+            .orElseThrow());
   }
 
   private boolean acceptsEnderPearl(ItemStack stack) {

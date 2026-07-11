@@ -1,13 +1,71 @@
 package com.zxcmc.exort.infra.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ConfigUpdaterTest {
+  @TempDir Path tempDir;
+
+  @Test
+  void malformedExistingConfigIsRejectedWithoutChangingOriginal() throws Exception {
+    Path config = tempDir.resolve("config.yml");
+    String original = "valid: true\nbroken: [\n";
+    Files.writeString(config, original);
+
+    assertThrows(
+        Exception.class,
+        () -> ConfigUpdater.mergeResource(config, resource("valid: false\nmissing: 3\n")));
+
+    assertEquals(original, Files.readString(config));
+  }
+
+  @Test
+  void missingBundledResourceIsRejectedWithoutChangingOriginal() throws Exception {
+    Path config = tempDir.resolve("config.yml");
+    String original = "valid: true\n";
+    Files.writeString(config, original);
+
+    assertThrows(Exception.class, () -> ConfigUpdater.mergeResource(config, null));
+
+    assertEquals(original, Files.readString(config));
+  }
+
+  @Test
+  void atomicWriteReplacesConfigAndRemovesTemporaryFile() throws Exception {
+    Path config = tempDir.resolve("config.yml");
+    Files.writeString(config, "old: true\n");
+
+    ConfigUpdater.writeAtomically(config, "new: true\n");
+
+    assertEquals("new: true\n", Files.readString(config));
+    try (var files = Files.list(tempDir)) {
+      assertEquals(List.of(config), files.toList());
+    }
+  }
+
+  @Test
+  void mergeResourcePreservesExistingValuesAndAddsDefaults() throws Exception {
+    Path config = tempDir.resolve("config.yml");
+    Files.writeString(config, "enabled: false\n");
+
+    String merged = ConfigUpdater.mergeResource(config, resource("enabled: true\nlimit: 32\n"));
+
+    YamlConfiguration parsed = new YamlConfiguration();
+    parsed.loadFromString(merged);
+    assertEquals(false, parsed.getBoolean("enabled"));
+    assertEquals(32, parsed.getInt("limit"));
+  }
+
   @Test
   void rendersListsAsYamlBlockValues() {
     StringBuilder out = new StringBuilder();
@@ -118,5 +176,9 @@ class ConfigUpdaterTest {
     assertTrue(merged.contains("  carrier: CHORUS_PLANT"), merged);
     assertTrue(merged.contains("  limit: 48"), merged);
     assertTrue(merged.contains("  hardCap: 96"), merged);
+  }
+
+  private static ByteArrayInputStream resource(String yaml) {
+    return new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
   }
 }

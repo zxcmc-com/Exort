@@ -16,6 +16,8 @@ message:
   relay_disabled: "Tá Athsheachadáin Líonra díchumasaithe i gcumraíocht an fhreastalaí."
   chunk_loader_duplicate: "Tá an Luchtóir Chunk seo gníomhach cheana i suíomh eile."
   chunk_loader_feature_disabled: "Tá Luchtóirí Chunk díchumasaithe i gcumraíocht an fhreastalaí."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Luchtóir Chunk: Gníomhach."
   chunk_loader_disabled: "Luchtóir Chunk: Díchumasaithe."
   chunk_loader_already_enabled: "Luchtóir Chunk: Gníomhach."

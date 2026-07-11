@@ -31,7 +31,7 @@ public final class BreakProgressCalculator {
     if (fatigue != null) {
       speed *= Math.pow(0.3, fatigue.getAmplifier() + 1);
     }
-    if (isInWater(player) && !hasAquaAffinity(player)) {
+    if (player.isInWater() && !hasAquaAffinity(player)) {
       speed /= 5.0;
     }
     if (!isOnGround(player)) {
@@ -61,14 +61,6 @@ public final class BreakProgressCalculator {
           1.6;
       default -> 1.0;
     };
-  }
-
-  private static boolean isInWater(Player player) {
-    try {
-      return player.isInWater();
-    } catch (NoSuchMethodError ignored) {
-      return player.getLocation().getBlock().isLiquid();
-    }
   }
 
   static boolean isOnGround(Player player) {
@@ -101,39 +93,23 @@ public final class BreakProgressCalculator {
   }
 
   private static boolean supportsPlayer(org.bukkit.block.Block block, BoundingBox supportBox) {
-    try {
-      VoxelShape collision = block.getCollisionShape();
-      if (collision.overlaps(supportBox)) {
-        return true;
-      }
-      BoundingBox localSupportBox =
-          new BoundingBox(
-              supportBox.getMinX(),
-              supportBox.getMinY(),
-              supportBox.getMinZ(),
-              supportBox.getMaxX(),
-              supportBox.getMaxY(),
-              supportBox.getMaxZ());
-      localSupportBox.shift(-block.getX(), -block.getY(), -block.getZ());
-      if (collision.overlaps(localSupportBox)) {
-        return true;
-      }
-      return false;
-    } catch (NoSuchMethodError ignored) {
-      // Older Bukkit-compatible APIs may not expose detailed collision shapes.
+    VoxelShape collision = block.getCollisionShape();
+    if (collision.overlaps(supportBox)) {
+      return true;
     }
-    try {
-      if (block.getBoundingBox().overlaps(supportBox)) {
-        return true;
-      }
-    } catch (NoSuchMethodError ignored) {
-      // Fall through to the original solid-material check.
+    BoundingBox localSupportBox =
+        new BoundingBox(
+            supportBox.getMinX(),
+            supportBox.getMinY(),
+            supportBox.getMinZ(),
+            supportBox.getMaxX(),
+            supportBox.getMaxY(),
+            supportBox.getMaxZ());
+    localSupportBox.shift(-block.getX(), -block.getY(), -block.getZ());
+    if (collision.overlaps(localSupportBox)) {
+      return true;
     }
-    try {
-      return block.isSolid();
-    } catch (NoSuchMethodError ignored) {
-      return block.getType().isSolid();
-    }
+    return block.getBoundingBox().overlaps(supportBox) || block.isSolid();
   }
 
   private static boolean hasAquaAffinity(Player player) {

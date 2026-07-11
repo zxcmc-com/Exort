@@ -16,6 +16,8 @@ message:
   relay_disabled: "서버 구성에서 릴레이가 비활성화되어 있습니다."
   chunk_loader_duplicate: "이 청크 로더는 다른 위치에서 이미 활성화되어 있습니다."
   chunk_loader_feature_disabled: "서버 구성에서 청크 로더가 비활성화되어 있습니다."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "청크 로더: 활성."
   chunk_loader_disabled: "청크 로더: 비활성화됨."
   chunk_loader_already_enabled: "청크 로더: 활성."

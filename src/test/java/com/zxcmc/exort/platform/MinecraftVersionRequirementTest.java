@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class MinecraftVersionRequirementTest {
   private final MinecraftVersionRequirement requirement =
-      MinecraftVersionRequirement.atLeast(1, 21, 7);
+      MinecraftVersionRequirement.atLeast(1, 21, 11);
 
   @Test
   void parsesPatchVersionsWithSuffixes() {
@@ -18,9 +18,16 @@ class MinecraftVersionRequirementTest {
 
   @Test
   void rejectsVersionsBelowMinimumPatch() {
-    var version = MinecraftVersionRequirement.Version.parse("1.21.6").orElseThrow();
+    var version = MinecraftVersionRequirement.Version.parse("1.21.10").orElseThrow();
 
     assertFalse(requirement.accepts(version));
+  }
+
+  @Test
+  void acceptsCurrentCalVerTarget() {
+    var version = MinecraftVersionRequirement.Version.parse("26.2").orElseThrow();
+
+    assertTrue(requirement.accepts(version));
   }
 
   @Test

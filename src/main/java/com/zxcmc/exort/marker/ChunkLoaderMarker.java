@@ -14,6 +14,7 @@ public final class ChunkLoaderMarker {
   private static final String FIELD_PLACED_BY_NAME = "placed_by_name";
   private static final String FIELD_CREATED_AT = "created_at";
   private static final String FIELD_ENABLED = "enabled";
+  private static final String FIELD_BYPASS_LIMITS = "bypass_limits";
 
   private ChunkLoaderMarker() {}
 
@@ -23,7 +24,8 @@ public final class ChunkLoaderMarker {
       UUID placedByUuid,
       String placedByName,
       long createdAt,
-      boolean enabled) {
+      boolean enabled,
+      boolean bypassLimits) {
     public Data {
       type = type == null ? ChunkLoaderType.defaultType() : type;
     }
@@ -54,6 +56,19 @@ public final class ChunkLoaderMarker {
       String placedByName,
       long createdAt,
       boolean enabled) {
+    set(plugin, block, id, type, placedByUuid, placedByName, createdAt, enabled, false);
+  }
+
+  public static void set(
+      Plugin plugin,
+      Block block,
+      UUID id,
+      ChunkLoaderType type,
+      UUID placedByUuid,
+      String placedByName,
+      long createdAt,
+      boolean enabled,
+      boolean bypassLimits) {
     if (id == null) return;
     ChunkLoaderType safeType = type == null ? ChunkLoaderType.defaultType() : type;
     ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ID, id.toString());
@@ -75,6 +90,8 @@ public final class ChunkLoaderMarker {
       ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_CREATED_AT);
     }
     ChunkMarkerStore.setByte(plugin, block, SECTION, FIELD_ENABLED, enabled ? (byte) 1 : (byte) 0);
+    ChunkMarkerStore.setByte(
+        plugin, block, SECTION, FIELD_BYPASS_LIMITS, bypassLimits ? (byte) 1 : (byte) 0);
   }
 
   public static Optional<Data> get(Plugin plugin, Block block) {
@@ -111,8 +128,13 @@ public final class ChunkLoaderMarker {
         ChunkMarkerStore.getByte(plugin, block, SECTION, FIELD_ENABLED)
             .map(value -> value != (byte) 0)
             .orElse(true);
+    boolean bypassLimits =
+        ChunkMarkerStore.getByte(plugin, block, SECTION, FIELD_BYPASS_LIMITS)
+            .map(value -> value != (byte) 0)
+            .orElse(false);
     return Optional.of(
-        new Data(id, type.orElseThrow(), placedByUuid, placedByName, createdAt, enabled));
+        new Data(
+            id, type.orElseThrow(), placedByUuid, placedByName, createdAt, enabled, bypassLimits));
   }
 
   public static boolean isChunkLoader(Plugin plugin, Block block) {

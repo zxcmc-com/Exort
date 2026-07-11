@@ -16,6 +16,8 @@ message:
   relay_disabled: "伺服器設定已禁中繼。"
   chunk_loader_duplicate: "此區塊載入器已於他處啟用。"
   chunk_loader_feature_disabled: "伺服器設定已禁區塊載入器。"
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "區塊載入器: 當前."
   chunk_loader_disabled: "區塊載入器: 已禁."
   chunk_loader_already_enabled: "區塊載入器: 當前."

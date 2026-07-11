@@ -12,7 +12,7 @@ import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
-import com.zxcmc.exort.placement.storage.StorageTierSaver;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
@@ -25,6 +25,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public record ItemPlaceBridgeDependencies(
     JavaPlugin plugin,
     StorageManager storageManager,
+    StorageClaimRegistry storageClaimRegistry,
     CustomItems customItems,
     StorageKeys keys,
     Material wireMaterial,
@@ -49,13 +50,13 @@ public record ItemPlaceBridgeDependencies(
     Runnable revalidateSessions,
     Consumer<Block> monitorPlacedRecorder,
     Consumer<Block> transmitterPlacedRecorder,
-    StorageTierSaver storageTierSaver,
     Supplier<BreakSoundConfig> breakSoundConfig,
     ChunkLoaderService chunkLoaderService,
     Supplier<BusRuntimeConfig> busRuntimeConfig) {
   public ItemPlaceBridgeDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");
     Objects.requireNonNull(customItems, "customItems");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(wireMaterial, "wireMaterial");
@@ -77,7 +78,6 @@ public record ItemPlaceBridgeDependencies(
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");
     Objects.requireNonNull(monitorPlacedRecorder, "monitorPlacedRecorder");
     Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
-    Objects.requireNonNull(storageTierSaver, "storageTierSaver");
     Objects.requireNonNull(breakSoundConfig, "breakSoundConfig");
     Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");
     Objects.requireNonNull(busRuntimeConfig, "busRuntimeConfig");

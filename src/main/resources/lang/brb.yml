@@ -16,6 +16,8 @@ message:
   relay_disabled: "Netwerkrelais zen uitgeschakeld in de serverconfig."
   chunk_loader_duplicate: "Deze Chunklader is al actief op 'n andere plek."
   chunk_loader_feature_disabled: "Chunkladers zen uitgeschakeld in de serverconfig."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunklader: Actief."
   chunk_loader_disabled: "Chunklader: Uitgeschakeld."
   chunk_loader_already_enabled: "Chunklader: Actief."

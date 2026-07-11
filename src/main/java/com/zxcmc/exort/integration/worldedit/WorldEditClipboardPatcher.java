@@ -13,8 +13,9 @@ import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import java.util.Map;
-import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -29,7 +30,8 @@ final class WorldEditClipboardPatcher {
   private final Plugin plugin;
   private final Function<LinCompoundTag, BaseBlock> markerBlockBuilder;
   private final Supplier<WorldEditDebugService> debugService;
-  private final Set<BukkitTask> tasks = ConcurrentHashMap.newKeySet();
+  private final Map<UUID, BukkitTask> tasks = new ConcurrentHashMap<>();
+  private final GenerationTracker generations = new GenerationTracker();
 
   WorldEditClipboardPatcher(
       Plugin plugin,
@@ -41,14 +43,31 @@ final class WorldEditClipboardPatcher {
   }
 
   void schedule(com.sk89q.worldedit.extension.platform.Actor actor, PendingClipboardPatch patch) {
+    if (actor == null
+        || actor.getUniqueId() == null
+        || patch == null
+        || patch.markers().isEmpty()) {
+      return;
+    }
+    UUID actorId = actor.getUniqueId();
+    Clipboard baseline = currentClipboard(actor);
+    long generation = generations.next(actorId);
+    BukkitTask previous = tasks.remove(actorId);
+    if (previous != null) {
+      previous.cancel();
+    }
     BukkitRunnable runnable =
         new BukkitRunnable() {
           private int attempts;
 
           @Override
           public void run() {
+            if (!generations.isCurrent(actorId, generation)) {
+              cancel();
+              return;
+            }
             attempts++;
-            boolean applied = apply(actor, patch);
+            boolean applied = apply(actor, patch, baseline);
             if (!applied && attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
               plugin
                   .getLogger()
@@ -58,24 +77,41 @@ final class WorldEditClipboardPatcher {
                           + " attempts; paste may leave carrier placeholders.");
             }
             if (applied || attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
-              tasks.removeIf(task -> task.getTaskId() == this.getTaskId());
+              tasks.computeIfPresent(
+                  actorId,
+                  (ignored, current) -> current.getTaskId() == this.getTaskId() ? null : current);
+              generations.complete(actorId, generation);
               cancel();
             }
           }
         };
     BukkitTask task = runnable.runTaskTimer(plugin, 1L, 2L);
-    tasks.add(task);
+    tasks.put(actorId, task);
   }
 
   void shutdown() {
-    for (BukkitTask task : tasks) {
+    for (BukkitTask task : tasks.values()) {
       task.cancel();
     }
     tasks.clear();
+    generations.clearAll();
+  }
+
+  void cancel(UUID actorId) {
+    if (actorId == null) {
+      return;
+    }
+    generations.clear(actorId);
+    BukkitTask task = tasks.remove(actorId);
+    if (task != null) {
+      task.cancel();
+    }
   }
 
   private boolean apply(
-      com.sk89q.worldedit.extension.platform.Actor actor, PendingClipboardPatch patch) {
+      com.sk89q.worldedit.extension.platform.Actor actor,
+      PendingClipboardPatch patch,
+      Clipboard baseline) {
     if (actor == null || patch == null || patch.markers().isEmpty()) return true;
     LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
     ClipboardHolder holder;
@@ -87,6 +123,7 @@ final class WorldEditClipboardPatcher {
       return false;
     }
     if (clipboard == null) return false;
+    if (clipboard == baseline) return false;
     Region clipboardRegion = clipboard.getRegion();
     BlockArrayClipboard patched = new BlockArrayClipboard(clipboardRegion);
     patched.setOrigin(clipboard.getOrigin());
@@ -127,5 +164,40 @@ final class WorldEditClipboardPatcher {
       debug.recordEvent("we clipboard patch markers=" + applied, NamedTextColor.DARK_GREEN);
     }
     return true;
+  }
+
+  private Clipboard currentClipboard(com.sk89q.worldedit.extension.platform.Actor actor) {
+    try {
+      return WorldEdit.getInstance().getSessionManager().get(actor).getClipboard().getClipboard();
+    } catch (EmptyClipboardException | RuntimeException e) {
+      return null;
+    }
+  }
+
+  static final class GenerationTracker {
+    private final Map<UUID, Long> generations = new ConcurrentHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
+
+    long next(UUID actorId) {
+      long generation = sequence.incrementAndGet();
+      generations.put(actorId, generation);
+      return generation;
+    }
+
+    boolean isCurrent(UUID actorId, long generation) {
+      return Long.valueOf(generation).equals(generations.get(actorId));
+    }
+
+    void complete(UUID actorId, long generation) {
+      generations.remove(actorId, generation);
+    }
+
+    void clear(UUID actorId) {
+      generations.remove(actorId);
+    }
+
+    void clearAll() {
+      generations.clear();
+    }
   }
 }

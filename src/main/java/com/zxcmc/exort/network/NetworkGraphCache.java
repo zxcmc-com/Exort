@@ -136,7 +136,7 @@ public final class NetworkGraphCache {
       Material relayCarrier,
       int relayRangeChunks) {
     if (terminal == null) {
-      return new TerminalLinkFinder.StorageSearchResult(0, null);
+      return TerminalLinkFinder.StorageSearchResult.none();
     }
     CacheKey key =
         new CacheKey(
@@ -222,7 +222,7 @@ public final class NetworkGraphCache {
       Material relayCarrier,
       int relayRangeChunks) {
     if (terminal == null) {
-      return new TerminalLinkFinder.StorageSearchResult(0, null);
+      return TerminalLinkFinder.StorageSearchResult.none();
     }
     return scanWithTrace(
             terminal,
@@ -251,11 +251,12 @@ public final class NetworkGraphCache {
     Set<ChunkKey> touchedChunks = new HashSet<>();
     if (terminal == null) {
       return new ScanTraceResult(
-          new TerminalLinkFinder.StorageSearchResult(0, null), touchedBlocks, touchedChunks);
+          TerminalLinkFinder.StorageSearchResult.none(), touchedBlocks, touchedChunks);
     }
     touch(terminal, touchedBlocks, touchedChunks);
     int found = 0;
     TerminalLinkFinder.StorageBlockInfo data = null;
+    Set<BlockKey> foundStorages = new HashSet<>();
     Queue<Block> queue = new ArrayDeque<>();
     Set<Block> visited = new HashSet<>();
 
@@ -271,12 +272,12 @@ public final class NetworkGraphCache {
         if (!isChunkLoaded(neighbor)) continue;
         Optional<TerminalLinkFinder.StorageBlockInfo> info =
             readStorageInfo(plugin, neighbor, storageCarrier);
-        if (info.isPresent()) {
+        if (info.isPresent() && foundStorages.add(blockKey(info.get().block()))) {
           found++;
           data = info.get();
           if (found > 1) {
             return new ScanTraceResult(
-                new TerminalLinkFinder.StorageSearchResult(found, data),
+                TerminalLinkFinder.StorageSearchResult.multiple(found, data),
                 touchedBlocks,
                 touchedChunks);
           }
@@ -287,7 +288,7 @@ public final class NetworkGraphCache {
       }
       if (found > 0) {
         return new ScanTraceResult(
-            new TerminalLinkFinder.StorageSearchResult(found, data), touchedBlocks, touchedChunks);
+            TerminalLinkFinder.StorageSearchResult.connected(data), touchedBlocks, touchedChunks);
       }
     }
     int wiresUsed = countWires(visited, keys, plugin, wireMaterial);
@@ -304,9 +305,7 @@ public final class NetworkGraphCache {
           nodesUsed++;
           if (nodesUsed > wireHardCap) {
             return new ScanTraceResult(
-                new TerminalLinkFinder.StorageSearchResult(found, data),
-                touchedBlocks,
-                touchedChunks);
+                TerminalLinkFinder.StorageSearchResult.hardCap(), touchedBlocks, touchedChunks);
           }
         }
       }
@@ -317,12 +316,12 @@ public final class NetworkGraphCache {
         if (!isChunkLoaded(next)) continue;
         Optional<TerminalLinkFinder.StorageBlockInfo> info =
             readStorageInfo(plugin, next, storageCarrier);
-        if (info.isPresent()) {
+        if (info.isPresent() && foundStorages.add(blockKey(info.get().block()))) {
           found++;
           data = info.get();
           if (found > 1) {
             return new ScanTraceResult(
-                new TerminalLinkFinder.StorageSearchResult(found, data),
+                TerminalLinkFinder.StorageSearchResult.multiple(found, data),
                 touchedBlocks,
                 touchedChunks);
           }
@@ -335,15 +334,31 @@ public final class NetworkGraphCache {
           }
           if (nodesUsed > wireHardCap) {
             return new ScanTraceResult(
-                new TerminalLinkFinder.StorageSearchResult(found, data),
-                touchedBlocks,
-                touchedChunks);
+                TerminalLinkFinder.StorageSearchResult.hardCap(), touchedBlocks, touchedChunks);
           }
         }
       }
     }
+    if (!queue.isEmpty()) {
+      if (nodesUsed > wireHardCap) {
+        return new ScanTraceResult(
+            TerminalLinkFinder.StorageSearchResult.hardCap(), touchedBlocks, touchedChunks);
+      }
+      if (wiresUsed > wireLimit) {
+        return new ScanTraceResult(
+            TerminalLinkFinder.StorageSearchResult.wireLimit(), touchedBlocks, touchedChunks);
+      }
+    }
     return new ScanTraceResult(
-        new TerminalLinkFinder.StorageSearchResult(found, data), touchedBlocks, touchedChunks);
+        found == 1
+            ? TerminalLinkFinder.StorageSearchResult.connected(data)
+            : TerminalLinkFinder.StorageSearchResult.none(),
+        touchedBlocks,
+        touchedChunks);
+  }
+
+  private static BlockKey blockKey(Block block) {
+    return new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
   }
 
   private static void touch(RelayMarker.Link link, Set<ChunkKey> chunks) {

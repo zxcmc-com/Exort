@@ -469,7 +469,9 @@ public final class LoadTestService {
               ? 0
               : (int) Math.round(metric.totalNanos() * 100.0 / snapshot.totalNanos());
       String p95 = ONE_DECIMAL.format(metric.p95Micros());
+      String p99 = ONE_DECIMAL.format(metric.p99Micros());
       String tickP95 = ONE_DECIMAL.format(metric.p95TickMicros());
+      String tickP99 = ONE_DECIMAL.format(metric.p99TickMicros());
       parts.add(
           metric.label()
               + " "
@@ -478,14 +480,19 @@ public final class LoadTestService {
               + metric.calls()
               + " calls p95 "
               + p95
-              + "us tick-p95 "
+              + "us p99 "
+              + p99
+              + "us tick-p95/p99 "
               + tickP95
+              + "/"
+              + tickP99
               + "us");
       tokens.add(metric.label(), subsystemColor(metric.label()));
       tokens.add(pct + "%", percentageColor(pct));
       tokens.add(metric.calls() + " calls", neutralValueColor(parts.size()));
       tokens.add(p95 + "us", latencyMicrosColor(metric.p95Micros()));
-      tokens.add(tickP95 + "us", latencyMicrosColor(metric.p95TickMicros()));
+      tokens.add(p99 + "us", latencyMicrosColor(metric.p99Micros()));
+      tokens.add(tickP95 + "/" + tickP99 + "us", latencyMicrosColor(metric.p99TickMicros()));
       if (parts.size() >= 5) {
         break;
       }
@@ -702,20 +709,12 @@ public final class LoadTestService {
   }
 
   private double currentTps() {
-    try {
-      double[] tps = Bukkit.getTPS();
-      return tps.length > 0 ? Math.min(20.0, tps[0]) : 20.0;
-    } catch (NoSuchMethodError ignored) {
-      return 20.0;
-    }
+    double[] tps = Bukkit.getTPS();
+    return tps.length > 0 ? Math.min(20.0, tps[0]) : 20.0;
   }
 
   private double currentMspt() {
-    try {
-      return Bukkit.getAverageTickTime();
-    } catch (NoSuchMethodError ignored) {
-      return 50.0;
-    }
+    return Bukkit.getAverageTickTime();
   }
 
   private BarColor progressColor(double tps) {

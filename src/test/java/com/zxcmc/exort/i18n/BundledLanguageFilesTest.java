@@ -53,6 +53,8 @@ class BundledLanguageFilesTest {
           "message.operation_failed",
           "message.relay_disabled",
           "message.chunk_loader_feature_disabled",
+          "message.chunk_loader_initializing",
+          "message.chunk_loader_limit_reached",
           "message.chunk_loader_enabled",
           "message.chunk_loader_disabled",
           "message.chunk_loader_already_enabled",

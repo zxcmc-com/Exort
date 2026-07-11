@@ -67,4 +67,26 @@ class RuntimeNetworkConfigTest {
     assertEquals(12, config.wireHardCap());
     assertTrue(config.wireHardCapAdjusted());
   }
+
+  @Test
+  void capsTraversalBudgetsAtBoundedHotPathLimits() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("wire.limit", Integer.MAX_VALUE);
+    yaml.set("wire.hardCap", Integer.MAX_VALUE);
+
+    RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
+
+    assertEquals(RuntimeNetworkConfig.MAX_WIRE_LIMIT, config.wireLimit());
+    assertEquals(RuntimeNetworkConfig.MAX_WIRE_HARD_CAP, config.wireHardCap());
+  }
+
+  @Test
+  void capsRelayRangeAtBoundedHotPathLimit() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("relay.rangeChunks", Integer.MAX_VALUE);
+
+    RuntimeNetworkConfig config = RuntimeNetworkConfig.fromConfig(yaml);
+
+    assertEquals(RuntimeNetworkConfig.MAX_RELAY_RANGE_CHUNKS, config.relayRangeChunks());
+  }
 }

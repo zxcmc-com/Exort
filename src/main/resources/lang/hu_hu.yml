@@ -16,6 +16,8 @@ message:
   relay_disabled: "A hálózati relék ki vannak kapcsolva a szerver konfigurációjában."
   chunk_loader_duplicate: "Ez a chunkbetöltő már aktív egy másik helyen."
   chunk_loader_feature_disabled: "A chunkbetöltők ki vannak kapcsolva a szerver konfigurációjában."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunkbetöltő: Aktív."
   chunk_loader_disabled: "Chunkbetöltő: Kikapcsolva."
   chunk_loader_already_enabled: "Chunkbetöltő: Aktív."

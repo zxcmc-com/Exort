@@ -1,6 +1,7 @@
 package com.zxcmc.exort.i18n;
 
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
+import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.items.StorageItemNameEditor;
@@ -46,7 +47,7 @@ public final class ExortItemLocalizationService {
   }
 
   ItemStack localize(ItemStack source, String language) {
-    if (source == null || !source.hasItemMeta()) {
+    if (!CustomItemClassifier.isCustomItem(keys, source)) {
       return source;
     }
     ItemMeta originalMeta = source.getItemMeta();

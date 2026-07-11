@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.storage.StorageTier;
 import java.lang.reflect.InvocationHandler;
@@ -93,7 +94,8 @@ class GuiSessionValidatorTest {
         () -> Material.BARRIER,
         () -> Material.BARRIER,
         () -> Material.BARRIER,
-        () -> Material.BARRIER);
+        () -> Material.BARRIER,
+        RegionProtection::allowAll);
   }
 
   private static Plugin plugin() {

@@ -27,6 +27,19 @@ class PackExporterTest {
   @TempDir Path tempDir;
 
   @Test
+  void exportFailsCleanlyWhenOutputDirectoryIsAFile() throws IOException {
+    Path outputFile = tempDir.resolve("occupied");
+    Files.writeString(outputFile, "keep-me", StandardCharsets.UTF_8);
+
+    PackExporter.Result result =
+        PackExporter.exportPack(
+            Path.of("src/main/resources"), "pack/", outputFile.toFile(), Logger.getLogger("test"));
+
+    assertFalse(result.available());
+    assertEquals("keep-me", Files.readString(outputFile, StandardCharsets.UTF_8));
+  }
+
+  @Test
   void bundledRuntimeLanguageFilesAreConvertedDuringExport() throws IOException {
     Path source = tempDir.resolve("source");
     Path langDir = source.resolve("lang");

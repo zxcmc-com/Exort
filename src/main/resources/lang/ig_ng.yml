@@ -16,6 +16,8 @@ message:
   relay_disabled: "A gbanyụrụ relay netwọkụ niile site na nhazi server."
   chunk_loader_duplicate: "Ihe Ibu Chunk a na-arụ ọrụ ugbua n'ebe ọzọ."
   chunk_loader_feature_disabled: "A gbanyụrụ Ihe Ibu Chunk niile site na nhazi server."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Ihe Ibu Chunk: Na-arụ."
   chunk_loader_disabled: "Ihe Ibu Chunk: Agbanyụrụ."
   chunk_loader_already_enabled: "Ihe Ibu Chunk: Na-arụ."

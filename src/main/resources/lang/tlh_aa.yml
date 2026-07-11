@@ -16,6 +16,8 @@ message:
   relay_disabled: "server configmoʼ pat rarwIʼmey chuʼHaʼluʼ."
   chunk_loader_duplicate: "Chunk loadwIʼvam latlh DaqDaq QaptaH."
   chunk_loader_feature_disabled: "server configmoʼ Chunk loadwIʼmey chuʼHaʼluʼ."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk loadwIʼ: Qap."
   chunk_loader_disabled: "Chunk loadwIʼ: Qapbeʼ."
   chunk_loader_already_enabled: "Chunk loadwIʼ: Qap."

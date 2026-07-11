@@ -23,9 +23,6 @@ public enum TransmitterMode {
     if (raw == null || raw.isBlank()) {
       return CHARGE_ONLY;
     }
-    if ("charge".equalsIgnoreCase(raw.trim())) {
-      return CHARGE_ONLY;
-    }
     try {
       return TransmitterMode.valueOf(raw.trim().toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException ignored) {

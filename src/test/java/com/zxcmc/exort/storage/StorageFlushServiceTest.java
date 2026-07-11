@@ -5,12 +5,28 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.zxcmc.exort.infra.db.Database;
+import com.zxcmc.exort.infra.db.DbItem;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 class StorageFlushServiceTest {
+  @Test
+  void degradedCacheIsNeverFlushed() throws Exception {
+    StorageCache cache = new StorageCache("storage", null, null, null);
+    cache.loadFromDb(Map.of("broken", new DbItem("broken", new byte[] {1}, -1L)));
+    CountingDatabase database = new CountingDatabase();
+    StorageFlushService service =
+        new StorageFlushService(Logger.getLogger("test"), () -> null, database);
+
+    service.flushAsync(cache).get(5, TimeUnit.SECONDS);
+    service.flushBatchAsync(java.util.List.of(cache)).get(5, TimeUnit.SECONDS);
+
+    assertEquals(0, database.writeAttempts);
+  }
+
   @Test
   void snapshotPreparationFailureReturnsFailedFutureAndClearsInFlightFlush() {
     FailingSnapshotCache cache = new FailingSnapshotCache();

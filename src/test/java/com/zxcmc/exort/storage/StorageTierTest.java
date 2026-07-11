@@ -1,6 +1,7 @@
 package com.zxcmc.exort.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,10 +12,48 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class StorageTierTest {
   private static final Logger LOGGER = Logger.getLogger(StorageTierTest.class.getName());
+
+  @BeforeEach
+  void resetCatalog() {
+    StorageTier.resetForTests();
+  }
+
+  @Test
+  void invalidReplacementKeepsLastValidCatalog() {
+    YamlConfiguration valid = new YamlConfiguration();
+    valid.set("basic.maxItems", 128);
+    valid.set("basic.material", "CHEST");
+    assertTrue(StorageTier.loadFromConfig(valid, LOGGER));
+
+    assertFalse(StorageTier.loadFromConfig(new YamlConfiguration(), LOGGER));
+
+    StorageTier tier = StorageTier.fromString("basic").orElseThrow();
+    assertEquals(128, tier.maxItems());
+    assertEquals(Material.CHEST, tier.displayMaterial());
+  }
+
+  @Test
+  void normalizedDuplicateKeyKeepsLastValidCatalog() {
+    YamlConfiguration valid = new YamlConfiguration();
+    valid.set("basic.maxItems", 128);
+    valid.set("basic.material", "CHEST");
+    assertTrue(StorageTier.loadFromConfig(valid, LOGGER));
+    YamlConfiguration duplicate = new YamlConfiguration();
+    duplicate.set("rare.maxItems", 256);
+    duplicate.set("rare.material", "GOLD_BLOCK");
+    duplicate.set("RARE.maxItems", 512);
+    duplicate.set("RARE.material", "DIAMOND_BLOCK");
+
+    assertFalse(StorageTier.loadFromConfig(duplicate, LOGGER));
+
+    assertTrue(StorageTier.fromString("basic").isPresent());
+    assertTrue(StorageTier.fromString("rare").isEmpty());
+  }
 
   @Test
   void loadFromConfigParsesPageSuffix() {
@@ -204,7 +243,7 @@ class StorageTierTest {
   }
 
   @Test
-  void resolverFallsBackToSameCapacityTier() {
+  void resolverPreservesMissingTierAndCapacityAsReadOnlyOrphan() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("gold.maxItems", 256);
     config.set("gold.material", "GOLD_BLOCK");
@@ -214,13 +253,14 @@ class StorageTierTest {
 
     var resolution = StorageTierResolver.resolve("missing", 512L).orElseThrow();
 
-    assertEquals("DIAMOND", resolution.tier().key());
+    assertEquals("MISSING", resolution.tier().key());
     assertEquals(512L, resolution.tierMaxItems());
-    assertTrue(resolution.fallback());
+    assertTrue(resolution.orphaned());
+    assertTrue(resolution.tier().isReadOnly());
   }
 
   @Test
-  void resolverFallsBackToClosestLowerCapacityTier() {
+  void resolverNeverDowngradesOrphanCapacity() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("gold.maxItems", 256);
     config.set("gold.material", "GOLD_BLOCK");
@@ -232,12 +272,13 @@ class StorageTierTest {
 
     var resolution = StorageTierResolver.resolve("missing", 900L).orElseThrow();
 
-    assertEquals("DIAMOND", resolution.tier().key());
-    assertEquals(512L, resolution.tierMaxItems());
+    assertEquals("MISSING", resolution.tier().key());
+    assertEquals(900L, resolution.tierMaxItems());
+    assertEquals(900L, resolution.tier().maxItems());
   }
 
   @Test
-  void resolverFallsBackToSmallestTierWhenSnapshotIsBelowAllTiers() {
+  void resolverPreservesSnapshotBelowConfiguredTiers() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("gold.maxItems", 256);
     config.set("gold.material", "GOLD_BLOCK");
@@ -247,12 +288,12 @@ class StorageTierTest {
 
     var resolution = StorageTierResolver.resolve("missing", 128L).orElseThrow();
 
-    assertEquals("GOLD", resolution.tier().key());
-    assertEquals(256L, resolution.tierMaxItems());
+    assertEquals("MISSING", resolution.tier().key());
+    assertEquals(128L, resolution.tierMaxItems());
   }
 
   @Test
-  void resolverFallsBackToSmallestTierWhenSnapshotIsMissing() {
+  void resolverFailsClosedWhenOrphanSnapshotIsMissing() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("gold.maxItems", 256);
     config.set("gold.material", "GOLD_BLOCK");
@@ -260,16 +301,15 @@ class StorageTierTest {
     config.set("diamond.material", "DIAMOND_BLOCK");
     StorageTier.loadFromConfig(config, LOGGER);
 
-    var resolution = StorageTierResolver.resolve("missing", null).orElseThrow();
-
-    assertEquals("GOLD", resolution.tier().key());
-    assertTrue(resolution.missingSnapshot());
+    assertTrue(StorageTierResolver.resolve("missing", null).isEmpty());
   }
 
   @Test
-  void resolverReturnsEmptyWhenNoTiersAreConfigured() {
+  void resolverPreservesOrphanEvenWhenNoTiersAreConfigured() {
     StorageTier.loadFromConfig(new YamlConfiguration(), LOGGER);
 
-    assertTrue(StorageTierResolver.resolve("missing", 128L).isEmpty());
+    var resolution = StorageTierResolver.resolve("missing", 128L).orElseThrow();
+    assertEquals(128L, resolution.tierMaxItems());
+    assertTrue(resolution.orphaned());
   }
 }

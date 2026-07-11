@@ -1,8 +1,13 @@
 package com.zxcmc.exort.infra.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zxcmc.exort.i18n.LocalizationFiles;
 import com.zxcmc.exort.integration.protection.ProtectionRuntimeConfig;
+import java.io.InputStream;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ExortMetricsTest {
@@ -15,10 +20,29 @@ class ExortMetricsTest {
   }
 
   @Test
-  void languageChartValueDoesNotForwardArbitraryConfigText() {
-    assertEquals("custom_or_invalid", ExortMetrics.languageChartValue(""));
-    assertEquals("custom_or_invalid", ExortMetrics.languageChartValue("not a locale"));
-    assertEquals("custom_or_invalid", ExortMetrics.languageChartValue("token=secret"));
+  void languageChartValueIsLimitedToBundledLocalesAndOther() throws Exception {
+    Set<String> expectedBundled;
+    try (InputStream input =
+        ExortMetricsTest.class.getClassLoader().getResourceAsStream(LocalizationFiles.LANG_INDEX)) {
+      assertTrue(input != null, "bundled language index is missing");
+      LinkedHashSet<String> expected =
+          new LinkedHashSet<>(LocalizationFiles.readLanguageIndex(input));
+      expected.add(LocalizationFiles.DEFAULT_LANGUAGE);
+      expectedBundled = Set.copyOf(expected);
+    }
+    Set<String> bundled = ExortMetrics.bundledLanguageChartValues();
+
+    assertEquals(expectedBundled, bundled);
+    assertTrue(bundled.contains("en_us"));
+    assertTrue(bundled.contains("ru_ru"));
+    for (String locale : bundled) {
+      assertEquals(locale, ExortMetrics.languageChartValue(locale));
+    }
+
+    assertEquals("other", ExortMetrics.languageChartValue(""));
+    assertEquals("other", ExortMetrics.languageChartValue("zz_zz"));
+    assertEquals("other", ExortMetrics.languageChartValue("not a locale"));
+    assertEquals("other", ExortMetrics.languageChartValue("token=secret"));
   }
 
   @Test

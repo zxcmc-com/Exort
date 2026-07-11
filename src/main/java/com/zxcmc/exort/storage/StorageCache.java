@@ -14,11 +14,108 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 public class StorageCache {
-  private static final int MAX_ITEM_BLOB_BYTES = 1_048_576;
+  private static final int MAX_ITEM_BLOB_BYTES = StoredItemCodec.MAX_BLOB_BYTES;
 
   public record RemovalRequest(String key, ItemStack sample, long amount) {}
 
-  public record ReservedItem(String key, ItemStack sample, long amount) {}
+  public record LoadResult(List<StorageQuarantineEntry> quarantineEntries) {
+    public LoadResult {
+      quarantineEntries = quarantineEntries == null ? List.of() : List.copyOf(quarantineEntries);
+    }
+  }
+
+  public static final class ReservedItem {
+    private final String key;
+    private final ItemStack sample;
+    private final long amount;
+    private final long weight;
+    private final byte[] blob;
+    private boolean restoreClaimed;
+
+    private ReservedItem(String key, ItemStack sample, long amount, long weight, byte[] blob) {
+      this.key = key;
+      this.sample = sample;
+      this.amount = amount;
+      this.weight = weight;
+      this.blob = blob == null ? null : Arrays.copyOf(blob, blob.length);
+    }
+
+    public String key() {
+      return key;
+    }
+
+    public ItemStack sample() {
+      return ItemKeyUtil.cloneSample(sample);
+    }
+
+    public long amount() {
+      return amount;
+    }
+
+    private synchronized boolean claimRestore(long requested) {
+      if (restoreClaimed || requested <= 0 || requested > amount) {
+        return false;
+      }
+      restoreClaimed = true;
+      return true;
+    }
+  }
+
+  public record AddResult(
+      boolean accepted, String key, StoredItemCodec.Failure failure, String detail) {
+    public AddResult {
+      Objects.requireNonNull(failure, "failure");
+      detail = detail == null ? "" : detail;
+    }
+
+    static AddResult accepted(String key) {
+      return new AddResult(true, key, StoredItemCodec.Failure.NONE, "");
+    }
+
+    static AddResult rejected(StoredItemCodec.Failure failure, String detail) {
+      return new AddResult(false, null, failure, detail);
+    }
+  }
+
+  private record AddPlan(
+      StorageItem existing,
+      StoredItemCodec.PreparedItem prepared,
+      String key,
+      long amount,
+      long weight) {}
+
+  private record AddPlanning(AddPlan plan, AddResult result) {
+    static AddPlanning accepted(AddPlan plan) {
+      return new AddPlanning(Objects.requireNonNull(plan, "plan"), null);
+    }
+
+    static AddPlanning rejected(AddResult result) {
+      return new AddPlanning(null, Objects.requireNonNull(result, "result"));
+    }
+  }
+
+  public static final class PreparedAdd {
+    private final StorageCache owner;
+    private final AddPlan plan;
+    private final AddResult result;
+    private final long version;
+    private boolean consumed;
+
+    private PreparedAdd(StorageCache owner, AddPlan plan, AddResult result, long version) {
+      this.owner = owner;
+      this.plan = plan;
+      this.result = result;
+      this.version = version;
+    }
+
+    public AddResult result() {
+      return result;
+    }
+
+    public boolean accepted() {
+      return result.accepted();
+    }
+  }
 
   private record RemovalPlan(
       boolean success,
@@ -117,9 +214,11 @@ public class StorageCache {
   private final StorageKeys keys;
   private final Logger logger;
   private final Supplier<CacheDebugService> cacheDebugService;
+  private final StoredItemCodec storedItemCodec;
   private final Map<String, StorageItem> items = new HashMap<>();
   private final Set<String> dirtyKeys = new HashSet<>();
   private final Set<String> removedKeys = new HashSet<>();
+  private List<StorageCorruption> corruptions = List.of();
   private boolean dirty;
   private int viewers;
   private boolean loaded;
@@ -141,10 +240,20 @@ public class StorageCache {
       StorageKeys keys,
       Logger logger,
       Supplier<CacheDebugService> cacheDebugService) {
+    this(storageId, keys, logger, cacheDebugService, new StoredItemCodec());
+  }
+
+  public StorageCache(
+      String storageId,
+      StorageKeys keys,
+      Logger logger,
+      Supplier<CacheDebugService> cacheDebugService,
+      StoredItemCodec storedItemCodec) {
     this.storageId = storageId;
     this.keys = keys;
     this.logger = logger;
     this.cacheDebugService = cacheDebugService;
+    this.storedItemCodec = Objects.requireNonNull(storedItemCodec, "storedItemCodec");
     this.lastAccessMs = System.currentTimeMillis();
   }
 
@@ -152,63 +261,102 @@ public class StorageCache {
     return storageId;
   }
 
-  public synchronized void loadFromDb(Map<String, DbItem> data) {
+  public synchronized LoadResult loadFromDb(Map<String, DbItem> data) {
+    return loadFromDb(data, List.of());
+  }
+
+  public synchronized LoadResult loadFromDb(
+      Map<String, DbItem> data, Collection<StorageCorruption> structuralCorruptions) {
     items.clear();
     dirtyKeys.clear();
     removedKeys.clear();
+    List<StorageCorruption> detected =
+        structuralCorruptions == null ? new ArrayList<>() : new ArrayList<>(structuralCorruptions);
+    List<StorageQuarantineEntry> quarantineEntries = new ArrayList<>();
     totalAmount = 0;
     totalWeighted = 0;
     dirty = false;
     version++;
     touch();
-    for (DbItem item : data.values()) {
+    Map<String, DbItem> safeData = data == null ? Map.of() : data;
+    for (DbItem item : safeData.values()) {
       if (item == null || item.amount() <= 0) {
-        warnInvalidDbItem(item, "amount must be positive");
+        recordCorruption(
+            item,
+            "amount must be positive",
+            detected,
+            quarantineEntries,
+            System.currentTimeMillis());
         continue;
       }
       byte[] blob = item.blob();
       if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
-        warnInvalidDbItem(item, "invalid serialized item blob length");
+        recordCorruption(
+            item,
+            "invalid serialized item blob length",
+            detected,
+            quarantineEntries,
+            System.currentTimeMillis());
         continue;
       }
-      ItemStack stack;
+      StoredItemCodec.Preflight persisted = storedItemCodec.decodePersisted(item.key(), blob);
+      if (!persisted.accepted()) {
+        recordCorruption(
+            item,
+            "persisted item rejected (" + persisted.failure() + "): " + persisted.detail(),
+            detected,
+            quarantineEntries,
+            System.currentTimeMillis());
+        continue;
+      }
+      StoredItemCodec.PreparedItem prepared = persisted.item();
+      String key = prepared.key();
+      long weight;
       try {
-        stack = ItemKeyUtil.deserialize(blob);
+        weight = nestedWeight(prepared.internalSample());
       } catch (RuntimeException e) {
-        warnInvalidDbItem(item, "serialized item blob cannot be decoded: " + e.getMessage());
+        recordCorruption(
+            item,
+            "item weight cannot be read: " + failureDetail(e),
+            detected,
+            quarantineEntries,
+            System.currentTimeMillis());
         continue;
       }
-      if (stack == null || stack.getType().isAir()) {
-        warnInvalidDbItem(item, "serialized item is empty");
-        continue;
-      }
-      ItemKeyUtil.SampleData normalized = ItemKeyUtil.sampleData(stack);
-      String key = item.key();
-      if (key == null || key.isBlank()) {
-        key = normalized.key();
-        dirtyKeys.add(key);
-        dirty = true;
-        logInvalidDbItem(item, "missing item key; rebuilt key from item blob");
-      } else if (!key.equals(normalized.key())) {
-        removedKeys.add(key);
-        key = normalized.key();
-        dirtyKeys.add(key);
-        dirty = true;
-        logInvalidDbItem(item, "item key did not match blob; rebuilt key from item blob");
-      }
-      long weight = nestedWeight(normalized.sample());
       long weighted = saturatingMultiply(item.amount(), weight);
-      if (weighted == Long.MAX_VALUE) {
-        warnInvalidDbItem(item, "weighted amount is too large");
+      if (weight <= 0
+          || weight == Long.MAX_VALUE
+          || weighted == Long.MAX_VALUE
+          || wouldOverflow(totalAmount, item.amount())
+          || wouldOverflow(totalWeighted, weighted)) {
+        recordCorruption(
+            item,
+            "item amount or nested weight would overflow storage totals",
+            detected,
+            quarantineEntries,
+            System.currentTimeMillis());
         continue;
       }
       StorageItem existing = items.get(key);
       if (existing == null) {
         items.put(
             key,
-            new StorageItem(key, normalized.sample(), item.amount(), weight, normalized.bytes()));
+            new StorageItem(
+                key, prepared.internalSample(), item.amount(), weight, prepared.internalBlob()));
       } else {
         existing.add(item.amount());
+      }
+      if (!key.equals(item.key())) {
+        removedKeys.add(item.key());
+        dirtyKeys.add(key);
+        dirty = true;
+        if (logger != null) {
+          logger.warning(
+              "Storage "
+                  + storageId
+                  + " normalized a version-sensitive item representation; the previous row key"
+                  + " will be replaced on the next flush.");
+        }
       }
       totalAmount = saturatingAdd(totalAmount, item.amount());
       totalWeighted = saturatingAdd(totalWeighted, weighted);
@@ -223,12 +371,36 @@ public class StorageCache {
             + totalAmount
             + " weighted="
             + totalWeighted);
+    corruptions = List.copyOf(detected);
     dirty = dirty || !dirtyKeys.isEmpty() || !removedKeys.isEmpty();
     loaded = true;
+    if (!corruptions.isEmpty()) {
+      String reasons = degradationReasonSummary();
+      if (logger != null) {
+        logger.severe(
+            "Storage "
+                + storageId
+                + " loaded in DEGRADED_READ_ONLY state; corruptRows="
+                + corruptions.size()
+                + ", reasons="
+                + reasons
+                + ". Original rows were retained and quarantined for recovery.");
+      }
+      log(
+          CacheDebugService.EventType.LOAD,
+          "cache load DEGRADED_READ_ONLY: "
+              + storageId
+              + " corruptRows="
+              + corruptions.size()
+              + " reasons="
+              + reasons);
+    }
+    return new LoadResult(quarantineEntries);
   }
 
   public synchronized int refreshCustomItems(
       CustomItems customItems, WirelessTerminalService wirelessService, boolean inStorage) {
+    if (isReadOnly()) return 0;
     if (customItems == null) return 0;
     if (items.isEmpty()) return 0;
     Map<String, StorageItem> updated = new HashMap<>(items.size());
@@ -325,48 +497,199 @@ public class StorageCache {
     return loaded;
   }
 
+  public synchronized boolean isDegraded() {
+    return !corruptions.isEmpty();
+  }
+
+  public synchronized boolean isReadOnly() {
+    return isDegraded();
+  }
+
+  public synchronized List<StorageCorruption> corruptionSnapshot() {
+    return corruptions;
+  }
+
+  public synchronized String healthSummary() {
+    if (corruptions.isEmpty()) {
+      return "HEALTHY";
+    }
+    return "DEGRADED_READ_ONLY corruptRows="
+        + corruptions.size()
+        + " reasons="
+        + degradationReasonSummary();
+  }
+
   public synchronized void addItem(String key, ItemStack sample, long amount) {
-    if (amount <= 0) return;
+    AddResult result = tryAddItem(key, sample, amount);
+    if (!result.accepted()) {
+      throw new IllegalArgumentException(
+          "Storage "
+              + storageId
+              + ": rejected item add (failure="
+              + result.failure()
+              + ", detail="
+              + result.detail()
+              + ")");
+    }
+  }
+
+  public synchronized AddResult preflightItem(String key, ItemStack sample, long amount) {
+    return prepareAdd(key, sample, amount).result();
+  }
+
+  public synchronized AddResult tryAddItem(String key, ItemStack sample, long amount) {
+    return commitPrepared(prepareAdd(key, sample, amount));
+  }
+
+  public synchronized PreparedAdd prepareAdd(String key, ItemStack sample, long amount) {
+    AddPlanning planning = planAdd(key, sample, amount);
+    AddResult result =
+        planning.result() == null ? AddResult.accepted(planning.plan().key()) : planning.result();
+    return new PreparedAdd(this, planning.plan(), result, version);
+  }
+
+  public synchronized AddResult commitPrepared(PreparedAdd prepared) {
+    if (prepared == null || prepared.owner != this || prepared.consumed) {
+      return AddResult.rejected(
+          StoredItemCodec.Failure.STALE_PREFLIGHT, "preflight token is invalid or already used");
+    }
+    prepared.consumed = true;
+    if (!prepared.result.accepted()) {
+      return prepared.result;
+    }
+    if (isReadOnly()) {
+      return readOnlyAddResult();
+    }
+    if (prepared.version != version) {
+      return AddResult.rejected(
+          StoredItemCodec.Failure.STALE_PREFLIGHT, "storage changed after item preflight");
+    }
+    applyAdd(prepared.plan);
+    return AddResult.accepted(prepared.plan.key());
+  }
+
+  private void applyAdd(AddPlan plan) {
     touch();
     if (isVerbose()) {
       log(
           CacheDebugService.EventType.ADD,
-          "cache add: " + storageId + " key=" + key + " amount=" + amount,
-          amount);
+          "cache add: " + storageId + " key=" + plan.key() + " amount=" + plan.amount(),
+          plan.amount());
     }
-    StorageItem existing = items.get(key);
+    StorageItem existing = plan.existing();
     if (existing == null) {
-      ItemStack sampleClone = ItemKeyUtil.sampleItem(sample);
-      byte[] blob = sampleClone.serializeAsBytes();
-      long weight = nestedWeight(sampleClone);
-      items.put(key, new StorageItem(key, sampleClone, amount, weight, blob));
-      totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(amount, weight));
+      StoredItemCodec.PreparedItem prepared = plan.prepared();
+      items.put(
+          plan.key(),
+          new StorageItem(
+              plan.key(),
+              prepared.internalSample(),
+              plan.amount(),
+              plan.weight(),
+              prepared.internalBlob()));
     } else {
-      existing.add(amount);
-      totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(amount, existing.weight()));
+      existing.add(plan.amount());
     }
-    markChanged(key);
-    totalAmount = saturatingAdd(totalAmount, amount);
+    totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(plan.amount(), plan.weight()));
+    markChanged(plan.key());
+    totalAmount = saturatingAdd(totalAmount, plan.amount());
     dirty = true;
     version++;
   }
 
+  private AddPlanning planAdd(String key, ItemStack sample, long amount) {
+    if (isReadOnly()) {
+      return AddPlanning.rejected(readOnlyAddResult());
+    }
+    if (amount <= 0) {
+      return AddPlanning.rejected(
+          AddResult.rejected(StoredItemCodec.Failure.INVALID_AMOUNT, "amount must be positive"));
+    }
+    StorageItem existing = key == null ? null : items.get(key);
+    StoredItemCodec.PreparedItem prepared = null;
+    String resolvedKey = key;
+    long weight;
+    if (existing == null) {
+      StoredItemCodec.Preflight preflight = storedItemCodec.preflight(key, sample);
+      if (!preflight.accepted()) {
+        return AddPlanning.rejected(AddResult.rejected(preflight.failure(), preflight.detail()));
+      }
+      prepared = preflight.item();
+      resolvedKey = prepared.key();
+      try {
+        weight = nestedWeight(prepared.internalSample());
+      } catch (RuntimeException error) {
+        return AddPlanning.rejected(
+            AddResult.rejected(
+                StoredItemCodec.Failure.INVALID_WEIGHT,
+                error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage())));
+      }
+    } else {
+      weight = existing.weight();
+    }
+    if (weight <= 0
+        || weight == Long.MAX_VALUE
+        || wouldOverflow(totalAmount, amount)
+        || wouldOverflow(existing == null ? 0L : existing.amount(), amount)
+        || wouldMultiplyOverflow(amount, weight)
+        || wouldOverflow(totalWeighted, amount * weight)) {
+      return AddPlanning.rejected(
+          AddResult.rejected(
+              StoredItemCodec.Failure.COUNT_OVERFLOW,
+              "item count or nested weight would overflow"));
+    }
+    return AddPlanning.accepted(new AddPlan(existing, prepared, resolvedKey, amount, weight));
+  }
+
   public synchronized long removeItem(String key, long amount) {
+    if (isReadOnly()) return 0L;
     return removeItemInternal(key, amount);
   }
 
   public synchronized Optional<ReservedItem> reserveItem(String key, long amount) {
+    if (isReadOnly()) return Optional.empty();
     if (amount <= 0) return Optional.empty();
     StorageItem existing = items.get(key);
     if (existing == null || existing.amount() <= 0) return Optional.empty();
     ItemStack sample = ItemKeyUtil.cloneSample(existing.sample());
+    long weight = existing.weight();
+    byte[] blob = existing.blob();
     long removed = removeItemInternal(key, amount);
     if (removed <= 0) return Optional.empty();
-    return Optional.of(new ReservedItem(key, sample, removed));
+    return Optional.of(new ReservedItem(key, sample, removed, weight, blob));
+  }
+
+  public synchronized void restoreReserved(ReservedItem reserved) {
+    restoreReserved(reserved, reserved == null ? 0L : reserved.amount);
+  }
+
+  public synchronized void restoreReserved(ReservedItem reserved, long amount) {
+    if (isReadOnly()) return;
+    if (reserved == null || !reserved.claimRestore(amount)) return;
+    StorageItem existing = items.get(reserved.key);
+    if (existing == null) {
+      items.put(
+          reserved.key,
+          new StorageItem(
+              reserved.key,
+              reserved.sample,
+              amount,
+              reserved.weight,
+              reserved.blob == null ? null : Arrays.copyOf(reserved.blob, reserved.blob.length)));
+    } else {
+      existing.add(amount);
+    }
+    totalAmount = saturatingAdd(totalAmount, amount);
+    totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(amount, reserved.weight));
+    markChanged(reserved.key);
+    dirty = true;
+    version++;
+    touch();
   }
 
   public synchronized Optional<List<ReservedItem>> reserveAll(
       List<RemovalRequest> requests, WirelessTerminalService ws) {
+    if (isReadOnly()) return Optional.empty();
     if (requests == null || requests.isEmpty()) return Optional.of(List.of());
     RemovalPlan plan = planRemovals(requests, ws);
     if (!plan.success()) {
@@ -390,7 +713,7 @@ public class StorageCache {
       if (item.isEmpty() || item.get().amount() != entry.getValue()) {
         item.ifPresent(reserved::add);
         for (ReservedItem rollback : reserved) {
-          addItem(rollback.key(), rollback.sample(), rollback.amount());
+          restoreReserved(rollback);
         }
         if (isVerbose()) {
           log(
@@ -417,6 +740,7 @@ public class StorageCache {
   }
 
   private long removeItemInternal(String key, long amount) {
+    if (isReadOnly()) return 0L;
     if (amount <= 0) return 0;
     touch();
     StorageItem existing = items.get(key);
@@ -453,6 +777,7 @@ public class StorageCache {
 
   public synchronized long removeMatchingWireless(
       WirelessTerminalService ws, ItemStack sample, long amount) {
+    if (isReadOnly()) return 0L;
     if (ws == null || sample == null || amount <= 0) return 0;
     if (!ws.isWireless(sample)) return 0;
     touch();
@@ -840,6 +1165,49 @@ public class StorageCache {
     logInvalidDbItem(item, "skipping invalid storage item: " + reason);
   }
 
+  private void recordCorruption(
+      DbItem item,
+      String reason,
+      List<StorageCorruption> detected,
+      List<StorageQuarantineEntry> quarantineEntries,
+      long detectedAtMillis) {
+    String safeReason = sanitizeReason(reason);
+    warnInvalidDbItem(item, safeReason);
+    String key = item == null || item.key() == null ? "<null>" : item.key();
+    long amount = item == null ? 0L : item.amount();
+    StorageCorruption corruption =
+        new StorageCorruption(key, amount, safeReason, Math.max(0L, detectedAtMillis / 1000L));
+    detected.add(corruption);
+    quarantineEntries.add(
+        new StorageQuarantineEntry(corruption, item == null ? null : item.blob()));
+  }
+
+  private AddResult readOnlyAddResult() {
+    return AddResult.rejected(
+        StoredItemCodec.Failure.READ_ONLY,
+        "storage is degraded and read-only because corrupt persisted item rows were detected");
+  }
+
+  private String degradationReasonSummary() {
+    return corruptions.stream()
+        .map(StorageCorruption::reason)
+        .distinct()
+        .limit(3)
+        .reduce((left, right) -> left + "; " + right)
+        .orElse("unknown");
+  }
+
+  private static String sanitizeReason(String reason) {
+    String normalized = reason == null ? "unknown" : reason.replace('\n', ' ').replace('\r', ' ');
+    return normalized.length() <= 512 ? normalized : normalized.substring(0, 512);
+  }
+
+  private static String failureDetail(RuntimeException error) {
+    String message = error.getMessage();
+    return error.getClass().getSimpleName()
+        + (message == null || message.isBlank() ? "" : ": " + message);
+  }
+
   private void logInvalidDbItem(DbItem item, String message) {
     if (logger == null) return;
     String key = item == null ? "<null>" : String.valueOf(item.key());
@@ -862,6 +1230,14 @@ public class StorageCache {
     if (left <= 0 || right <= 0) return 0L;
     if (left > Long.MAX_VALUE / right) return Long.MAX_VALUE;
     return left * right;
+  }
+
+  private static boolean wouldOverflow(long current, long addition) {
+    return current < 0 || addition < 0 || current > Long.MAX_VALUE - addition;
+  }
+
+  private static boolean wouldMultiplyOverflow(long left, long right) {
+    return left <= 0 || right <= 0 || left > Long.MAX_VALUE / right;
   }
 
   private void markChanged(String key) {

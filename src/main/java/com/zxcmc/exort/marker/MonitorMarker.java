@@ -1,5 +1,7 @@
 package com.zxcmc.exort.marker;
 
+import com.zxcmc.exort.items.ItemKeyUtil;
+import com.zxcmc.exort.storage.StoredItemCodec;
 import java.util.Optional;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -33,13 +35,18 @@ public final class MonitorMarker {
     }
   }
 
-  public static void setItem(Plugin plugin, Block block, String itemKey, byte[] itemBlob) {
-    if (itemKey != null) {
-      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ITEM_KEY, itemKey);
+  public static boolean setItem(Plugin plugin, Block block, String itemKey, byte[] itemBlob) {
+    if (itemKey == null
+        || itemKey.isBlank()
+        || itemBlob == null
+        || itemBlob.length == 0
+        || itemBlob.length > StoredItemCodec.MAX_BLOB_BYTES
+        || !itemKey.equals(ItemKeyUtil.sha256Hex(itemBlob))) {
+      return false;
     }
-    if (itemBlob != null) {
-      ChunkMarkerStore.setBytes(plugin, block, SECTION, FIELD_ITEM_BLOB, itemBlob);
-    }
+    ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_ITEM_KEY, itemKey);
+    ChunkMarkerStore.setBytes(plugin, block, SECTION, FIELD_ITEM_BLOB, itemBlob);
+    return true;
   }
 
   public static Optional<String> itemKey(Plugin plugin, Block block) {

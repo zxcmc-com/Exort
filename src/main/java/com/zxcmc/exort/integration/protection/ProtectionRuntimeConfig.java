@@ -13,7 +13,7 @@ public record ProtectionRuntimeConfig(
     Objects.requireNonNull(config, "config");
     return new ProtectionRuntimeConfig(
         config.getBoolean("protection.enabled", true),
-        config.getBoolean("protection.failClosedOnError", false),
+        config.getBoolean("protection.failClosedOnError", true),
         new Adapters(
             config.getBoolean("protection.adapters.worldguard", true),
             config.getBoolean("protection.adapters.griefPrevention", true),

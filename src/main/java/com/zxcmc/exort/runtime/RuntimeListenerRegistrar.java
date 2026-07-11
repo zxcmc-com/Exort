@@ -29,6 +29,7 @@ import com.zxcmc.exort.recipes.RecipeDiscoveryListener;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.recipes.listener.CraftBlockerListener;
 import com.zxcmc.exort.relay.listener.RelayListener;
+import com.zxcmc.exort.storage.StorageClaimReconciler;
 import com.zxcmc.exort.storage.listener.StorageListener;
 import com.zxcmc.exort.wire.listener.WireListener;
 import com.zxcmc.exort.wire.listener.WireListenerDependencies;
@@ -46,6 +47,12 @@ public final class RuntimeListenerRegistrar {
       RuntimeListenerDependencies deps, PlacementGuardConfig placementConfig) {
     deps.customBlockBreaker().start();
     register(deps, deps.customBlockBreaker());
+    register(deps, deps.chunkLoaderService());
+    StorageClaimReconciler storageClaimReconciler =
+        new StorageClaimReconciler(
+            deps.plugin(), deps.storageClaimRegistry(), deps.materials().storageCarrier());
+    register(deps, storageClaimReconciler);
+    storageClaimReconciler.start();
     registerBlockListeners(deps);
     registerGuiListeners(deps);
     registerStorageAndWireListeners(deps);
@@ -67,7 +74,7 @@ public final class RuntimeListenerRegistrar {
     RecipeRegistration recipes = registerRecipes(deps);
     registerWirelessListeners(deps);
     return new RuntimeListenerRegistration(
-        placementGuard, recipes.craftingRules(), recipes.recipeService());
+        placementGuard, recipes.craftingRules(), recipes.recipeService(), storageClaimReconciler);
   }
 
   private static void registerBlockListeners(RuntimeListenerDependencies deps) {
@@ -78,6 +85,7 @@ public final class RuntimeListenerRegistrar {
             new BlockListenerDependencies(
                 deps.plugin(),
                 deps.storageManager(),
+                deps.storageClaimRegistry(),
                 deps.keys(),
                 deps.customItems(),
                 materials.wire(),
@@ -105,9 +113,6 @@ public final class RuntimeListenerRegistrar {
                 deps.networkGraphCacheSource(),
                 deps.revalidateSessions(),
                 deps.transmitterPlacedRecorder(),
-                (storageId, tierKey, tierMaxItems, displayName) ->
-                    deps.database()
-                        .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
     register(deps, new ExortExplosionListener(deps.plugin(), materials, deps.breakHandler()));
@@ -255,6 +260,7 @@ public final class RuntimeListenerRegistrar {
             new ItemPlaceBridgeDependencies(
                 deps.plugin(),
                 deps.storageManager(),
+                deps.storageClaimRegistry(),
                 deps.customItems(),
                 deps.keys(),
                 materials.wire(),
@@ -279,9 +285,6 @@ public final class RuntimeListenerRegistrar {
                 deps.revalidateSessions(),
                 deps.monitorPlacedRecorder(),
                 deps.transmitterPlacedRecorder(),
-                (storageId, tierKey, tierMaxItems, displayName) ->
-                    deps.database()
-                        .setStorageMetadata(storageId, tierKey, tierMaxItems, displayName),
                 () -> deps.breakSoundConfig(),
                 deps.chunkLoaderService(),
                 () -> deps.busRuntimeConfig())));
@@ -307,6 +310,7 @@ public final class RuntimeListenerRegistrar {
                 deps.regionProtection(),
                 deps.keys(),
                 deps.bossBarManager(),
+                deps.playerFeedback(),
                 deps.itemNameService(),
                 deps.authenticationGate(),
                 deps.worldEditWandGuard(),
@@ -409,21 +413,20 @@ public final class RuntimeListenerRegistrar {
 
   private static RecipeRegistration registerRecipes(RuntimeListenerDependencies deps) {
     RecipeService previousRecipeService = deps.previousRecipeService();
-    if (previousRecipeService != null) {
-      previousRecipeService.unregisterAll();
-    }
     CraftingRules craftingRules =
         new CraftingRules(
             deps.keys(),
             deps.craftingConfig().blockVanilla(),
             deps.craftingConfig().allowExternal());
     register(deps, new CraftBlockerListener(craftingRules));
-    RecipeService recipeService =
+    RecipeService candidateRecipeService =
         new RecipeService(deps.plugin(), deps.customItems(), deps.wirelessService());
+    boolean replaced = candidateRecipeService.reloadReplacing(previousRecipeService);
+    RecipeService recipeService =
+        replaced || previousRecipeService == null ? candidateRecipeService : previousRecipeService;
     RecipeDiscoveryListener discoveryListener =
         new RecipeDiscoveryListener(deps.plugin(), recipeService);
     register(deps, discoveryListener);
-    recipeService.reload();
     discoveryListener.discoverForOnlinePlayers();
     return new RecipeRegistration(craftingRules, recipeService);
   }

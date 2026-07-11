@@ -1,6 +1,7 @@
 package com.zxcmc.exort.wireless.transmitter;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -75,11 +76,11 @@ public final class TransmitterListener implements Listener {
     event.setUseInteractedBlock(Result.DENY);
     event.setUseItemInHand(Result.DENY);
     if (!wirelessService.isEnabled() || !transmitterService.isEnabled()) {
-      playerFeedback.error(player, "message.wireless.disabled");
+      playerFeedback.respond(player, FeedbackReason.WIRELESS_ACCESS, "message.wireless.disabled");
       return;
     }
     if (!regionProtection.canUse(player, block)) {
-      playerFeedback.error(player, "message.no_permission");
+      playerFeedback.respond(player, FeedbackReason.WIRELESS_ACCESS, "message.no_permission");
       return;
     }
     transmitterSessionManager.open(player, block);

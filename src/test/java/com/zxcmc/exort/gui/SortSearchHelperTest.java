@@ -133,6 +133,9 @@ class SortSearchHelperTest {
     Field field = ItemNameService.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     field.set(service, value);
+    Method publish = ItemNameService.class.getDeclaredMethod("publishState", long.class);
+    publish.setAccessible(true);
+    publish.invoke(service, 1L);
   }
 
   private static Plugin plugin() {

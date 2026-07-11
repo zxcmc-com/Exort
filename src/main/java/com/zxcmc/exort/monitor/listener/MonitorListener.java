@@ -2,18 +2,21 @@ package com.zxcmc.exort.monitor.listener;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.FeedbackReason;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
-import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.storage.StoredItemCodec;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.event.Event.Result;
@@ -33,6 +36,8 @@ public class MonitorListener implements Listener {
   private final WorldEditWandGuard worldEditWandGuard;
   private final StorageKeys keys;
   private final BossBarManager bossBarManager;
+  private final PlayerFeedback playerFeedback;
+  private final StoredItemCodec itemCodec = new StoredItemCodec();
   private final ItemNameService itemNameService;
   private final Material monitorCarrier;
   private final Material wireMaterial;
@@ -52,6 +57,7 @@ public class MonitorListener implements Listener {
     this.worldEditWandGuard = dependencies.worldEditWandGuard();
     this.keys = dependencies.keys();
     this.bossBarManager = dependencies.bossBarManager();
+    this.playerFeedback = dependencies.playerFeedback();
     this.itemNameService = dependencies.itemNameService();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.wireMaterial = dependencies.wireMaterial();
@@ -112,8 +118,9 @@ public class MonitorListener implements Listener {
         String itemName = itemKey;
         var blobOpt = MonitorMarker.itemBlob(plugin, block);
         if (blobOpt.isPresent()) {
-          ItemStack sample = ItemKeyUtil.deserialize(blobOpt.get());
-          if (sample != null && sample.getType() != Material.AIR) {
+          StoredItemCodec.Preflight persisted = itemCodec.decodePersisted(itemKey, blobOpt.get());
+          if (persisted.accepted()) {
+            ItemStack sample = persisted.item().sample();
             String language =
                 itemNameService.dictionaryLanguage(
                     event.getPlayer().locale().toString(), itemNameService.getActiveLanguage());
@@ -163,8 +170,26 @@ public class MonitorListener implements Listener {
       return;
     }
 
-    ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(inHand);
-    MonitorMarker.setItem(plugin, block, data.key(), data.bytes());
+    StoredItemCodec.Preflight prepared = itemCodec.preflight(null, inHand);
+    if (!prepared.accepted()) {
+      plugin
+          .getLogger()
+          .log(
+              Level.WARNING,
+              "Rejected monitor item payload at {0},{1},{2}: {3} ({4})",
+              new Object[] {
+                block.getX(), block.getY(), block.getZ(), prepared.failure(), prepared.detail()
+              });
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.OPERATION_FAILURE, "message.operation_failed");
+      return;
+    }
+    StoredItemCodec.PreparedItem item = prepared.item();
+    if (!MonitorMarker.setItem(plugin, block, item.key(), item.blob())) {
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.OPERATION_FAILURE, "message.operation_failed");
+      return;
+    }
     monitorDisplayRefresh.accept(block);
   }
 

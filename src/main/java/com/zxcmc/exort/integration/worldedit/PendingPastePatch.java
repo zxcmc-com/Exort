@@ -4,14 +4,21 @@ import com.sk89q.worldedit.math.BlockVector3;
 import java.util.Map;
 
 record PendingPastePatch(
-    Map<Long, MarkerSnapshot> destinationMarkers, Map<Long, MarkerSnapshot> undoMarkers) {
+    Map<Long, MarkerSnapshot> destinationMarkers,
+    Map<Long, MarkerSnapshot> undoMarkers,
+    boolean preserveStorageIdentity) {
   PendingPastePatch {
     destinationMarkers = destinationMarkers == null ? Map.of() : Map.copyOf(destinationMarkers);
     undoMarkers = undoMarkers == null ? Map.of() : Map.copyOf(undoMarkers);
   }
 
   PendingPastePatch(Map<Long, MarkerSnapshot> destinationMarkers) {
-    this(destinationMarkers, Map.of());
+    this(destinationMarkers, Map.of(), false);
+  }
+
+  PendingPastePatch(
+      Map<Long, MarkerSnapshot> destinationMarkers, Map<Long, MarkerSnapshot> undoMarkers) {
+    this(destinationMarkers, undoMarkers, false);
   }
 
   MarkerSnapshot get(BlockVector3 position) {

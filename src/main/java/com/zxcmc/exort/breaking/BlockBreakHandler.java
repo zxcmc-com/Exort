@@ -12,6 +12,7 @@ import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.display.wire.WireDisplayManager;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.gui.SessionManager;
@@ -31,6 +32,8 @@ import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageClaimLocation;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
@@ -66,6 +69,7 @@ public final class BlockBreakHandler {
   private final DisplayRefreshService displayRefreshService;
   private final BreakAnimationSender breakAnimationSender;
   private final StorageManager storageManager;
+  private final StorageClaimRegistry storageClaimRegistry;
   private final SessionManager sessionManager;
   private final Supplier<MonitorDisplayManager> monitorDisplayManager;
   private final Supplier<BusSessionManager> busSessionManager;
@@ -96,6 +100,7 @@ public final class BlockBreakHandler {
             ? BreakAnimationSender.NOOP
             : dependencies.breakAnimationSender();
     this.storageManager = dependencies.storageManager();
+    this.storageClaimRegistry = dependencies.storageClaimRegistry();
     this.sessionManager = dependencies.sessionManager();
     this.monitorDisplayManager = dependencies.monitorDisplayManager();
     this.busSessionManager = dependencies.busSessionManager();
@@ -108,6 +113,7 @@ public final class BlockBreakHandler {
 
   public enum BreakResult {
     BROKEN,
+    PENDING,
     DENIED,
     IGNORED
   }
@@ -320,35 +326,35 @@ public final class BlockBreakHandler {
     }
 
     if (ChunkLoaderMarker.isChunkLoader(plugin, block)) {
-      if (!Carriers.matchesCarrier(block, chunkLoaderCarrier)) {
-        chunkLoaderService.cleanupAt(block, "break_wrong_carrier");
-        return BreakResult.BROKEN;
-      }
       if (isRegionDenied(player, block, checkRegion)) {
         return BreakResult.DENIED;
       }
-      UUID loaderId =
-          ChunkLoaderMarker.get(plugin, block)
-              .map(ChunkLoaderMarker.Data::id)
-              .orElse(UUID.randomUUID());
-      ChunkLoaderType type =
-          ChunkLoaderMarker.get(plugin, block)
-              .map(ChunkLoaderMarker.Data::type)
-              .orElse(ChunkLoaderType.defaultType());
-      playBreakParticles(block, BreakType.CHUNK_LOADER);
+      var marker = ChunkLoaderMarker.get(plugin, block);
+      if (!Carriers.matchesCarrier(block, chunkLoaderCarrier) || marker.isEmpty()) {
+        String reason = marker.isEmpty() ? "break_invalid_marker" : "break_wrong_carrier";
+        ChunkLoaderService.RemovalStart removal =
+            chunkLoaderService.cleanupAt(
+                block,
+                reason,
+                () -> finalizeInvalidChunkLoaderBreak(block),
+                error -> notifyChunkLoaderBreakFailure(player));
+        return removal == ChunkLoaderService.RemovalStart.MISSING
+            ? BreakResult.IGNORED
+            : BreakResult.PENDING;
+      }
+      ChunkLoaderType type = marker.get().type();
       boolean dropItem = shouldDrop(player);
       BreakOutcome outcome = dropItem ? BreakOutcome.DROP_ITEM : BreakOutcome.DESTROY;
-      UUID droppedId = chunkLoaderService.breakLoader(player, block, outcome).orElse(loaderId);
-      block.setType(Material.AIR);
-      if (dropItem) {
-        dropItemSafe(block, customItems.chunkLoaderItem(type, droppedId));
-      }
-      if (displayRefreshService != null) {
-        displayRefreshService.removeChunkLoaderDisplay(block);
-        displayRefreshService.refreshBlockAndNeighbors(block);
-      }
-      cleanupDisplays(block);
-      return BreakResult.BROKEN;
+      ChunkLoaderService.RemovalStart removal =
+          chunkLoaderService.breakLoader(
+              player,
+              block,
+              outcome,
+              droppedId -> finalizeChunkLoaderBreak(block, type, droppedId, dropItem),
+              error -> notifyChunkLoaderBreakFailure(player));
+      return removal == ChunkLoaderService.RemovalStart.MISSING
+          ? BreakResult.IGNORED
+          : BreakResult.PENDING;
     }
 
     if (WireMarker.isWire(plugin, block)) {
@@ -419,6 +425,31 @@ public final class BlockBreakHandler {
       return BreakResult.DENIED;
     }
     String storageId = marker.get().storageId();
+    StorageClaimLocation claimLocation = StorageClaimLocation.fromBlock(block);
+    StorageClaimRegistry.ExactClaim claim =
+        storageClaimRegistry.exactClaim(storageId, claimLocation);
+    if (claim != StorageClaimRegistry.ExactClaim.MATCHED) {
+      plugin
+          .getLogger()
+          .warning(
+              "Denied storage break for "
+                  + storageId
+                  + " at "
+                  + claimLocation
+                  + ": physical claim "
+                  + claim);
+      if (player != null && player.isOnline()) {
+        playerFeedback.respond(
+            player,
+            claim == StorageClaimRegistry.ExactClaim.NOT_READY
+                ? FeedbackReason.STORAGE_LOADING
+                : FeedbackReason.STORAGE_CLAIM_CONFLICT,
+            claim == StorageClaimRegistry.ExactClaim.NOT_READY
+                ? "message.storage_loading"
+                : "message.storage_load_failed");
+      }
+      return BreakResult.DENIED;
+    }
     StorageTier tier = marker.get().tier();
     String displayName = marker.get().displayName();
     StorageCache cache = storageManager.getLoadedCache(storageId).orElse(null);
@@ -454,6 +485,18 @@ public final class BlockBreakHandler {
       displayRefreshService.removeStorageDisplay(block);
     }
     StorageMarker.clear(plugin, block);
+    storageClaimRegistry
+        .releaseExact(storageId, claimLocation)
+        .whenComplete(
+            (released, err) -> {
+              if (err != null || !Boolean.TRUE.equals(released)) {
+                ExortLog.log(
+                    plugin,
+                    Level.SEVERE,
+                    "Physical storage claim remained locked after breaking " + storageId,
+                    err == null ? new IllegalStateException("exact claim was not deleted") : err);
+              }
+            });
     invalidateNetwork(block);
     if (displayRefreshService != null) {
       displayRefreshService.refreshNetworkFrom(block);
@@ -505,13 +548,43 @@ public final class BlockBreakHandler {
     return player == null || player.getGameMode() != GameMode.CREATIVE;
   }
 
+  private void finalizeChunkLoaderBreak(
+      Block block, ChunkLoaderType type, UUID loaderId, boolean dropItem) {
+    playBreakParticles(block, BreakType.CHUNK_LOADER);
+    block.setType(Material.AIR);
+    if (dropItem) {
+      dropItemSafe(block, customItems.chunkLoaderItem(type, loaderId));
+    }
+    if (displayRefreshService != null) {
+      displayRefreshService.removeChunkLoaderDisplay(block);
+      displayRefreshService.refreshBlockAndNeighbors(block);
+    }
+    cleanupDisplays(block);
+  }
+
+  private void finalizeInvalidChunkLoaderBreak(Block block) {
+    playBreakParticles(block, BreakType.CHUNK_LOADER);
+    block.setType(Material.AIR);
+    if (displayRefreshService != null) {
+      displayRefreshService.removeChunkLoaderDisplay(block);
+      displayRefreshService.refreshBlockAndNeighbors(block);
+    }
+    cleanupDisplays(block);
+  }
+
+  private void notifyChunkLoaderBreakFailure(Player player) {
+    if (player != null) {
+      playerFeedback.respond(player, FeedbackReason.OPERATION_FAILURE, "message.operation_failed");
+    }
+  }
+
   private boolean isRegionDenied(Player player, Block block, boolean checkRegion) {
     return checkRegion && (player == null || !regionProtection.canBreak(player, block));
   }
 
   private void preloadStorageForBreak(Player player, String storageId, boolean warnPlayer) {
     if (warnPlayer && player != null && player.isOnline()) {
-      playerFeedback.warn(player, "message.storage_loading");
+      playerFeedback.respond(player, FeedbackReason.STORAGE_LOADING, "message.storage_loading");
     }
     storageManager
         .getOrLoad(storageId)
@@ -524,7 +597,8 @@ public final class BlockBreakHandler {
                   plugin,
                   () -> {
                     if (player == null || !player.isOnline()) return;
-                    playerFeedback.error(player, "message.storage_load_failed");
+                    playerFeedback.respond(
+                        player, FeedbackReason.STORAGE_FAILURE, "message.storage_load_failed");
                   });
             });
   }

@@ -16,6 +16,8 @@ message:
   relay_disabled: "Các bộ chuyển tiếp mạng đã bị tắt theo cấu hình máy chủ."
   chunk_loader_duplicate: "Bộ tải Chunk này đã hoạt động ở vị trí khác."
   chunk_loader_feature_disabled: "Các bộ tải Chunk đã bị tắt theo cấu hình máy chủ."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Bộ tải Chunk: Đang dùng."
   chunk_loader_disabled: "Bộ tải Chunk: Đã tắt."
   chunk_loader_already_enabled: "Bộ tải Chunk: Đang dùng."

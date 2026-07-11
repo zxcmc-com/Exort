@@ -7,9 +7,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 final class WorldEditMarkerHistory {
   private static final long HISTORY_TTL_MS = TimeUnit.MINUTES.toMillis(10);
+  private static final long MAINTENANCE_INTERVAL_MS = TimeUnit.MINUTES.toMillis(1);
 
   private final Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> undoMarkerHistory =
       new ConcurrentHashMap<>();
@@ -20,10 +22,12 @@ final class WorldEditMarkerHistory {
   private final Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> redoFrames =
       new ConcurrentHashMap<>();
   private final Map<FrameKey, Frame> normalFrames = new ConcurrentHashMap<>();
+  private final AtomicLong nextMaintenanceAt = new AtomicLong();
 
   Frame beginNormalOperation(UUID actorId, UUID worldId, long operationId) {
     if (actorId == null || worldId == null) return null;
     long now = System.currentTimeMillis();
+    maintainIfDue(now);
     ActorWorldKey actorWorldKey = new ActorWorldKey(actorId, worldId);
     pruneFrameStack(undoFrames, actorWorldKey, now);
     clearRedo(actorWorldKey);
@@ -42,6 +46,7 @@ final class WorldEditMarkerHistory {
   Frame beginReplay(UUID actorId, UUID worldId, HistoryAction action) {
     if (actorId == null || worldId == null || action == null) return null;
     long now = System.currentTimeMillis();
+    maintainIfDue(now);
     ActorWorldKey actorWorldKey = new ActorWorldKey(actorId, worldId);
     Frame frame = pollValidFrame(framesFor(action), actorWorldKey, now);
     if (frame == null) return null;
@@ -74,6 +79,7 @@ final class WorldEditMarkerHistory {
       Frame normalFrame) {
     if (actorId == null || snapshot == null) return;
     long now = System.currentTimeMillis();
+    maintainIfDue(now);
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> targetHistory;
     if (activeAction == HistoryAction.UNDO) {
@@ -114,6 +120,7 @@ final class WorldEditMarkerHistory {
       boolean storageCloneRequired) {
     if (actorId == null || snapshot == null) return;
     long now = System.currentTimeMillis();
+    maintainIfDue(now);
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     ConcurrentLinkedDeque<HistoryEntry> stack =
         redoMarkerHistory.computeIfAbsent(key, ignored -> new ConcurrentLinkedDeque<>());
@@ -147,6 +154,7 @@ final class WorldEditMarkerHistory {
 
   FrameState peekState(UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     if (actorId == null || action == null) return null;
+    maintainIfDue(System.currentTimeMillis());
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     HistoryEntry entry = peekValidHistory(historyFor(action), key);
     return entry == null ? null : entry.state();
@@ -159,6 +167,7 @@ final class WorldEditMarkerHistory {
 
   FrameState consumeState(UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     if (actorId == null || action == null) return null;
+    maintainIfDue(System.currentTimeMillis());
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     HistoryEntry entry = pollValidHistory(historyFor(action), key);
     return entry == null ? null : entry.state();
@@ -190,6 +199,18 @@ final class WorldEditMarkerHistory {
     undoFrames.clear();
     redoFrames.clear();
     normalFrames.clear();
+    nextMaintenanceAt.set(0L);
+  }
+
+  void clearActor(UUID actorId) {
+    if (actorId == null) {
+      return;
+    }
+    undoMarkerHistory.keySet().removeIf(key -> actorId.equals(key.actorId()));
+    redoMarkerHistory.keySet().removeIf(key -> actorId.equals(key.actorId()));
+    undoFrames.keySet().removeIf(key -> actorId.equals(key.actorId()));
+    redoFrames.keySet().removeIf(key -> actorId.equals(key.actorId()));
+    normalFrames.keySet().removeIf(key -> actorId.equals(key.actorId()));
   }
 
   private Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> historyFor(HistoryAction action) {
@@ -200,6 +221,7 @@ final class WorldEditMarkerHistory {
       UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     if (actorId == null || action == null) return;
     long now = System.currentTimeMillis();
+    maintainIfDue(now);
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> targetHistory = historyFor(action);
     ConcurrentLinkedDeque<HistoryEntry> stack =
@@ -320,6 +342,46 @@ final class WorldEditMarkerHistory {
       }
       stack.pollLast();
     }
+  }
+
+  void pruneExpired(long now) {
+    pruneExpiredHistory(undoMarkerHistory, now);
+    pruneExpiredHistory(redoMarkerHistory, now);
+    pruneExpiredFrames(undoFrames, now);
+    pruneExpiredFrames(redoFrames, now);
+    normalFrames.forEach(
+        (key, frame) -> {
+          if (frame.expired(now)) {
+            normalFrames.remove(key, frame);
+          }
+        });
+  }
+
+  int retainedKeyCount() {
+    return undoMarkerHistory.size()
+        + redoMarkerHistory.size()
+        + undoFrames.size()
+        + redoFrames.size()
+        + normalFrames.size();
+  }
+
+  private void maintainIfDue(long now) {
+    long scheduled = nextMaintenanceAt.get();
+    if (now < scheduled
+        || !nextMaintenanceAt.compareAndSet(scheduled, now + MAINTENANCE_INTERVAL_MS)) {
+      return;
+    }
+    pruneExpired(now);
+  }
+
+  private void pruneExpiredHistory(
+      Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history, long now) {
+    history.forEach((key, stack) -> pruneHistoryStack(history, key, stack, now));
+  }
+
+  private void pruneExpiredFrames(
+      Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> frames, long now) {
+    frames.forEach((key, stack) -> pruneFrameStack(frames, key, now));
   }
 
   static final class Frame {

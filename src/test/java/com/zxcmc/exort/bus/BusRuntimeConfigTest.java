@@ -24,7 +24,7 @@ class BusRuntimeConfigTest {
     assertEquals(7, config.activeIntervalTicks());
     assertEquals(50, config.idleIntervalTicks());
     assertEquals(3, config.itemsPerOperation());
-    assertEquals(6000, config.maxOperationsPerTick());
+    assertEquals(BusRuntimeConfig.MAX_OPERATIONS_PER_TICK, config.maxOperationsPerTick());
     assertEquals(600, config.maxOperationsPerChunk());
     assertFalse(config.allowStorageTargets());
     assertEquals(BusMode.BLACKLIST, config.defaultImportMode());
@@ -55,5 +55,17 @@ class BusRuntimeConfigTest {
     assertEquals(0, config.maxOperationsPerChunk());
     assertEquals(BusMode.WHITELIST, config.defaultImportMode());
     assertEquals(BusMode.WHITELIST, config.defaultExportMode());
+  }
+
+  @Test
+  void capsBusBudgetsAtTheEffectivePerTickWorkLimit() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("performance.bus.maxOperationsPerTick", Integer.MAX_VALUE);
+    yaml.set("performance.bus.maxOperationsPerChunk", Integer.MAX_VALUE);
+
+    BusRuntimeConfig config = BusRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(BusRuntimeConfig.MAX_OPERATIONS_PER_TICK, config.maxOperationsPerTick());
+    assertEquals(BusRuntimeConfig.MAX_OPERATIONS_PER_TICK, config.maxOperationsPerChunk());
   }
 }

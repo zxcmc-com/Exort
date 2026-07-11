@@ -64,8 +64,21 @@ public class Lang {
 
   public void load(String language) {
     File langDir = langDir();
-    if (langDir != null && !langDir.exists()) {
-      langDir.mkdirs();
+    if (langDir != null) {
+      try {
+        Files.createDirectories(langDir.toPath());
+      } catch (IOException e) {
+        if (plugin != null) {
+          plugin
+              .getLogger()
+              .warning(
+                  "Cannot create language directory "
+                      + langDir
+                      + "; using bundled languages only: "
+                      + e.getMessage());
+        }
+        langDir = null;
+      }
     }
 
     Set<String> bundled = bundledLanguageCodes();

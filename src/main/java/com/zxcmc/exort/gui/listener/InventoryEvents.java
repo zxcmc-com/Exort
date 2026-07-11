@@ -50,6 +50,10 @@ public final class InventoryEvents implements Listener {
       return;
     }
     if (event.getView().getTopInventory().getHolder() instanceof StorageSession session) {
+      if (!sessionManager.authorizeInteraction(session)) {
+        event.setCancelled(true);
+        return;
+      }
       if (event.getWhoClicked() instanceof Player player) {
         sessionManager.clearPendingSearchIfParent(player, session);
       }
@@ -64,6 +68,10 @@ public final class InventoryEvents implements Listener {
       return;
     }
     if (event.getView().getTopInventory().getHolder() instanceof CraftingSession session) {
+      if (!sessionManager.authorizeInteraction(session)) {
+        event.setCancelled(true);
+        return;
+      }
       if (event.getWhoClicked() instanceof Player player) {
         sessionManager.clearPendingSearchIfParent(player, session);
       }
@@ -108,6 +116,11 @@ public final class InventoryEvents implements Listener {
     }
     if (event.getView().getTopInventory().getHolder() instanceof ExortGiveMenu menu) {
       menu.handleDrag(event);
+      return;
+    }
+    if (event.getView().getTopInventory().getHolder() instanceof GuiSession session
+        && !sessionManager.authorizeInteraction(session)) {
+      event.setCancelled(true);
       return;
     }
     if (!(event.getView().getTopInventory().getHolder() instanceof StorageSession

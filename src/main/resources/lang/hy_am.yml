@@ -16,6 +16,8 @@ message:
   relay_disabled: "Ցանցային ռելեները սերվերի կարգավորումներում անջատված են."
   chunk_loader_duplicate: "Այս Chunk բեռնիչը արդեն ակտիվ է ուրիշ դիրքում."
   chunk_loader_feature_disabled: "Chunk բեռնիչները սերվերի կարգավորումներում անջատված են."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk բեռնիչ: Ակտիվ."
   chunk_loader_disabled: "Chunk բեռնիչ: Անջատված."
   chunk_loader_already_enabled: "Chunk բեռնիչ: Ակտիվ."

@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.storage.StorageTier;
+import java.lang.reflect.Proxy;
 import java.util.logging.Logger;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.junit.jupiter.api.Test;
 
@@ -57,6 +59,41 @@ class ExortGiveMenuTest {
     assertTrue(ExortGiveMenu.canDestroyCustomItem(true, false));
     assertFalse(ExortGiveMenu.canDestroyCustomItem(false, false));
     assertFalse(ExortGiveMenu.canDestroyCustomItem(true, true));
+  }
+
+  @Test
+  void mutationAuthorizationIsRecheckedAgainstCurrentPermissions() {
+    Player revoked = playerWithPermissions(false, false);
+    Player give = playerWithPermissions(true, false);
+    Player admin = playerWithPermissions(false, true);
+
+    assertFalse(ExortGiveMenu.canMutate(revoked));
+    assertTrue(ExortGiveMenu.canMutate(give));
+    assertTrue(ExortGiveMenu.canMutate(admin));
+  }
+
+  private static Player playerWithPermissions(boolean give, boolean admin) {
+    return (Player)
+        Proxy.newProxyInstance(
+            Player.class.getClassLoader(),
+            new Class<?>[] {Player.class},
+            (proxy, method, args) -> {
+              if ("hasPermission".equals(method.getName())) {
+                return switch (String.valueOf(args[0])) {
+                  case "exort.storagenetwork.give" -> give;
+                  case "exort.storagenetwork.admin" -> admin;
+                  default -> false;
+                };
+              }
+              if ("toString".equals(method.getName())) return "player";
+              if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
+              if ("equals".equals(method.getName())) return proxy == args[0];
+              Class<?> returnType = method.getReturnType();
+              if (returnType == boolean.class) return false;
+              if (returnType == int.class) return 0;
+              if (returnType == long.class) return 0L;
+              return null;
+            });
   }
 
   private static void loadDefaultLikeTiers() {

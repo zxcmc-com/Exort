@@ -1,10 +1,12 @@
 package com.zxcmc.exort.placement.storage;
 
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import java.util.Objects;
 import java.util.logging.Level;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -21,6 +23,7 @@ public final class StoragePlacementFailureHandler {
       String storageId,
       ItemStack refund,
       boolean shouldRefund,
+      BlockState replacedState,
       Throwable err) {
     var plugin = dependencies.plugin();
     ExortLog.log(plugin, Level.WARNING, "Failed to persist storage tier for " + storageId, err);
@@ -29,7 +32,7 @@ public final class StoragePlacementFailureHandler {
         () -> {
           boolean rolledBack =
               StoragePlacementRollback.rollbackIfCurrent(
-                  dependencies, block, storageId, player, refund, shouldRefund);
+                  dependencies, block, storageId, player, refund, shouldRefund, replacedState);
           if (!rolledBack) {
             plugin
                 .getLogger()
@@ -50,6 +53,8 @@ public final class StoragePlacementFailureHandler {
 
   private void showStorageFailure(Player player) {
     if (player == null || !player.isOnline()) return;
-    dependencies.playerFeedback().error(player, "message.storage_load_failed");
+    dependencies
+        .playerFeedback()
+        .respond(player, FeedbackReason.STORAGE_FAILURE, "message.storage_load_failed");
   }
 }

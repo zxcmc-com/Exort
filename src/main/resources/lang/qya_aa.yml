@@ -16,6 +16,8 @@ message:
   relay_disabled: "Rangwa-nuntalir nar quorin i núrondo panonen."
   chunk_loader_duplicate: "Sina Colindo Chunk ná cuina enta nóressë."
   chunk_loader_feature_disabled: "Colindor Chunk nar quorin i núrondo panonen."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Colindo Chunk: Cuina."
   chunk_loader_disabled: "Colindo Chunk: Quorin."
   chunk_loader_already_enabled: "Colindo Chunk: Cuina."

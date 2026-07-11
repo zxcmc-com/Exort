@@ -3,6 +3,7 @@ package com.zxcmc.exort.chunkloader;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
@@ -74,6 +75,12 @@ public final class ChunkLoaderListener implements Listener {
       playerFeedback.warn(player, "message.chunk_loader_feature_disabled");
       return;
     }
+    if (!chunkLoaderService.isReady()) {
+      consume(event);
+      playerFeedback.respond(
+          player, FeedbackReason.CHUNK_LOADER_INITIALIZING, "message.chunk_loader_initializing");
+      return;
+    }
     ChunkLoaderMarker.Data data = marker.get();
     if (player.isSneaking()) {
       consume(event);
@@ -86,6 +93,11 @@ public final class ChunkLoaderListener implements Listener {
       return;
     }
     consume(event);
+    if (chunkLoaderService.runtimeState(data.id()) == ChunkLoaderRuntimeState.QUOTA_BLOCKED) {
+      playerFeedback.respond(
+          player, FeedbackReason.CHUNK_LOADER_QUOTA, "message.chunk_loader_limit_reached");
+      return;
+    }
     bossBarManager.showChunkLoaderStatus(data.type(), data.id(), player, statusDurationTicks);
   }
 
@@ -113,7 +125,17 @@ public final class ChunkLoaderListener implements Listener {
       }
       case ALREADY_ENABLED -> playerFeedback.info(player, "message.chunk_loader_already_enabled");
       case ALREADY_DISABLED -> playerFeedback.warn(player, "message.chunk_loader_already_disabled");
-      case MISSING -> playerFeedback.error(player, "message.chunk_loader_toggle_failed");
+      case INITIALIZING ->
+          playerFeedback.respond(
+              player,
+              FeedbackReason.CHUNK_LOADER_INITIALIZING,
+              "message.chunk_loader_initializing");
+      case QUOTA_EXCEEDED ->
+          playerFeedback.respond(
+              player, FeedbackReason.CHUNK_LOADER_QUOTA, "message.chunk_loader_limit_reached");
+      case MISSING ->
+          playerFeedback.respond(
+              player, FeedbackReason.OPERATION_FAILURE, "message.chunk_loader_toggle_failed");
     }
   }
 

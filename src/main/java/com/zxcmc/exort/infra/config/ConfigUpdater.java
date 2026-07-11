@@ -1,16 +1,16 @@
 package com.zxcmc.exort.infra.config;
 
 import com.zxcmc.exort.infra.logging.ExortLog;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -19,83 +19,90 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class ConfigUpdater {
   private ConfigUpdater() {}
 
-  public static void update(JavaPlugin plugin, String resourceName) {
-    File dataFolder = plugin.getDataFolder();
-    if (!dataFolder.exists()) {
-      dataFolder.mkdirs();
+  public static boolean update(JavaPlugin plugin, String resourceName) {
+    Objects.requireNonNull(plugin, "plugin");
+    if (resourceName == null || resourceName.isBlank()) {
+      throw new IllegalArgumentException("resourceName must not be blank");
     }
-    File configFile = new File(dataFolder, resourceName);
-    boolean existed = configFile.exists();
-    YamlConfiguration userCfg = new YamlConfiguration();
-    List<String> userLines = List.of();
-    if (existed) {
-      try {
-        userCfg.load(configFile);
-      } catch (Exception e) {
-        ExortLog.warn("Failed to load existing config, using defaults: " + e.getMessage());
-      }
-      try {
-        userLines = readAllLines(configFile);
-      } catch (IOException ignored) {
-        userLines = List.of();
-      }
-    }
-
-    YamlConfiguration defaultCfg = new YamlConfiguration();
-    try (InputStream in = plugin.getResource(resourceName)) {
-      if (in != null) {
-        defaultCfg.load(new InputStreamReader(in, StandardCharsets.UTF_8));
-      }
+    Path configFile = plugin.getDataFolder().toPath().resolve(resourceName);
+    try (InputStream defaults = plugin.getResource(resourceName)) {
+      String merged = mergeResource(configFile, defaults);
+      writeAtomically(configFile, merged);
+      return true;
     } catch (Exception e) {
-      ExortLog.error("Failed to read default " + resourceName + ": " + e.getMessage());
-      return;
-    }
-
-    Set<String> defaultKeys = defaultCfg.getKeys(true);
-
-    // Add missing defaults
-    for (String key : defaultKeys) {
-      if (key.startsWith("tiers.") && existed) continue; // let user fully control tiers
-      if (!userCfg.contains(key)) {
-        userCfg.set(key, defaultCfg.get(key));
-      }
-    }
-
-    // Build output preserving default comments/order for scalar values
-    String merged =
-        mergeWithDefaults(defaultCfg, userCfg, userLines, resourceName, plugin, existed);
-
-    try (Writer writer =
-        new OutputStreamWriter(new FileOutputStream(configFile), StandardCharsets.UTF_8)) {
-      writer.write(merged);
-    } catch (IOException e) {
-      ExortLog.error("Failed to write merged config: " + e.getMessage());
+      ExortLog.error(
+          "Failed to update "
+              + resourceName
+              + "; the existing file was not changed: "
+              + e.getMessage());
+      return false;
     }
   }
 
-  private static String mergeWithDefaults(
-      YamlConfiguration defaults,
-      YamlConfiguration user,
-      List<String> userLines,
-      String resourceName,
-      JavaPlugin plugin,
-      boolean existed) {
-    List<String> lines = new ArrayList<>();
-    try (InputStream in = plugin.getResource(resourceName)) {
-      if (in != null) {
-        try (BufferedReader reader =
-            new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-          String line;
-          while ((line = reader.readLine()) != null) {
-            lines.add(line);
-          }
-        }
+  static String mergeResource(Path configFile, InputStream defaultResource) throws Exception {
+    Objects.requireNonNull(configFile, "configFile");
+    if (defaultResource == null) {
+      throw new FileNotFoundException("Bundled default resource is missing");
+    }
+    String defaultText = new String(defaultResource.readAllBytes(), StandardCharsets.UTF_8);
+    YamlConfiguration defaults = new YamlConfiguration();
+    defaults.loadFromString(defaultText);
+
+    boolean existed = Files.exists(configFile);
+    String userText = existed ? Files.readString(configFile, StandardCharsets.UTF_8) : "";
+    YamlConfiguration user = new YamlConfiguration();
+    if (existed) {
+      user.loadFromString(userText);
+    }
+    for (String key : defaults.getKeys(true)) {
+      if (key.startsWith("tiers.") && existed) {
+        continue;
       }
-    } catch (IOException e) {
-      ExortLog.error("Failed to read default config for merging: " + e.getMessage());
+      if (!user.contains(key)) {
+        user.set(key, defaults.get(key));
+      }
     }
 
-    return mergeLinesWithDefaults(defaults, user, userLines, lines, existed);
+    String merged =
+        mergeLinesWithDefaults(
+            defaults, user, userText.lines().toList(), defaultText.lines().toList(), existed);
+    YamlConfiguration validation = new YamlConfiguration();
+    validation.loadFromString(merged);
+    return merged;
+  }
+
+  static void writeAtomically(Path target, String contents) throws IOException {
+    Objects.requireNonNull(target, "target");
+    Objects.requireNonNull(contents, "contents");
+    Path parent = target.toAbsolutePath().getParent();
+    if (parent == null) {
+      throw new IOException("Config path has no parent: " + target);
+    }
+    Files.createDirectories(parent);
+    Path temp = Files.createTempFile(parent, "." + target.getFileName() + ".", ".tmp");
+    boolean moved = false;
+    try {
+      Files.writeString(
+          temp,
+          contents,
+          StandardCharsets.UTF_8,
+          StandardOpenOption.TRUNCATE_EXISTING,
+          StandardOpenOption.WRITE);
+      try (FileChannel channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
+        channel.force(true);
+      }
+      try {
+        Files.move(
+            temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      } catch (AtomicMoveNotSupportedException e) {
+        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+      }
+      moved = true;
+    } finally {
+      if (!moved) {
+        Files.deleteIfExists(temp);
+      }
+    }
   }
 
   static String mergeLinesWithDefaults(
@@ -155,8 +162,8 @@ public final class ConfigUpdater {
               out.append(l).append(System.lineSeparator());
             }
           } else {
-            Object tiersObj = user.getConfigurationSection("tiers");
-            if (tiersObj instanceof ConfigurationSection userTiers) {
+            ConfigurationSection userTiers = user.getConfigurationSection("tiers");
+            if (userTiers != null) {
               renderSection(out, userTiers, indent + 2);
             }
           }
@@ -295,19 +302,6 @@ public final class ConfigUpdater {
       after = after.substring(0, newline).trim();
     }
     return after;
-  }
-
-  private static List<String> readAllLines(File file) throws IOException {
-    List<String> lines = new ArrayList<>();
-    try (BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        lines.add(line);
-      }
-    }
-    return lines;
   }
 
   /**

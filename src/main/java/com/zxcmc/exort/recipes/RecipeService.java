@@ -47,6 +47,11 @@ public final class RecipeService {
   private final ChoiceFactory choiceFactory;
   private final List<NamespacedKey> registered = new ArrayList<>();
   private final List<RecipeDiscoveryEntry> discoveryEntries = new ArrayList<>();
+  private boolean registrationFailed;
+  private boolean validationMode;
+  private boolean validationFailed;
+  private boolean applyingCandidate;
+  private Set<NamespacedKey> validationKeys = Set.of();
 
   public RecipeService(
       JavaPlugin plugin, CustomItems customItems, WirelessTerminalService wirelessService) {
@@ -82,29 +87,124 @@ public final class RecipeService {
   }
 
   public void reload() {
-    unregisterAll();
-    if (!RecipeRuntimeConfig.fromConfig(plugin.getConfig()).enabled()) {
-      ExortLog.info("Recipes are disabled.");
-      return;
+    reloadReplacing(this);
+  }
+
+  public boolean reloadReplacing(RecipeService previous) {
+    YamlConfiguration config = new YamlConfiguration();
+    try {
+      File file = ensureFile();
+      config.load(file);
+    } catch (Exception e) {
+      ExortLog.error(
+          "Failed to load recipes.yml; keeping the last-known-good recipes: " + e.getMessage());
+      return false;
     }
-    File file = ensureFile();
-    YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+    if (!RecipeRuntimeConfig.fromConfig(plugin.getConfig()).enabled()) {
+      if (previous != null) {
+        previous.unregisterAll();
+      } else {
+        unregisterAll();
+      }
+      ExortLog.info("Recipes are disabled.");
+      return true;
+    }
+    if (!validateRecipeConfig(config)) {
+      ExortLog.error(
+          "Failed to validate recipes.yml; keeping the last-known-good recipe set unchanged.");
+      return false;
+    }
+    RecipeSnapshot previousSnapshot;
+    List<RegisteredRecipe> disabledRecipeSnapshot;
+    try {
+      previousSnapshot = previous == null ? RecipeSnapshot.empty() : previous.snapshot();
+      Set<NamespacedKey> previousKeys =
+          previous == null ? Set.of() : Set.copyOf(previous.registered);
+      disabledRecipeSnapshot =
+          snapshotConfiguredRecipes(config.getStringList("disabled"), previousKeys);
+    } catch (RuntimeException e) {
+      ExortLog.error(
+          "Failed to snapshot the current recipe set; keeping it unchanged: " + e.getMessage());
+      return false;
+    }
+    if (previous != null) {
+      previous.unregisterAll();
+    } else {
+      unregisterAll();
+    }
+    registrationFailed = false;
+    ApplyResult applied;
+    try {
+      applyingCandidate = true;
+      applied = applyRecipeConfig(config);
+    } catch (RuntimeException e) {
+      registrationFailed = true;
+      ExortLog.error("Failed to apply recipes.yml: " + e.getMessage());
+      applied = new ApplyResult(0, 0, 0);
+    } finally {
+      applyingCandidate = false;
+    }
+    if (registrationFailed) {
+      unregisterAll();
+      if (previous != null) {
+        previous.restore(previousSnapshot);
+      }
+      restoreMissing(disabledRecipeSnapshot);
+      ExortLog.error("Recipe reload was rolled back to the last-known-good recipe set.");
+      return false;
+    }
+    ExortLog.info(
+        "Recipes loaded: "
+            + applied.loaded()
+            + ", skipped: "
+            + applied.skipped()
+            + ", disabled: "
+            + applied.disabled()
+            + ".");
+    return true;
+  }
+
+  boolean validateRecipeConfig(YamlConfiguration config) {
+    Objects.requireNonNull(config, "config");
+    if (validationMode) {
+      throw new IllegalStateException("Recipe validation is already running");
+    }
+    validationMode = true;
+    validationFailed = false;
+    validationKeys = new HashSet<>();
+    try {
+      applyRecipeConfig(config);
+      return !validationFailed;
+    } catch (RuntimeException e) {
+      ExortLog.error("Failed to validate recipes.yml: " + e.getMessage());
+      return false;
+    } finally {
+      validationMode = false;
+      validationKeys = Set.of();
+    }
+  }
+
+  private ApplyResult applyRecipeConfig(YamlConfiguration config) {
     int loaded = 0;
     int skipped = 0;
-
     for (RecipeSectionHandler handler : recipeSectionHandlers()) {
       ConfigurationSection section = config.getConfigurationSection(handler.name());
       if (section == null) {
+        if (config.contains(handler.name())) {
+          logSkip(handler.name(), "recipe group must be a configuration section");
+          skipped++;
+        }
         continue;
       }
       Result result = handler.loader().apply(section);
       loaded += result.loaded;
       skipped += result.skipped;
     }
-
-    int disabled = disableRecipes(config.getStringList("disabled"));
-    ExortLog.info(
-        "Recipes loaded: " + loaded + ", skipped: " + skipped + ", disabled: " + disabled + ".");
+    int disabled =
+        !validationMode && registrationFailed
+            ? 0
+            : disableRecipes(config.getStringList("disabled"));
+    return new ApplyResult(loaded, skipped, disabled);
   }
 
   public void unregisterAll() {
@@ -149,10 +249,11 @@ public final class RecipeService {
     for (String id : section.getKeys(false)) {
       ConfigurationSection recipe = section.getConfigurationSection(id);
       if (recipe == null) {
+        logSkip(id, "recipe must be a configuration section");
         skipped++;
         continue;
       }
-      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"), id);
       if (resultItem == null) {
         skipped++;
         continue;
@@ -283,10 +384,11 @@ public final class RecipeService {
     for (String id : section.getKeys(false)) {
       ConfigurationSection recipe = section.getConfigurationSection(id);
       if (recipe == null) {
+        logSkip(id, "recipe must be a configuration section");
         skipped++;
         continue;
       }
-      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"), id);
       if (resultItem == null) {
         skipped++;
         continue;
@@ -350,10 +452,11 @@ public final class RecipeService {
     for (String id : section.getKeys(false)) {
       ConfigurationSection recipe = section.getConfigurationSection(id);
       if (recipe == null) {
+        logSkip(id, "recipe must be a configuration section");
         skipped++;
         continue;
       }
-      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"), id);
       if (resultItem == null) {
         skipped++;
         continue;
@@ -397,10 +500,11 @@ public final class RecipeService {
     for (String id : section.getKeys(false)) {
       ConfigurationSection recipe = section.getConfigurationSection(id);
       if (recipe == null) {
+        logSkip(id, "recipe must be a configuration section");
         skipped++;
         continue;
       }
-      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"), id);
       if (resultItem == null) {
         skipped++;
         continue;
@@ -447,10 +551,11 @@ public final class RecipeService {
     for (String id : section.getKeys(false)) {
       ConfigurationSection recipe = section.getConfigurationSection(id);
       if (recipe == null) {
+        logSkip(id, "recipe must be a configuration section");
         skipped++;
         continue;
       }
-      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"));
+      ItemStack resultItem = resolveResult(recipe.getConfigurationSection("result"), id);
       if (resultItem == null) {
         skipped++;
         continue;
@@ -484,7 +589,13 @@ public final class RecipeService {
       if (raw == null || raw.isBlank()) continue;
       NamespacedKey key = parseNamespacedKey(raw);
       if (key == null) key = recipeKey(raw);
-      if (key == null) continue;
+      if (key == null) {
+        logSkip(raw, "invalid disabled recipe key");
+        continue;
+      }
+      if (validationMode) {
+        continue;
+      }
       if (Bukkit.removeRecipe(key)) {
         NamespacedKey removedKey = key;
         registered.remove(removedKey);
@@ -515,7 +626,9 @@ public final class RecipeService {
       }
       unlockChoices.add(choice);
     }
-    discoveryEntries.add(new RecipeDiscoveryEntry(key, unlockChoices));
+    if (!validationMode) {
+      discoveryEntries.add(new RecipeDiscoveryEntry(key, unlockChoices));
+    }
   }
 
   List<String> resolveUnlockIds(ConfigurationSection recipe, List<String> ingredientIds) {
@@ -551,11 +664,21 @@ public final class RecipeService {
   }
 
   ItemStack resolveResult(ConfigurationSection section) {
-    if (section == null) return null;
+    return resolveResult(section, "<unknown>");
+  }
+
+  private ItemStack resolveResult(ConfigurationSection section, String recipeId) {
+    if (section == null) {
+      logSkip(recipeId, "missing result section");
+      return null;
+    }
     String raw = section.getString("item");
-    if (raw == null) return null;
+    if (raw == null || raw.isBlank()) {
+      logSkip(recipeId, "missing result item");
+      return null;
+    }
     if (!allowsRecipeResult(raw)) {
-      logSkip(raw, "feature is disabled");
+      logAllowedSkip(raw, "feature is disabled");
       return null;
     }
     int amount = Math.max(1, section.getInt("amount", 1));
@@ -695,24 +818,123 @@ public final class RecipeService {
 
   private NamespacedKey recipeKey(String raw) {
     if (raw == null || raw.isBlank()) return null;
+    String normalized = raw.toLowerCase(Locale.ROOT);
     try {
-      return NamespacedKey.fromString(raw.toLowerCase(Locale.ROOT), plugin);
+      if (normalized.indexOf(':') >= 0) {
+        return NamespacedKey.fromString(normalized);
+      }
+      return plugin == null
+          ? NamespacedKey.fromString("exort:" + normalized)
+          : NamespacedKey.fromString(normalized, plugin);
     } catch (IllegalArgumentException e) {
       return null;
     }
   }
 
   private boolean registerRecipe(String id, NamespacedKey key, Recipe recipe) {
+    if (validationMode) {
+      if (!validationKeys.add(key)) {
+        logSkip(id, "duplicate recipe key '" + key + "'");
+        return false;
+      }
+      return true;
+    }
     try {
       if (!Bukkit.addRecipe(recipe)) {
         logSkip(id, "Bukkit rejected recipe");
+        registrationFailed = true;
         return false;
       }
       registered.add(key);
       return true;
     } catch (IllegalArgumentException | IllegalStateException e) {
       logSkip(id, "failed to register recipe: " + e.getMessage());
+      registrationFailed = true;
       return false;
+    }
+  }
+
+  private RecipeSnapshot snapshot() {
+    List<RegisteredRecipe> recipes = new ArrayList<>();
+    for (NamespacedKey key : registered) {
+      Recipe recipe = Bukkit.getRecipe(key);
+      if (recipe != null) {
+        recipes.add(new RegisteredRecipe(key, recipe));
+      }
+    }
+    return new RecipeSnapshot(List.copyOf(recipes), List.copyOf(discoveryEntries));
+  }
+
+  private List<RegisteredRecipe> snapshotConfiguredRecipes(
+      List<String> configuredKeys, Set<NamespacedKey> excludedKeys) {
+    if (configuredKeys == null || configuredKeys.isEmpty()) {
+      return List.of();
+    }
+    List<RegisteredRecipe> recipes = new ArrayList<>();
+    Set<NamespacedKey> seen = new HashSet<>();
+    for (String raw : configuredKeys) {
+      if (raw == null || raw.isBlank()) {
+        continue;
+      }
+      NamespacedKey key = parseNamespacedKey(raw);
+      if (key == null) {
+        key = recipeKey(raw);
+      }
+      if (key == null || excludedKeys.contains(key) || !seen.add(key)) {
+        continue;
+      }
+      Recipe recipe = Bukkit.getRecipe(key);
+      if (recipe != null) {
+        recipes.add(new RegisteredRecipe(key, recipe));
+      }
+    }
+    return List.copyOf(recipes);
+  }
+
+  private void restore(RecipeSnapshot snapshot) {
+    registered.clear();
+    discoveryEntries.clear();
+    if (snapshot == null) {
+      return;
+    }
+    for (RegisteredRecipe entry : snapshot.recipes()) {
+      try {
+        if (Bukkit.addRecipe(entry.recipe())) {
+          registered.add(entry.key());
+        } else {
+          ExortLog.error("Failed to restore recipe '" + entry.key() + "' after reload rollback.");
+        }
+      } catch (IllegalArgumentException | IllegalStateException e) {
+        ExortLog.error(
+            "Failed to restore recipe '"
+                + entry.key()
+                + "' after reload rollback: "
+                + e.getMessage());
+      }
+    }
+    discoveryEntries.addAll(snapshot.discoveryEntries());
+  }
+
+  private void restoreMissing(List<RegisteredRecipe> recipes) {
+    if (recipes == null || recipes.isEmpty()) {
+      return;
+    }
+    for (RegisteredRecipe entry : recipes) {
+      try {
+        if (Bukkit.getRecipe(entry.key()) != null) {
+          continue;
+        }
+        if (!Bukkit.addRecipe(entry.recipe())) {
+          ExortLog.error(
+              "Failed to restore disabled recipe '" + entry.key() + "' after reload rollback.");
+        }
+      } catch (IllegalArgumentException | IllegalStateException e) {
+        ExortLog.error(
+            "Failed to restore disabled recipe '"
+                + entry.key()
+                + "' after reload rollback: "
+                + e.getMessage());
+      }
     }
   }
 
@@ -841,6 +1063,15 @@ public final class RecipeService {
   }
 
   private void logSkip(String id, String reason) {
+    if (validationMode) {
+      validationFailed = true;
+    } else if (applyingCandidate) {
+      registrationFailed = true;
+    }
+    ExortLog.warn("Skipped recipe '" + id + "': " + reason);
+  }
+
+  private void logAllowedSkip(String id, String reason) {
     ExortLog.warn("Skipped recipe '" + id + "': " + reason);
   }
 
@@ -855,6 +1086,17 @@ public final class RecipeService {
   private record RecipeSectionHandler(String name, Function<ConfigurationSection, Result> loader) {}
 
   private record Result(int loaded, int skipped) {}
+
+  private record ApplyResult(int loaded, int skipped, int disabled) {}
+
+  private record RegisteredRecipe(NamespacedKey key, Recipe recipe) {}
+
+  private record RecipeSnapshot(
+      List<RegisteredRecipe> recipes, List<RecipeDiscoveryEntry> discoveryEntries) {
+    private static RecipeSnapshot empty() {
+      return new RecipeSnapshot(List.of(), List.of());
+    }
+  }
 
   private enum CookingRecipeType {
     FURNACE("furnace", 200) {

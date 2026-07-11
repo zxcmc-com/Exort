@@ -13,6 +13,21 @@ class FaweExtentAccessTest {
   @TempDir Path tempDir;
 
   @Test
+  void inspectionDoesNotModifyForeignConfig() throws Exception {
+    Path config = tempDir.resolve("config.yml");
+    String original = "extent:\n  allowed-plugins: []\n";
+    Files.writeString(config, original);
+
+    FaweExtentAccess.ConfigResult result =
+        FaweExtentAccess.inspectExtentInConfig(config.toFile(), "example.MarkerExtent");
+
+    assertTrue(result.fileFound());
+    assertFalse(result.modified());
+    assertFalse(result.saved());
+    assertEquals(original, Files.readString(config));
+  }
+
+  @Test
   void configHelperAddsMarkerExtentClass() throws Exception {
     Path config = tempDir.resolve("config.yml");
     Files.writeString(config, "extent:\n  allowed-plugins: []\n");

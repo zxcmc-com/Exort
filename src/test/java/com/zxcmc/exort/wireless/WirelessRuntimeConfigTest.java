@@ -28,4 +28,14 @@ class WirelessRuntimeConfigTest {
 
     assertEquals(0, config.rangeBlocks());
   }
+
+  @Test
+  void clampsExtremeRangeBeforeSpatialIndexArithmetic() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("wireless.rangeBlocks", Integer.MAX_VALUE);
+
+    WirelessRuntimeConfig config = WirelessRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(WirelessRuntimeConfig.MAX_RANGE_BLOCKS, config.rangeBlocks());
+  }
 }

@@ -11,18 +11,26 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.infra.resourcepack.hosting.ResourcePackHosting;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -35,6 +43,11 @@ public final class ResourcePackProviderBridge {
   private static final String ORAXEN_PACK_NAME = "zxcmc_exort.zip";
   private static final String EXORT_NAMESPACE = "exort";
   private static final String ITEMS_ADDER_ITEM_TEXTURE_PREFIX = "item/ia_";
+  private static final int ARCHIVE_BUFFER_SIZE = 8192;
+  static final int MAX_PACK_ARCHIVE_ENTRIES = 10_000;
+  static final long MAX_PACK_ARCHIVE_BYTES = 64L * 1024L * 1024L;
+  static final long MAX_PACK_UNCOMPRESSED_BYTES = 128L * 1024L * 1024L;
+  private static final AtomicMover ATOMIC_MOVER = ResourcePackProviderBridge::moveAtomically;
 
   private ResourcePackProviderBridge() {}
 
@@ -44,10 +57,7 @@ public final class ResourcePackProviderBridge {
       return false;
     }
     Plugin provider = plugin.getServer().getPluginManager().getPlugin(pluginName);
-    if (provider != null) {
-      return true;
-    }
-    return isPluginJarInstalled(pluginsDir(plugin), pluginName);
+    return provider != null && provider.isEnabled();
   }
 
   public static HandoffResult handoff(
@@ -117,28 +127,34 @@ public final class ResourcePackProviderBridge {
   }
 
   static HandoffResult copyNexoPack(File pluginsDir, File source) {
+    return copyNexoPack(pluginsDir, source, ATOMIC_MOVER);
+  }
+
+  static HandoffResult copyNexoPack(File pluginsDir, File source, AtomicMover mover) {
     return copyProviderPack(
         source,
         new File(new File(new File(pluginsDir, NEXO_PLUGIN), "pack"), "external_packs"),
         NEXO_PACK_NAME,
-        "Nexo external_packs",
-        "Nexo");
+        "Nexo",
+        mover);
   }
 
   static HandoffResult prepareNexoApiHandoff(File pluginsDir, File source) {
-    if (source == null || !source.isFile()) {
+    if (!isRegularFile(source)) {
       return HandoffResult.error(null, "Exort raw resource pack is missing");
     }
     File fallbackTarget = nexoHandoffTarget(pluginsDir);
-    if (fallbackTarget.isFile()) {
-      try {
+    try {
+      validateResourcePack(source.toPath());
+      rejectSymlinkOrUnexpectedTarget(fallbackTarget.toPath(), false);
+      if (Files.isRegularFile(fallbackTarget.toPath(), LinkOption.NOFOLLOW_LINKS)) {
         Files.delete(fallbackTarget.toPath());
-      } catch (IOException e) {
-        return HandoffResult.error(
-            fallbackTarget,
-            "Cannot remove existing Exort Nexo external_packs handoff before API handoff: "
-                + e.getMessage());
       }
+    } catch (IOException e) {
+      return HandoffResult.error(
+          fallbackTarget,
+          "Cannot prepare Exort Nexo API handoff without replacing the previous handoff: "
+              + e.getMessage());
     }
     return HandoffResult.success(source, "Nexo post-generate API: " + source.getPath());
   }
@@ -148,77 +164,340 @@ public final class ResourcePackProviderBridge {
         source,
         new File(new File(new File(pluginsDir, ORAXEN_PLUGIN), "pack"), "uploads"),
         ORAXEN_PACK_NAME,
-        "Oraxen uploads",
-        "Oraxen");
+        "Oraxen",
+        ATOMIC_MOVER);
   }
 
   private static HandoffResult copyProviderPack(
-      File source, File targetDir, String packName, String directoryName, String providerName) {
-    if (source == null || !source.isFile()) {
+      File source, File targetDir, String packName, String providerName, AtomicMover mover) {
+    if (!isRegularFile(source)) {
       return HandoffResult.error(null, "Exort raw resource pack is missing");
     }
-    if (!targetDir.exists() && !targetDir.mkdirs()) {
-      return HandoffResult.error(targetDir, "Cannot create " + directoryName + " directory");
-    }
-    File target = new File(targetDir, packName);
+    Path sourcePath = source.toPath();
+    Path targetDirectory = targetDir.toPath();
+    Path target = targetDirectory.resolve(packName);
+    Path candidate = null;
+    Path backup = null;
+    boolean keepBackup = false;
     try {
-      if (target.isFile() && Files.mismatch(source.toPath(), target.toPath()) == -1L) {
-        return HandoffResult.success(target);
+      validateResourcePack(sourcePath);
+      Files.createDirectories(targetDirectory);
+      rejectSymlinkOrUnexpectedTarget(target, false);
+      if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+          && Files.mismatch(sourcePath, target) == -1L) {
+        return HandoffResult.success(target.toFile());
       }
-      Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      return HandoffResult.success(target);
+
+      candidate = Files.createTempFile(targetDirectory, "." + packName + ".candidate-", ".tmp");
+      Files.copy(sourcePath, candidate, StandardCopyOption.REPLACE_EXISTING);
+      validateResourcePack(candidate);
+
+      if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
+        backup = Files.createTempFile(targetDirectory, "." + packName + ".backup-", ".tmp");
+        Files.copy(target, backup, StandardCopyOption.REPLACE_EXISTING);
+        if (Files.mismatch(target, backup) != -1L) {
+          throw new IOException("Cannot verify the previous " + providerName + " pack backup");
+        }
+      }
+
+      mover.move(candidate, target);
+      candidate = null;
+      deleteTemporary(backup, providerName + " previous pack backup");
+      backup = null;
+      return HandoffResult.success(target.toFile());
     } catch (IOException e) {
-      ExortLog.warn(
-          "Failed to copy Exort resource pack to " + providerName + ": " + e.getMessage());
-      return HandoffResult.error(target, e.getMessage());
+      RecoveryResult recovery = restoreFileBackup(target, backup);
+      backup = recovery.remainingBackup();
+      keepBackup = backup != null;
+      String error = recovery.error() == null ? e.getMessage() : e.getMessage() + recovery.error();
+      return HandoffResult.error(target.toFile(), error);
+    } finally {
+      deleteTemporary(candidate, providerName + " candidate pack");
+      if (!keepBackup) {
+        deleteTemporary(backup, providerName + " previous pack backup");
+      }
     }
   }
 
   static HandoffResult syncItemsAdderPack(File pluginsDir, File rawPack) {
-    if (rawPack == null || !rawPack.isFile()) {
+    return syncItemsAdderPack(pluginsDir, rawPack, ATOMIC_MOVER);
+  }
+
+  static HandoffResult syncItemsAdderPack(File pluginsDir, File rawPack, AtomicMover mover) {
+    if (!isRegularFile(rawPack)) {
       return HandoffResult.error(null, "Exort raw resource pack is missing");
     }
-    File resourcepackDir =
-        new File(
-            new File(new File(pluginsDir, ITEMS_ADDER_PLUGIN), "contents/exort"), "resourcepack");
+    Path resourcepackDir =
+        new File(new File(pluginsDir, ITEMS_ADDER_PLUGIN), "contents/exort")
+            .toPath()
+            .resolve("resourcepack");
+    Path parent = resourcepackDir.getParent();
+    Path candidate = null;
+    Path backup = null;
+    boolean keepBackup = false;
     try {
-      deleteRecursively(resourcepackDir.toPath());
-      Files.createDirectories(resourcepackDir.toPath());
-      int copied = extractAssets(rawPack, resourcepackDir);
-      if (copied <= 0) {
-        return HandoffResult.error(resourcepackDir, "Exort raw resource pack has no assets");
+      Files.createDirectories(parent);
+      rejectSymlinkOrUnexpectedTarget(resourcepackDir, true);
+      candidate = Files.createTempDirectory(parent, ".exort-resourcepack-candidate-");
+      extractAssets(rawPack.toPath(), candidate);
+      prepareItemsAdderItemTextures(candidate.toFile());
+
+      if (Files.exists(resourcepackDir, LinkOption.NOFOLLOW_LINKS)) {
+        backup = uniqueSibling(parent, ".exort-resourcepack-backup-");
+        mover.move(resourcepackDir, backup);
       }
-      prepareItemsAdderItemTextures(resourcepackDir);
-      return HandoffResult.success(resourcepackDir);
+
+      try {
+        mover.move(candidate, resourcepackDir);
+        candidate = null;
+      } catch (IOException commitFailure) {
+        RecoveryResult recovery = restoreDirectoryBackup(resourcepackDir, backup, mover);
+        backup = recovery.remainingBackup();
+        keepBackup = backup != null;
+        String error =
+            recovery.error() == null
+                ? commitFailure.getMessage()
+                : commitFailure.getMessage() + recovery.error();
+        return HandoffResult.error(resourcepackDir.toFile(), error);
+      }
+
+      deleteTemporaryTree(backup, "ItemsAdder previous pack backup");
+      backup = null;
+      return HandoffResult.success(resourcepackDir.toFile());
     } catch (IOException e) {
-      ExortLog.warn("Failed to sync Exort resource pack to ItemsAdder: " + e.getMessage());
-      return HandoffResult.error(resourcepackDir, e.getMessage());
+      RecoveryResult recovery = restoreDirectoryBackup(resourcepackDir, backup, mover);
+      backup = recovery.remainingBackup();
+      keepBackup = backup != null;
+      String error = recovery.error() == null ? e.getMessage() : e.getMessage() + recovery.error();
+      return HandoffResult.error(resourcepackDir.toFile(), error);
+    } finally {
+      deleteTemporaryTree(candidate, "ItemsAdder candidate pack");
+      if (!keepBackup) {
+        deleteTemporaryTree(backup, "ItemsAdder previous pack backup");
+      }
     }
   }
 
-  private static int extractAssets(File rawPack, File resourcepackDir) throws IOException {
-    Path root = resourcepackDir.toPath().toAbsolutePath().normalize();
+  private static void extractAssets(Path rawPack, Path resourcepackDir) throws IOException {
+    int copied = processArchive(rawPack, resourcepackDir.toAbsolutePath().normalize());
+    if (copied <= 0) {
+      throw new IOException("Exort raw resource pack has no assets");
+    }
+  }
+
+  private static void validateResourcePack(Path rawPack) throws IOException {
+    if (processArchive(rawPack, null) <= 0) {
+      throw new IOException("Exort raw resource pack has no assets");
+    }
+  }
+
+  private static int processArchive(Path rawPack, Path extractionRoot) throws IOException {
+    validateArchiveFile(rawPack);
     int copied = 0;
-    try (ZipFile zip = new ZipFile(rawPack)) {
-      var entries = zip.entries();
-      while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
+    int entryCount = 0;
+    long totalBytes = 0L;
+    byte[] buffer = new byte[ARCHIVE_BUFFER_SIZE];
+    Set<String> names = new HashSet<>();
+    try (ZipFile zipDirectory = new ZipFile(rawPack.toFile())) {
+      if (zipDirectory.size() > MAX_PACK_ARCHIVE_ENTRIES) {
+        throw new IOException(
+            "Resource-pack archive contains more than " + MAX_PACK_ARCHIVE_ENTRIES + " entries");
+      }
+    }
+    try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(rawPack))) {
+      ZipEntry entry;
+      while ((entry = zip.getNextEntry()) != null) {
+        entryCount++;
+        if (entryCount > MAX_PACK_ARCHIVE_ENTRIES) {
+          throw new IOException(
+              "Resource-pack archive contains more than " + MAX_PACK_ARCHIVE_ENTRIES + " entries");
+        }
         String name = entry.getName();
-        if (entry.isDirectory() || !name.startsWith("assets/")) {
-          continue;
+        validateArchiveEntryName(name);
+        if (!names.add(name)) {
+          throw new IOException("Duplicate resource-pack entry: " + name);
         }
-        Path target = root.resolve(name).normalize();
-        if (!target.startsWith(root)) {
-          throw new IOException("Unsafe resource-pack entry: " + name);
+        long declaredSize = entry.getSize();
+        if (declaredSize > MAX_PACK_UNCOMPRESSED_BYTES - totalBytes) {
+          throw new IOException("Resource-pack archive exceeds the uncompressed size limit");
         }
-        Files.createDirectories(target.getParent());
-        try (var in = zip.getInputStream(entry)) {
-          Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+
+        boolean assetFile = !entry.isDirectory() && name.startsWith("assets/");
+        Path target = null;
+        if (assetFile && extractionRoot != null) {
+          try {
+            target = extractionRoot.resolve(name).normalize();
+          } catch (InvalidPathException invalidPath) {
+            throw new IOException("Unsafe resource-pack entry: " + name, invalidPath);
+          }
+          if (!target.startsWith(extractionRoot)) {
+            throw new IOException("Unsafe resource-pack entry: " + name);
+          }
+          Files.createDirectories(target.getParent());
         }
-        copied++;
+
+        try (OutputStream output =
+            target == null ? OutputStream.nullOutputStream() : Files.newOutputStream(target)) {
+          int read;
+          while ((read = zip.read(buffer)) != -1) {
+            totalBytes += read;
+            if (totalBytes > MAX_PACK_UNCOMPRESSED_BYTES) {
+              throw new IOException("Resource-pack archive exceeds the uncompressed size limit");
+            }
+            output.write(buffer, 0, read);
+          }
+        }
+        zip.closeEntry();
+        if (assetFile) {
+          copied++;
+        }
       }
     }
     return copied;
+  }
+
+  private static void validateArchiveFile(Path rawPack) throws IOException {
+    if (rawPack == null || !Files.isRegularFile(rawPack, LinkOption.NOFOLLOW_LINKS)) {
+      throw new IOException("Exort raw resource pack is missing");
+    }
+    long archiveBytes = Files.size(rawPack);
+    if (archiveBytes <= 0L) {
+      throw new IOException("Exort raw resource pack is empty");
+    }
+    if (archiveBytes > MAX_PACK_ARCHIVE_BYTES) {
+      throw new IOException(
+          "Resource-pack archive exceeds the " + MAX_PACK_ARCHIVE_BYTES + " byte file limit");
+    }
+  }
+
+  private static void validateArchiveEntryName(String name) throws IOException {
+    if (name == null
+        || name.isBlank()
+        || name.startsWith("/")
+        || name.startsWith("\\")
+        || name.indexOf('\\') >= 0
+        || name.indexOf(':') >= 0
+        || name.indexOf('\0') >= 0) {
+      throw new IOException("Unsafe resource-pack entry: " + name);
+    }
+    String[] segments = name.split("/", -1);
+    for (int i = 0; i < segments.length; i++) {
+      String segment = segments[i];
+      boolean trailingDirectorySeparator = i == segments.length - 1 && segment.isEmpty();
+      if ((!trailingDirectorySeparator && segment.isEmpty())
+          || ".".equals(segment)
+          || "..".equals(segment)) {
+        throw new IOException("Unsafe resource-pack entry: " + name);
+      }
+    }
+  }
+
+  private static boolean isRegularFile(File file) {
+    return file != null && Files.isRegularFile(file.toPath(), LinkOption.NOFOLLOW_LINKS);
+  }
+
+  private static void rejectSymlinkOrUnexpectedTarget(Path target, boolean expectDirectory)
+      throws IOException {
+    if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+      return;
+    }
+    if (Files.isSymbolicLink(target)) {
+      throw new IOException("Refusing to replace symbolic-link provider target: " + target);
+    }
+    boolean expectedType =
+        expectDirectory
+            ? Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)
+            : Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS);
+    if (!expectedType) {
+      throw new IOException("Provider target has an unexpected file type: " + target);
+    }
+  }
+
+  private static RecoveryResult restoreFileBackup(Path target, Path backup) {
+    if (backup == null) {
+      return RecoveryResult.complete();
+    }
+    try {
+      if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+          && Files.mismatch(backup, target) == -1L) {
+        deleteTemporary(backup, "unchanged previous provider pack backup");
+        return RecoveryResult.complete();
+      }
+      moveAtomically(backup, target);
+      return RecoveryResult.complete();
+    } catch (IOException rollbackFailure) {
+      return RecoveryResult.failed(
+          backup,
+          "; restoring the previous provider pack failed; backup retained at "
+              + backup
+              + ": "
+              + rollbackFailure.getMessage());
+    }
+  }
+
+  private static RecoveryResult restoreDirectoryBackup(
+      Path target, Path backup, AtomicMover mover) {
+    if (backup == null || !Files.exists(backup, LinkOption.NOFOLLOW_LINKS)) {
+      return RecoveryResult.complete();
+    }
+    try {
+      if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+        deleteRecursively(target);
+      }
+      mover.move(backup, target);
+      return RecoveryResult.complete();
+    } catch (IOException rollbackFailure) {
+      return RecoveryResult.failed(
+          backup,
+          "; restoring the previous ItemsAdder pack failed; backup retained at "
+              + backup
+              + ": "
+              + rollbackFailure.getMessage());
+    }
+  }
+
+  private static Path uniqueSibling(Path parent, String prefix) throws IOException {
+    for (int attempt = 0; attempt < 10; attempt++) {
+      Path candidate = parent.resolve(prefix + UUID.randomUUID());
+      if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+        return candidate;
+      }
+    }
+    throw new IOException("Cannot allocate a unique provider-pack backup path in " + parent);
+  }
+
+  private static void moveAtomically(Path source, Path target) throws IOException {
+    try {
+      Files.move(
+          source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    } catch (AtomicMoveNotSupportedException e) {
+      throw new IOException(
+          "Atomic provider-pack move is not supported between " + source + " and " + target, e);
+    }
+  }
+
+  private static void deleteTemporary(Path path, String description) {
+    if (path == null) {
+      return;
+    }
+    try {
+      Files.deleteIfExists(path);
+    } catch (IOException cleanupFailure) {
+      ExortLog.warn(
+          "Failed to remove " + description + " " + path + ": " + cleanupFailure.getMessage());
+    }
+  }
+
+  private static void deleteTemporaryTree(Path path, String description) {
+    if (path == null) {
+      return;
+    }
+    try {
+      deleteRecursively(path);
+    } catch (IOException cleanupFailure) {
+      ExortLog.warn(
+          "Failed to remove " + description + " " + path + ": " + cleanupFailure.getMessage());
+    }
   }
 
   private static void prepareItemsAdderItemTextures(File resourcepackDir) throws IOException {
@@ -440,7 +719,7 @@ public final class ResourcePackProviderBridge {
   }
 
   private static void deleteRecursively(Path path) throws IOException {
-    if (path == null || !Files.exists(path)) {
+    if (path == null || !Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
       return;
     }
     try (var walk = Files.walk(path)) {
@@ -502,6 +781,21 @@ public final class ResourcePackProviderBridge {
     File dataFolder = plugin.getDataFolder();
     File parent = dataFolder == null ? null : dataFolder.getParentFile();
     return parent == null ? new File("plugins") : parent;
+  }
+
+  @FunctionalInterface
+  interface AtomicMover {
+    void move(Path source, Path target) throws IOException;
+  }
+
+  private record RecoveryResult(Path remainingBackup, String error) {
+    static RecoveryResult complete() {
+      return new RecoveryResult(null, null);
+    }
+
+    static RecoveryResult failed(Path backup, String error) {
+      return new RecoveryResult(backup, error);
+    }
   }
 
   private record TextureKey(String namespace, String path) {

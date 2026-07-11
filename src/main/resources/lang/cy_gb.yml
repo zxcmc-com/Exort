@@ -16,6 +16,8 @@ message:
   relay_disabled: "Mae Trosglwyddyddion Rhwydwaith wedi'u hanalluogi gan ffurfweddiad y gweinydd."
   chunk_loader_duplicate: "Mae'r Llwythwr Chunk hwn eisoes yn weithredol mewn safle arall."
   chunk_loader_feature_disabled: "Mae Llwythwyr Chunk wedi'u hanalluogi gan ffurfweddiad y gweinydd."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Llwythwr Chunk: Gweithredol."
   chunk_loader_disabled: "Llwythwr Chunk: Analluog."
   chunk_loader_already_enabled: "Llwythwr Chunk: Gweithredol."

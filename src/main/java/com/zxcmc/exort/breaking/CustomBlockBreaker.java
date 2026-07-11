@@ -359,7 +359,8 @@ public final class CustomBlockBreaker
         continue;
       }
       boolean removed = false;
-      double totalDamage = 0.0;
+      double fastestDamage = 0.0;
+      Player fastestBreaker = null;
       Iterator<BreakSessionManager.PlayerState> pit = session.players.iterator();
       while (pit.hasNext()) {
         BreakSessionManager.PlayerState state = pit.next();
@@ -376,8 +377,14 @@ public final class CustomBlockBreaker
           pit.remove();
           continue;
         }
+        if (!regionProtection.canBreak(player, block)) {
+          clientBreakSpeedSuppressor.clear(player);
+          sessionManager.clearPlayerMapping(player.getUniqueId());
+          pit.remove();
+          continue;
+        }
         if (player.getGameMode() == GameMode.CREATIVE) {
-          breakHandler.handleBreak(player, block, false);
+          breakHandler.handleBreak(player, block, true);
           clearBreakAnimation(session);
           clearSession(session);
           it.remove();
@@ -385,8 +392,10 @@ public final class CustomBlockBreaker
           break;
         }
         double damage = BreakProgressCalculator.computeDamage(player, session.settings);
-        if (BreakTimingPolicy.canApplyDamage(tick, state.startedTick, damage)) {
-          totalDamage += damage;
+        if (BreakTimingPolicy.canApplyDamage(tick, state.startedTick, damage)
+            && damage > fastestDamage) {
+          fastestDamage = damage;
+          fastestBreaker = player;
         }
       }
       if (removed) continue;
@@ -396,16 +405,15 @@ public final class CustomBlockBreaker
         it.remove();
         continue;
       }
-      if (totalDamage <= 0.0) continue;
-      double nextProgress = session.progress + totalDamage;
+      if (fastestDamage <= 0.0) continue;
+      double nextProgress = session.progress + fastestDamage;
       if (nextProgress >= 1.0) {
         session.progress = nextProgress;
-        Player breaker =
-            session.players.isEmpty() ? null : Bukkit.getPlayer(session.players.get(0).playerId);
+        Player breaker = fastestBreaker;
         BlockBreakHandler.BreakResult result =
-            breaker == null
+            breaker == null || !regionProtection.canBreak(breaker, block)
                 ? BlockBreakHandler.BreakResult.IGNORED
-                : breakHandler.handleBreak(breaker, block, false);
+                : breakHandler.handleBreak(breaker, block, true);
         if (result == BlockBreakHandler.BreakResult.BROKEN
             && !session.soundTracker.isBreakPlayed()) {
           soundService.playBreak(block, session.type);
@@ -461,7 +469,7 @@ public final class CustomBlockBreaker
     if (!regionProtection.canBreak(player, block)) {
       return;
     }
-    if (breakHandler.handleBreak(player, block, false) == BlockBreakHandler.BreakResult.BROKEN) {
+    if (breakHandler.handleBreak(player, block, true) == BlockBreakHandler.BreakResult.BROKEN) {
       playCreativeBreakSound(player, block, type, carrierBreakSound);
     }
   }

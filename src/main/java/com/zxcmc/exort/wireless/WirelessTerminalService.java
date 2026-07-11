@@ -142,6 +142,7 @@ public class WirelessTerminalService {
 
   public ItemStack resetLinkViaCraft(ItemStack original) {
     ItemStack out = original.clone();
+    out.setAmount(1);
     unbind(out);
     return out;
   }

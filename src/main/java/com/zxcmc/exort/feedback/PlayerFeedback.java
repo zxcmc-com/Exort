@@ -36,6 +36,11 @@ public final class PlayerFeedback {
     info(player, key, params);
   }
 
+  public void respond(Player player, FeedbackReason reason, String key, Object... params) {
+    if (reason == null) return;
+    send(player, reason, key, lang.tr(player, key, params));
+  }
+
   public void infoMessage(Player player, String message) {
     send(player, Style.INFO, message);
   }
@@ -57,6 +62,34 @@ public final class PlayerFeedback {
       return;
     }
     player.sendActionBar(Component.text(message, style.color()));
+  }
+
+  private void send(Player player, FeedbackReason reason, String key, String message) {
+    if (player == null || !player.isOnline() || message == null || message.isBlank()) {
+      return;
+    }
+    if (!cooldown.shouldSend(
+        player.getUniqueId(),
+        reason.name() + '\u0000' + key,
+        System.currentTimeMillis(),
+        reason.cooldownMillis())) {
+      return;
+    }
+    Component component = Component.text(message, color(reason.severity()));
+    if (reason.delivery() == FeedbackReason.Delivery.CHAT) {
+      player.sendMessage(component);
+    } else {
+      player.sendActionBar(component);
+    }
+  }
+
+  private NamedTextColor color(FeedbackReason.Severity severity) {
+    return switch (severity) {
+      case INFO -> ExortText.INFO;
+      case SUCCESS -> ExortText.SUCCESS;
+      case WARNING -> ExortText.WARNING;
+      case ERROR -> ExortText.ERROR;
+    };
   }
 
   private enum Style {

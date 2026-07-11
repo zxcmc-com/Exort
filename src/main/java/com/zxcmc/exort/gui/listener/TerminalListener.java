@@ -1,6 +1,7 @@
 package com.zxcmc.exort.gui.listener;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.infra.logging.ExortLog;
@@ -114,6 +115,10 @@ public class TerminalListener implements Listener {
             storageCarrier,
             relayCarrier,
             relayRangeChunks);
+    if (reportTraversalLimit(event.getPlayer(), storageData)) {
+      event.setCancelled(true);
+      return;
+    }
     if (storageData.count() == 0) {
       feedbackError(event.getPlayer(), "message.no_storage_adjacent");
       event.setCancelled(true);
@@ -173,6 +178,9 @@ public class TerminalListener implements Listener {
             storageCarrier,
             relayCarrier,
             relayRangeChunks);
+    if (reportTraversalLimit(player, storageData)) {
+      return;
+    }
     if (storageData.count() == 0) {
       feedbackError(player, "message.no_storage_adjacent");
       return;
@@ -205,8 +213,31 @@ public class TerminalListener implements Listener {
         plugin,
         () -> {
           if (player == null || !player.isOnline()) return;
-          feedbackError(player, "message.storage_load_failed");
+          playerFeedback.respond(
+              player, FeedbackReason.STORAGE_FAILURE, "message.storage_load_failed");
         });
+  }
+
+  private boolean reportTraversalLimit(
+      Player player, TerminalLinkFinder.StorageSearchResult result) {
+    int limit = traversalLimit(result.status(), wireLimit, wireHardCap);
+    if (limit < 0) return false;
+    playerFeedback.respond(
+        player,
+        FeedbackReason.NETWORK_TRAVERSAL_LIMIT,
+        "message.wire.hard_cap",
+        limit == Integer.MAX_VALUE ? limit : limit + 1,
+        limit);
+    return true;
+  }
+
+  static int traversalLimit(
+      TerminalLinkFinder.StorageSearchStatus status, int wireLimit, int wireHardCap) {
+    return switch (status) {
+      case WIRE_LIMIT -> wireLimit;
+      case HARD_CAP -> wireHardCap;
+      default -> -1;
+    };
   }
 
   private void feedbackError(Player player, String key) {

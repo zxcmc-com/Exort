@@ -68,6 +68,7 @@ final class DebugCacheStatusRenderer {
       long idleThresholdMs = Math.max(0L, cacheIdleUnloadSeconds.getAsLong() * 1000L);
       boolean dirty = cache.isDirty();
       int viewers = cache.viewerCount();
+      lines.add("health=" + cache.healthSummary());
       lines.add(
           tr(
               sender,

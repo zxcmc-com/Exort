@@ -16,6 +16,8 @@ message:
   relay_disabled: "Οι αναμεταδότες είναι απενεργοποιημένοι στις ρυθμίσεις του διακομιστή."
   chunk_loader_duplicate: "Αυτός ο Φορτωτής Chunk είναι ήδη ενεργός σε άλλη θέση."
   chunk_loader_feature_disabled: "Οι Φορτωτές Chunk είναι απενεργοποιημένοι στις ρυθμίσεις του διακομιστή."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Φορτωτής Chunk: Ενεργή."
   chunk_loader_disabled: "Φορτωτής Chunk: Ανενεργό."
   chunk_loader_already_enabled: "Φορτωτής Chunk: Ενεργή."

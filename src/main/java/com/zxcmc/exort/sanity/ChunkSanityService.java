@@ -17,15 +17,13 @@ public final class ChunkSanityService {
   private final MarkerSanityService markerSanityService;
   private final DisplayRefreshService displayRefreshService;
   private final Supplier<WorldEditDebugService> worldEditDebugService;
-  private final Runnable invalidateNetwork;
 
   public ChunkSanityService(
       Plugin plugin,
       DisplayCleanupService displayCleanupService,
       MarkerSanityService markerSanityService,
       DisplayRefreshService displayRefreshService,
-      Supplier<WorldEditDebugService> worldEditDebugService,
-      Runnable invalidateNetwork) {
+      Supplier<WorldEditDebugService> worldEditDebugService) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.displayCleanupService =
         Objects.requireNonNull(displayCleanupService, "displayCleanupService");
@@ -34,22 +32,17 @@ public final class ChunkSanityService {
         Objects.requireNonNull(displayRefreshService, "displayRefreshService");
     this.worldEditDebugService =
         Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
-    this.invalidateNetwork = Objects.requireNonNull(invalidateNetwork, "invalidateNetwork");
   }
 
   public void sanitizeChunk(Chunk chunk) {
-    int repairedWires = markerSanityService.repairFullChorusWires(chunk);
     displayCleanupService.cleanupDisplays(chunk);
     if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) {
       return;
     }
     displayCleanupService.cleanupDisplayMarkers(chunk);
     MarkerSanityService.CleanupResult cleanup = markerSanityService.cleanupStaleMarkers(chunk);
-    recordSanityDebug(chunk, repairedWires, cleanup);
+    recordSanityDebug(chunk, cleanup);
     displayRefreshService.refreshChunk(chunk);
-    if (repairedWires > 0 || cleanup.changed()) {
-      invalidateNetwork.run();
-    }
   }
 
   public void scanLoadedChunks() {
@@ -60,13 +53,12 @@ public final class ChunkSanityService {
     }
   }
 
-  private void recordSanityDebug(
-      Chunk chunk, int repairedWires, MarkerSanityService.CleanupResult cleanup) {
+  private void recordSanityDebug(Chunk chunk, MarkerSanityService.CleanupResult cleanup) {
     WorldEditDebugService debug = worldEditDebugService.get();
     if (debug == null || !debug.isFull()) {
       return;
     }
-    if (repairedWires <= 0 && (cleanup == null || !cleanup.hasAnyRoot())) {
+    if (cleanup == null || !cleanup.hasAnyRoot()) {
       return;
     }
     MarkerSanityService.CleanupResult result =
@@ -81,9 +73,7 @@ public final class ChunkSanityService {
             + " skipped="
             + result.skippedRoots()
             + " cleared="
-            + result.clearedRoots()
-            + " repaired="
-            + repairedWires,
+            + result.clearedRoots(),
         NamedTextColor.BLUE);
   }
 }

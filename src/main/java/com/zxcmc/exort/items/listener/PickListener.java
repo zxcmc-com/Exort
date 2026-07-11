@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.chunkloader.ChunkLoaderCreativeAudit;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
+import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
@@ -411,10 +412,8 @@ public final class PickListener implements Listener {
   }
 
   private boolean matchesType(ItemStack stack, String type, String expectedTier) {
-    if (stack == null || !stack.hasItemMeta()) return false;
+    if (!CustomItemClassifier.isType(keys, stack, type)) return false;
     PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-    String t = pdc.get(keys.type(), PersistentDataType.STRING);
-    if (!type.equalsIgnoreCase(t)) return false;
     if ("storage".equalsIgnoreCase(type) && expectedTier != null) {
       String tier = pdc.get(keys.storageTier(), PersistentDataType.STRING);
       return expectedTier.equalsIgnoreCase(tier);

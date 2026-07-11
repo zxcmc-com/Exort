@@ -1,26 +1,17 @@
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    configurations.classpath {
-        resolutionStrategy.force(
-                'org.ow2.asm:asm:9.6',
-                'org.ow2.asm:asm-commons:9.6',
-                'org.ow2.asm:asm-tree:9.6',
-                'org.ow2.asm:asm-analysis:9.6',
-                'org.ow2.asm:asm-util:9.6'
-        )
-    }
-}
-
 plugins {
     id 'java'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.gradleup.shadow' version '9.5.1'
 }
 
 group = 'com.zxcmc.exort'
-version = '0.18.12'
+version = '0.19.0'
 description = 'Exort Storage Network'
+
+def pluginVersion = version.toString()
+def pluginDescription = description
+def defaultPaperApiVersion = '26.1.2.build.59-stable'
+def paperApiVersionOverride = providers.gradleProperty('paperApiVersion')
+def paperApiVersion = paperApiVersionOverride.orElse(defaultPaperApiVersion).get()
 
 base {
     archivesName = 'Exort'
@@ -34,30 +25,106 @@ java {
 
 repositories {
     mavenCentral()
-    maven {
-        url = 'https://repo.papermc.io/repository/maven-public/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'PaperMC'
+                url = 'https://repo.papermc.io/repository/maven-public/'
+            }
+        }
+        filter {
+            includeGroup 'io.papermc.paper'
+            includeGroup 'com.mojang'
+            includeGroup 'net.md-5'
+        }
     }
-    maven {
-        url = 'https://repo.codemc.io/repository/maven-releases/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'CodeMC'
+                url = 'https://repo.codemc.io/repository/maven-releases/'
+            }
+        }
+        filter {
+            includeGroup 'com.github.retrooper'
+        }
     }
-    maven {
-        url = 'https://maven.enginehub.org/repo/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'EngineHub'
+                url = 'https://maven.enginehub.org/repo/'
+            }
+        }
+        filter {
+            includeGroupByRegex 'com\\.sk89q(\\..*)?'
+            includeGroupByRegex 'org\\.enginehub(\\..*)?'
+        }
     }
-    maven {
-        url = 'https://jitpack.io'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'JitPack'
+                url = 'https://jitpack.io'
+            }
+        }
+        filter {
+            includeGroup 'com.github.GriefPrevention'
+            includeGroup 'com.github.Zrips'
+        }
     }
-    maven {
-        name = 'glaremasters repo'
-        url = 'https://repo.glaremasters.me/repository/towny/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Towny'
+                url = 'https://repo.glaremasters.me/repository/towny/'
+            }
+        }
+        filter {
+            includeGroup 'com.palmergames.bukkit.towny'
+        }
     }
-    maven {
-        url = 'https://repo.incredibleplugins.com/releases/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'IncrediblePlugins'
+                url = 'https://repo.incredibleplugins.com/releases/'
+            }
+        }
+        filter {
+            includeGroup 'com.incredibleplugins'
+        }
     }
-    maven {
-        url = 'https://repo.oraxen.com/releases/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Oraxen'
+                url = 'https://repo.oraxen.com/releases/'
+            }
+        }
+        filter {
+            includeGroup 'io.th0rgal'
+        }
     }
-    maven {
-        url = 'https://repo.nexomc.com/releases/'
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Nexo'
+                url = 'https://repo.nexomc.com/releases/'
+            }
+        }
+        filter {
+            includeGroup 'com.nexomc'
+            includeGroup 'team.unnamed'
+        }
     }
 }
 
@@ -69,10 +136,24 @@ configurations.configureEach {
     if (canBeResolved) {
         attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
     }
+    if (paperApiVersionOverride.isPresent()) {
+        resolutionStrategy.deactivateDependencyLocking()
+    }
+}
+
+dependencyLocking {
+    if (!paperApiVersionOverride.isPresent()) {
+        lockAllConfigurations()
+        ignoredDependencies.add('org.enginehub.lin-bus:lin-bus-bom')
+        ignoredDependencies.add('org.enginehub.lin-bus:lin-bus-common')
+        ignoredDependencies.add('org.enginehub.lin-bus:lin-bus-stream')
+        ignoredDependencies.add('org.enginehub.lin-bus:lin-bus-tree')
+        ignoredDependencies.add('org.enginehub.lin-bus.format:lin-bus-format-snbt')
+    }
 }
 
 dependencies {
-    compileOnly 'io.papermc.paper:paper-api:26.1.2.build.59-stable'
+    compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
     compileOnly 'org.xerial:sqlite-jdbc:3.45.3.0'
     compileOnly 'com.sk89q.worldedit:worldedit-core:7.3.0'
     compileOnly('com.sk89q.worldguard:worldguard-bukkit:7.0.17') { transitive = false }
@@ -88,7 +169,8 @@ dependencies {
     implementation 'org.bstats:bstats-base:3.1.0'
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'io.papermc.paper:paper-api:26.1.2.build.59-stable'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation "io.papermc.paper:paper-api:${paperApiVersion}"
     testImplementation 'com.sk89q.worldedit:worldedit-core:7.3.0'
     testRuntimeOnly 'org.xerial:sqlite-jdbc:3.45.3.0'
     googleJavaFormat 'com.google.googlejavaformat:google-java-format:1.35.0'
@@ -184,10 +266,11 @@ tasks.named('check') {
 
 tasks.named('test') {
     useJUnitPlatform()
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
 }
 
 tasks.named('shadowJar') {
-    archiveClassifier = ''
+    archiveClassifier.set('')
     includeEmptyDirs = false
     configurations = [project.configurations.runtimeClasspath]
     dependencies {
@@ -202,18 +285,130 @@ tasks.named('jar') {
 }
 
 tasks.named('build') {
-    dependsOn tasks.named('shadowJar')
+    dependsOn tasks.named('verifyPluginJar')
 }
 
 tasks.processResources {
     includeEmptyDirs = false
     filteringCharset = 'UTF-8'
-    inputs.property('version', project.version)
-    inputs.property('description', project.description)
+    inputs.property('version', pluginVersion)
+    inputs.property('description', pluginDescription)
     filesMatching(['plugin.yml', 'paper-plugin.yml']) {
         expand(
-            version: project.version,
-            description: project.description
+            version: pluginVersion,
+            description: pluginDescription
         )
+    }
+}
+
+def pluginJar = tasks.named('shadowJar').flatMap { it.archiveFile }
+
+tasks.register('verifyPluginJar') {
+    group = 'verification'
+    description = 'Verifies the deployable plugin JAR structure, bytecode level, and bStats relocation.'
+    dependsOn tasks.named('shadowJar')
+    inputs.file(pluginJar)
+
+    doLast {
+        def jarFile = pluginJar.get().asFile
+        if (!jarFile.isFile() || jarFile.length() == 0L) {
+            throw new GradleException("Plugin JAR is missing or empty: ${jarFile}")
+        }
+
+        def expectedBstatsClasses = [
+            'com/zxcmc/exort/libs/bstats/MetricsBase.class',
+            'com/zxcmc/exort/libs/bstats/bukkit/Metrics.class',
+            'com/zxcmc/exort/libs/bstats/charts/AdvancedBarChart.class',
+            'com/zxcmc/exort/libs/bstats/charts/AdvancedPie.class',
+            'com/zxcmc/exort/libs/bstats/charts/CustomChart.class',
+            'com/zxcmc/exort/libs/bstats/charts/DrilldownPie.class',
+            'com/zxcmc/exort/libs/bstats/charts/MultiLineChart.class',
+            'com/zxcmc/exort/libs/bstats/charts/SimpleBarChart.class',
+            'com/zxcmc/exort/libs/bstats/charts/SimplePie.class',
+            'com/zxcmc/exort/libs/bstats/charts/SingleLineChart.class',
+            'com/zxcmc/exort/libs/bstats/config/MetricsConfig.class',
+            'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder.class',
+            'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder$1.class',
+            'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder$JsonObject.class'
+        ] as Set
+        def forbiddenPrefixes = [
+            '.codex/', '.git/', '.github/', '.gradle/', 'build/', 'docs/', 'public/',
+            'src/', 'test/', 'tests/', 'tmp/', 'tools/'
+        ]
+        def forbiddenFiles = [
+            'AGENTS.md', 'ae2plan.md', 'article.md', 'script.md', 'todo.md'
+        ] as Set
+        def forbiddenDependencyPrefixes = [
+            'com/sk89q/', 'io/papermc/', 'org/junit/', 'org/sqlite/'
+        ]
+
+        new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+            def entries = zip.entries().toList()
+            def entryNames = entries.collect { it.name }
+            if (entryNames.isEmpty()) {
+                throw new GradleException("Plugin JAR has no entries: ${jarFile}")
+            }
+            if (entryNames.toSet().size() != entryNames.size()) {
+                throw new GradleException("Plugin JAR contains duplicate ZIP entries: ${jarFile}")
+            }
+
+            ['paper-plugin.yml', 'com/zxcmc/exort/core/ExortPlugin.class'].each { required ->
+                if (!entryNames.contains(required)) {
+                    throw new GradleException("Plugin JAR is missing required entry: ${required}")
+                }
+            }
+
+            def descriptor = zip.getInputStream(zip.getEntry('paper-plugin.yml')).getText('UTF-8')
+            if (descriptor.contains('${version}') || descriptor.contains('${description}')) {
+                throw new GradleException('paper-plugin.yml still contains unexpanded build placeholders')
+            }
+            if (!descriptor.contains('main: com.zxcmc.exort.core.ExortPlugin')) {
+                throw new GradleException('paper-plugin.yml does not declare the expected main class')
+            }
+            if (!descriptor.contains("version: \"${pluginVersion}\"")) {
+                throw new GradleException(
+                    "paper-plugin.yml does not contain the expected version ${pluginVersion}"
+                )
+            }
+
+            def mainClassEntry = zip.getEntry('com/zxcmc/exort/core/ExortPlugin.class')
+            zip.getInputStream(mainClassEntry).withCloseable { classStream ->
+                def classHeader = new DataInputStream(classStream)
+                if (Integer.toUnsignedLong(classHeader.readInt()) != 0xCAFEBABEL) {
+                    throw new GradleException('ExortPlugin.class has an invalid class-file header')
+                }
+                classHeader.readUnsignedShort()
+                def majorVersion = classHeader.readUnsignedShort()
+                if (majorVersion != 65) {
+                    throw new GradleException(
+                        "Expected Java 21 class-file version 65, found ${majorVersion}"
+                    )
+                }
+            }
+
+            def actualBstatsClasses = entryNames.findAll {
+                it.startsWith('com/zxcmc/exort/libs/bstats/') && it.endsWith('.class')
+            } as Set
+            if (actualBstatsClasses != expectedBstatsClasses) {
+                def missing = expectedBstatsClasses - actualBstatsClasses
+                def unexpected = actualBstatsClasses - expectedBstatsClasses
+                throw new GradleException(
+                    "Unexpected relocated bStats class set; missing=${missing}, unexpected=${unexpected}"
+                )
+            }
+            if (entryNames.any { it.startsWith('org/bstats/') }) {
+                throw new GradleException('Plugin JAR contains unrelocated org.bstats classes')
+            }
+
+            def leakedEntry = entryNames.find { name ->
+                forbiddenPrefixes.any { name.startsWith(it) } ||
+                    forbiddenFiles.contains(name) ||
+                    forbiddenDependencyPrefixes.any { name.startsWith(it) } ||
+                    name.endsWith('.java')
+            }
+            if (leakedEntry != null) {
+                throw new GradleException("Plugin JAR contains forbidden internal/dependency entry: ${leakedEntry}")
+            }
+        }
     }
 }

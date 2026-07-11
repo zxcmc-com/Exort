@@ -4,6 +4,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.StorageMarker;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -16,7 +17,8 @@ final class StoragePlacementRollback {
       String storageId,
       Player player,
       ItemStack refund,
-      boolean shouldRefund) {
+      boolean shouldRefund,
+      BlockState replacedState) {
     if (block == null || storageId == null) return false;
     var plugin = dependencies.plugin();
     var marker = StorageMarker.get(plugin, block);
@@ -37,7 +39,11 @@ final class StoragePlacementRollback {
       holograms.unregisterStorage(block);
       holograms.invalidateAll();
     }
-    block.setType(Material.AIR, false);
+    if (replacedState != null) {
+      replacedState.update(true, false);
+    } else {
+      block.setType(Material.AIR, false);
+    }
 
     if (shouldRefund) {
       refundPlacementItem(block, player, refund);

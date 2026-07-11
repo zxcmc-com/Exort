@@ -16,6 +16,8 @@ message:
   relay_disabled: "Ретрансляторы отключены в конфигурации сервера."
   chunk_loader_duplicate: "Этот загрузчик чанков уже активен в другой позиции."
   chunk_loader_feature_disabled: "Загрузчики чанков отключены в конфигурации сервера."
+  chunk_loader_initializing: "Загрузчики чанков ещё инициализируются. Повторите через пару секунд."
+  chunk_loader_limit_reached: "Достигнут лимит загрузчиков чанков. Обратитесь к администратору сервера."
   chunk_loader_enabled: "Загрузчик чанков включён."
   chunk_loader_disabled: "Загрузчик чанков отключён."
   chunk_loader_already_enabled: "Этот загрузчик чанков уже включён."

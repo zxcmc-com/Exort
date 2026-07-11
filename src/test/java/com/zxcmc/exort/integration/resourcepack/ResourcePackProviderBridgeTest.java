@@ -1,15 +1,21 @@
 package com.zxcmc.exort.integration.resourcepack;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
@@ -61,6 +67,80 @@ class ResourcePackProviderBridgeTest {
   }
 
   @Test
+  void nexoHandoffKeepsPreviousPackWhenCandidateIsCorrupt() throws IOException {
+    Path target = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    writeZip(target, Map.of("assets/exort/previous.json", "previous"));
+    byte[] previous = Files.readAllBytes(target);
+    Path source = tempDir.resolve("corrupt.raw.zip");
+    Files.writeString(source, "not-a-zip");
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.copyNexoPack(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertArrayEquals(previous, Files.readAllBytes(target));
+    assertNoProviderStagingPaths(target.getParent());
+  }
+
+  @Test
+  void nexoHandoffKeepsPreviousPackWhenAtomicCommitFails() throws IOException {
+    Path target = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    writeZip(target, Map.of("assets/exort/previous.json", "previous"));
+    byte[] previous = Files.readAllBytes(target);
+    Path source = tempDir.resolve("exort.raw.zip");
+    writeZip(source, Map.of("assets/exort/current.json", "current"));
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.copyNexoPack(
+            tempDir.toFile(),
+            source.toFile(),
+            (candidate, destination) -> {
+              throw new IOException("simulated atomic move failure");
+            });
+
+    assertFalse(result.success());
+    assertTrue(result.error().contains("simulated atomic move failure"));
+    assertArrayEquals(previous, Files.readAllBytes(target));
+    assertNoProviderStagingPaths(target.getParent());
+  }
+
+  @Test
+  void nexoHandoffRejectsTooManyEntriesWithoutReplacingPreviousPack() throws IOException {
+    Path target = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    writeZip(target, Map.of("assets/exort/previous.json", "previous"));
+    byte[] previous = Files.readAllBytes(target);
+    Path source = tempDir.resolve("too-many-entries.zip");
+    writeZipWithEmptyAssets(source, ResourcePackProviderBridge.MAX_PACK_ARCHIVE_ENTRIES + 1);
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.copyNexoPack(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertTrue(result.error().contains("entries"));
+    assertArrayEquals(previous, Files.readAllBytes(target));
+  }
+
+  @Test
+  void nexoHandoffRejectsDeclaredUncompressedLimitWithoutReplacingPreviousPack()
+      throws IOException {
+    Path target = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    writeZip(target, Map.of("assets/exort/previous.json", "previous"));
+    byte[] previous = Files.readAllBytes(target);
+    Path source = tempDir.resolve("oversized-entry.zip");
+    writeZipWithDeclaredSize(
+        source,
+        "assets/exort/oversized.bin",
+        ResourcePackProviderBridge.MAX_PACK_UNCOMPRESSED_BYTES + 1L);
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.copyNexoPack(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertTrue(result.error().contains("uncompressed size limit"));
+    assertArrayEquals(previous, Files.readAllBytes(target));
+  }
+
+  @Test
   void nexoApiHandoffRemovesOnlyExortExternalPackFallback() throws IOException {
     Path source = tempDir.resolve("exort.raw.zip");
     writeZip(source, Map.of("assets/exort/items/storage/storage.json", "{}"));
@@ -78,6 +158,21 @@ class ResourcePackProviderBridgeTest {
     assertEquals("Nexo post-generate API: " + source, result.targetPath());
     assertFalse(Files.exists(exortFallback));
     assertTrue(Files.isRegularFile(otherPack));
+  }
+
+  @Test
+  void nexoApiHandoffKeepsFallbackWhenRawPackIsCorrupt() throws IOException {
+    Path source = tempDir.resolve("corrupt.raw.zip");
+    Files.writeString(source, "not-a-zip");
+    Path fallback = tempDir.resolve("Nexo/pack/external_packs/zxcmc_exort.zip");
+    writeZip(fallback, Map.of("assets/exort/previous.json", "previous"));
+    byte[] previous = Files.readAllBytes(fallback);
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.prepareNexoApiHandoff(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertArrayEquals(previous, Files.readAllBytes(fallback));
   }
 
   @Test
@@ -131,6 +226,95 @@ class ResourcePackProviderBridgeTest {
     assertFalse(Files.exists(resourcepack.resolve("assets/exort/items/storage/stale.json")));
     assertFalse(Files.exists(resourcepack.resolve("pack.mcmeta")));
     assertTrue(Files.isRegularFile(otherContent));
+  }
+
+  @Test
+  void itemsAdderHandoffKeepsPreviousTreeWhenArchiveIsCorrupt() throws IOException {
+    Path resourcepack = tempDir.resolve("ItemsAdder/contents/exort/resourcepack");
+    Path previousFile = resourcepack.resolve("assets/exort/previous.json");
+    Files.createDirectories(previousFile.getParent());
+    Files.writeString(previousFile, "previous");
+    Path source = tempDir.resolve("corrupt.raw.zip");
+    Files.writeString(source, "not-a-zip");
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.syncItemsAdderPack(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertEquals("previous", Files.readString(previousFile));
+    assertNoProviderStagingPaths(resourcepack.getParent());
+  }
+
+  @Test
+  void itemsAdderHandoffRollsBackPreviousTreeWhenCandidateCommitFails() throws IOException {
+    Path resourcepack = tempDir.resolve("ItemsAdder/contents/exort/resourcepack");
+    Path previousFile = resourcepack.resolve("assets/exort/previous.json");
+    Files.createDirectories(previousFile.getParent());
+    Files.writeString(previousFile, "previous");
+    Path source = tempDir.resolve("exort.raw.zip");
+    writeZip(source, Map.of("assets/exort/current.json", "current"));
+    AtomicInteger moves = new AtomicInteger();
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.syncItemsAdderPack(
+            tempDir.toFile(),
+            source.toFile(),
+            (from, to) -> {
+              if (moves.incrementAndGet() == 2) {
+                throw new IOException("simulated candidate commit failure");
+              }
+              Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+            });
+
+    assertFalse(result.success());
+    assertEquals(3, moves.get());
+    assertEquals("previous", Files.readString(previousFile));
+    assertFalse(Files.exists(resourcepack.resolve("assets/exort/current.json")));
+    assertNoProviderStagingPaths(resourcepack.getParent());
+  }
+
+  @Test
+  void itemsAdderHandoffRejectsZipSlipWithoutTouchingPreviousTree() throws IOException {
+    Path resourcepack = tempDir.resolve("ItemsAdder/contents/exort/resourcepack");
+    Path previousFile = resourcepack.resolve("assets/exort/previous.json");
+    Files.createDirectories(previousFile.getParent());
+    Files.writeString(previousFile, "previous");
+    Path source = tempDir.resolve("unsafe.raw.zip");
+    writeZip(source, Map.of("assets/../../escaped.txt", "escaped"));
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.syncItemsAdderPack(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertEquals("previous", Files.readString(previousFile));
+    assertFalse(Files.exists(tempDir.resolve("escaped.txt")));
+    assertNoProviderStagingPaths(resourcepack.getParent());
+  }
+
+  @Test
+  void itemsAdderHandoffRefusesSymbolicLinkTargetWithoutTouchingItsDestination()
+      throws IOException {
+    Path external = tempDir.resolve("external-resourcepack");
+    Path externalFile = external.resolve("assets/exort/previous.json");
+    Files.createDirectories(externalFile.getParent());
+    Files.writeString(externalFile, "previous");
+    Path resourcepack = tempDir.resolve("ItemsAdder/contents/exort/resourcepack");
+    Files.createDirectories(resourcepack.getParent());
+    try {
+      Files.createSymbolicLink(resourcepack, external);
+    } catch (UnsupportedOperationException | IOException unsupported) {
+      assumeTrue(false, "Symbolic links are unavailable: " + unsupported.getMessage());
+    }
+    Path source = tempDir.resolve("exort.raw.zip");
+    writeZip(source, Map.of("assets/exort/current.json", "current"));
+
+    ResourcePackProviderBridge.HandoffResult result =
+        ResourcePackProviderBridge.syncItemsAdderPack(tempDir.toFile(), source.toFile());
+
+    assertFalse(result.success());
+    assertTrue(Files.isSymbolicLink(resourcepack));
+    assertEquals("previous", Files.readString(externalFile));
+    assertFalse(Files.exists(external.resolve("assets/exort/current.json")));
   }
 
   @Test
@@ -212,6 +396,80 @@ class ResourcePackProviderBridgeTest {
         zip.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
         zip.closeEntry();
       }
+    }
+  }
+
+  private static void writeZipWithEmptyAssets(Path target, int entries) throws IOException {
+    Files.createDirectories(target.getParent());
+    try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(target))) {
+      for (int i = 0; i < entries; i++) {
+        zip.putNextEntry(new ZipEntry("assets/exort/generated/entry_" + i + ".json"));
+        zip.closeEntry();
+      }
+    }
+  }
+
+  private static void writeZipWithDeclaredSize(Path target, String entryName, long declaredSize)
+      throws IOException {
+    byte[] name = entryName.getBytes(StandardCharsets.UTF_8);
+    int localHeaderSize = 30 + name.length;
+    int centralDirectorySize = 46 + name.length;
+    ByteBuffer zip =
+        ByteBuffer.allocate(localHeaderSize + centralDirectorySize + 22)
+            .order(ByteOrder.LITTLE_ENDIAN);
+
+    zip.putInt(0x04034b50);
+    zip.putShort((short) 20);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putInt(0);
+    zip.putInt(0);
+    zip.putInt(Math.toIntExact(declaredSize));
+    zip.putShort((short) name.length);
+    zip.putShort((short) 0);
+    zip.put(name);
+
+    zip.putInt(0x02014b50);
+    zip.putShort((short) 20);
+    zip.putShort((short) 20);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putInt(0);
+    zip.putInt(0);
+    zip.putInt(Math.toIntExact(declaredSize));
+    zip.putShort((short) name.length);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putInt(0);
+    zip.putInt(0);
+    zip.put(name);
+
+    zip.putInt(0x06054b50);
+    zip.putShort((short) 0);
+    zip.putShort((short) 0);
+    zip.putShort((short) 1);
+    zip.putShort((short) 1);
+    zip.putInt(centralDirectorySize);
+    zip.putInt(localHeaderSize);
+    zip.putShort((short) 0);
+
+    Files.write(target, zip.array());
+  }
+
+  private static void assertNoProviderStagingPaths(Path parent) throws IOException {
+    try (var children = Files.list(parent)) {
+      assertFalse(
+          children.anyMatch(
+              path -> {
+                String name = path.getFileName().toString();
+                return name.contains(".candidate-") || name.contains(".backup-");
+              }));
     }
   }
 }

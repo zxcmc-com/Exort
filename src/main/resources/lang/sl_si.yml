@@ -16,6 +16,8 @@ message:
   relay_disabled: "Releji so onemogočeni v konfiguraciji strežnika."
   chunk_loader_duplicate: "Ta nalagalnik chunkov je že aktiven na drugem položaju."
   chunk_loader_feature_disabled: "Nalagalniki chunkov so onemogočeni v konfiguraciji strežnika."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Nalagalnik chunkov: Aktiven."
   chunk_loader_disabled: "Nalagalnik chunkov: Onemogočeno."
   chunk_loader_already_enabled: "Nalagalnik chunkov: Aktiven."

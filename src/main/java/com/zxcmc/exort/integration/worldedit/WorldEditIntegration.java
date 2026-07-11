@@ -21,7 +21,7 @@ public final class WorldEditIntegration {
     if (dependencies == null) return null;
     Plugin worldEdit = Bukkit.getPluginManager().getPlugin("WorldEdit");
     Plugin fawe = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-    if (worldEdit == null && fawe == null) return null;
+    if (!isEnabled(worldEdit) && !isEnabled(fawe)) return null;
     if (!isClassAvailable(WORLDEDIT_CLASS) || !isClassAvailable(EXTENT_CLASS)) {
       ExortLog.warn("[WorldEdit] Integration disabled: missing classes.");
       return null;
@@ -57,6 +57,10 @@ public final class WorldEditIntegration {
     } catch (ClassNotFoundException | LinkageError ignored) {
       return false;
     }
+  }
+
+  private static boolean isEnabled(Plugin plugin) {
+    return plugin != null && plugin.isEnabled();
   }
 
   private static String message(Throwable throwable) {

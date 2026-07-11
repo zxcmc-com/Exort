@@ -10,7 +10,6 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.chunkloader.RotatingChunkLoaderAuditFileWriter;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.gui.CreativeTabOrder;
-import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
@@ -28,25 +27,80 @@ import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.placement.PlacementGuardConfig;
 import com.zxcmc.exort.recipes.CraftingRulesConfig;
 import com.zxcmc.exort.relay.RelaySetupTracker;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
+import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.io.File;
-import java.util.concurrent.CompletableFuture;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.event.HandlerList;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ExortRuntimeFactory {
   private static final String VANILLA_NAMESPACE = "minecraft";
 
   private ExortRuntimeFactory() {}
 
-  public static ExortRuntimeServices create(
+  /** Parses the candidate's runtime-owned configuration before the active generation is stopped. */
+  public static void preflight(
+      JavaPlugin plugin,
+      FileConfiguration config,
+      boolean resourceMode,
+      boolean resourceWireUsesBarrier) {
+    if (plugin == null || config == null) {
+      throw new IllegalArgumentException("plugin and config are required");
+    }
+    RuntimeItemModelConfig.forMode(resourceMode, resourceWireUsesBarrier);
+    RuntimeNetworkConfig.fromConfig(config);
+    WirelessRuntimeConfig.fromConfig(config);
+    BusRuntimeConfig.fromConfig(config);
+    ChunkLoaderConfig.fromConfig(config, plugin.getLogger());
+    PlacementGuardConfig.fromConfig(config);
+    WorldEditBulkConfig.fromConfig(config);
+
+    File tiersFile = new File(plugin.getDataFolder(), "storage-tiers.yml");
+    if (!tiersFile.isFile()) {
+      throw new IllegalStateException("storage-tiers.yml does not exist");
+    }
+    YamlConfiguration tiers = new YamlConfiguration();
+    try {
+      tiers.load(tiersFile);
+    } catch (Exception error) {
+      throw new IllegalStateException("storage-tiers.yml is invalid", error);
+    }
+    ConfigurationSection tierSection = tiers.getConfigurationSection("tiers");
+    if (tierSection == null || tierSection.getKeys(false).isEmpty()) {
+      throw new IllegalStateException("storage-tiers.yml does not contain any tiers");
+    }
+  }
+
+  public static RuntimeHandle<ExortRuntimeServices> create(
       ExortRuntimeFactoryDependencies deps, boolean refreshItemDictionaries) {
+    RuntimeHandle.Scope scope = RuntimeHandle.scope();
+    try {
+      ExortRuntimeServices services = createServices(deps, refreshItemDictionaries, scope);
+      return scope.complete(services);
+    } catch (RuntimeException | LinkageError constructionFailure) {
+      try {
+        scope.close();
+      } catch (RuntimeException | LinkageError cleanupFailure) {
+        throw new RuntimeConstructionException(constructionFailure, cleanupFailure);
+      }
+      throw constructionFailure;
+    }
+  }
+
+  private static ExortRuntimeServices createServices(
+      ExortRuntimeFactoryDependencies deps,
+      boolean refreshItemDictionaries,
+      RuntimeHandle.Scope scope) {
     deps.reloadDefaultSortMode().run();
-    CompletableFuture<ItemNameService.Status> langFuture =
-        reloadLanguage(deps, refreshItemDictionaries);
+    RuntimeItemNamesReload itemNamesReload = prepareLanguage(deps, refreshItemDictionaries);
     CreativeTabOrder.init(deps.plugin());
 
     RuntimeItemModelConfig itemModels =
@@ -94,13 +148,16 @@ public final class ExortRuntimeFactory {
                 refresh.refreshTransmitter(block);
               }
             });
+    scope.own("transmitter sessions", transmitterSessionManager::shutdown);
     transmitterSessionManager.reconfigure();
     wirelessTransmitterService.scanLoadedChunks();
     deps.sessionManager().reconfigure();
 
-    deps.stopReloadableRuntime().run();
     PacketEnhancements packetEnhancements =
         PacketEnhancementsFactory.tryCreate(deps.plugin(), deps.pickDebugFullSink());
+    if (packetEnhancements != null) {
+      scope.own("packet enhancements", packetEnhancements::unregister);
+    }
     ChunkLoaderConfig chunkLoaderConfig =
         ChunkLoaderConfig.fromConfig(deps.config(), deps.plugin().getLogger());
     ChunkLoaderAuditFileWriter chunkLoaderAuditFileWriter =
@@ -118,13 +175,16 @@ public final class ExortRuntimeFactory {
             chunkLoaderConfig,
             new ChunkLoaderAuditLogger(
                 deps.plugin().getLogger(), chunkLoaderConfig.audit(), chunkLoaderAuditFileWriter));
+    scope.own("chunk loader", chunkLoaderService::stop);
     chunkLoaderService.start();
+    StorageClaimRegistry storageClaimRegistry =
+        new StorageClaimRegistry(deps.database(), deps.plugin().getLogger());
+    storageClaimRegistry.start();
     BreakAnimationSender breakAnimationSender =
         RuntimeBreakAnimationSenders.create(
             deps.plugin(), deps.resourceMode(), itemModels.displayNamespace(), materials);
     deps.unregisterReloadableRuntimeListeners().run();
     deps.setupRegionProtection().run();
-    deps.resetReloadableDisplayState().run();
     AuthenticationGate authenticationGate = new KnownAuthenticationGate(deps.plugin());
     WorldEditWandGuard worldEditWandGuard = new KnownWorldEditWandGuard(deps.plugin());
 
@@ -140,6 +200,7 @@ public final class ExortRuntimeFactory {
                 refresh.refreshNetworkFrom(block);
               }
             });
+    scope.own("relay setup tracker", relaySetupTracker::stop);
     RuntimeHologramConfig hologramConfig = RuntimeHologramConfig.forMode(deps.resourceMode());
     RuntimeDisplayServices displayServices =
         RuntimeDisplayServicesFactory.create(
@@ -164,11 +225,12 @@ public final class ExortRuntimeFactory {
                 () -> state.busService,
                 () -> wirelessTransmitterService,
                 () -> transmitterSessionManager,
-                () -> {
+                chunk -> {
                   if (deps.networkGraphCache().get() != null) {
-                    deps.networkGraphCache().get().invalidateAll();
+                    deps.networkGraphCache().get().invalidateChunk(chunk);
                   }
                 }));
+    scope.own("display services", () -> stopDisplayServices(displayServices));
     state.displayRefreshService = displayServices.displayRefreshService();
 
     BusRuntimeConfig busRuntime = BusRuntimeConfig.fromConfig(deps.config());
@@ -193,6 +255,8 @@ public final class ExortRuntimeFactory {
                 deps.guiRuntimeConfig(),
                 deps.guiOverlayConfig(),
                 deps.renderStorage()));
+    scope.own("bus sessions", busServices.busSessionManager()::shutdown);
+    scope.own("bus service", busServices.busService()::stop);
     state.busService = busServices.busService();
 
     RuntimeBreakingServices breakingServices =
@@ -207,6 +271,7 @@ public final class ExortRuntimeFactory {
                 displayServices.wireDisplayManager(),
                 displayServices.displayRefreshService(),
                 deps.storageManager(),
+                storageClaimRegistry,
                 deps.sessionManager(),
                 () -> displayServices.monitorDisplayManager(),
                 () -> busServices.busSessionManager(),
@@ -220,14 +285,15 @@ public final class ExortRuntimeFactory {
                 transmitterSessionManager,
                 chunkLoaderService,
                 packetEnhancements));
+    scope.own("custom block breaker", breakingServices.customBlockBreaker()::shutdown);
 
-    boolean dialogSupported = detectDialogSupport(deps);
     RuntimeListenerRegistration listenerRegistration =
         RuntimeListenerRegistrar.register(
             new RuntimeListenerDependencies(
                 deps.plugin(),
                 deps.database(),
                 deps.storageManager(),
+                storageClaimRegistry,
                 deps.sessionManager(),
                 deps.keys(),
                 customItems,
@@ -276,19 +342,28 @@ public final class ExortRuntimeFactory {
                 deps.transmitterPlacedRecorder(),
                 deps.transmitterRecentlyPlaced()),
             PlacementGuardConfig.fromConfig(deps.config()));
+    scope.own("Bukkit runtime listeners", () -> HandlerList.unregisterAll(deps.plugin()));
+    if (listenerRegistration.placementGuard() != null) {
+      scope.own("placement guard", listenerRegistration.placementGuard()::stop);
+    }
+    scope.own("storage claim reconciliation", listenerRegistration.storageClaimReconciler()::close);
+    scope.own("recipes", listenerRegistration.recipeService()::unregisterAll);
 
-    RuntimePostRefreshScheduler.schedule(
-        new RuntimePostRefreshScheduler.RuntimePostRefreshDependencies(
-            deps.plugin(),
-            deps.networkGraphCache(),
-            displayServices.displayRefreshService(),
-            deps.storageManager(),
-            deps.inventoryRefreshService()));
+    RuntimePostRefreshScheduler.Registration postRefresh =
+        RuntimePostRefreshScheduler.schedule(
+            new RuntimePostRefreshScheduler.RuntimePostRefreshDependencies(
+                deps.plugin(),
+                deps.networkGraphCache(),
+                displayServices.displayRefreshService(),
+                deps.storageManager(),
+                deps.inventoryRefreshService()));
+    scope.own("post-runtime refresh", postRefresh::close);
     WorldEditBridgeDependencies worldEditDependencies =
         new WorldEditBridgeDependencies(
             deps.plugin(),
             deps.database(),
             deps.storageManager(),
+            storageClaimRegistry,
             deps.worldEditDebugService(),
             deps.networkGraphCache(),
             displayServices::displayRefreshService,
@@ -306,21 +381,26 @@ public final class ExortRuntimeFactory {
                 materials.relayCarrier(),
                 materials.transmitterCarrier(),
                 materials.chunkLoaderCarrier()),
-            WorldEditBulkConfig.fromConfig(deps.config()));
-    WorldEditIntegration worldEditIntegration =
+            WorldEditBulkConfig.fromConfig(deps.config()),
+            deps.config().getBoolean("integrations.fawe.autoConfigure", false));
+    WorldEditRuntimeBootstrap.Registration worldEditRegistration =
         WorldEditRuntimeBootstrap.register(
             worldEditDependencies, deps.tryRegisterWorldEdit(), deps.worldEditIntegrationSink());
+    scope.own("WorldEdit integration lifecycle", worldEditRegistration::close);
+    WorldEditIntegration worldEditIntegration = worldEditRegistration.current();
     if (deps.runtimeTasks() != null) {
-      deps.runtimeTasks().schedule();
+      deps.runtimeTasks().schedule(StorageRuntimeConfig.fromConfig(deps.config()));
+      scope.own("runtime tasks", deps.runtimeTasks()::cancel);
     }
 
     return new ExortRuntimeServices(
-        langFuture,
+        itemNamesReload,
         customItems,
         wirelessService,
         wirelessTransmitterService,
         transmitterSessionManager,
         chunkLoaderService,
+        storageClaimRegistry,
         relaySetupTracker,
         materials,
         relayTraversalCarrier,
@@ -347,37 +427,60 @@ public final class ExortRuntimeFactory {
         listenerRegistration.recipeService(),
         packetEnhancements,
         listenerRegistration.placementGuard(),
-        worldEditIntegration,
-        dialogSupported);
+        worldEditIntegration);
   }
 
-  private static CompletableFuture<ItemNameService.Status> reloadLanguage(
+  private static void stopDisplayServices(RuntimeDisplayServices services) {
+    services.blockProxyService().stop();
+    services.displayCullingService().stop();
+    services.hologramManager().stop();
+    services.monitorDisplayManager().stop();
+  }
+
+  private static RuntimeItemNamesReload prepareLanguage(
       ExortRuntimeFactoryDependencies deps, boolean refreshItemDictionaries) {
     String langCode = deps.config().getString("language", "en_us");
     String normalized = deps.itemNameService().normalizeLanguage(langCode);
     Lang lang = deps.lang();
     lang.reload(normalized);
     deps.searchDialogService().invalidate();
-    CompletableFuture<ItemNameService.Status> langFuture =
-        refreshItemDictionaries
-            ? deps.itemNameService().refresh(normalized)
-            : deps.itemNameService().reload(normalized);
-    return langFuture;
+    return new RuntimeItemNamesReload(
+        () ->
+            refreshItemDictionaries
+                ? deps.itemNameService().refresh(normalized)
+                : deps.itemNameService().reload(normalized));
   }
 
   private static void loadStorageTiersConfig(ExortRuntimeFactoryDependencies deps) {
     File tiersFile = new File(deps.plugin().getDataFolder(), "storage-tiers.yml");
-    YamlConfiguration cfg = new YamlConfiguration();
     if (!tiersFile.exists()) {
-      StorageTier.loadFromConfig(cfg.getConfigurationSection("tiers"), deps.plugin().getLogger());
+      keepLastTierCatalogOrFail("storage-tiers.yml does not exist", null);
       return;
     }
+    YamlConfiguration cfg = new YamlConfiguration();
     try {
       cfg.load(tiersFile);
     } catch (Exception e) {
-      ExortLog.warn("Failed to load storage-tiers.yml: " + e.getMessage());
+      keepLastTierCatalogOrFail("Failed to load storage-tiers.yml", e);
+      return;
     }
-    StorageTier.loadFromConfig(cfg.getConfigurationSection("tiers"), deps.plugin().getLogger());
+    if (!StorageTier.loadFromConfig(
+        cfg.getConfigurationSection("tiers"), deps.plugin().getLogger())) {
+      keepLastTierCatalogOrFail("storage-tiers.yml did not contain a valid tier catalog", null);
+    }
+  }
+
+  private static void keepLastTierCatalogOrFail(String message, Exception cause) {
+    if (StorageTier.allTiers().isEmpty()) {
+      throw new IllegalStateException(
+          message + " and no last-known-good catalog is available", cause);
+    }
+    if (cause == null) {
+      ExortLog.error(message + "; keeping the last-known-good storage tier catalog.");
+    } else {
+      ExortLog.error(
+          message + "; keeping the last-known-good storage tier catalog: " + cause.getMessage());
+    }
   }
 
   private static CustomItems createCustomItems(
@@ -432,20 +535,6 @@ public final class ExortRuntimeFactory {
         materials.transmitterCarrier(),
         networkConfig.relayEnabled() ? materials.relayCarrier() : null,
         deps.networkGraphCache());
-  }
-
-  private static boolean detectDialogSupport(ExortRuntimeFactoryDependencies deps) {
-    try {
-      Class.forName(
-          "io.papermc.paper.dialog.Dialog", false, deps.plugin().getClass().getClassLoader());
-      Class.forName(
-          "io.papermc.paper.event.player.PlayerCustomClickEvent",
-          false,
-          deps.plugin().getClass().getClassLoader());
-      return true;
-    } catch (ClassNotFoundException e) {
-      return false;
-    }
   }
 
   private static final class RuntimeServiceState {

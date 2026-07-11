@@ -203,6 +203,41 @@ class RecipeServiceTest {
     assertFalse(exortEntry.matches(new MarkerItemStack(Material.PAPER, null)));
   }
 
+  @Test
+  void recipePreflightRejectsWholeCandidateWhenOneRecipeIsMalformed() {
+    RecipeService service =
+        new RecipeService(
+            null,
+            new RecordingCustomItems(),
+            null,
+            FeatureAccessConfig::defaults,
+            testChoiceFactory());
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("shapeless.valid.result.item", "exort:wire");
+    config.set("shapeless.valid.ingredients", List.of("minecraft:redstone"));
+    config.set("shapeless.invalid.result.item", "exort:wire");
+    config.set("shapeless.invalid.ingredients", List.of("minecraft:not_a_material"));
+
+    assertFalse(service.validateRecipeConfig(config));
+  }
+
+  @Test
+  void recipePreflightAcceptsCompleteCandidateWithoutTouchingBukkitRegistry() {
+    RecipeService service =
+        new RecipeService(
+            null,
+            new RecordingCustomItems(),
+            null,
+            FeatureAccessConfig::defaults,
+            testChoiceFactory());
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("shapeless.valid.result.item", "exort:wire");
+    config.set("shapeless.valid.ingredients", List.of("minecraft:redstone"));
+
+    assertTrue(service.validateRecipeConfig(config));
+    assertTrue(service.discoveryEntries().isEmpty());
+  }
+
   private static final class RecordingCustomItems extends CustomItems {
     private ChunkLoaderType lastType;
 
@@ -295,6 +330,7 @@ class RecipeServiceTest {
   private static final class MarkerItemStack extends ItemStack {
     private final Material type;
     private final String marker;
+    private int amount = 1;
 
     private MarkerItemStack(Material type, String marker) {
       this.type = type;
@@ -307,6 +343,26 @@ class RecipeServiceTest {
     }
 
     @Override
+    public int getMaxStackSize() {
+      return 64;
+    }
+
+    @Override
+    public int getAmount() {
+      return amount;
+    }
+
+    @Override
+    public void setAmount(int amount) {
+      this.amount = amount;
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return false;
+    }
+
+    @Override
     public boolean isSimilar(ItemStack stack) {
       if (!(stack instanceof MarkerItemStack other)) {
         return false;
@@ -316,7 +372,9 @@ class RecipeServiceTest {
 
     @Override
     public ItemStack clone() {
-      return new MarkerItemStack(type, marker);
+      MarkerItemStack copy = new MarkerItemStack(type, marker);
+      copy.amount = amount;
+      return copy;
     }
   }
 }

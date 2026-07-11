@@ -16,6 +16,8 @@ message:
   relay_disabled: "تم تعطيل المرحلات من إعدادات الخادم."
   chunk_loader_duplicate: "محمّل الـ Chunk هذا نشط بالفعل في موضع آخر."
   chunk_loader_feature_disabled: "تم تعطيل محمّلات التشانك من إعدادات الخادم."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "محمّل الـ Chunk: النشطة."
   chunk_loader_disabled: "محمّل الـ Chunk: معطل."
   chunk_loader_already_enabled: "محمّل الـ Chunk: النشطة."

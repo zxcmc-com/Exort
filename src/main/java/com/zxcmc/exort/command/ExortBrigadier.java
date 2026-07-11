@@ -30,13 +30,8 @@ public final class ExortBrigadier {
 
   public LiteralCommandNode<CommandSourceStack> build() {
     LiteralArgumentBuilder<CommandSourceStack> root =
-        Commands.literal("exort")
-            .requires(source -> hasAnyPermission(sender(source)))
-            .executes(this::help);
-    root.then(
-        Commands.literal("help")
-            .requires(source -> hasAnyPermission(sender(source)))
-            .executes(this::help));
+        Commands.literal("exort").executes(this::help);
+    root.then(Commands.literal("help").executes(this::help));
 
     InventoryCommand inventoryCommand = new InventoryCommand(dependencies);
     root.then(inventoryCommand.build("inventory"));
@@ -68,39 +63,40 @@ public final class ExortBrigadier {
   }
 
   private LiteralArgumentBuilder<CommandSourceStack> versionCommand(String literal) {
-    return Commands.literal(literal)
-        .requires(source -> hasAdminPermission(sender(source)))
-        .executes(this::version);
+    return Commands.literal(literal).executes(this::version);
   }
 
   private int help(CommandContext<CommandSourceStack> context) {
     CommandSender sender = sender(context.getSource());
-    if (!hasAnyPermission(sender)) {
-      sendMessage(sender, lang().tr(sender, "message.no_permission"));
-      return 0;
-    }
     Lang lang = lang();
     CommandFeedback.sendBlock(
         sender,
         Component.text(lang.tr(sender, "message.help_header")),
-        rootHelpLines(lang, sender, hasAdminPermission(sender)));
+        rootHelpLines(lang, sender, hasAdminPermission(sender), hasGivePermission(sender)));
     return 1;
   }
 
   static List<Component> rootHelpLines(Lang lang, boolean admin) {
-    return rootHelpLines(lang, null, admin);
+    return rootHelpLines(lang, null, admin, admin);
   }
 
   static List<Component> rootHelpLines(Lang lang, CommandSender sender, boolean admin) {
+    return rootHelpLines(lang, sender, admin, admin);
+  }
+
+  static List<Component> rootHelpLines(
+      Lang lang, CommandSender sender, boolean admin, boolean give) {
     List<Component> lines = new ArrayList<>();
-    lines.add(helpLine(lang, sender, "/exort inventory", "message.help_inventory"));
-    lines.add(helpLine(lang, sender, "/exort give", "message.help_give"));
+    lines.add(helpLine(lang, sender, "/exort version", "message.help_version"));
+    if (give) {
+      lines.add(helpLine(lang, sender, "/exort inventory", "message.help_inventory"));
+      lines.add(helpLine(lang, sender, "/exort give", "message.help_give"));
+    }
     if (admin) {
       lines.add(helpLine(lang, sender, "/exort resourcepack", "message.help_resourcepack"));
       lines.add(helpLine(lang, sender, "/exort language", "message.help_language"));
       lines.add(helpLine(lang, sender, "/exort mode", "message.help_mode"));
       lines.add(helpLine(lang, sender, "/exort debug", "message.help_debug"));
-      lines.add(helpLine(lang, sender, "/exort version", "message.help_version"));
       lines.add(helpLine(lang, sender, "/exort reload", "message.help_reload"));
     }
     return List.copyOf(lines);
@@ -132,7 +128,6 @@ public final class ExortBrigadier {
   }
 
   private int version(CommandContext<CommandSourceStack> context) {
-    if (!ensurePermission(context)) return 0;
     sendMessage(
         sender(context.getSource()),
         lang()
@@ -165,10 +160,6 @@ public final class ExortBrigadier {
     if (hasAdminPermission(sender)) return true;
     sendMessage(sender, lang().tr(sender, "message.no_permission"));
     return false;
-  }
-
-  private static boolean hasAnyPermission(CommandSender sender) {
-    return hasGivePermission(sender);
   }
 
   private static boolean hasGivePermission(CommandSender sender) {

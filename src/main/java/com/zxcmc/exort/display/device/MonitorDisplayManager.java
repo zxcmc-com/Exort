@@ -16,6 +16,7 @@ import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StoredItemCodec;
 import com.zxcmc.exort.text.ExortText;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -94,6 +95,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private final Map<String, Set<MonitorPos>> monitorsByStorage = new HashMap<>();
   private final Set<MonitorPos> queuedMonitorRefreshes = new LinkedHashSet<>();
   private final Map<String, Long> loadAttempts = new HashMap<>();
+  private final StoredItemCodec itemCodec = new StoredItemCodec();
   private int taskId = -1;
   private int refreshTaskId = -1;
   private int sanityCursor = 0;
@@ -415,13 +417,13 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       updateEmptyText(block, storageId, tier, modelId, prev);
       return;
     }
-    byte[] blob = itemBlobOpt.get();
-    ItemStack sample = ItemKeyUtil.deserialize(blob);
-    if (sample == null || sample.getType() == Material.AIR) {
+    String itemKey = itemKeyOpt.get();
+    StoredItemCodec.Preflight persisted = itemCodec.decodePersisted(itemKey, itemBlobOpt.get());
+    if (!persisted.accepted()) {
       updateEmptyText(block, storageId, tier, modelId, prev);
       return;
     }
-    String itemKey = itemKeyOpt.get();
+    ItemStack sample = persisted.item().sample();
 
     ScreenConfig activeItemConfig = screenConfigFor(sample);
     boolean horizontal = activeItemConfig == horizontalBlockConfig;

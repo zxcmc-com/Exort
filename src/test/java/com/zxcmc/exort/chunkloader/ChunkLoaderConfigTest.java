@@ -32,6 +32,38 @@ class ChunkLoaderConfigTest {
   }
 
   @Test
+  void limitsUseSafeDefaultsAndClampOperationalValues() {
+    YamlConfiguration config = new YamlConfiguration();
+
+    ChunkLoaderLimits defaults = ChunkLoaderConfig.fromConfig(config, null).limits();
+
+    assertEquals(ChunkLoaderLimits.DEFAULT_MAX_ACTIVE_LOADERS, defaults.maxActiveLoaders());
+    assertEquals(
+        ChunkLoaderLimits.DEFAULT_MAX_ACTIVE_LOADERS_PER_WORLD,
+        defaults.maxActiveLoadersPerWorld());
+    assertEquals(
+        ChunkLoaderLimits.DEFAULT_MAX_ACTIVE_LOADERS_PER_PLAYER,
+        defaults.maxActiveLoadersPerPlayer());
+    assertEquals(ChunkLoaderLimits.DEFAULT_MAX_UNIQUE_CHUNKS, defaults.maxUniqueChunks());
+    assertEquals(
+        ChunkLoaderLimits.DEFAULT_MAX_UNIQUE_CHUNKS_PER_WORLD, defaults.maxUniqueChunksPerWorld());
+
+    config.set("chunkLoader.limits.maxActiveLoaders", Integer.MAX_VALUE);
+    config.set("chunkLoader.limits.maxActiveLoadersPerWorld", -1);
+    config.set("chunkLoader.limits.maxActiveLoadersPerPlayer", 0);
+    config.set("chunkLoader.limits.maxUniqueChunks", Integer.MAX_VALUE);
+    config.set("chunkLoader.limits.maxUniqueChunksPerWorld", -100);
+
+    ChunkLoaderLimits clamped = ChunkLoaderConfig.fromConfig(config, null).limits();
+
+    assertEquals(ChunkLoaderLimits.MAX_ACTIVE_LOADERS, clamped.maxActiveLoaders());
+    assertEquals(ChunkLoaderLimits.MIN_ACTIVE_LOADERS, clamped.maxActiveLoadersPerWorld());
+    assertEquals(ChunkLoaderLimits.MIN_ACTIVE_LOADERS, clamped.maxActiveLoadersPerPlayer());
+    assertEquals(ChunkLoaderLimits.MAX_UNIQUE_CHUNKS, clamped.maxUniqueChunks());
+    assertEquals(ChunkLoaderLimits.MIN_UNIQUE_CHUNKS, clamped.maxUniqueChunksPerWorld());
+  }
+
+  @Test
   void auditUsesPublicCamelCaseInventoryMoveKey() {
     YamlConfiguration config = new YamlConfiguration();
     config.set("chunkLoader.audit.events.inventoryMove", true);
@@ -110,6 +142,18 @@ class ChunkLoaderConfigTest {
 
     assertEquals(16, audit.file().maxSizeBytes());
     assertEquals(2, audit.file().maxFiles());
+  }
+
+  @Test
+  void auditFileRotationValuesHaveDiskUsageBounds() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("chunkLoader.audit.file.maxSizeBytes", Long.MAX_VALUE);
+    config.set("chunkLoader.audit.file.maxFiles", Integer.MAX_VALUE);
+
+    ChunkLoaderAuditConfig audit = ChunkLoaderAuditConfig.fromConfig(config);
+
+    assertEquals(ChunkLoaderAuditFileConfig.MAX_SIZE_BYTES, audit.file().maxSizeBytes());
+    assertEquals(ChunkLoaderAuditFileConfig.MAX_FILES, audit.file().maxFiles());
   }
 
   @Test

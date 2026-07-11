@@ -25,6 +25,8 @@ import org.bukkit.inventory.ItemStack;
 public final class ExortGiveMenu implements InventoryHolder {
   static final int SIZE = 54;
   static final String TITLE = "Exort Storage Network";
+  private static final String PERMISSION_ADMIN = "exort.storagenetwork.admin";
+  private static final String PERMISSION_GIVE = "exort.storagenetwork.give";
 
   private static final List<String> FIXED_ITEM_IDS = CustomItemRegistry.fixedItemIds();
 
@@ -118,11 +120,15 @@ public final class ExortGiveMenu implements InventoryHolder {
     }
 
     event.setCancelled(true);
-    if (!topSlot) {
-      destroyShiftClickedItem(event);
+    if (!(event.getWhoClicked() instanceof Player player)) {
       return;
     }
-    if (!(event.getWhoClicked() instanceof Player player)) {
+    if (!canMutate(player)) {
+      player.closeInventory();
+      return;
+    }
+    if (!topSlot) {
+      destroyShiftClickedItem(event);
       return;
     }
 
@@ -137,14 +143,27 @@ public final class ExortGiveMenu implements InventoryHolder {
       return;
     }
     ItemStack copy = copyForDelivery(sample);
-    issueLogger.accept(player, copy);
     if (event.isShiftClick()) {
-      player.getInventory().addItem(copy);
+      CommandItemDelivery.Result result =
+          CommandItemDelivery.deliver(player, () -> copy.clone(), copy.getAmount());
+      int deliveredAmount = result.total();
+      if (result.undelivered() > 0 && isEmpty(event.getView().getCursor())) {
+        ItemStack cursorFallback = copy.clone();
+        cursorFallback.setAmount(result.undelivered());
+        event.getView().setCursor(cursorFallback);
+        deliveredAmount += result.undelivered();
+      }
+      if (deliveredAmount > 0) {
+        ItemStack delivered = copy.clone();
+        delivered.setAmount(deliveredAmount);
+        issueLogger.accept(player, delivered);
+      }
       return;
     }
     if ((click == ClickType.LEFT || click == ClickType.RIGHT)
         && isEmpty(event.getView().getCursor())) {
       event.getView().setCursor(copy);
+      issueLogger.accept(player, copy);
     }
   }
 
@@ -203,6 +222,11 @@ public final class ExortGiveMenu implements InventoryHolder {
 
   static boolean canDestroyCustomItem(boolean customItem, boolean hasStorageId) {
     return customItem && !hasStorageId;
+  }
+
+  static boolean canMutate(Player player) {
+    return player != null
+        && (player.hasPermission(PERMISSION_GIVE) || player.hasPermission(PERMISSION_ADMIN));
   }
 
   private static List<ItemStack> catalogItems(

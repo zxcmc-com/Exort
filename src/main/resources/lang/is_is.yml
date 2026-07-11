@@ -16,6 +16,8 @@ message:
   relay_disabled: "Netrelé eru óvirk í serverstillingum."
   chunk_loader_duplicate: "Þessi chunk-hleðari er þegar virkur á annarri staðsetningu."
   chunk_loader_feature_disabled: "Chunk-hleðarar eru óvirkir í serverstillingum."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk-hleðari: Virkt."
   chunk_loader_disabled: "Chunk-hleðari: Óvirkt."
   chunk_loader_already_enabled: "Chunk-hleðari: Virkt."

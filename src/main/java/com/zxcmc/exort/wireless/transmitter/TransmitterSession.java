@@ -1,5 +1,6 @@
 package com.zxcmc.exort.wireless.transmitter;
 
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.gui.GuiItems;
 import com.zxcmc.exort.i18n.Lang;
@@ -194,12 +195,12 @@ public final class TransmitterSession implements InventoryHolder {
 
   private void storeFromCursor(InventoryClickEvent event, ItemStack cursor) {
     if (storedTerminal().isPresent()) {
-      playerFeedback.warn(viewer, "message.wireless.transmitter_slot_occupied");
+      transmitterInputDenied("message.wireless.transmitter_slot_occupied");
       render();
       return;
     }
     if (!wirelessService.isWireless(cursor)) {
-      playerFeedback.error(viewer, "message.wireless.transmitter_terminal_only");
+      transmitterInputDenied("message.wireless.transmitter_terminal_only");
       render();
       return;
     }
@@ -210,7 +211,7 @@ public final class TransmitterSession implements InventoryHolder {
       return;
     }
     if (!saveStoredTerminal(toStore)) {
-      playerFeedback.error(viewer, "message.operation_failed");
+      operationFailed();
       render();
       return;
     }
@@ -221,13 +222,41 @@ public final class TransmitterSession implements InventoryHolder {
   }
 
   private void takeStoredToCursor(InventoryClickEvent event) {
-    TransmitterStoredTerminal.take(
-            plugin(), transmitter, wirelessService::isWireless, message -> ExortLog.warn(message))
-        .ifPresent(
-            stored -> {
-              ItemStack out = wirelessService.extractFromStorage(stored);
-              event.getView().setCursor(out);
-            });
+    TransmitterStoredTerminal.TakeReservation reservation =
+        TransmitterStoredTerminal.reserveTake(
+                plugin(),
+                transmitter,
+                wirelessService::isWireless,
+                message -> ExortLog.warn(message))
+            .orElse(null);
+    if (reservation != null && reservation.commit()) {
+      try {
+        ItemStack out = wirelessService.extractFromStorage(reservation.item());
+        event.getView().setCursor(out);
+      } catch (RuntimeException failure) {
+        boolean restored = false;
+        try {
+          restored = reservation.rollback();
+        } catch (RuntimeException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        if (!restored) {
+          try {
+            viewer.getWorld().dropItemNaturally(viewer.getLocation(), reservation.item());
+            ExortLog.warn(
+                "Wireless Terminal delivery failed; the item was dropped at the player: "
+                    + failure.getMessage());
+          } catch (RuntimeException dropFailure) {
+            ExortLog.error(
+                "Failed to restore or drop Wireless Terminal after transmitter delivery error: "
+                    + failure.getMessage()
+                    + "; fallback drop failed: "
+                    + dropFailure.getMessage());
+          }
+        }
+        operationFailed();
+      }
+    }
     render();
     refreshTransmitterDisplay();
   }
@@ -256,23 +285,23 @@ public final class TransmitterSession implements InventoryHolder {
 
   private boolean bindStoredTerminal(ItemStack stack) {
     if (!wirelessService.isEnabled() || !transmitterService.isEnabled()) {
-      playerFeedback.error(viewer, "message.wireless.disabled");
+      playerFeedback.respond(viewer, FeedbackReason.WIRELESS_ACCESS, "message.wireless.disabled");
       return true;
     }
     WirelessTransmitterService.Status status = transmitterService.status(transmitter);
     if (!status.active()) {
-      playerFeedback.error(viewer, "message.wireless.transmitter_inactive");
+      transmitterInputDenied("message.wireless.transmitter_inactive");
       return true;
     }
     if (!regionProtection.canUse(viewer, transmitter)
         || !regionProtection.canUse(viewer, status.storage().block())) {
-      playerFeedback.error(viewer, "message.no_permission");
+      playerFeedback.respond(viewer, FeedbackReason.WIRELESS_ACCESS, "message.no_permission");
       return true;
     }
     Location storageLocation = status.storage().block().getLocation();
     StorageTier tier = status.storage().tier();
     if (!wirelessService.bind(viewer, stack, status.storage().storageId(), tier, storageLocation)) {
-      playerFeedback.error(viewer, "message.operation_failed");
+      operationFailed();
       return true;
     }
     playerFeedback.success(viewer, "message.wireless.bound");
@@ -281,6 +310,14 @@ public final class TransmitterSession implements InventoryHolder {
 
   private boolean saveStoredTerminal(ItemStack stack) {
     return TransmitterStoredTerminal.set(plugin(), transmitter, stack, wirelessService::isWireless);
+  }
+
+  private void transmitterInputDenied(String key) {
+    playerFeedback.respond(viewer, FeedbackReason.TRANSMITTER_INPUT, key);
+  }
+
+  private void operationFailed() {
+    playerFeedback.respond(viewer, FeedbackReason.OPERATION_FAILURE, "message.operation_failed");
   }
 
   private java.util.Optional<ItemStack> storedTerminal() {

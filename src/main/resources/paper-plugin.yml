@@ -2,7 +2,7 @@ name: Exort
 version: "${version}"
 main: com.zxcmc.exort.core.ExortPlugin
 description: "${description}"
-api-version: "1.21.7"
+api-version: "1.21.11"
 authors: ["phantomfighterxx"]
 libraries:
   - org.xerial:sqlite-jdbc:3.45.3.0
@@ -69,3 +69,6 @@ permissions:
   exort.storagenetwork.give:
     description: Allows opening the Exort item inventory and using /exort give.
     default: "false"
+  exort.chunkloader.bypass-limits:
+    description: Allows newly placed Chunk Loaders to bypass configured loader and chunk limits.
+    default: op

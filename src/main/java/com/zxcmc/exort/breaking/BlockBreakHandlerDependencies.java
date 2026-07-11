@@ -12,6 +12,7 @@ import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
@@ -38,6 +39,7 @@ public record BlockBreakHandlerDependencies(
     DisplayRefreshService displayRefreshService,
     BreakAnimationSender breakAnimationSender,
     StorageManager storageManager,
+    StorageClaimRegistry storageClaimRegistry,
     SessionManager sessionManager,
     Supplier<MonitorDisplayManager> monitorDisplayManager,
     Supplier<BusSessionManager> busSessionManager,
@@ -60,6 +62,7 @@ public record BlockBreakHandlerDependencies(
     Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(chunkLoaderCarrier, "chunkLoaderCarrier");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");
     Objects.requireNonNull(sessionManager, "sessionManager");
     Objects.requireNonNull(monitorDisplayManager, "monitorDisplayManager");
     Objects.requireNonNull(busSessionManager, "busSessionManager");

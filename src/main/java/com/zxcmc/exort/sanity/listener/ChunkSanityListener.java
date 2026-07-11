@@ -1,6 +1,7 @@
 package com.zxcmc.exort.sanity.listener;
 
 import com.zxcmc.exort.sanity.ChunkSanityService;
+import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.event.EventHandler;
@@ -16,13 +17,13 @@ import org.bukkit.plugin.Plugin;
 public final class ChunkSanityListener implements Listener {
   private final Plugin plugin;
   private final ChunkSanityService service;
-  private final Runnable invalidateNetworkCache;
+  private final Consumer<Chunk> invalidateNetworkChunk;
 
   public ChunkSanityListener(
-      Plugin plugin, ChunkSanityService service, Runnable invalidateNetworkCache) {
+      Plugin plugin, ChunkSanityService service, Consumer<Chunk> invalidateNetworkChunk) {
     this.plugin = plugin;
     this.service = service;
-    this.invalidateNetworkCache = invalidateNetworkCache;
+    this.invalidateNetworkChunk = invalidateNetworkChunk;
   }
 
   @EventHandler
@@ -33,13 +34,13 @@ public final class ChunkSanityListener implements Listener {
             plugin,
             () -> {
               service.sanitizeChunk(event.getChunk());
-              invalidateNetworkCache.run();
+              invalidateNetworkChunk.accept(event.getChunk());
             });
   }
 
   @EventHandler
   public void onChunkUnload(ChunkUnloadEvent event) {
-    invalidateNetworkCache.run();
+    invalidateNetworkChunk.accept(event.getChunk());
   }
 
   public void sanitizeChunk(Chunk chunk) {

@@ -16,6 +16,8 @@ message:
   relay_disabled: "ქსელის რელეები სერვერის კონფიგურაციაში გამორთულია."
   chunk_loader_duplicate: "ეს ჩანკის ჩამტვირთავი უკვე აქტიურია სხვა ადგილას."
   chunk_loader_feature_disabled: "ჩანკის ჩამტვირთავები სერვერის კონფიგურაციაში გამორთულია."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "ჩანკის ჩამტვირთავი: აქტიური."
   chunk_loader_disabled: "ჩანკის ჩამტვირთავი: გამორთულია."
   chunk_loader_already_enabled: "ჩანკის ჩამტვირთავი: აქტიური."

@@ -22,7 +22,6 @@ import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import java.util.logging.Level;
-import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -62,28 +61,6 @@ public final class MarkerSanityService {
     this.relayCarrier = dependencies.relayCarrier();
     this.transmitterCarrier = dependencies.transmitterCarrier();
     this.chunkLoaderCarrier = dependencies.chunkLoaderCarrier();
-  }
-
-  public int repairFullChorusWires(Chunk chunk) {
-    if (chunk == null || chunk.getWorld() == null) return 0;
-    int repaired = 0;
-    int minY = chunk.getWorld().getMinHeight();
-    int maxY = chunk.getWorld().getMaxHeight();
-    int baseX = chunk.getX() << 4;
-    int baseZ = chunk.getZ() << 4;
-    for (int x = 0; x < 16; x++) {
-      for (int z = 0; z < 16; z++) {
-        for (int y = minY; y < maxY; y++) {
-          Block block = chunk.getWorld().getBlockAt(baseX + x, y, baseZ + z);
-          if (!Carriers.isFullChorus(block) || WireMarker.isWire(plugin, block)) {
-            continue;
-          }
-          repairFullChorusWire(block);
-          repaired++;
-        }
-      }
-    }
-    return repaired;
   }
 
   public CleanupResult cleanupStaleMarkers(Chunk chunk) {
@@ -199,9 +176,11 @@ public final class MarkerSanityService {
             return;
           }
           String storageId = data.get().storageId();
+          if (data.get().orphaned()) {
+            return;
+          }
           String tierKey = data.get().tier().key();
           long tierMaxItems = data.get().tierMaxItems();
-          boolean refreshAfterSync = data.get().fallback();
           database
               .setStorageTier(storageId, tierKey, tierMaxItems)
               .whenComplete(
@@ -214,25 +193,6 @@ public final class MarkerSanityService {
                               "Failed to repair storage tier for " + storageId,
                               unwrap(err));
                       return;
-                    }
-                    if (!refreshAfterSync || !plugin.isEnabled()) return;
-                    try {
-                      Bukkit.getScheduler()
-                          .runTask(
-                              plugin,
-                              () -> {
-                                if (!plugin.isEnabled()) return;
-                                var current = StorageMarker.get(plugin, block);
-                                if (current.isEmpty()
-                                    || !storageId.equals(current.get().storageId())
-                                    || !Carriers.matchesCarrier(block, storageCarrier)) {
-                                  return;
-                                }
-                                displayRefreshService.refreshStorage(block);
-                                registerStorageHologram(block);
-                              });
-                    } catch (IllegalStateException handoffFailure) {
-                      // Plugin is disabling between the async repair and the sync handoff.
                     }
                   });
         });
@@ -335,61 +295,6 @@ public final class MarkerSanityService {
       return err.getCause();
     }
     return err;
-  }
-
-  private void repairFullChorusWire(Block block) {
-    boolean hadStorage = StorageMarker.get(plugin, block).isPresent();
-    boolean hadStorageDisplay = hadStorage || StorageCoreMarker.isCore(plugin, block);
-    boolean hadTerminal = TerminalMarker.isTerminal(plugin, block);
-    boolean hadMonitor = MonitorMarker.isMonitor(plugin, block);
-    boolean hadBus = BusMarker.isBus(plugin, block);
-    boolean hadRelay = RelayMarker.isRelay(plugin, block);
-    boolean hadTransmitter = TransmitterMarker.isTransmitter(plugin, block);
-    boolean hadChunkLoader = ChunkLoaderMarker.isChunkLoader(plugin, block);
-
-    if (hadTransmitter) {
-      dropStoredTransmitterTerminal(block);
-    }
-    removeTaggedDisplaysAt(block);
-    StorageMarker.clear(plugin, block);
-    StorageCoreMarker.clear(plugin, block);
-    TerminalMarker.clear(plugin, block);
-    MonitorMarker.clear(plugin, block);
-    BusMarker.clear(plugin, block);
-    RelayMarker.unlinkLoadedPair(plugin, block);
-    RelayMarker.clear(plugin, block);
-    TransmitterMarker.clear(plugin, block);
-    ChunkLoaderMarker.clear(plugin, block);
-    WireMarker.setWire(plugin, block);
-    Carriers.applyCarrier(block, wireCarrier);
-
-    if (hadStorageDisplay) {
-      displayRefreshService.removeStorageDisplay(block);
-      unregisterStorageHologram(block);
-    }
-    if (hadTerminal) {
-      displayRefreshService.removeTerminalDisplay(block);
-      unregisterTerminalHologram(block);
-    }
-    if (hadMonitor) {
-      displayRefreshService.removeMonitorDisplay(block);
-    }
-    if (hadBus) {
-      displayRefreshService.removeBusDisplay(block);
-      unregisterBus(block);
-    }
-    if (hadRelay) {
-      displayRefreshService.removeRelayDisplay(block);
-    }
-    if (hadTransmitter) {
-      unregisterTransmitter(block);
-      displayRefreshService.removeTransmitterDisplay(block);
-    }
-    if (hadChunkLoader) {
-      displayRefreshService.removeChunkLoaderDisplay(block);
-    }
-    displayRefreshService.refreshWireAndNeighbors(block);
-    displayRefreshService.refreshNetworkFrom(block);
   }
 
   private void removeTaggedDisplaysAt(Block block) {

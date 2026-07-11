@@ -16,6 +16,8 @@ message:
   relay_disabled: "Les relais réseau sont désactivés par la configuration du serveur."
   chunk_loader_duplicate: "Ce chargeur de chunks est déjà actif à un autre emplacement."
   chunk_loader_feature_disabled: "Les chargeurs de chunks sont désactivés par la configuration du serveur."
+  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chargeur de chunks: Actif."
   chunk_loader_disabled: "Chargeur de chunks: Désactivé."
   chunk_loader_already_enabled: "Chargeur de chunks: Actif."

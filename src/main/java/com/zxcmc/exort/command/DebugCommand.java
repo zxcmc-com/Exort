@@ -509,12 +509,7 @@ final class DebugCommand {
   }
 
   private static String chunkLoaderTpCommand(ChunkLoaderRecord record) {
-    return "/minecraft:tp "
-        + (record.x() + 0.5D)
-        + " "
-        + (record.y() + 1)
-        + " "
-        + (record.z() + 0.5D);
+    return teleportCommand(record.worldKey(), record.x() + 0.5D, record.y() + 1, record.z() + 0.5D);
   }
 
   private Component chunkLoaderRegistryLine(
@@ -578,7 +573,7 @@ final class DebugCommand {
     return switch (state) {
       case TICKETED -> NamedTextColor.GREEN;
       case SLEEPING, OWNER_GRACE -> NamedTextColor.YELLOW;
-      case FEATURE_DISABLED, OWNER_OFFLINE, WORLD_UNAVAILABLE -> NamedTextColor.RED;
+      case FEATURE_DISABLED, OWNER_OFFLINE, WORLD_UNAVAILABLE, QUOTA_BLOCKED -> NamedTextColor.RED;
       case DISABLED, REGISTERED, MISSING -> NamedTextColor.GRAY;
     };
   }
@@ -587,12 +582,16 @@ final class DebugCommand {
     if (!record.hasLastSeenLocation()) {
       return "/minecraft:tp";
     }
-    return "/minecraft:tp "
-        + record.lastSeenX()
-        + " "
-        + record.lastSeenY()
-        + " "
-        + record.lastSeenZ();
+    return teleportCommand(
+        record.lastSeenWorldKey(), record.lastSeenX(), record.lastSeenY(), record.lastSeenZ());
+  }
+
+  static String teleportCommand(String worldKey, double x, double y, double z) {
+    String coordinates = x + " " + y + " " + z;
+    if (worldKey == null || !worldKey.matches("[a-z0-9._-]+:[a-z0-9/._-]+")) {
+      return "/minecraft:tp " + coordinates;
+    }
+    return "/minecraft:execute in " + worldKey + " run minecraft:tp @s " + coordinates;
   }
 
   private static String formatCoord(Double value) {

@@ -20,7 +20,8 @@ public final class StorageMarker {
   private static final String FIELD_TIER_MAX_ITEMS = "tierMaxItems";
   private static final String FIELD_FACING = "facing";
   private static final String FIELD_NAME = "name";
-  private static final Set<String> WARNED_FALLBACKS = ConcurrentHashMap.newKeySet();
+  private static final String FIELD_CLAIM_CONFLICT = "claimConflict";
+  private static final Set<String> WARNED_ORPHANS = ConcurrentHashMap.newKeySet();
   private static final Set<String> WARNED_UNUSABLE = ConcurrentHashMap.newKeySet();
 
   public record Data(
@@ -28,11 +29,11 @@ public final class StorageMarker {
       StorageTier tier,
       BlockFace facing,
       long tierMaxItems,
-      boolean fallback,
+      boolean orphaned,
       String displayName) {
     public Data(
-        String storageId, StorageTier tier, BlockFace facing, long tierMaxItems, boolean fallback) {
-      this(storageId, tier, facing, tierMaxItems, fallback, null);
+        String storageId, StorageTier tier, BlockFace facing, long tierMaxItems, boolean orphaned) {
+      this(storageId, tier, facing, tierMaxItems, orphaned, null);
     }
 
     public Data {
@@ -97,6 +98,16 @@ public final class StorageMarker {
     } else {
       ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_NAME);
     }
+    ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_CLAIM_CONFLICT);
+  }
+
+  /** Keeps a non-authoritative physical duplicate visible but prevents item mutations. */
+  public static void setClaimConflict(Plugin plugin, Block block, boolean conflict) {
+    if (conflict) {
+      ChunkMarkerStore.setLong(plugin, block, SECTION, FIELD_CLAIM_CONFLICT, 1L);
+    } else {
+      ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_CLAIM_CONFLICT);
+    }
   }
 
   public static Optional<Data> get(Plugin plugin, Block block) {
@@ -112,6 +123,10 @@ public final class StorageMarker {
       return Optional.empty();
     }
     StorageTierResolver.Resolution resolved = resolution.get();
+    boolean claimConflict =
+        ChunkMarkerStore.getLong(plugin, block, SECTION, FIELD_CLAIM_CONFLICT).orElse(0L) != 0L;
+    StorageTier resolvedTier =
+        claimConflict ? StorageTier.readOnlySnapshot(resolved.tier()) : resolved.tier();
     BlockFace facing = null;
     String facingRaw =
         ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_FACING).orElse(null);
@@ -122,31 +137,18 @@ public final class StorageMarker {
         facing = null;
       }
     }
-    boolean rewriteTier = !resolved.tier().key().equals(tierKey);
-    boolean rewriteMaxItems =
-        storedMaxItems == null || storedMaxItems.longValue() != resolved.tierMaxItems();
-    if (rewriteTier || rewriteMaxItems) {
-      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_TIER, resolved.tier().key());
-      ChunkMarkerStore.setLong(
-          plugin, block, SECTION, FIELD_TIER_MAX_ITEMS, resolved.tierMaxItems());
-    }
-    if (resolved.fallback()) {
-      warnFallback(plugin, storageId, tierKey, storedMaxItems, resolved);
+    if (resolved.orphaned()) {
+      warnOrphaned(plugin, storageId, tierKey, storedMaxItems);
     }
     String nameRaw = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_NAME).orElse(null);
     String displayName = StorageDisplayName.normalize(nameRaw);
-    if (displayName == null && nameRaw != null) {
-      ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_NAME);
-    } else if (displayName != null && !displayName.equals(nameRaw)) {
-      ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_NAME, displayName);
-    }
     return Optional.of(
         new Data(
             storageId,
-            resolved.tier(),
+            resolvedTier,
             facing,
             resolved.tierMaxItems(),
-            resolved.fallback(),
+            resolved.orphaned(),
             displayName));
   }
 
@@ -160,26 +162,9 @@ public final class StorageMarker {
     ChunkMarkerStore.clearSection(plugin, block, SECTION);
   }
 
-  private static void warnFallback(
-      Plugin plugin,
-      String storageId,
-      String missingTier,
-      Long storedMaxItems,
-      StorageTierResolver.Resolution resolved) {
-    if (plugin == null || !WARNED_FALLBACKS.add(storageId + ":" + missingTier)) return;
-    if (resolved.missingSnapshot()) {
-      plugin
-          .getLogger()
-          .warning(
-              "Storage "
-                  + storageId
-                  + " references missing tier '"
-                  + missingTier
-                  + "' without tierMaxItems snapshot; migrated to smallest configured tier "
-                  + resolved.tier().key()
-                  + ".");
-      return;
-    }
+  private static void warnOrphaned(
+      Plugin plugin, String storageId, String missingTier, Long storedMaxItems) {
+    if (plugin == null || !WARNED_ORPHANS.add(storageId + ":" + missingTier)) return;
     plugin
         .getLogger()
         .warning(
@@ -189,9 +174,8 @@ public final class StorageMarker {
                 + missingTier
                 + "' with tierMaxItems="
                 + storedMaxItems
-                + "; migrated to "
-                + resolved.tier().key()
-                + ".");
+                + "; preserving the raw tier snapshot in read-only orphaned state. Restore the"
+                + " tier or explicitly repair the storage metadata before allowing mutations.");
   }
 
   private static void warnUnusable(Plugin plugin, String storageId, String missingTier) {

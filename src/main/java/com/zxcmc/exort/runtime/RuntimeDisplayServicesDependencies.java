@@ -11,7 +11,9 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -37,7 +39,7 @@ public record RuntimeDisplayServicesDependencies(
     Supplier<BusService> busService,
     Supplier<WirelessTransmitterService> wirelessTransmitterService,
     Supplier<TransmitterSessionManager> transmitterSessionManager,
-    Runnable invalidateNetwork) {
+    Consumer<Chunk> invalidateNetworkChunk) {
   public RuntimeDisplayServicesDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(config, "config");
@@ -53,6 +55,6 @@ public record RuntimeDisplayServicesDependencies(
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
     Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
-    Objects.requireNonNull(invalidateNetwork, "invalidateNetwork");
+    Objects.requireNonNull(invalidateNetworkChunk, "invalidateNetworkChunk");
   }
 }

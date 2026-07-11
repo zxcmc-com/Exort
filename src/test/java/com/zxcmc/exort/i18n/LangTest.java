@@ -97,6 +97,8 @@ class LangTest {
             "message.wire.hard_cap",
             "message.relay_disabled",
             "message.chunk_loader_feature_disabled",
+            "message.chunk_loader_initializing",
+            "message.chunk_loader_limit_reached",
             "message.chunk_loader_enabled",
             "message.chunk_loader_disabled",
             "message.chunk_loader_already_enabled",
@@ -156,6 +158,18 @@ class LangTest {
       languageFiles = files.filter(path -> path.toString().endsWith(".yml")).count();
     }
     assertEquals(0, languageFiles);
+  }
+
+  @Test
+  void unavailableLanguageDirectoryFallsBackToBundledLanguages() throws Exception {
+    Path occupiedDataFolder = tempDir.resolve("occupied-data-folder");
+    Files.writeString(occupiedDataFolder, "keep-me");
+    Lang lang = new Lang(null, occupiedDataFolder.toFile(), Path.of("src/main/resources"));
+
+    lang.load("ru_ru");
+
+    assertEquals("Основа хранилища", lang.tr("item.storage_core"));
+    assertEquals("keep-me", Files.readString(occupiedDataFolder));
   }
 
   @Test
