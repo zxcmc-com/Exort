@@ -3,6 +3,7 @@ package com.zxcmc.exort.wireless;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.i18n.Lang;
@@ -16,17 +17,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.plugin.Plugin;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class WirelessTerminalServiceStoredChargeTest {
+  @BeforeEach
+  void loadStorageTier() {
+    YamlConfiguration tiers = new YamlConfiguration();
+    tiers.set("common.maxItems", "1p");
+    tiers.set("common.material", "CHEST");
+    tiers.set("common.name", "Common");
+    com.zxcmc.exort.storage.StorageTier.loadFromConfig(tiers, Logger.getLogger("test"));
+  }
+
   @Test
   void inactiveStoredTerminalPausesChargingAtComputedCharge() {
     Harness harness = harness();
@@ -102,6 +118,36 @@ class WirelessTerminalServiceStoredChargeTest {
     assertFalse(result.meta.pdc.has(harness.keys.wirelessStorageId()));
   }
 
+  @Test
+  void bindReplacesExistingOwnerAndStorageAndUnbindClearsBoth() {
+    Harness harness = harness();
+    TestItemStack terminal = terminal(harness, 73);
+    terminal.meta.pdc.set(harness.keys.wirelessOwner(), UUID.randomUUID().toString());
+    terminal.meta.pdc.set(harness.keys.wirelessStorageId(), UUID.randomUUID().toString());
+    UUID ownerId = UUID.randomUUID();
+    Player owner = player(ownerId, "Owner");
+    String storageId = UUID.randomUUID().toString();
+    var world = BukkitTestDoubles.world("wireless-bind", UUID.randomUUID());
+    var storageLocation = new Location(world.world(), 8, 64, 8);
+
+    assertTrue(
+        harness.service.bind(
+            owner,
+            terminal,
+            storageId,
+            com.zxcmc.exort.storage.StorageTier.fromString("common").orElseThrow(),
+            storageLocation));
+    assertEquals(ownerId.toString(), harness.service.owner(terminal));
+    assertEquals(storageId, harness.service.storageId(terminal));
+    assertEquals(73, harness.service.currentCharge(terminal));
+
+    harness.service.unbind(terminal);
+
+    assertFalse(harness.service.isLinked(terminal));
+    assertNull(harness.service.owner(terminal));
+    assertEquals(73, harness.service.currentCharge(terminal));
+  }
+
   private static Harness harness() {
     Plugin plugin = BukkitTestDoubles.plugin();
     StorageKeys keys = new StorageKeys(plugin);
@@ -128,6 +174,22 @@ class WirelessTerminalServiceStoredChargeTest {
             "minecraft:target",
             true);
     return new Harness(keys, new WirelessTerminalService(lang, keys, customItems, true, 48));
+  }
+
+  private static Player player(UUID id, String name) {
+    return (Player)
+        Proxy.newProxyInstance(
+            WirelessTerminalServiceStoredChargeTest.class.getClassLoader(),
+            new Class<?>[] {Player.class},
+            (proxy, method, args) ->
+                switch (method.getName()) {
+                  case "getUniqueId" -> id;
+                  case "getName" -> name;
+                  case "toString" -> name;
+                  case "hashCode" -> System.identityHashCode(proxy);
+                  case "equals" -> args != null && args.length == 1 && proxy == args[0];
+                  default -> BukkitTestDoubles.defaultValue(method.getReturnType());
+                });
   }
 
   private static TestItemStack terminal(Harness harness, int charge) {

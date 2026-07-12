@@ -16,7 +16,7 @@ message:
   relay_disabled: "Network Relays are disabled by server configuration."
   chunk_loader_duplicate: "This Chunk Loader is already active at another position."
   chunk_loader_feature_disabled: "Chunk Loaders are disabled by server configuration."
-  chunk_loader_initializing: "Chunk Loaders are still initializing. Try again in a moment."
+  chunk_loader_initializing: "Chunk Loaders are still initialising. Try again in a moment."
   chunk_loader_limit_reached: "Chunk Loader limit reached. Ask a server administrator to review the limits."
   chunk_loader_enabled: "Chunk Loader: Active."
   chunk_loader_disabled: "Chunk Loader: Disabled."

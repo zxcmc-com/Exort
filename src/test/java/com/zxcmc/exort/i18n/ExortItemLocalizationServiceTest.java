@@ -65,6 +65,22 @@ class ExortItemLocalizationServiceTest {
   }
 
   @Test
+  void replacesStalePersistedExortNameForEachRequestedLanguage() {
+    Harness harness = harness("ru_ru");
+    TestItemStack item = item(Material.PAPER, 1);
+    item.meta.pdc.set(harness.keys.type(), "monitor");
+    item.meta.itemName = Component.text("Монитор хранилища");
+
+    ItemStack english = harness.service.localize(item, "en_us");
+    ItemStack german = harness.service.localize(item, "de_de");
+
+    assertEquals("Монитор хранилища", plain(item.getItemMeta().itemName()));
+    assertEquals("Storage Monitor", plain(english.getItemMeta().itemName()));
+    assertNotEquals(
+        plain(english.getItemMeta().itemName()), plain(german.getItemMeta().itemName()));
+  }
+
+  @Test
   void fallsBackToConfiguredLanguageForUnknownLocale() {
     Harness harness = harness("ru_ru");
     TestItemStack item = item(Material.PAPER, 1);

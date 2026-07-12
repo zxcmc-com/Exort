@@ -83,6 +83,9 @@ public final class WirelessLoreService {
     try {
       UUID uuid = UUID.fromString(owner);
       OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
+      if (player == null) {
+        return owner;
+      }
       String name = player.getName();
       return name != null ? name : owner;
     } catch (IllegalArgumentException ignored) {

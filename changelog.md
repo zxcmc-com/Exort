@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.1 — 2026-07-11
+- Wireless Transmitters now persist a normalized bound-terminal representation before reporting success or consuming the source item. Binding through cursor insertion, shift-click, or a mode change now produces one accurate result, retains an unbound terminal for charging when access is unavailable, and rolls back cleanly when persistence fails.
+- WorldEdit and FAWE commands issued by the server console now prepare Exort marker, clipboard, move, destructive-operation, and history state on the server thread before asynchronous editing begins, matching the existing player-command behavior without unsafe Bukkit access.
+- Monitor item feedback now resolves Exort item names for each viewer's client language at click time, so stored names no longer remain tied to the configured language or become stale after reload.
+- Updated bundled translations for Wireless Transmitter and Chunk Loader messages, and removed older English or wrong-language fallback fragments from localized diagnostics and interfaces.
+
 ## 0.19.0 — 2026-07-10
 - Exort now requires Minecraft/Paper/Purpur `1.21.11` or newer and supports versions through `26.2`; version 0.19.0 will not load on earlier server versions.
 - Storage blocks now have a persistent physical identity: duplicate identities or positions are rejected, moving a Storage with WorldEdit keeps its identity and contents, and normal clipboard copies create a new empty Storage instead of duplicating items. Corrupt or unknown-tier Storages remain read-only with their original data retained for recovery.

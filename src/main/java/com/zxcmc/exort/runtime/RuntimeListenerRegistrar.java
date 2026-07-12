@@ -10,6 +10,7 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderListener;
 import com.zxcmc.exort.gui.listener.InventoryEvents;
 import com.zxcmc.exort.gui.listener.SearchDialogListener;
 import com.zxcmc.exort.gui.listener.TerminalListener;
+import com.zxcmc.exort.i18n.ExortItemLocalizationService;
 import com.zxcmc.exort.items.listener.InventoryRefreshListener;
 import com.zxcmc.exort.items.listener.PickListener;
 import com.zxcmc.exort.items.listener.StorageAnvilRenameListener;
@@ -312,6 +313,7 @@ public final class RuntimeListenerRegistrar {
                 deps.bossBarManager(),
                 deps.playerFeedback(),
                 deps.itemNameService(),
+                new ExortItemLocalizationService(deps.keys(), deps.lang()),
                 deps.authenticationGate(),
                 deps.worldEditWandGuard(),
                 materials.monitorCarrier(),

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.19.0'
+version = '0.19.1'
 description = 'Exort Storage Network'
 
 def pluginVersion = version.toString()

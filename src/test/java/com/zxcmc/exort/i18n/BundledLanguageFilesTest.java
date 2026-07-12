@@ -24,6 +24,39 @@ class BundledLanguageFilesTest {
   private static final Path LOCALES_FIXTURE =
       Path.of("src/test/resources/minecraft-lang-locales.txt");
   private static final Pattern JAVA_PLACEHOLDER = Pattern.compile("\\{\\d+}");
+  private static final Set<String> PLAIN_ENGLISH_LOCALES =
+      Set.of("en_us", "en_au", "en_ca", "en_gb", "en_nz");
+  private static final Set<String> RECENT_TRANSLATION_KEYS =
+      Set.of(
+          "message.chunk_loader_initializing",
+          "message.chunk_loader_limit_reached",
+          "message.wireless.transmitter_inactive",
+          "message.wireless.no_terminal_in_hand",
+          "message.wireless.transmitter_slot_occupied",
+          "message.wireless.transmitter_terminal_only",
+          "item.transmitter",
+          "gui.transmitter.title",
+          "gui.transmitter.status.item",
+          "gui.transmitter.status.active",
+          "gui.transmitter.status.storage",
+          "gui.transmitter.status.range",
+          "gui.transmitter.status.covered",
+          "gui.transmitter.status.not_covered",
+          "gui.transmitter.status.missing",
+          "gui.transmitter.status.no_storage",
+          "gui.transmitter.status.multiple",
+          "gui.transmitter.status.disabled",
+          "gui.transmitter.bind.item",
+          "gui.transmitter.bind.hint",
+          "gui.transmitter.mode.charge_only",
+          "gui.transmitter.mode.bind",
+          "gui.transmitter.mode.disabled",
+          "gui.transmitter.mode.hint",
+          "gui.transmitter.mode.charge_only_lore",
+          "gui.transmitter.mode.bind_lore",
+          "gui.transmitter.mode.disabled_lore",
+          "gui.transmitter.slot.terminal_empty",
+          "gui.transmitter.slot.terminal_present");
   private static final Set<String> CRITICAL_PLAYER_FACING_KEYS =
       Set.of(
           "item.storage",
@@ -109,6 +142,23 @@ class BundledLanguageFilesTest {
             placeholders(english.get(key)),
             placeholders(localized.get(key)),
             locale + " has mismatched placeholders for " + key);
+      }
+    }
+  }
+
+  @Test
+  void translatedLocalesDoNotUseRecentEnglishFallbacks() throws IOException {
+    Map<String, String> english = readRuntimeLang("en_us");
+
+    for (String locale : checkedLocales()) {
+      if (PLAIN_ENGLISH_LOCALES.contains(locale)) {
+        continue;
+      }
+      Map<String, String> localized = readRuntimeLang(locale);
+      for (String key : RECENT_TRANSLATION_KEYS) {
+        assertTrue(
+            !english.get(key).equals(localized.get(key)),
+            locale + " still equals the English fallback for " + key);
       }
     }
   }

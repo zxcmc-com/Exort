@@ -4,6 +4,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
+import com.zxcmc.exort.i18n.ExortItemLocalizationService;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -39,6 +40,7 @@ public class MonitorListener implements Listener {
   private final PlayerFeedback playerFeedback;
   private final StoredItemCodec itemCodec = new StoredItemCodec();
   private final ItemNameService itemNameService;
+  private final ExortItemLocalizationService exortItemLocalizationService;
   private final Material monitorCarrier;
   private final Material wireMaterial;
   private final Material storageCarrier;
@@ -59,6 +61,7 @@ public class MonitorListener implements Listener {
     this.bossBarManager = dependencies.bossBarManager();
     this.playerFeedback = dependencies.playerFeedback();
     this.itemNameService = dependencies.itemNameService();
+    this.exortItemLocalizationService = dependencies.exortItemLocalizationService();
     this.monitorCarrier = dependencies.monitorCarrier();
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
@@ -121,10 +124,11 @@ public class MonitorListener implements Listener {
           StoredItemCodec.Preflight persisted = itemCodec.decodePersisted(itemKey, blobOpt.get());
           if (persisted.accepted()) {
             ItemStack sample = persisted.item().sample();
+            ItemStack localized = exortItemLocalizationService.localize(event.getPlayer(), sample);
             String language =
                 itemNameService.dictionaryLanguage(
                     event.getPlayer().locale().toString(), itemNameService.getActiveLanguage());
-            itemName = itemNameService.resolveDisplayName(sample, language);
+            itemName = itemNameService.resolveDisplayName(localized, language);
           }
         }
         if (itemKey != null) {

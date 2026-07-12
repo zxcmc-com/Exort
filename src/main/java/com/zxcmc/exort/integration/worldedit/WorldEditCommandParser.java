@@ -121,6 +121,13 @@ final class WorldEditCommandParser {
     return BROAD_OPERATION_SNAPSHOT_COMMANDS.contains(commandName(arguments));
   }
 
+  static String commandSignature(String arguments) {
+    String command = commandName(arguments);
+    if (command.isBlank()) return "";
+    String remainder = commandRemainder(arguments).replaceAll("\\s+", " ").trim();
+    return remainder.isEmpty() ? command : command + " " + remainder;
+  }
+
   static PendingPasteCommand parsePasteCommand(String arguments) {
     boolean atOrigin = false;
     boolean onlySelect = false;

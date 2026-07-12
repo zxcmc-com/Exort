@@ -12,6 +12,7 @@ import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.inventory.ItemStack;
@@ -66,6 +67,75 @@ class TransmitterStoredTerminalTest {
         ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal")
             .orElseThrow());
     assertEquals(17, source.getAmount());
+  }
+
+  @Test
+  void setterStoresCanonicalRepresentationWhenFirstRoundTripNormalizes() {
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block = transmitterBlock("stored-terminal-canonical", 510);
+    AtomicInteger encodes = new AtomicInteger();
+    ItemStackCodec normalizingCodec =
+        new ItemStackCodec() {
+          @Override
+          public byte[] encode(ItemStack stack) {
+            return encodes.getAndIncrement() == 0 ? new byte[] {9, 1} : new byte[] {1};
+          }
+
+          @Override
+          public ItemStack decode(byte[] bytes) {
+            Material material =
+                Byte.toUnsignedInt(bytes[0]) % 2 == 0 ? Material.DIRT : Material.ENDER_PEARL;
+            return new TestItemStack(material, 1);
+          }
+        };
+
+    TransmitterStoredTerminal.WriteResult result =
+        TransmitterStoredTerminal.setDetailed(
+            plugin,
+            block,
+            new TestItemStack(Material.ENDER_PEARL, 8),
+            this::acceptsEnderPearl,
+            normalizingCodec);
+
+    assertTrue(result.success());
+    assertArrayEquals(
+        new byte[] {1},
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal")
+            .orElseThrow());
+  }
+
+  @Test
+  void setterRejectsRepresentationThatDoesNotStabilize() {
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block = transmitterBlock("stored-terminal-unstable", 511);
+    AtomicInteger encodes = new AtomicInteger();
+    ItemStackCodec unstableCodec =
+        new ItemStackCodec() {
+          @Override
+          public byte[] encode(ItemStack stack) {
+            return new byte[] {(byte) encodes.incrementAndGet()};
+          }
+
+          @Override
+          public ItemStack decode(byte[] bytes) {
+            Material material =
+                Byte.toUnsignedInt(bytes[0]) % 2 == 0 ? Material.DIRT : Material.ENDER_PEARL;
+            return new TestItemStack(material, 1);
+          }
+        };
+
+    TransmitterStoredTerminal.WriteResult result =
+        TransmitterStoredTerminal.setDetailed(
+            plugin,
+            block,
+            new TestItemStack(Material.ENDER_PEARL, 1),
+            stack -> true,
+            unstableCodec);
+
+    assertFalse(result.success());
+    assertEquals(TransmitterStoredTerminal.WriteFailure.ROUND_TRIP_MISMATCH, result.failure());
+    assertTrue(
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, "terminal").isEmpty());
   }
 
   @Test
