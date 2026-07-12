@@ -192,6 +192,14 @@ wireless:
   # Horizontal range in blocks from loaded active Wireless Transmitters.
   # Values outside 0..32768 are clamped by Exort.
   rangeBlocks: 48
+  boosters:
+    # Final range multipliers relative to rangeBlocks. Exactly -1 makes a loaded transmitter
+    # global inside its current world without loading its chunk.
+    rangeMultipliers:
+      rare: 1.5
+      mythical: 2.0
+      legendary: 6.0
+      immortal: -1.0
 
 # Custom breaking for Exort carrier blocks.
 # Hardness controls break speed; higher is slower.

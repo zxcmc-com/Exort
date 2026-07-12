@@ -61,8 +61,9 @@ message:
   usage_give_header: "Donar objectes d'Exort:"
   usage_give_storage: "dona un objecte d’emmagatzematge per tier"
   usage_give_chunk_loader: "dona un carregador de chunks"
+  usage_give_wireless_booster: "dona un amplificador de senyal sense fil per nivell"
   usage_give_item: "dona un objecte fix d’Exort"
-  usage_give_items: "Objectes: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Objectes: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Ús: /exort reload"
   unknown_subcommand: "Subordre desconeguda."
   help_header: "Ordes de la xarxa d'emmagatzematge Exort:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "No eres el propietario. Vincúlalo de nuevo."
     out_of_range: "El terminal inalámbrico está fuera de alcance."
     missing_storage: "No se encontró el almacenamiento vinculado."
+    storage_chunk_unloaded: "El chunk de l'emmagatzematge enllaçat no està carregat."
     empty: "El terminal inalámbrico no tiene carga."
     bound: "Terminal inalámbrico vinculado."
     self_store: "No puedes guardar un terminal inalámbrico dentro de sí mismo."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Sostén un terminal sense fil a la mà principal o secundària."
     transmitter_slot_occupied: "La ranura del terminal del transmissor sense fil està ocupada."
     transmitter_terminal_only: "En esta ranura només es pot col·locar un terminal sense fil."
+    transmitter_booster_slot_occupied: "La ranura de l'amplificador del Transmissor Sense Fil està ocupada."
+    transmitter_booster_only: "En esta ranura només es pot posar un Amplificador de Senyal Sense Fil."
 debug:
   mode:
     read: "només lectura"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus d'importació"
   export_bus: "Bus d'exportació"
   wireless_terminal: "Terminal sense fil"
+  wireless_booster: "Amplificador de Senyal Sense Fil"
   transmitter: "Transmissor sense fil"
 tier:
   common: "Comú"
@@ -263,6 +268,10 @@ lore:
     owner: "Propietari: {0}"
     not_linked: "No vinculat"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivell: {0}"
+    range_bonus: "Bonificació d'abast: {0}%"
+    global: "Funciona en tot el món actual"
 gui:
   give:
     title: "Objectes d'Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Xarxa: en línia"
       storage: "Emmagatzematge: {0}"
       range: "Abast: {0} blocs"
+      global: "Global en el món actual"
       covered: "El jugador té cobertura"
       not_covered: "El jugador està fora de l'abast d'este transmissor"
       missing: "Falta el bloc del transmissor"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Ranura del terminal: buida"
       terminal_present: "Ranura del terminal: ocupada"
+      booster_empty: "Ranura de l'amplificador: buida"
+      booster_present: "Amplificador: {0}"
   bus:
     import_title: "Bus d’importació"
     export_title: "Bus d’exportació"

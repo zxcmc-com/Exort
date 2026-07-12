@@ -118,6 +118,7 @@ public final class ExortRuntimeFactory {
 
     loadStorageTiersConfig(deps);
     RuntimeNetworkConfig networkConfig = RuntimeNetworkConfig.fromConfig(deps.config());
+    WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(deps.config());
     if (networkConfig.wireHardCapAdjusted()) {
       ExortLog.warn(
           "wireHardCap is below wireLimit; value will be adjusted to " + networkConfig.wireLimit());
@@ -127,16 +128,18 @@ public final class ExortRuntimeFactory {
     }
     var relayTraversalCarrier = networkConfig.relayEnabled() ? materials.relayCarrier() : null;
 
-    CustomItems customItems = createCustomItems(deps, itemModels);
-    WirelessTerminalService wirelessService = createWirelessService(deps, customItems);
+    CustomItems customItems = createCustomItems(deps, itemModels, wirelessConfig);
+    WirelessTerminalService wirelessService =
+        createWirelessService(deps, customItems, wirelessConfig);
     WirelessTransmitterService wirelessTransmitterService =
-        createWirelessTransmitterService(deps, materials, networkConfig);
+        createWirelessTransmitterService(deps, materials, networkConfig, wirelessConfig);
     RuntimeServiceState state = new RuntimeServiceState();
     TransmitterSessionManager transmitterSessionManager =
         new TransmitterSessionManager(
             deps.plugin(),
             wirelessTransmitterService,
             wirelessService,
+            customItems,
             deps.lang(),
             deps.playerFeedback(),
             deps.regionProtection().get(),
@@ -209,6 +212,7 @@ public final class ExortRuntimeFactory {
                 deps.config(),
                 deps.lang(),
                 deps.keys(),
+                wirelessConfig,
                 deps.storageManager(),
                 deps.database(),
                 materials,
@@ -484,7 +488,9 @@ public final class ExortRuntimeFactory {
   }
 
   private static CustomItems createCustomItems(
-      ExortRuntimeFactoryDependencies deps, RuntimeItemModelConfig itemModels) {
+      ExortRuntimeFactoryDependencies deps,
+      RuntimeItemModelConfig itemModels,
+      WirelessRuntimeConfig wirelessConfig) {
     return new CustomItems(
         deps.keys(),
         deps.lang(),
@@ -503,12 +509,15 @@ public final class ExortRuntimeFactory {
         itemModels.wirelessItemModel(),
         itemModels.wirelessDisabledModel(),
         VANILLA_NAMESPACE + ":target",
+        itemModels.wirelessBoosterItemModels(),
+        wirelessConfig,
         deps.resourceMode());
   }
 
   private static WirelessTerminalService createWirelessService(
-      ExortRuntimeFactoryDependencies deps, CustomItems customItems) {
-    WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(deps.config());
+      ExortRuntimeFactoryDependencies deps,
+      CustomItems customItems,
+      WirelessRuntimeConfig wirelessConfig) {
     return new WirelessTerminalService(
         deps.lang(),
         deps.keys(),
@@ -520,13 +529,12 @@ public final class ExortRuntimeFactory {
   private static WirelessTransmitterService createWirelessTransmitterService(
       ExortRuntimeFactoryDependencies deps,
       RuntimeMaterials materials,
-      RuntimeNetworkConfig networkConfig) {
-    WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(deps.config());
+      RuntimeNetworkConfig networkConfig,
+      WirelessRuntimeConfig wirelessConfig) {
     return new WirelessTransmitterService(
         deps.plugin(),
         deps.keys(),
-        wirelessConfig.enabled(),
-        wirelessConfig.rangeBlocks(),
+        wirelessConfig,
         networkConfig.wireLimit(),
         networkConfig.wireHardCap(),
         networkConfig.relayRangeChunks(),

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort-Items gebn:"
   usage_give_storage: "Speicha-Item nach Tier gebn"
   usage_give_chunk_loader: "Chunk-Loader gebn"
+  usage_give_wireless_booster: "an Funk-Signalverstärka nach Stufn gem"
   usage_give_item: "festes Exort-Item gebn"
-  usage_give_items: "Gegnstände: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Gegnstände: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Nutzung: /exort reload"
   unknown_subcommand: "Unbekannter Unterbefehl."
   help_header: "Exort Storage Network Befehle:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du bist ned da Besitzer. Verknüpf's neu."
     out_of_range: "Funkterminal is außer Reichweite."
     missing_storage: "Verknüpfter Speicha ned gfundn."
+    storage_chunk_unloaded: "Da Chunk vom verknüpftn Speicha is ned glodn."
     empty: "Funkterminal hod koan Saft mehr."
     bound: "Funkterminal verknüpft."
     self_store: "A Funkterminal ko ned in sich selber glegt werdn."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Halt a Funkterminal in da Haupt- oder Nebenhand."
     transmitter_slot_occupied: "Da Terminalplatz vom Funksenda is belegt."
     transmitter_terminal_only: "Auf den Platz konn nur a Funkterminal."
+    transmitter_booster_slot_occupied: "Da Verstärka-Slot vom Funksenda is belegt."
+    transmitter_booster_only: "In den Slot ko bloß a Funk-Signalverstärka einiglegt wern."
 debug:
   mode:
     read: "nur lesn"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funkterminal"
+  wireless_booster: "Funk-Signalverstärka"
   transmitter: "Funksenda"
 tier:
   common: "Gewöhnlich"
@@ -263,6 +268,10 @@ lore:
     owner: "Besitzer: {0}"
     not_linked: "Ned verknüpft"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stufn: {0}"
+    range_bonus: "Reichweitnbonus: {0}%"
+    global: "Funktioniert in da ganzn aktuella Welt"
 gui:
   give:
     title: "Exort-Items"
@@ -324,6 +333,7 @@ gui:
       active: "Netzwerk: online"
       storage: "Speicha: {0}"
       range: "Reichweite: {0} Blöck"
+      global: "Weltweit in da aktuella Welt"
       covered: "Spieler is in Reichweite"
       not_covered: "Spieler is außerhalb von dera Funksenda-Reichweite"
       missing: "Funksenda-Block feit"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplatz: leer"
       terminal_present: "Terminalplatz: belegt"
+      booster_empty: "Verstärka-Slot: leer"
+      booster_present: "Verstärka: {0}"
   bus:
     import_title: "Import-Bus"
     export_title: "Export-Bus"

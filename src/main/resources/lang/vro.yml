@@ -61,8 +61,9 @@ message:
   usage_give_header: "Anna Exort-esemeq:"
   usage_give_storage: "anna hoidlaese tier perrä"
   usage_give_chunk_loader: "anna chunk-laadija variandi perrä"
+  usage_give_wireless_booster: "anna juhtmõlda signaali kõvembas tegijä astmõ perrä"
   usage_give_item: "anna kindel Exort-ese"
-  usage_give_items: "Esemeq: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Esemeq: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Pruukminõ: /exort reload"
   unknown_subcommand: "Tundmada alamkäsk."
   help_header: "Exort Storage Network käsuq:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Sina olõ-i omanik. Lingi taa vahtsõst."
     out_of_range: "Juhtmevaba terminal om ulatusõst vällän."
     missing_storage: "Lingit hoidlat ei leütü."
+    storage_chunk_unloaded: "Köüdet hoitmispaiga chunk olõ-i laet."
     empty: "Juhtmevaba terminal om tühä akuga."
     bound: "Juhtmevaba terminal lingit."
     self_store: "Juhtmevaba terminali ei saa panna essensä sisse."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hoia juhtmõlda terminali pääkäeh vai tõõsõn käen."
     transmitter_slot_occupied: "Juhtmõlda saatja terminalipesä om täüs."
     transmitter_terminal_only: "Siiä pessä saa panda ainult juhtmõlda terminali."
+    transmitter_booster_slot_occupied: "Juhtmõlda saatja kõvembas tegijä pesä om täüs."
+    transmitter_booster_only: "Siiä pessä saa panda ainult juhtmõlda signaali kõvembas tegijä."
 debug:
   mode:
     read: "ainult lugõminõ"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-siin"
   export_bus: "Export-siin"
   wireless_terminal: "Juhtmevaba terminal"
+  wireless_booster: "Juhtmõlda signaali kõvembas tegijä"
   transmitter: "Juhtmõlda saatja"
 tier:
   common: "Tavalinõ"
@@ -263,6 +268,10 @@ lore:
     owner: "Omanik: {0}"
     not_linked: "Lingimäldä"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Astõ: {0}"
+    range_bonus: "Ulatusõ manoand: {0}%"
+    global: "Tüüteg terve praegudsõ ilma pääl"
 gui:
   give:
     title: "Exort esemeq"
@@ -324,6 +333,7 @@ gui:
       active: "Võrk: ühendän"
       storage: "Hoidla: {0}"
       range: "Ulatus: {0} plokki"
+      global: "Terve praegudsõ ilma pääl"
       covered: "Mängjä om levialan"
       not_covered: "Mängjä om taa saatja ulatusõst vällän"
       missing: "Saatja plokk om puudu"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalipesä: tühi"
       terminal_present: "Terminalipesä: täüs"
+      booster_empty: "Kõvembas tegijä pesä: tühi"
+      booster_present: "Kõvembas tegijä: {0}"
   bus:
     import_title: "Import-siin"
     export_title: "Export-siin"

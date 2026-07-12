@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort ნივთების გაცემა:"
   usage_give_storage: "საცავის ნივთის გაცემა tier-ის მიხედვით"
   usage_give_chunk_loader: "ჩანკის ჩამტვირთავის გაცემა ვარიანტის მიხედვით"
+  usage_give_wireless_booster: "მიეცი უსადენო სიგნალის გამაძლიერებელი დონის მიხედვით"
   usage_give_item: "ფიქსირებული Exort ნივთის გაცემა"
-  usage_give_items: "ნივთები: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "ნივთები: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "გამოყენება: /exort reload"
   unknown_subcommand: "უცნობი ქვე-ბრძანება."
   help_header: "Exort Storage Network ბრძანებები:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "თქვენ მფლობელი არ ხართ. თავიდან მიაბით."
     out_of_range: "უკაბელო ტერმინალი რადიუსს გარეთაა."
     missing_storage: "მიბმული საცავი ვერ მოიძებნა."
+    storage_chunk_unloaded: "მიბმული საცავის chunk-ი ჩატვირთული არ არის."
     empty: "უკაბელო ტერმინალი დამუხტული არ არის."
     bound: "უკაბელო ტერმინალი მიბმულია."
     self_store: "უკაბელო ტერმინალს საკუთარ თავში ვერ შეინახავთ."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "უკაბელო ტერმინალი მთავარ ან დამატებით ხელში გეჭიროთ."
     transmitter_slot_occupied: "უკაბელო გადამცემის ტერმინალის სლოტი დაკავებულია."
     transmitter_terminal_only: "ამ სლოტში მხოლოდ უკაბელო ტერმინალის მოთავსება შეიძლება."
+    transmitter_booster_slot_occupied: "უსადენო გადამცემის გამაძლიერებლის სლოტი დაკავებულია."
+    transmitter_booster_only: "ამ სლოტში მხოლოდ უსადენო სიგნალის გამაძლიერებლის მოთავსება შეიძლება."
 debug:
   mode:
     read: "მხოლოდ წაკითხვა"
@@ -236,6 +240,7 @@ item:
   import_bus: "იმპორტის შინა"
   export_bus: "ექსპორტის შინა"
   wireless_terminal: "უკაბელო ტერმინალი"
+  wireless_booster: "უსადენო სიგნალის გამაძლიერებელი"
   transmitter: "უკაბელო გადამცემი"
 tier:
   common: "ჩვეულებრივი"
@@ -263,6 +268,10 @@ lore:
     owner: "მფლობელი: {0}"
     not_linked: "მიბმული არ არის"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "დონე: {0}"
+    range_bonus: "დიაპაზონის ბონუსი: {0}%"
+    global: "მოქმედებს მთელ მიმდინარე სამყაროში"
 gui:
   give:
     title: "Exort ნივთები"
@@ -324,6 +333,7 @@ gui:
       active: "ქსელი: ონლაინ"
       storage: "საცავი: {0}"
       range: "რადიუსი: {0} ბლოკი"
+      global: "მთელ მიმდინარე სამყაროში"
       covered: "მოთამაშე დაფარვის ზონაშია"
       not_covered: "მოთამაშე ამ გადამცემის რადიუსს გარეთაა"
       missing: "გადამცემის ბლოკი აკლია"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "ტერმინალის სლოტი: ცარიელი"
       terminal_present: "ტერმინალის სლოტი: დაკავებული"
+      booster_empty: "გამაძლიერებლის სლოტი: ცარიელი"
+      booster_present: "გამაძლიერებელი: {0}"
   bus:
     import_title: "იმპორტის შინა"
     export_title: "ექსპორტის შინა"

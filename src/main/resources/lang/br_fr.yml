@@ -61,8 +61,9 @@ message:
   usage_give_header: "Reiñ traoù Exort:"
   usage_give_storage: "reiñ un dra mirva dre tier"
   usage_give_chunk_loader: "reiñ ur c'harger chunk"
+  usage_give_wireless_booster: "reiñ ur c'hreñvaer arouez hep neudenn dre live"
   usage_give_item: "reiñ un dra Exort termenet"
-  usage_give_items: "Traoù: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Traoù: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Implij: /exort reload"
   unknown_subcommand: "Isurzh dianav."
   help_header: "Urzhioù Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "N'oc'h ket ar perc'henn. Liammit anezhañ en-dro."
     out_of_range: "E-maez ar c'has hed emañ an termenell hep neudenn."
     missing_storage: "Mirva liammet ket kavet."
+    storage_chunk_unloaded: "N'eo ket karget chunk ar mirva liammet."
     empty: "Dikarget eo an termenell hep neudenn."
     bound: "Liammet eo an termenell hep neudenn."
     self_store: "N'haller ket lakaat un termenell hep neudenn enni hec'h-unan."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Dalc'hit un termenell hep neudenn er penn-dorn pe en eil dorn."
     transmitter_slot_occupied: "Ac'hubet eo slot termenell an treuzkas hep neudenn."
     transmitter_terminal_only: "N'eus nemet un termenell hep neudenn a c'hall bezañ lakaet er slot-mañ."
+    transmitter_booster_slot_occupied: "Ac'hubet eo lec'h ar c'hreñvaer en Treuzkas hep Neudenn."
+    transmitter_booster_only: "Ur C'hreñvaer Arouez hep Neudenn hepken a c'haller lakaat el lec'h-mañ."
 debug:
   mode:
     read: "lenn hepken"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus enporzhiañ"
   export_bus: "Bus ezporzhiañ"
   wireless_terminal: "Termenell hep neudenn"
+  wireless_booster: "Kreñvaer Arouez hep Neudenn"
   transmitter: "Treuzkas hep neudenn"
 tier:
   common: "Boutin"
@@ -263,6 +268,10 @@ lore:
     owner: "Perc'henn: {0}"
     not_linked: "Ket liammet"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Live: {0}"
+    range_bonus: "Gwelladenn hed: {0}%"
+    global: "A ya en-dro d'ar bed-mañ a-bezh"
 gui:
   give:
     title: "Traoù Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rouedad: enlinenn"
       storage: "Mirva: {0}"
       range: "Hed: {0} blok"
+      global: "Hollek er bed-mañ"
       covered: "Goloet eo ar c'hoarier"
       not_covered: "Er-maez eus hed an treuzkas-mañ emañ ar c'hoarier"
       missing: "Mankout a ra blok an treuzkas"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot termenell: goullo"
       terminal_present: "Slot termenell: ac'hubet"
+      booster_empty: "Lec'h ar c'hreñvaer: goullo"
+      booster_present: "Kreñvaer: {0}"
   bus:
     import_title: "Bus enporzhiañ"
     export_title: "Bus ezporzhiañ"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "بري item Exort:"
   usage_give_storage: "بري item ستورن مڠيكوت tier"
   usage_give_chunk_loader: "بري ڤموات چونک منوروت واريان"
+  usage_give_wireless_booster: "بري ڤڠݢالق اسيارت تنڤا واير مڠيكوت تيڠکت"
   usage_give_item: "بري item Exort تتڤ"
-  usage_give_items: "ايتيم: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "ايتيم: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "ڤڠڬوناءن: /exort reload"
   unknown_subcommand: "subcommand تيدق دكنلي."
   help_header: "ڤرينته Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "اندا بوكن ڤميليق. Link سمولا."
     out_of_range: "Wireless terminal دلوار جولتن."
     missing_storage: "Storage يڠ د-link تيدق دجومڤاي."
+    storage_chunk_unloaded: "چونک ستورن يڠ دڤاوتکن بلوم دمواتکن."
     empty: "Wireless terminal كهابيسن چاج."
     bound: "Wireless terminal تله د-link."
     self_store: "تيدق بوليه مڽيمڤن wireless terminal دالم ديريڽ سنديري."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "ڤڬڠ ساتو ترمينل تنڤا واير د تاڠن اوتام اتاو تاڠن سمڤيڠن."
     transmitter_slot_occupied: "سلوت ترمينل ڤمنچر تنڤا واير سوداه ترايسي."
     transmitter_terminal_only: "هاڽ ترمينل تنڤا واير بوليه دلتقكن دالم سلوت اين."
+    transmitter_booster_slot_occupied: "سلوت ڤڠݢالق ڤمنچر تنڤا واير سوداه ترايسي."
+    transmitter_booster_only: "هاڽ ڤڠݢالق اسيارت تنڤا واير بوليه دلتقكن دالم سلوت اين."
 debug:
   mode:
     read: "باچ سهاج"
@@ -236,6 +240,7 @@ item:
   import_bus: "باس ايمڤورت"
   export_bus: "باس ايكسڤورت"
   wireless_terminal: "ترمينل تنڤا واير"
+  wireless_booster: "ڤڠݢالق اسيارت تنڤا واير"
   transmitter: "ڤمنچر تنڤا واير"
 tier:
   common: "بياسا"
@@ -263,6 +268,10 @@ lore:
     owner: "ڤميليق: {0}"
     not_linked: "بلوم د-link"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "تيڠکت: {0}"
+    range_bonus: "بونس جارَق: {0}%"
+    global: "برفوڠسي دسلوروه دنيا سماسا"
 gui:
   give:
     title: "ايتيم Exort"
@@ -324,6 +333,7 @@ gui:
       active: "رڠکايان: دالم تالين"
       storage: "ستورن: {0}"
       range: "جولتن: {0} بلوک"
+      global: "سلوروه دنيا سماسا"
       covered: "ڤماين براد دالم ليڤوتن"
       not_covered: "ڤماين براد دلوار جولتن ڤمنچر اين"
       missing: "بلوک ڤمنچر تيدق دجومڤاي"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "سلوت ترمينل: كوسوڠ"
       terminal_present: "سلوت ترمينل: ترايسي"
+      booster_empty: "سلوت ڤڠݢالق: کوسوڠ"
+      booster_present: "ڤڠݢالق: {0}"
   bus:
     import_title: "باس ايمڤورت"
     export_title: "باس ايكسڤورت"

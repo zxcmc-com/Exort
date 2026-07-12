@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort item-களை கொடு:"
   usage_give_storage: "tier அடிப்படையில் சேமிப்பு item கொடு"
   usage_give_chunk_loader: "சங்க் லோடர் கொடு"
+  usage_give_wireless_booster: "அடுக்கு அடிப்படையில் வயர்லெஸ் சிக்னல் பூஸ்டரைக் கொடு"
   usage_give_item: "நிலையான Exort item கொடு"
-  usage_give_items: "Item-கள்: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Item-கள்: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "பயன்பாடு: /exort reload"
   unknown_subcommand: "தெரியாத துணைக் கட்டளை."
   help_header: "Exort Storage Network கட்டளைகள்:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "நீங்கள் உரிமையாளர் அல்ல. மீண்டும் இணைக்கவும்."
     out_of_range: "வயர்லெஸ் முனையம் வரம்புக்கு வெளியே உள்ளது."
     missing_storage: "இணைக்கப்பட்ட சேமிப்பு கிடைக்கவில்லை."
+    storage_chunk_unloaded: "இணைக்கப்பட்ட சேமிப்பின் சங் ஏற்றப்படவில்லை."
     empty: "வயர்லெஸ் முனையத்தில் charge இல்லை."
     bound: "வயர்லெஸ் முனையம் இணைக்கப்பட்டது."
     self_store: "வயர்லெஸ் முனையத்தை அதற்குள் சேமிக்க முடியாது."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "முதன்மைக் கையிலோ மறுகையிலோ வயர்லெஸ் முனையத்தைப் பிடிக்கவும்."
     transmitter_slot_occupied: "வயர்லெஸ் டிரான்ஸ்மிட்டரின் முனைய இடம் நிரம்பியுள்ளது."
     transmitter_terminal_only: "இந்த இடத்தில் வயர்லெஸ் முனையத்தை மட்டுமே வைக்க முடியும்."
+    transmitter_booster_slot_occupied: "வயர்லெஸ் டிரான்ஸ்மிட்டரின் பூஸ்டர் இடம் நிரம்பியுள்ளது."
+    transmitter_booster_only: "இந்த இடத்தில் வயர்லெஸ் சிக்னல் பூஸ்டரை மட்டுமே வைக்க முடியும்."
 debug:
   mode:
     read: "வாசிப்பு மட்டும்"
@@ -236,6 +240,7 @@ item:
   import_bus: "இறக்குமதி பஸ்"
   export_bus: "ஏற்றுமதி பஸ்"
   wireless_terminal: "வயர்லெஸ் முனையம்"
+  wireless_booster: "வயர்லெஸ் சிக்னல் பூஸ்டர்"
   transmitter: "வயர்லெஸ் டிரான்ஸ்மிட்டர்"
 tier:
   common: "சாதாரணம்"
@@ -263,6 +268,10 @@ lore:
     owner: "உரிமையாளர்: {0}"
     not_linked: "இணைக்கப்படவில்லை"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "அடுக்கு: {0}"
+    range_bonus: "வரம்பு கூடுதல்: {0}%"
+    global: "தற்போதைய உலகம் முழுவதும் செயல்படும்"
 gui:
   give:
     title: "Exort உருப்படிகள்"
@@ -324,6 +333,7 @@ gui:
       active: "பிணையம்: ஆன்லைன்"
       storage: "சேமிப்பு: {0}"
       range: "வரம்பு: {0} கட்டங்கள்"
+      global: "தற்போதைய உலகம் முழுவதும்"
       covered: "வீரர் கவரேஜுக்குள் உள்ளார்"
       not_covered: "வீரர் இந்த டிரான்ஸ்மிட்டரின் வரம்புக்கு வெளியே உள்ளார்"
       missing: "டிரான்ஸ்மிட்டர் கட்டம் காணவில்லை"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "முனைய இடம்: காலி"
       terminal_present: "முனைய இடம்: நிரம்பியுள்ளது"
+      booster_empty: "பூஸ்டர் இடம்: காலி"
+      booster_present: "பூஸ்டர்: {0}"
   bus:
     import_title: "இறக்குமதி பஸ்"
     export_title: "ஏற்றுமதி பஸ்"

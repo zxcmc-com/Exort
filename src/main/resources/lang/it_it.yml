@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dai oggetti Exort:"
   usage_give_storage: "consegna un oggetto di stoccaggio in base al tier"
   usage_give_chunk_loader: "dare un caricatore di chunk"
+  usage_give_wireless_booster: "dai un amplificatore di segnale wireless per livello"
   usage_give_item: "consegna un oggetto Exort specifico"
-  usage_give_items: "Oggetti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Oggetti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uso: /exort reload"
   unknown_subcommand: "Sottocomando sconosciuto."
   help_header: "Comandi Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Non sei il proprietario. Collegalo di nuovo."
     out_of_range: "Il terminale wireless è fuori portata."
     missing_storage: "Stoccaggio collegato non trovato."
+    storage_chunk_unloaded: "Il chunk dello stoccaggio collegato non è caricato."
     empty: "Il terminale wireless è scarico."
     bound: "Terminale wireless collegato."
     self_store: "Non puoi conservare un terminale wireless dentro sé stesso."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tieni un terminale wireless nella mano principale o secondaria."
     transmitter_slot_occupied: "Lo slot del terminale del trasmettitore wireless è occupato."
     transmitter_terminal_only: "In questo slot può essere inserito solo un terminale wireless."
+    transmitter_booster_slot_occupied: "Lo slot dell'amplificatore del Trasmettitore Wireless è occupato."
+    transmitter_booster_only: "In questo slot può essere inserito solo un Amplificatore di Segnale Wireless."
 debug:
   mode:
     read: "sola lettura"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus di importazione"
   export_bus: "Bus di esportazione"
   wireless_terminal: "Terminale wireless"
+  wireless_booster: "Amplificatore di Segnale Wireless"
   transmitter: "Trasmettitore wireless"
 tier:
   common: "Comune"
@@ -263,6 +268,10 @@ lore:
     owner: "Proprietario: {0}"
     not_linked: "Non collegato"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Livello: {0}"
+    range_bonus: "Bonus portata: {0}%"
+    global: "Funziona in tutto il mondo attuale"
 gui:
   give:
     title: "Oggetti Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rete: online"
       storage: "Stoccaggio: {0}"
       range: "Portata: {0} blocchi"
+      global: "Globale nel mondo attuale"
       covered: "Il giocatore è coperto"
       not_covered: "Il giocatore è fuori dalla portata di questo trasmettitore"
       missing: "Il blocco del trasmettitore è assente"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot del terminale: vuoto"
       terminal_present: "Slot del terminale: occupato"
+      booster_empty: "Slot amplificatore: vuoto"
+      booster_present: "Amplificatore: {0}"
   bus:
     import_title: "Bus di importazione"
     export_title: "Bus di esportazione"

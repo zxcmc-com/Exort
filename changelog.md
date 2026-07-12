@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.2 — 2026-07-12
+- Wireless Transmitters now persist exactly one Wireless Signal Booster in their booster slot and return it safely on normal destruction; WorldEdit/FAWE move and history preserve the booster, while ordinary clipboard copies omit it to prevent duplication.
+- Added Rare, Mythical, Legendary, and Immortal Wireless Signal Boosters with localized tier-colored names and configurable bonus lore, RESOURCE textures, VANILLA fallbacks, admin give/catalog access, and configurable `1.5x`, `2x`, `6x`, or same-world global coverage for loaded active transmitters. Wireless Transmitter terminal and booster slots now support direct inventory extraction with either Shift-click.
+- Wireless Terminals now report an unloaded linked-Storage chunk separately from an out-of-range transmitter and never load that chunk while checking access.
+
 ## 0.19.1 — 2026-07-11
 - Wireless Transmitters now persist a normalized bound-terminal representation before reporting success or consuming the source item. Binding through cursor insertion, shift-click, or a mode change now produces one accurate result, retains an unbound terminal for charging when access is unavailable, and rolls back cleanly when persistence fails.
 - WorldEdit and FAWE commands issued by the server console now prepare Exort marker, clipboard, move, destructive-operation, and history state on the server thread before asynchronous editing begins, matching the existing player-command behavior without unsafe Bukkit access.

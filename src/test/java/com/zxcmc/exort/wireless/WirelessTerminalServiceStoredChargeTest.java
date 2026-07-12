@@ -172,6 +172,7 @@ class WirelessTerminalServiceStoredChargeTest {
             itemModels.wirelessItemModel(),
             itemModels.wirelessDisabledModel(),
             "minecraft:target",
+            itemModels.wirelessBoosterItemModels(),
             true);
     return new Harness(keys, new WirelessTerminalService(lang, keys, customItems, true, 48));
   }

@@ -11,6 +11,7 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.feedback.CommandFeedback;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.ArrayList;
@@ -139,6 +140,15 @@ final class GiveCommand {
                                     giveItem(
                                         ctx, amount(ctx), "item.transmitter", this::transmitter))))
                 .then(
+                    Commands.literal("wireless_booster")
+                        .executes(this::wirelessBoosterUsage)
+                        .then(
+                            Commands.argument(ARG_TIER, StringArgumentType.word())
+                                .suggests(this::suggestBoosterTiers)
+                                .executes(ctx -> giveWirelessBooster(ctx, 1))
+                                .then(
+                                    amountArgument(ctx -> giveWirelessBooster(ctx, amount(ctx))))))
+                .then(
                     Commands.literal("chunk_loader")
                         .executes(ctx -> giveChunkLoader(ctx, 1, ChunkLoaderType.CHUNK_LOADER))
                         .then(
@@ -208,6 +218,10 @@ final class GiveCommand {
                 sender,
                 "/exort give <player> chunk_loader [amount]",
                 "message.usage_give_chunk_loader"),
+            usageLine(
+                sender,
+                "/exort give <player> wireless_booster <tier> [amount]",
+                "message.usage_give_wireless_booster"),
             usageLine(sender, "/exort give <player> <item> [amount]", "message.usage_give_item"),
             Component.text(dependencies.lang().tr(sender, "message.usage_give_items"))));
     return 1;
@@ -242,6 +256,39 @@ final class GiveCommand {
     return 1;
   }
 
+  private int giveWirelessBooster(CommandContext<CommandSourceStack> context, int amount) {
+    if (!ensureGivePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    Player target = target(sender, context);
+    if (target == null) {
+      return 1;
+    }
+    String tierArg = StringArgumentType.getString(context, ARG_TIER);
+    WirelessBoosterTier tier = WirelessBoosterTier.fromId(tierArg).orElse(null);
+    if (tier == null) {
+      sendMessage(sender, dependencies.lang().tr(sender, "message.give_unknown"));
+      return 1;
+    }
+    int giveAmount = CommandItemDelivery.clampAmount(amount, MAX_GIVE_AMOUNT);
+    String language =
+        sender instanceof Player player
+            ? dependencies.lang().pluginTextLanguage(player)
+            : dependencies.lang().configuredLanguage();
+    String label =
+        dependencies.lang().trLanguage(language, "item.wireless_booster")
+            + " ("
+            + dependencies.lang().trLanguage(language, tier.translationKey())
+            + ")";
+    sendGiveResult(
+        sender,
+        target,
+        label,
+        giveAmount,
+        CommandItemDelivery.deliver(
+            target, () -> dependencies.customItems().wirelessBoosterItem(tier), giveAmount));
+    return 1;
+  }
+
   private int storageUsage(CommandContext<CommandSourceStack> context) {
     if (!ensureGivePermission(context)) return 0;
     CommandSender sender = sender(context.getSource());
@@ -250,6 +297,18 @@ final class GiveCommand {
         sender,
         Component.text(dependencies.lang().tr(sender, "message.usage_give_header")),
         List.of(usageLine(sender, storageUsageCommand(playerName), "message.usage_give_storage")));
+    return 1;
+  }
+
+  private int wirelessBoosterUsage(CommandContext<CommandSourceStack> context) {
+    if (!ensureGivePermission(context)) return 0;
+    CommandSender sender = sender(context.getSource());
+    String playerName = StringArgumentType.getString(context, ARG_PLAYER);
+    String command = "/exort give " + playerName + " wireless_booster <tier> [amount]";
+    CommandFeedback.sendBlock(
+        sender,
+        Component.text(dependencies.lang().tr(sender, "message.usage_give_header")),
+        List.of(usageLine(sender, command, "message.usage_give_wireless_booster")));
     return 1;
   }
 
@@ -425,6 +484,16 @@ final class GiveCommand {
     for (StorageTier tier : StorageTier.allTiers()) {
       options.add(tier.key().toLowerCase(Locale.ROOT));
     }
+    List<String> matches =
+        StringUtil.copyPartialMatches(
+            builder.getRemaining().toLowerCase(Locale.ROOT), options, new ArrayList<>());
+    matches.forEach(builder::suggest);
+    return builder.buildFuture();
+  }
+
+  private CompletableFuture<Suggestions> suggestBoosterTiers(
+      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    List<String> options = WirelessBoosterTier.all().stream().map(WirelessBoosterTier::id).toList();
     List<String> matches =
         StringUtil.copyPartialMatches(
             builder.getRemaining().toLowerCase(Locale.ROOT), options, new ArrayList<>());

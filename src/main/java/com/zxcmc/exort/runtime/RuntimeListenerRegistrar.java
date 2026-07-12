@@ -313,7 +313,8 @@ public final class RuntimeListenerRegistrar {
                 deps.bossBarManager(),
                 deps.playerFeedback(),
                 deps.itemNameService(),
-                new ExortItemLocalizationService(deps.keys(), deps.lang()),
+                new ExortItemLocalizationService(
+                    deps.keys(), deps.lang(), deps.customItems().wirelessConfig()),
                 deps.authenticationGate(),
                 deps.worldEditWandGuard(),
                 materials.monitorCarrier(),

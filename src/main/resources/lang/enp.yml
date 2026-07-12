@@ -61,8 +61,9 @@ message:
   usage_give_header: "Give Exort things:"
   usage_give_storage: "give a storehouse thing by tier"
   usage_give_chunk_loader: "give a Chunk Keeper"
+  usage_give_wireless_booster: "give an Aether Signal Strengthener by standing"
   usage_give_item: "give a fixed Exort thing"
-  usage_give_items: "Things: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Things: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Use: /exort reload"
   unknown_subcommand: "Unknown underbidding."
   help_header: "Exort Storehouse Network biddings:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "You are not the master. Link again."
     out_of_range: "Aether Terminal out of range."
     missing_storage: "Linked storehouse not found."
+    storage_chunk_unloaded: "The joined Storehouse tract is not awake."
     empty: "Aether Terminal out of cell."
     bound: "Aether Terminal bound."
     self_store: "Cannot store an aether terminal inside itself."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hold an Aether Terminal in main hand or off-hand."
     transmitter_slot_occupied: "The Aether Sender's terminal berth is taken."
     transmitter_terminal_only: "Only an Aether Terminal may be set in this berth."
+    transmitter_booster_slot_occupied: "The Aether Sender's strengthener place is filled."
+    transmitter_booster_only: "Only an Aether Signal Strengthener may be set in this place."
 debug:
   mode:
     read: "read alone"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import Cart"
   export_bus: "Export Cart"
   wireless_terminal: "Aether Terminal"
+  wireless_booster: "Aether Signal Strengthener"
   transmitter: "Aether Sender"
 tier:
   common: "Everyday"
@@ -263,6 +268,10 @@ lore:
     owner: "Master: {0}"
     not_linked: "No bond set"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Standing: {0}"
+    range_bonus: "Reach boon: {0}%"
+    global: "Works throughout the present world"
 gui:
   give:
     title: "Exort Things"
@@ -324,6 +333,7 @@ gui:
       active: "Network: awake"
       storage: "Storehouse: {0}"
       range: "Reach: {0} blocks"
+      global: "Throughout the present world"
       covered: "Player is within reach"
       not_covered: "Player is beyond this sender's reach"
       missing: "Sender block is missing"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal berth: empty"
       terminal_present: "Terminal berth: taken"
+      booster_empty: "Strengthener place: empty"
+      booster_present: "Strengthener: {0}"
   bus:
     import_title: "Import Cart"
     export_title: "Export Cart"

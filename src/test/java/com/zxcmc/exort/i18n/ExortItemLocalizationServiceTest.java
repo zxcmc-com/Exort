@@ -11,6 +11,8 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -182,6 +184,31 @@ class ExortItemLocalizationServiceTest {
   }
 
   @Test
+  void localizesWirelessBoosterNameAndPreservesTierColor() {
+    Harness harness =
+        harness(
+            "en_us",
+            new WirelessRuntimeConfig(true, 48, Map.of(WirelessBoosterTier.MYTHICAL, 2.25D)));
+    TestItemStack item = item(Material.PAPER, 64);
+    item.meta.pdc.set(harness.keys.type(), "wireless_booster");
+    item.meta.pdc.set(harness.keys.wirelessBoosterTier(), "mythical");
+    item.meta.itemName = Component.text("Wireless Signal Booster");
+
+    ItemStack localized = harness.service.localize(item, "ru_ru");
+
+    assertEquals(64, localized.getAmount());
+    assertEquals("Усилитель беспроводного сигнала", plain(localized.getItemMeta().itemName()));
+    assertEquals(
+        WirelessBoosterTier.MYTHICAL.color(), firstColor(localized.getItemMeta().itemName()));
+    assertEquals(List.of("Тир: Мифический", "Бонус радиуса: +125%"), lore(localized));
+    assertTrue(
+        containsColor(
+            localized.getItemMeta().lore().getFirst(), WirelessBoosterTier.MYTHICAL.color()));
+    assertEquals("Wireless Signal Booster", plain(item.getItemMeta().itemName()));
+    assertEquals(List.of(), lore(item));
+  }
+
+  @Test
   void ignoresNonExortItems() {
     Harness harness = harness("en_us");
     TestItemStack item = item(Material.STONE, 1);
@@ -190,10 +217,14 @@ class ExortItemLocalizationServiceTest {
   }
 
   private static Harness harness(String configuredLanguage) {
+    return harness(configuredLanguage, WirelessRuntimeConfig.defaults());
+  }
+
+  private static Harness harness(String configuredLanguage, WirelessRuntimeConfig wirelessConfig) {
     StorageKeys keys = new StorageKeys(plugin());
     Lang lang = new Lang(null, null, Path.of("src/main/resources"));
     lang.load(configuredLanguage);
-    return new Harness(keys, new ExortItemLocalizationService(keys, lang));
+    return new Harness(keys, new ExortItemLocalizationService(keys, lang, wirelessConfig));
   }
 
   private static Plugin plugin() {
@@ -246,6 +277,13 @@ class ExortItemLocalizationServiceTest {
       }
     }
     return null;
+  }
+
+  private static boolean containsColor(Component component, TextColor expected) {
+    if (expected.equals(component.color())) {
+      return true;
+    }
+    return component.children().stream().anyMatch(child -> containsColor(child, expected));
   }
 
   private static Object defaultValue(Class<?> type) {

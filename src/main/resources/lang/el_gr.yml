@@ -61,8 +61,9 @@ message:
   usage_give_header: "Δώσε αντικείμενα Exort:"
   usage_give_storage: "δώσε αντικείμενο αποθήκης ανά tier"
   usage_give_chunk_loader: "δώσε φορτωτή chunk ανά παραλλαγή"
+  usage_give_wireless_booster: "δώσε Ενισχυτή Ασύρματου Σήματος ανά βαθμίδα"
   usage_give_item: "δώσε σταθερό αντικείμενο Exort"
-  usage_give_items: "Αντικείμενα: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Αντικείμενα: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Χρήση: /exort reload"
   unknown_subcommand: "Άγνωστη υποεντολή."
   help_header: "Εντολές Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Δεν είσαι ο ιδιοκτήτης. Σύνδεσέ το ξανά."
     out_of_range: "Το ασύρματο τερματικό είναι εκτός εμβέλειας."
     missing_storage: "Η συνδεδεμένη αποθήκη δεν βρέθηκε."
+    storage_chunk_unloaded: "Το chunk της συνδεδεμένης αποθήκης δεν είναι φορτωμένο."
     empty: "Το ασύρματο τερματικό δεν έχει φόρτιση."
     bound: "Το ασύρματο τερματικό συνδέθηκε."
     self_store: "Δεν μπορείς να αποθηκεύσεις ασύρματο τερματικό μέσα στον εαυτό του."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Κράτησε ένα Ασύρματο Τερματικό στο κύριο ή στο δεύτερο χέρι."
     transmitter_slot_occupied: "Η θέση τερματικού του Ασύρματου Πομπού είναι κατειλημμένη."
     transmitter_terminal_only: "Σε αυτή τη θέση μπορεί να τοποθετηθεί μόνο Ασύρματο Τερματικό."
+    transmitter_booster_slot_occupied: "Η θέση ενισχυτή του Ασύρματου Πομπού είναι κατειλημμένη."
+    transmitter_booster_only: "Σε αυτή τη θέση μπορεί να τοποθετηθεί μόνο Ενισχυτής Ασύρματου Σήματος."
 debug:
   mode:
     read: "μόνο ανάγνωση"
@@ -236,6 +240,7 @@ item:
   import_bus: "Δίαυλος Εισαγωγής"
   export_bus: "Δίαυλος Εξαγωγής"
   wireless_terminal: "Ασύρματο Τερματικό"
+  wireless_booster: "Ενισχυτής Ασύρματου Σήματος"
   transmitter: "Ασύρματος Πομπός"
 tier:
   common: "Κοινή"
@@ -263,6 +268,10 @@ lore:
     owner: "Ιδιοκτήτης: {0}"
     not_linked: "Μη συνδεδεμένο"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Βαθμίδα: {0}"
+    range_bonus: "Μπόνους εμβέλειας: {0}%"
+    global: "Λειτουργεί σε ολόκληρο τον τρέχοντα κόσμο"
 gui:
   give:
     title: "Αντικείμενα Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Δίκτυο: σε σύνδεση"
       storage: "Αποθήκη: {0}"
       range: "Εμβέλεια: {0} μπλοκ"
+      global: "Παγκόσμια εμβέλεια στον τρέχοντα κόσμο"
       covered: "Ο παίκτης καλύπτεται"
       not_covered: "Ο παίκτης βρίσκεται εκτός εμβέλειας αυτού του πομπού"
       missing: "Λείπει το μπλοκ του πομπού"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Θέση τερματικού: κενή"
       terminal_present: "Θέση τερματικού: κατειλημμένη"
+      booster_empty: "Θέση ενισχυτή: κενή"
+      booster_present: "Ενισχυτής: {0}"
   bus:
     import_title: "Δίαυλος Εισαγωγής"
     export_title: "Δίαυλος Εξαγωγής"

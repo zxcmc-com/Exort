@@ -61,8 +61,9 @@ message:
   usage_give_header: "געבן Exort items:"
   usage_give_storage: "געבן א סטאָרידזש־item לויט tier"
   usage_give_chunk_loader: "געבן א Chunk־לאָדער לויט וואַריאַנט"
+  usage_give_wireless_booster: "געבן אַ וויירלאָזן סיגנאַל־פארשטארקער לויט ריי"
   usage_give_item: "געבן א באשטימטן Exort item"
-  usage_give_items: "אייטעמס: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "אייטעמס: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "באַניץ: /exort reload"
   unknown_subcommand: "אומבאקאנטער אונטער־באפעל."
   help_header: "Exort Storage Network באפעלן:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "דו ביסט נישט דער בעל־הבית. לינק עס נאכאמאל."
     out_of_range: "וויירלאָזער טערמינאַל איז אויסער דער רייכווייט."
     missing_storage: "געלינקטע סטאָרידזש נישט געפונען."
+    storage_chunk_unloaded: "דער טשאַנק פונעם פארבונענעם סטאָרידזש איז נישט געלאָדן."
     empty: "וויירלאָזער טערמינאַל איז אויסגעלאדן."
     bound: "וויירלאָזער טערמינאַל געלינקט."
     self_store: "מען קען נישט לייגן א וויירלאָזן טערמינאַל אין זיך אליין."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "האלט א וויירלאָזן טערמינאַל אין דער הויפט־האנט אדער צווייטער האנט."
     transmitter_slot_occupied: "דער טערמינאַל־סלאָט פונעם וויירלאָזן טראַנסמיטער איז פארנומען."
     transmitter_terminal_only: "אין דעם סלאָט קען מען לייגן נאר א וויירלאָזן טערמינאַל."
+    transmitter_booster_slot_occupied: "דער פארשטארקער־סלאָט פונעם וויירלאָזן טראַנסמיטער איז פארנומען."
+    transmitter_booster_only: "אין דעם סלאָט קען מען לייגן נאר א וויירלאָזן סיגנאַל־פארשטארקער."
 debug:
   mode:
     read: "נאר לייענען"
@@ -236,6 +240,7 @@ item:
   import_bus: "אימפּאָרט־בוס"
   export_bus: "עקספּאָרט־בוס"
   wireless_terminal: "וויירלאָזער טערמינאַל"
+  wireless_booster: "וויירלאָזער סיגנאַל־פארשטארקער"
   transmitter: "וויירלאָזער טראַנסמיטער"
 tier:
   common: "געוויינטלעך"
@@ -263,6 +268,10 @@ lore:
     owner: "בעל־הבית: {0}"
     not_linked: "נישט געלינקט"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "ריי: {0}"
+    range_bonus: "רייכווייט־באָנוס: {0}%"
+    global: "ארבעט איבער דער גאנצער איצטיקער וועלט"
 gui:
   give:
     title: "Exort זאכן"
@@ -324,6 +333,7 @@ gui:
       active: "נעץ: אָנליין"
       storage: "סטאָרידזש: {0}"
       range: "רייכווייט: {0} בלאקן"
+      global: "איבער דער גאנצער איצטיקער וועלט"
       covered: "דער שפילער איז אין דער דעקונג"
       not_covered: "דער שפילער איז אויסער דער רייכווייט פון דעם טראַנסמיטער"
       missing: "דער טראַנסמיטער־בלאָק פעלט"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "טערמינאַל־סלאָט: ליידיק"
       terminal_present: "טערמינאַל־סלאָט: פארנומען"
+      booster_empty: "פארשטארקער־סלאָט: ליידיק"
+      booster_present: "פארשטארקער: {0}"
   bus:
     import_title: "אימפּאָרט־בוס"
     export_title: "עקספּאָרט־בוס"

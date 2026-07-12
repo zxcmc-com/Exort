@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dajanje predmetov Exort:"
   usage_give_storage: "daj predmet shrambe po stopnji"
   usage_give_chunk_loader: "daj nalagalnik chunkov po različici"
+  usage_give_wireless_booster: "daj ojačevalnik brezžičnega signala glede na stopnjo"
   usage_give_item: "daj določen predmet Exort"
-  usage_give_items: "Predmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Predmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uporaba: /exort reload"
   unknown_subcommand: "Neznan podukaz."
   help_header: "Ukazi Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Niste lastnik. Znova ga povežite."
     out_of_range: "Brezžični terminal je izven dosega."
     missing_storage: "Povezana shramba ni najdena."
+    storage_chunk_unloaded: "Chunk povezanega skladišča ni naložen."
     empty: "Brezžični terminal je prazen."
     bound: "Brezžični terminal povezan."
     self_store: "Brezžičnega terminala ni mogoče shraniti samega vase."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Brezžični terminal držite v glavni ali drugi roki."
     transmitter_slot_occupied: "Reža terminala v brezžičnem oddajniku je zasedena."
     transmitter_terminal_only: "V to režo je mogoče vstaviti samo brezžični terminal."
+    transmitter_booster_slot_occupied: "Reža za ojačevalnik brezžičnega oddajnika je zasedena."
+    transmitter_booster_only: "V to režo je mogoče vstaviti samo ojačevalnik brezžičnega signala."
 debug:
   mode:
     read: "samo za branje"
@@ -236,6 +240,7 @@ item:
   import_bus: "Uvozno vodilo"
   export_bus: "Izvozno vodilo"
   wireless_terminal: "Brezžični terminal"
+  wireless_booster: "Ojačevalnik brezžičnega signala"
   transmitter: "Brezžični oddajnik"
 tier:
   common: "Običajna"
@@ -263,6 +268,10 @@ lore:
     owner: "Lastnik: {0}"
     not_linked: "Ni povezano"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stopnja: {0}"
+    range_bonus: "Dodatek dosega: {0}%"
+    global: "Deluje v celotnem trenutnem svetu"
 gui:
   give:
     title: "Predmeti Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Omrežje: dejavno"
       storage: "Shramba: {0}"
       range: "Doseg: {0} blokov"
+      global: "Globalno v trenutnem svetu"
       covered: "Igralec je v dosegu"
       not_covered: "Igralec je zunaj dosega tega oddajnika"
       missing: "Blok oddajnika manjka"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Reža terminala: prazna"
       terminal_present: "Reža terminala: zasedena"
+      booster_empty: "Reža za ojačevalnik: prazna"
+      booster_present: "Ojačevalnik: {0}"
   bus:
     import_title: "Uvozno vodilo"
     export_title: "Izvozno vodilo"

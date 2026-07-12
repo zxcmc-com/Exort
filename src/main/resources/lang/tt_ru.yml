@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort әйберләрен бирү:"
   usage_give_storage: "tier буенча саклагыч әйберен бирү"
   usage_give_chunk_loader: "Чанк йөкләгеч бирү"
+  usage_give_wireless_booster: "дәрәҗә буенча чыбыксыз сигнал көчәйткечен бирү"
   usage_give_item: "беркетелгән Exort әйберен бирү"
-  usage_give_items: "Әйберләр: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Әйберләр: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Куллану: /exort reload"
   unknown_subcommand: "Билгесез эчке команда."
   help_header: "Exort Storage Network командалары:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Сез хуҗа түгел. Кабат бәйләгез."
     out_of_range: "Чыбыксыз терминал диапазоннан читтә."
     missing_storage: "Бәйләнгән саклагыч табылмады."
+    storage_chunk_unloaded: "Бәйләнгән саклагычның чанкы йөкләнмәгән."
     empty: "Чыбыксыз терминалның корылмасы юк."
     bound: "Чыбыксыз терминал бәйләнде."
     self_store: "Чыбыксыз терминалны үз эченә саклап булмый."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Төп яки икенче кулда чыбыксыз терминал тотыгыз."
     transmitter_slot_occupied: "Чыбыксыз тапшыргычның терминал урыны буш түгел."
     transmitter_terminal_only: "Бу урынга чыбыксыз терминал гына куеп була."
+    transmitter_booster_slot_occupied: "Чыбыксыз тапшыргычның көчәйткеч урыны буш түгел."
+    transmitter_booster_only: "Бу урынга чыбыксыз сигнал көчәйткечен генә куеп була."
 debug:
   mode:
     read: "уку гына"
@@ -236,6 +240,7 @@ item:
   import_bus: "Импорт шинасы"
   export_bus: "Экспорт шинасы"
   wireless_terminal: "Чыбыксыз терминал"
+  wireless_booster: "Чыбыксыз сигнал көчәйткече"
   transmitter: "Чыбыксыз тапшыргыч"
 tier:
   common: "Гади"
@@ -263,6 +268,10 @@ lore:
     owner: "Хуҗа: {0}"
     not_linked: "Бәйләнмәгән"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Дәрәҗә: {0}"
+    range_bonus: "Ераклык бонусы: {0}%"
+    global: "Хәзерге дөньяның бар җирендә эшли"
 gui:
   give:
     title: "Exort әйберләре"
@@ -324,6 +333,7 @@ gui:
       active: "Челтәр: тоташкан"
       storage: "Саклагыч: {0}"
       range: "Аралык: {0} блок"
+      global: "Хәзерге дөньяның бар җирендә"
       covered: "Уенчы каплау эчендә"
       not_covered: "Уенчы бу тапшыргыч аралыгыннан читтә"
       missing: "Тапшыргыч блогы юк"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Терминал урыны: буш"
       terminal_present: "Терминал урыны: буш түгел"
+      booster_empty: "Көчәйткеч урыны: буш"
+      booster_present: "Көчәйткеч: {0}"
   bus:
     import_title: "Импорт шинасы"
     export_title: "Экспорт шинасы"

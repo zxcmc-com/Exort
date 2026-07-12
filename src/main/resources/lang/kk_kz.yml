@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort заттарын беру:"
   usage_give_storage: "tier бойынша қойма затын беру"
   usage_give_chunk_loader: "нұсқа бойынша Чанк жүктегіш беру"
+  usage_give_wireless_booster: "деңгейі бойынша сымсыз сигнал күшейткішін беру"
   usage_give_item: "бекітілген Exort затын беру"
-  usage_give_items: "Заттар: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Заттар: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Қолдану: /exort reload"
   unknown_subcommand: "Белгісіз ішкі команда."
   help_header: "Exort Storage Network командалары:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Сіз иесі емессіз. Қайта байланыстырыңыз."
     out_of_range: "Сымсыз терминал ауқымнан тыс."
     missing_storage: "Байланған қойма табылмады."
+    storage_chunk_unloaded: "Байланған сақтау орнының чанкі жүктелмеген."
     empty: "Сымсыз терминалдың қуаты жоқ."
     bound: "Сымсыз терминал байланыстырылды."
     self_store: "Сымсыз терминалды өз ішіне сақтау мүмкін емес."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Негізгі не қосалқы қолда сымсыз терминал ұстаңыз."
     transmitter_slot_occupied: "Сымсыз таратқыштың терминал ұясы бос емес."
     transmitter_terminal_only: "Бұл ұяға тек сымсыз терминал қоюға болады."
+    transmitter_booster_slot_occupied: "Сымсыз таратқыштың күшейткіш ұясы бос емес."
+    transmitter_booster_only: "Бұл ұяға тек сымсыз сигнал күшейткішін салуға болады."
 debug:
   mode:
     read: "тек оқу"
@@ -236,6 +240,7 @@ item:
   import_bus: "Импорт шинасы"
   export_bus: "Экспорт шинасы"
   wireless_terminal: "Сымсыз терминал"
+  wireless_booster: "Сымсыз сигнал күшейткіші"
   transmitter: "Сымсыз таратқыш"
 tier:
   common: "Кәдімгі"
@@ -263,6 +268,10 @@ lore:
     owner: "Иесі: {0}"
     not_linked: "Байланыстырылмаған"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Деңгей: {0}"
+    range_bonus: "Қашықтық бонусы: {0}%"
+    global: "Ағымдағы әлемнің барлығында жұмыс істейді"
 gui:
   give:
     title: "Exort заттары"
@@ -324,6 +333,7 @@ gui:
       active: "Желі: қосулы"
       storage: "Қойма: {0}"
       range: "Ауқым: {0} блок"
+      global: "Ағымдағы әлемнің барлығында"
       covered: "Ойыншы қамту аймағында"
       not_covered: "Ойыншы осы таратқыштың ауқымынан тыс"
       missing: "Таратқыш блогы жоқ"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Терминал ұясы: бос"
       terminal_present: "Терминал ұясы: бос емес"
+      booster_empty: "Күшейткіш ұясы: бос"
+      booster_present: "Күшейткіш: {0}"
   bus:
     import_title: "Импорт шинасы"
     export_title: "Экспорт шинасы"

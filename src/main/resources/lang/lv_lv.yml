@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dot Exort priekšmetus:"
   usage_give_storage: "dot krātuves priekšmetu pēc līmeņa"
   usage_give_chunk_loader: "dot Chunk ielādētāju"
+  usage_give_wireless_booster: "iedod bezvadu signāla pastiprinātāju pēc līmeņa"
   usage_give_item: "dot fiksētu Exort priekšmetu"
-  usage_give_items: "Priekšmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Priekšmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Lietošana: /exort reload"
   unknown_subcommand: "Nezināma apakškomanda."
   help_header: "Exort Storage Network komandas:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Tu neesi īpašnieks. Piesaisti to vēlreiz."
     out_of_range: "Bezvadu terminālis ir ārpus diapazona."
     missing_storage: "Piesaistītā krātuve nav atrasta."
+    storage_chunk_unloaded: "Piesaistītās krātuves chunks nav ielādēts."
     empty: "Bezvadu terminālim nav uzlādes."
     bound: "Bezvadu terminālis piesaistīts."
     self_store: "Bezvadu termināli nevar ievietot pašā sevī."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Turi bezvadu termināli galvenajā vai otrajā rokā."
     transmitter_slot_occupied: "Bezvadu raidītāja termināļa vieta ir aizņemta."
     transmitter_terminal_only: "Šajā vietā var ievietot tikai bezvadu termināli."
+    transmitter_booster_slot_occupied: "Bezvadu raidītāja pastiprinātāja vieta ir aizņemta."
+    transmitter_booster_only: "Šajā vietā var ievietot tikai bezvadu signāla pastiprinātāju."
 debug:
   mode:
     read: "tikai lasīšana"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importa kopne"
   export_bus: "Eksporta kopne"
   wireless_terminal: "Bezvadu terminālis"
+  wireless_booster: "Bezvadu signāla pastiprinātājs"
   transmitter: "Bezvadu raidītājs"
 tier:
   common: "Parasts"
@@ -263,6 +268,10 @@ lore:
     owner: "Īpašnieks: {0}"
     not_linked: "Nav piesaistīts"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Līmenis: {0}"
+    range_bonus: "Darbības rādiusa bonuss: {0}%"
+    global: "Darbojas visā pašreizējā pasaulē"
 gui:
   give:
     title: "Exort priekšmeti"
@@ -324,6 +333,7 @@ gui:
       active: "Tīkls: tiešsaistē"
       storage: "Krātuve: {0}"
       range: "Darbības rādiuss: {0} bloki"
+      global: "Visā pašreizējā pasaulē"
       covered: "Spēlētājs atrodas pārklājuma zonā"
       not_covered: "Spēlētājs atrodas ārpus šī raidītāja darbības rādiusa"
       missing: "Trūkst raidītāja bloka"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Termināļa vieta: tukša"
       terminal_present: "Termināļa vieta: aizņemta"
+      booster_empty: "Pastiprinātāja vieta: tukša"
+      booster_present: "Pastiprinātājs: {0}"
   bus:
     import_title: "Importa kopne"
     export_title: "Eksporta kopne"

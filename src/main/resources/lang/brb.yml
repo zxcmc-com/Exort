@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort-items geven:"
   usage_give_storage: "geef 'n opslag-item per tier"
   usage_give_chunk_loader: "geef 'n Chunklader"
+  usage_give_wireless_booster: "geef ne draadloze signaalversterker per niveau"
   usage_give_item: "geef 'n vast Exort-item"
-  usage_give_items: "Itemlijst: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Itemlijst: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Gebruik: /exort reload"
   unknown_subcommand: "Onbekend subcommando."
   help_header: "Commando's voor Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Ge zijt nie de eigenaar. Koppel 'm opnieuw."
     out_of_range: "Draadloze terminal is buiten bereik."
     missing_storage: "Gekoppelde opslag nie gevonden."
+    storage_chunk_unloaded: "De chunk van de gekoppelde opslag is nie geladen."
     empty: "Draadloze terminal is leeg."
     bound: "Draadloze terminal gekoppeld."
     self_store: "Kan gin draadloze terminal in zichzelf opslaan."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hou ne draadloze terminal in uw hoofdhand of tweede hand."
     transmitter_slot_occupied: "Het terminalslot van de draadloze zender is bezet."
     transmitter_terminal_only: "Alleen ne draadloze terminal mag in dit slot."
+    transmitter_booster_slot_occupied: "De versterkersleuf van de Draadloze Zender is bezet."
+    transmitter_booster_only: "Alleen ne Draadloze Signaalversterker kan in deze sleuf geplaatst worden."
 debug:
   mode:
     read: "alleen lezen"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importbus"
   export_bus: "Exportbus"
   wireless_terminal: "Draadloze terminal"
+  wireless_booster: "Draadloze Signaalversterker"
   transmitter: "Draadloze zender"
 tier:
   common: "Gewoon"
@@ -263,6 +268,10 @@ lore:
     owner: "Eigenaar: {0}"
     not_linked: "Nie gekoppeld"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Niveau: {0}"
+    range_bonus: "Bereikbonus: {0}%"
+    global: "Werkt overal in de huidige wereld"
 gui:
   give:
     title: "Exort-items"
@@ -324,6 +333,7 @@ gui:
       active: "Netwerk: online"
       storage: "Opslag: {0}"
       range: "Bereik: {0} blokken"
+      global: "Overal in de huidige wereld"
       covered: "Speler is binnen bereik"
       not_covered: "Speler is buiten het bereik van deze zender"
       missing: "Zenderblok ontbreekt"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalslot: leeg"
       terminal_present: "Terminalslot: bezet"
+      booster_empty: "Versterkersleuf: leeg"
+      booster_present: "Versterker: {0}"
   bus:
     import_title: "Importbus"
     export_title: "Exportbus"

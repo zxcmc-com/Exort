@@ -292,7 +292,7 @@ public final class BlockBreakHandler {
 
     if (TransmitterMarker.isTransmitter(plugin, block)) {
       if (!Carriers.matchesCarrier(block, transmitterCarrier)) {
-        transmitterSessionManager.dropStoredTerminal(block);
+        transmitterSessionManager.dropStoredItems(block);
         TransmitterMarker.clear(plugin, block);
         wirelessTransmitterService.unregister(block);
         return BreakResult.BROKEN;
@@ -301,7 +301,7 @@ public final class BlockBreakHandler {
         return BreakResult.DENIED;
       }
       playBreakParticles(block, BreakType.TRANSMITTER);
-      transmitterSessionManager.dropStoredTerminal(block);
+      transmitterSessionManager.dropStoredItems(block);
       block.setType(Material.AIR);
       if (shouldDrop(player)) {
         dropItemSafe(block, customItems.transmitterItem());

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort esemete andmine:"
   usage_give_storage: "anna hoidlaese tieri järgi"
   usage_give_chunk_loader: "anna chunki laadija variandi järgi"
+  usage_give_wireless_booster: "anna juhtmevaba signaali võimendi taseme järgi"
   usage_give_item: "anna kindel Exort ese"
-  usage_give_items: "Esemed: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Esemed: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Kasutus: /exort reload"
   unknown_subcommand: "Tundmatu alamkäsk."
   help_header: "Exort Storage Network käsud:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Sa pole omanik. Seo see uuesti."
     out_of_range: "Juhtmevaba terminal on levialast väljas."
     missing_storage: "Seotud hoidlat ei leitud."
+    storage_chunk_unloaded: "Seotud hoidla chunk pole laaditud."
     empty: "Juhtmevabal terminalil on aku tühi."
     bound: "Juhtmevaba terminal seotud."
     self_store: "Juhtmevaba terminali ei saa iseenda sisse salvestada."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hoia juhtmevaba terminali põhi- või kõrvalkäes."
     transmitter_slot_occupied: "Juhtmevaba saatja terminalipesa on hõivatud."
     transmitter_terminal_only: "Sellesse pessa saab asetada ainult juhtmevaba terminali."
+    transmitter_booster_slot_occupied: "Juhtmevaba saatja võimendipesa on hõivatud."
+    transmitter_booster_only: "Sellesse pessa saab asetada ainult juhtmevaba signaali võimendi."
 debug:
   mode:
     read: "ainult lugemine"
@@ -236,6 +240,7 @@ item:
   import_bus: "Impordi siin"
   export_bus: "Ekspordi siin"
   wireless_terminal: "Juhtmevaba terminal"
+  wireless_booster: "Juhtmevaba signaali võimendi"
   transmitter: "Juhtmevaba saatja"
 tier:
   common: "Tavaline"
@@ -263,6 +268,10 @@ lore:
     owner: "Omanik: {0}"
     not_linked: "Sidumata"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Tase: {0}"
+    range_bonus: "Ulatuse boonus: {0}%"
+    global: "Toimib kogu praeguses maailmas"
 gui:
   give:
     title: "Exort esemed"
@@ -324,6 +333,7 @@ gui:
       active: "Võrk: võrgus"
       storage: "Hoidla: {0}"
       range: "Ulatus: {0} plokki"
+      global: "Globaalne praeguses maailmas"
       covered: "Mängija on levialas"
       not_covered: "Mängija on selle saatja levialast väljas"
       missing: "Saatjaplokk puudub"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalipesa: tühi"
       terminal_present: "Terminalipesa: hõivatud"
+      booster_empty: "Võimendipesa: tühi"
+      booster_present: "Võimendi: {0}"
   bus:
     import_title: "Impordi siin"
     export_title: "Ekspordi siin"

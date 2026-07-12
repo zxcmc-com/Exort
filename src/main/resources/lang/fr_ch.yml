@@ -61,8 +61,9 @@ message:
   usage_give_header: "Donner des objets Exort:"
   usage_give_storage: "donner un objet de stockage par tier"
   usage_give_chunk_loader: "donner un chargeur de chunks"
+  usage_give_wireless_booster: "donner un amplificateur de signal sans fil par niveau"
   usage_give_item: "donner un objet Exort fixe"
-  usage_give_items: "Objets: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Objets: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Utilisation: /exort reload"
   unknown_subcommand: "Sous-commande inconnue."
   help_header: "Commandes Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Tu n’es pas le propriétaire. Lie-le à nouveau."
     out_of_range: "Le terminal sans fil est hors de portée."
     missing_storage: "Stockage lié introuvable."
+    storage_chunk_unloaded: "Le chunk du stockage lié n'est pas chargé."
     empty: "Le terminal sans fil est déchargé."
     bound: "Terminal sans fil lié."
     self_store: "Impossible de stocker un terminal sans fil dans lui-même."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tiens un terminal sans fil dans la main principale ou secondaire."
     transmitter_slot_occupied: "L’emplacement de terminal de l’émetteur sans fil est occupé."
     transmitter_terminal_only: "Seul un terminal sans fil peut être placé dans cet emplacement."
+    transmitter_booster_slot_occupied: "L'emplacement d'amplificateur du Transmetteur Sans Fil est occupé."
+    transmitter_booster_only: "Seul un Amplificateur de Signal Sans Fil peut être placé dans cet emplacement."
 debug:
   mode:
     read: "lecture seule"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus d'importation"
   export_bus: "Bus d'exportation"
   wireless_terminal: "Terminal sans fil"
+  wireless_booster: "Amplificateur de Signal Sans Fil"
   transmitter: "Émetteur sans fil"
 tier:
   common: "Commun"
@@ -263,6 +268,10 @@ lore:
     owner: "Propriétaire : {0}"
     not_linked: "Non relié"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Niveau: {0}"
+    range_bonus: "Bonus de portée: {0}%"
+    global: "Fonctionne dans tout le monde actuel"
 gui:
   give:
     title: "Objets Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Réseau: en ligne"
       storage: "Stockage: {0}"
       range: "Portée: {0} blocs"
+      global: "Global dans le monde actuel"
       covered: "Le joueur est couvert"
       not_covered: "Le joueur est hors de portée de cet émetteur"
       missing: "Le bloc de l’émetteur est manquant"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Emplacement du terminal: vide"
       terminal_present: "Emplacement du terminal: occupé"
+      booster_empty: "Emplacement d'amplificateur: vide"
+      booster_present: "Amplificateur: {0}"
   bus:
     import_title: "Bus d’importation"
     export_title: "Bus d’exportation"

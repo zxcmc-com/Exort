@@ -61,8 +61,9 @@ message:
   usage_give_header: "Jou Exort-items:"
   usage_give_storage: "jou in opslachitem op tier"
   usage_give_chunk_loader: "jou in Chunk-lader op fariant"
+  usage_give_wireless_booster: "jou in triedleaze sinjaalfersterker neffens nivo"
   usage_give_item: "jou in fêst Exort-item"
-  usage_give_items: "Foarwerpen: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Foarwerpen: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Gebrûk: /exort reload"
   unknown_subcommand: "Unbekend subkommando."
   help_header: "Exort Storage Network kommando's:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Do bist net de eigner. Keppelje him opnij."
     out_of_range: "Draadleaze terminal is bûten berik."
     missing_storage: "Keppele opslach net fûn."
+    storage_chunk_unloaded: "De chunk fan de keppele opslach is net laden."
     empty: "Draadleaze terminal is leech."
     bound: "Draadleaze terminal keppele."
     self_store: "Kin in draadleaze terminal net yn himsels opslaan."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hâld in triedleaze terminal yn de haadhân of twadde hân."
     transmitter_slot_occupied: "It terminalfak fan de triedleaze stjoerder is beset."
     transmitter_terminal_only: "Allinnich in triedleaze terminal mei yn dit fak."
+    transmitter_booster_slot_occupied: "It fersterkerfak fan de Tridleaze Stjoerder is beset."
+    transmitter_booster_only: "Allinnich in Tridleaze Sinjaalfersterker kin yn dit fak pleatst wurde."
 debug:
   mode:
     read: "allinnich lêze"
@@ -236,6 +240,7 @@ item:
   import_bus: "Ymportbus"
   export_bus: "Eksportbus"
   wireless_terminal: "Draadleaze terminal"
+  wireless_booster: "Tridleaze Sinjaalfersterker"
   transmitter: "Tridleaze stjoerder"
 tier:
   common: "Gewoan"
@@ -263,6 +268,10 @@ lore:
     owner: "Eigner: {0}"
     not_linked: "Net keppele"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivo: {0}"
+    range_bonus: "Berikbonus: {0}%"
+    global: "Wurket yn de hiele hjoeddeiske wrâld"
 gui:
   give:
     title: "Exort-items"
@@ -324,6 +333,7 @@ gui:
       active: "Netwurk: online"
       storage: "Opslach: {0}"
       range: "Berik: {0} blokken"
+      global: "Oeral yn de hjoeddeiske wrâld"
       covered: "Spiler is binnen berik"
       not_covered: "Spiler is bûten it berik fan dizze stjoerder"
       missing: "Stjoerderblok ûntbrekt"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalfak: leech"
       terminal_present: "Terminalfak: beset"
+      booster_empty: "Fersterkerfak: leech"
+      booster_present: "Fersterker: {0}"
   bus:
     import_title: "Ymportbus"
     export_title: "Eksportbus"

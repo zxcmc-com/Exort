@@ -11,6 +11,8 @@ import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessMeta;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import com.zxcmc.exort.wireless.charge.WirelessChargeService;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -36,10 +38,18 @@ public final class ExortItemLocalizationService {
 
   private final StorageKeys keys;
   private final Lang lang;
+  private final WirelessRuntimeConfig wirelessConfig;
 
   public ExortItemLocalizationService(StorageKeys keys, Lang lang) {
+    this(keys, lang, WirelessRuntimeConfig.defaults());
+  }
+
+  public ExortItemLocalizationService(
+      StorageKeys keys, Lang lang, WirelessRuntimeConfig wirelessConfig) {
     this.keys = keys;
     this.lang = lang;
+    this.wirelessConfig =
+        wirelessConfig == null ? WirelessRuntimeConfig.defaults() : wirelessConfig;
   }
 
   public ItemStack localize(Player player, ItemStack source) {
@@ -73,6 +83,7 @@ public final class ExortItemLocalizationService {
           case "chunk_loader", "personal_chunk_loader", "dormant_chunk_loader" ->
               localizeChunkLoader(meta, localizedPdc, language);
           case "wireless_terminal" -> localizeWireless(meta, localizedPdc, language);
+          case "wireless_booster" -> localizeWirelessBooster(meta, localizedPdc, language);
           default ->
               CustomItemRegistry.fixedItem(type)
                   .map(identity -> localizeName(meta, language, identity.translationKey()))
@@ -189,6 +200,20 @@ public final class ExortItemLocalizationService {
       }
     }
     meta.lore(lore);
+    return true;
+  }
+
+  private boolean localizeWirelessBooster(
+      ItemMeta meta, PersistentDataContainer pdc, String language) {
+    WirelessBoosterTier tier =
+        WirelessBoosterTier.fromId(pdc.get(keys.wirelessBoosterTier(), PersistentDataType.STRING))
+            .orElse(null);
+    if (tier == null) {
+      return false;
+    }
+    pdc.set(keys.wirelessBoosterTier(), PersistentDataType.STRING, tier.id());
+    meta.itemName(text(language, "item.wireless_booster").color(tier.color()));
+    meta.lore(WirelessBoosterText.lore(lang, language, wirelessConfig, tier));
     return true;
   }
 

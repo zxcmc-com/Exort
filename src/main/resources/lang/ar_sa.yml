@@ -61,8 +61,9 @@ message:
   usage_give_header: "إعطاء عناصر Exort:"
   usage_give_storage: "إعطاء عنصر تخزين حسب الفئة"
   usage_give_chunk_loader: "إعطاء محمّل الـ Chunk حسب النوع"
+  usage_give_wireless_booster: "إعطاء معزز إشارة لاسلكية حسب الفئة"
   usage_give_item: "إعطاء عنصر Exort ثابت"
-  usage_give_items: "العناصر: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "العناصر: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "الاستخدام: /exort reload"
   unknown_subcommand: "أمر فرعي غير معروف."
   help_header: "أوامر Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "أنت لست المالك. اربطها من جديد."
     out_of_range: "الطرفية اللاسلكية خارج النطاق."
     missing_storage: "لم يتم العثور على التخزين المرتبط."
+    storage_chunk_unloaded: "قطعة التخزين المرتبطة غير محمّلة."
     empty: "الطرفية اللاسلكية فارغة الشحن."
     bound: "تم ربط الطرفية اللاسلكية."
     self_store: "لا يمكن تخزين طرفية لاسلكية داخل نفسها."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "أمسك طرفية لاسلكية في اليد الرئيسية أو الثانوية."
     transmitter_slot_occupied: "فتحة طرفية المرسل اللاسلكي مشغولة."
     transmitter_terminal_only: "لا يمكن وضع سوى طرفية لاسلكية في هذه الفتحة."
+    transmitter_booster_slot_occupied: "فتحة المعزز في المرسل اللاسلكي مشغولة."
+    transmitter_booster_only: "لا يمكن وضع سوى معزز إشارة لاسلكية في هذه الفتحة."
 debug:
   mode:
     read: "قراءة فقط"
@@ -236,6 +240,7 @@ item:
   import_bus: "ناقل الاستيراد"
   export_bus: "ناقل التصدير"
   wireless_terminal: "طرفية لاسلكية"
+  wireless_booster: "معزز إشارة لاسلكية"
   transmitter: "مرسل لاسلكي"
 tier:
   common: "شائع"
@@ -263,6 +268,10 @@ lore:
     owner: "المالك: {0}"
     not_linked: "غير مرتبطة"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "الفئة: {0}"
+    range_bonus: "زيادة النطاق: {0}%"
+    global: "يعمل في جميع أنحاء العالم الحالي"
 gui:
   give:
     title: "عناصر Exort"
@@ -324,6 +333,7 @@ gui:
       active: "الشبكة: متصلة"
       storage: "التخزين: {0}"
       range: "النطاق: {0} كتلة"
+      global: "عالمي في العالم الحالي"
       covered: "اللاعب ضمن التغطية"
       not_covered: "اللاعب خارج نطاق هذا المرسل"
       missing: "كتلة المرسل مفقودة"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "فتحة الطرفية: فارغة"
       terminal_present: "فتحة الطرفية: مشغولة"
+      booster_empty: "فتحة المعزز: فارغة"
+      booster_present: "المعزز: {0}"
   bus:
     import_title: "ناقل الاستيراد"
     export_title: "ناقل التصدير"

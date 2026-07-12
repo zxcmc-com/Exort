@@ -134,6 +134,10 @@ public class WirelessListener implements Listener {
       feedbackError(player, "message.wireless.missing_storage");
       return;
     }
+    if (!isAnchorChunkLoaded(anchor)) {
+      feedbackError(player, "message.wireless.storage_chunk_unloaded");
+      return;
+    }
     Block anchorBlock = anchor.getBlock();
     Optional<StorageMarker.Data> markerData = StorageMarker.get(plugin, anchorBlock);
     if (!Carriers.matchesCarrier(anchorBlock, storageCarrier)
@@ -197,6 +201,10 @@ public class WirelessListener implements Listener {
       feedbackError(player, "message.wireless.missing_storage");
       return;
     }
+    if (!isAnchorChunkLoaded(anchor)) {
+      feedbackError(player, "message.wireless.storage_chunk_unloaded");
+      return;
+    }
     Block anchorBlock = anchor.getBlock();
     Optional<StorageMarker.Data> markerData = StorageMarker.get(plugin, anchorBlock);
     if (!Carriers.matchesCarrier(anchorBlock, storageCarrier)
@@ -241,6 +249,13 @@ public class WirelessListener implements Listener {
         && a.getBlockX() == b.getBlockX()
         && a.getBlockY() == b.getBlockY()
         && a.getBlockZ() == b.getBlockZ();
+  }
+
+  static boolean isAnchorChunkLoaded(Location anchor) {
+    if (anchor == null || !anchor.isWorldLoaded() || anchor.getWorld() == null) {
+      return false;
+    }
+    return anchor.getWorld().isChunkLoaded(anchor.getBlockX() >> 4, anchor.getBlockZ() >> 4);
   }
 
   private void handleStorageLoadFailure(Player player, String storageId, Throwable err) {

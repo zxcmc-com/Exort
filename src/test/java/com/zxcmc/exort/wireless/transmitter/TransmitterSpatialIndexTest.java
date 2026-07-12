@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -67,5 +68,23 @@ class TransmitterSpatialIndexTest {
     assertEquals(250, index.size());
     assertTrue(nearby.size() < index.size());
     assertTrue(nearby.contains(new TransmitterSpatialIndex.Position(world, 0, 64, 0)));
+  }
+
+  @Test
+  void globalClassificationIsWorldScopedAndCanBeReclassified() {
+    UUID world = new UUID(0L, 6L);
+    UUID otherWorld = new UUID(0L, 7L);
+    TransmitterSpatialIndex index = new TransmitterSpatialIndex();
+    var position = new TransmitterSpatialIndex.Position(world, 0, 64, 0);
+    var other = new TransmitterSpatialIndex.Position(otherWorld, 0, 64, 0);
+
+    index.add(position, true);
+    index.add(other, true);
+
+    assertEquals(List.of(position), index.globalCandidates(world));
+    assertEquals(List.of(other), index.globalCandidates(otherWorld));
+    index.add(position, false);
+    assertTrue(index.globalCandidates(world).isEmpty());
+    assertEquals(2, index.size());
   }
 }

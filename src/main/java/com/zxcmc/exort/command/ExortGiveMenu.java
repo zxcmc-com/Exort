@@ -5,6 +5,7 @@ import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -189,6 +190,14 @@ public final class ExortGiveMenu implements InventoryHolder {
       ids.add("storage:" + tier.key().toLowerCase(Locale.ROOT));
     }
     for (String id : FIXED_ITEM_IDS) {
+      if (CustomItemRegistry.WIRELESS_BOOSTER.id().equals(id)) {
+        if (access.isCatalogVisible(id)) {
+          for (WirelessBoosterTier tier : WirelessBoosterTier.values()) {
+            ids.add(id + ":" + tier.id());
+          }
+        }
+        continue;
+      }
       if (access.isCatalogVisible(id)) {
         ids.add(id);
       }
@@ -259,6 +268,11 @@ public final class ExortGiveMenu implements InventoryHolder {
     }
     if (access.isCatalogVisible("wireless_terminal")) {
       items.add(oneItemCopy(wirelessTerminalFactory.get()));
+    }
+    if (access.isCatalogVisible("wireless_booster")) {
+      for (WirelessBoosterTier tier : WirelessBoosterTier.values()) {
+        items.add(oneItemCopy(customItems.wirelessBoosterItem(tier)));
+      }
     }
     return List.copyOf(items);
   }

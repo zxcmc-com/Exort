@@ -3,15 +3,19 @@ package com.zxcmc.exort.items;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.StorageTierText;
+import com.zxcmc.exort.i18n.WirelessBoosterText;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -44,6 +48,8 @@ public class CustomItems {
   private final String wirelessItemModel;
   private final String wirelessDisabledItemModel;
   private final String wirelessVanillaModel;
+  private final Map<WirelessBoosterTier, String> wirelessBoosterItemModels;
+  private final WirelessRuntimeConfig wirelessConfig;
   private final boolean clientTranslations;
 
   public CustomItems(
@@ -64,6 +70,51 @@ public class CustomItems {
       String wirelessItemModel,
       String wirelessDisabledItemModel,
       String wirelessVanillaModel,
+      Map<WirelessBoosterTier, String> wirelessBoosterItemModels,
+      boolean clientTranslations) {
+    this(
+        keys,
+        lang,
+        wireItemModel,
+        storageItemModel,
+        terminalItemModel,
+        craftingTerminalItemModel,
+        monitorItemModel,
+        importBusItemModel,
+        exportBusItemModel,
+        relayItemModel,
+        transmitterItemModel,
+        chunkLoaderItemModel,
+        personalChunkLoaderItemModel,
+        dormantChunkLoaderItemModel,
+        wirelessItemModel,
+        wirelessDisabledItemModel,
+        wirelessVanillaModel,
+        wirelessBoosterItemModels,
+        WirelessRuntimeConfig.defaults(),
+        clientTranslations);
+  }
+
+  public CustomItems(
+      StorageKeys keys,
+      Lang lang,
+      String wireItemModel,
+      String storageItemModel,
+      String terminalItemModel,
+      String craftingTerminalItemModel,
+      String monitorItemModel,
+      String importBusItemModel,
+      String exportBusItemModel,
+      String relayItemModel,
+      String transmitterItemModel,
+      String chunkLoaderItemModel,
+      String personalChunkLoaderItemModel,
+      String dormantChunkLoaderItemModel,
+      String wirelessItemModel,
+      String wirelessDisabledItemModel,
+      String wirelessVanillaModel,
+      Map<WirelessBoosterTier, String> wirelessBoosterItemModels,
+      WirelessRuntimeConfig wirelessConfig,
       boolean clientTranslations) {
     this.keys = keys;
     this.lang = lang;
@@ -86,6 +137,10 @@ public class CustomItems {
     this.wirelessDisabledItemModel =
         wirelessDisabledItemModel == null ? "" : wirelessDisabledItemModel;
     this.wirelessVanillaModel = wirelessVanillaModel == null ? "" : wirelessVanillaModel;
+    this.wirelessBoosterItemModels =
+        wirelessBoosterItemModels == null ? Map.of() : Map.copyOf(wirelessBoosterItemModels);
+    this.wirelessConfig =
+        wirelessConfig == null ? WirelessRuntimeConfig.defaults() : wirelessConfig;
     this.clientTranslations = clientTranslations;
   }
 
@@ -291,6 +346,24 @@ public class CustomItems {
     return item;
   }
 
+  public ItemStack wirelessBoosterItem(WirelessBoosterTier tier) {
+    if (tier == null) {
+      throw new IllegalArgumentException("tier");
+    }
+    ItemStack item = new ItemStack(BASE_MATERIAL);
+    ItemMeta meta = item.getItemMeta();
+    if (meta != null) {
+      meta.itemName(wirelessBoosterName(tier));
+      PersistentDataContainer pdc = meta.getPersistentDataContainer();
+      pdc.set(keys.type(), PersistentDataType.STRING, CustomItemRegistry.WIRELESS_BOOSTER.id());
+      pdc.set(keys.wirelessBoosterTier(), PersistentDataType.STRING, tier.id());
+      meta.lore(WirelessBoosterText.lore(lang, clientTranslations, wirelessConfig, tier));
+      ItemModelUtil.applyItemModel(meta, wirelessBoosterItemModel(tier));
+      item.setItemMeta(meta);
+    }
+    return item;
+  }
+
   public boolean isCustomItem(ItemStack stack) {
     return CustomItemClassifier.isCustomItem(keys, stack);
   }
@@ -393,6 +466,16 @@ public class CustomItems {
         if (wirelessService == null) return false;
         return wirelessService.refreshAppearance(stack, inStorage);
       }
+      case "wireless_booster" -> {
+        WirelessBoosterTier tier = wirelessBoosterTier(stack).orElse(null);
+        if (tier == null) return false;
+        pdc.set(keys.wirelessBoosterTier(), PersistentDataType.STRING, tier.id());
+        meta.itemName(wirelessBoosterName(tier));
+        meta.lore(WirelessBoosterText.lore(lang, clientTranslations, wirelessConfig, tier));
+        ItemModelUtil.applyItemModel(meta, wirelessBoosterItemModel(tier));
+        stack.setItemMeta(meta);
+        return true;
+      }
       default -> {
         return false;
       }
@@ -401,6 +484,22 @@ public class CustomItems {
 
   public boolean isWirelessTerminal(ItemStack stack) {
     return CustomItemClassifier.isType(keys, stack, CustomItemRegistry.WIRELESS_TERMINAL.id());
+  }
+
+  public boolean isWirelessBooster(ItemStack stack) {
+    return wirelessBoosterTier(stack).isPresent();
+  }
+
+  public Optional<WirelessBoosterTier> wirelessBoosterTier(ItemStack stack) {
+    if (!CustomItemClassifier.isType(keys, stack, CustomItemRegistry.WIRELESS_BOOSTER.id())) {
+      return Optional.empty();
+    }
+    String raw =
+        stack
+            .getItemMeta()
+            .getPersistentDataContainer()
+            .get(keys.wirelessBoosterTier(), PersistentDataType.STRING);
+    return WirelessBoosterTier.fromId(raw);
   }
 
   public boolean isRelay(ItemStack stack) {
@@ -434,6 +533,10 @@ public class CustomItems {
 
   public boolean clientTranslations() {
     return clientTranslations;
+  }
+
+  public WirelessRuntimeConfig wirelessConfig() {
+    return wirelessConfig;
   }
 
   public Optional<StorageTier> tierFromItem(ItemStack stack) {
@@ -577,6 +680,16 @@ public class CustomItems {
       case DORMANT_CHUNK_LOADER -> dormantChunkLoaderItemModel;
       case CHUNK_LOADER -> chunkLoaderItemModel;
     };
+  }
+
+  private Component wirelessBoosterName(WirelessBoosterTier tier) {
+    return lang.itemComponent(clientTranslations, "item.wireless_booster")
+        .color(tier.color())
+        .decoration(TextDecoration.ITALIC, false);
+  }
+
+  private String wirelessBoosterItemModel(WirelessBoosterTier tier) {
+    return wirelessBoosterItemModels.getOrDefault(tier, "minecraft:amethyst_shard");
   }
 
   private String formatNumber(long value) {

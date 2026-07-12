@@ -396,7 +396,26 @@ class PickListenerTest {
     private final StorageKeys keys;
 
     TestCustomItems(StorageKeys keys) {
-      super(keys, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
+      super(
+          keys,
+          null,
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          java.util.Map.of(),
+          false);
       this.keys = keys;
     }
 

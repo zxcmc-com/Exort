@@ -61,8 +61,9 @@ message:
   usage_give_header: ":sɯǝʇᴉ ʇɹoxƎ ǝʌᴉ⅁"
   usage_give_storage: "ɹǝᴉʇ ʎq ɯǝʇᴉ ǝƃɐɹoʇs ɐ ǝʌᴉƃ"
   usage_give_chunk_loader: "ʇuɐᴉɹɐʌ ʎq ɹǝpɐo⅂ ʞunɥƆ ɐ ǝʌᴉƃ"
+  usage_give_wireless_booster: "ɹǝᴉʇ ʎq ɹǝʇsoo𐐒 lɐuƃᴉS ssǝlǝɹᴉM ɐ ǝʌᴉƃ"
   usage_give_item: "ɯǝʇᴉ ʇɹoxƎ pǝxᴉɟ ɐ ǝʌᴉƃ"
-  usage_give_items: ":sɯǝʇI storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: ":sɯǝʇI storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "pɐolǝɹ ʇɹoxǝ/ :ǝƃɐs∩"
   unknown_subcommand: "˙puɐɯɯoɔqns uʍouʞu∩"
   help_header: ":spuɐɯɯoɔ ʞɹoʍʇǝN ǝƃɐɹoʇS ʇɹoxƎ"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "˙uᴉɐƃɐ ʇᴉ ʞuᴉ⅂ ˙ɹǝuʍo ǝɥʇ ʇou ǝɹɐ no⅄"
     out_of_range: "˙ǝƃuɐɹ ɟo ʇno sᴉ lɐuᴉɯɹǝʇ ssǝlǝɹᴉM"
     missing_storage: "˙punoɟ ʇou ǝƃɐɹoʇs pǝʞuᴉ⅂"
+    storage_chunk_unloaded: "˙pǝpɐol ʇou sᴉ ʞunɥɔ ǝƃɐɹoʇS pǝʞuᴉ⅃"
     empty: "˙ǝƃɹɐɥɔ ɟo ʇno sᴉ lɐuᴉɯɹǝʇ ssǝlǝɹᴉM"
     bound: "˙pǝʞuᴉl lɐuᴉɯɹǝʇ ssǝlǝɹᴉM"
     self_store: "˙ɟlǝsʇᴉ ǝpᴉsuᴉ lɐuᴉɯɹǝʇ ssǝlǝɹᴉʍ ɐ ǝɹoʇs ʇouuɐƆ"
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "˙puɐɥ-ɟɟo ɹo puɐɥ uᴉɐɯ uᴉ lɐuᴉɯɹǝ⊥ ssǝlǝɹᴉM ɐ ploH"
     transmitter_slot_occupied: "˙pǝᴉdnɔɔo sᴉ ʇols lɐuᴉɯɹǝʇ ɹǝʇʇᴉɯsuɐɹ⊥ ssǝlǝɹᴉM"
     transmitter_terminal_only: "˙ʇols sᴉɥʇ uᴉ pǝɔɐld ǝq uɐɔ lɐuᴉɯɹǝ⊥ ssǝlǝɹᴉM ɐ ʎluO"
+    transmitter_booster_slot_occupied: "˙pǝᴉdnɔɔo sᴉ ʇols ɹǝʇsooq ɹǝʇʇᴉɯsuɐɹ⊥ ssǝlǝɹᴉM"
+    transmitter_booster_only: "˙ʇols sᴉɥʇ uᴉ pǝɔɐld ǝq uɐɔ ɹǝʇsoo𐐒 lɐuƃᴉS ssǝlǝɹᴉM ɐ ʎluO"
 debug:
   mode:
     read: "ʎluo-pɐǝɹ"
@@ -236,6 +240,7 @@ item:
   import_bus: "sn𐐒 ʇɹodɯI"
   export_bus: "sn𐐒 ʇɹodxƎ"
   wireless_terminal: "lɐuᴉɯɹǝ⊥ ssǝlǝɹᴉM"
+  wireless_booster: "ɹǝʇsoo𐐒 lɐuƃᴉS ssǝlǝɹᴉM"
   transmitter: "ɹǝʇʇᴉɯsuɐɹ⊥ ssǝlǝɹᴉM"
 tier:
   common: "uoɯɯoƆ"
@@ -263,6 +268,10 @@ lore:
     owner: "ɹǝuʍO: {0}"
     not_linked: "pǝʞuᴉl ʇoN"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "{0} :ɹǝᴉ⊥"
+    range_bonus: "%{0} :snuoq ǝƃuɐᴚ"
+    global: "plɹoʍ ʇuǝɹɹnɔ ǝɥʇ ʇnoɥƃnoɹɥʇ sʞɹoM"
 gui:
   give:
     title: "sɯǝʇI ʇɹoxƎ"
@@ -324,6 +333,7 @@ gui:
       active: "ǝuᴉluo :ʞɹoʍʇǝN"
       storage: "{0} :ǝƃɐɹoʇS"
       range: "sʞɔolq {0} :ǝƃuɐᴚ"
+      global: "plɹoʍ ʇuǝɹɹnɔ uᴉ lɐqol⅁"
       covered: "pǝɹǝʌoɔ sᴉ ɹǝʎɐlԀ"
       not_covered: "ǝƃuɐɹ ɹǝʇʇᴉɯsuɐɹʇ sᴉɥʇ ǝpᴉsʇno sᴉ ɹǝʎɐlԀ"
       missing: "ƃuᴉssᴉɯ sᴉ ʞɔolq ɹǝʇʇᴉɯsuɐɹ⊥"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "ʎʇdɯǝ :ʇols lɐuᴉɯɹǝ⊥"
       terminal_present: "pǝᴉdnɔɔo :ʇols lɐuᴉɯɹǝ⊥"
+      booster_empty: "ʎʇdɯǝ :ʇols ɹǝʇsoo𐐒"
+      booster_present: "{0} :ɹǝʇsoo𐐒"
   bus:
     import_title: "sn𐐒 ʇɹodɯI"
     export_title: "sn𐐒 ʇɹodxƎ"

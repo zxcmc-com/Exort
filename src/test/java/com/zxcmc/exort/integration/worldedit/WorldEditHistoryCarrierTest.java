@@ -24,6 +24,7 @@ class WorldEditHistoryCarrierTest {
   @Test
   void transmitterSnapshotRoundTripPreservesModeAndStoredTerminalForHistory() {
     byte[] terminalBlob = {1, 2, 3, 4};
+    byte[] boosterBlob = {5, 6, 7};
     MarkerSnapshot transmitter =
         new MarkerSnapshot(
             null,
@@ -32,13 +33,14 @@ class WorldEditHistoryCarrierTest {
             null,
             null,
             true,
-            new TransmitterData("disabled", terminalBlob),
+            new TransmitterData("disabled", terminalBlob, boosterBlob),
             null,
             false,
             false);
 
     LinCompoundTag tag = WorldEditBridge.buildExortTag(transmitter);
     terminalBlob[0] = 9;
+    boosterBlob[0] = 9;
     MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(tag);
 
     assertNotNull(parsed);
@@ -46,6 +48,7 @@ class WorldEditHistoryCarrierTest {
     assertNotNull(parsed.transmitterData());
     assertEquals("disabled", parsed.transmitterData().mode());
     assertArrayEquals(new byte[] {1, 2, 3, 4}, parsed.transmitterData().terminalBlob());
+    assertArrayEquals(new byte[] {5, 6, 7}, parsed.transmitterData().boosterBlob());
   }
 
   @Test
@@ -58,12 +61,12 @@ class WorldEditHistoryCarrierTest {
             null,
             null,
             true,
-            new TransmitterData("bind", new byte[] {7, 8, 9}),
+            new TransmitterData("bind", new byte[] {7, 8, 9}, new byte[] {4, 5, 6}),
             null,
             false,
             false);
 
-    MarkerSnapshot sanitized = transmitter.withoutTransmitterTerminal();
+    MarkerSnapshot sanitized = transmitter.withoutTransmitterStoredItems();
     MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(WorldEditBridge.buildExortTag(sanitized));
 
     assertNotNull(parsed);
@@ -71,6 +74,7 @@ class WorldEditHistoryCarrierTest {
     assertNotNull(parsed.transmitterData());
     assertEquals("bind", parsed.transmitterData().mode());
     assertNull(parsed.transmitterData().terminalBlob());
+    assertNull(parsed.transmitterData().boosterBlob());
   }
 
   @Test
@@ -114,6 +118,40 @@ class WorldEditHistoryCarrierTest {
     assertEquals(
         full,
         WorldEditBridge.chooseExistingSnapshot(modeOnly, operationSnapshot, worldId, position));
+  }
+
+  @Test
+  void transmitterHistoryMergesTerminalAndBoosterFromDifferentSnapshots() {
+    MarkerSnapshot terminalOnly =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("bind", new byte[] {1, 2}, null),
+            null,
+            false,
+            false);
+    MarkerSnapshot boosterOnly =
+        new MarkerSnapshot(
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            new TransmitterData("bind", null, new byte[] {3, 4}),
+            null,
+            false,
+            false);
+
+    MarkerSnapshot merged =
+        WorldEditBridge.chooseUndoSnapshot(terminalOnly, boosterOnly, null, null);
+
+    assertArrayEquals(new byte[] {1, 2}, merged.transmitterData().terminalBlob());
+    assertArrayEquals(new byte[] {3, 4}, merged.transmitterData().boosterBlob());
   }
 
   @Test

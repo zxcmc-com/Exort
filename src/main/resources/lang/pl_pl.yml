@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dawanie przedmiotów Exort:"
   usage_give_storage: "daj przedmiot magazynu według poziomu"
   usage_give_chunk_loader: "daj ładowarkę chunków"
+  usage_give_wireless_booster: "daj wzmacniacz sygnału bezprzewodowego według poziomu"
   usage_give_item: "daj stały przedmiot Exort"
-  usage_give_items: "Przedmioty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Przedmioty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Użycie: /exort reload"
   unknown_subcommand: "Nieznana podkomenda."
   help_header: "Komendy Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Nie jesteś właścicielem. Połącz go ponownie."
     out_of_range: "Terminal bezprzewodowy jest poza zasięgiem."
     missing_storage: "Nie znaleziono połączonego magazynu."
+    storage_chunk_unloaded: "Chunk powiązanego magazynu nie jest wczytany."
     empty: "Terminal bezprzewodowy jest rozładowany."
     bound: "Terminal bezprzewodowy połączony."
     self_store: "Nie można włożyć terminala bezprzewodowego do niego samego."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Trzymaj terminal bezprzewodowy w głównej lub dodatkowej ręce."
     transmitter_slot_occupied: "Gniazdo terminala w nadajniku bezprzewodowym jest zajęte."
     transmitter_terminal_only: "W tym gnieździe można umieścić tylko terminal bezprzewodowy."
+    transmitter_booster_slot_occupied: "Gniazdo wzmacniacza nadajnika bezprzewodowego jest zajęte."
+    transmitter_booster_only: "W tym gnieździe można umieścić tylko wzmacniacz sygnału bezprzewodowego."
 debug:
   mode:
     read: "tylko odczyt"
@@ -236,6 +240,7 @@ item:
   import_bus: "Szyna importu"
   export_bus: "Szyna eksportu"
   wireless_terminal: "Terminal bezprzewodowy"
+  wireless_booster: "Wzmacniacz sygnału bezprzewodowego"
   transmitter: "Nadajnik bezprzewodowy"
 tier:
   common: "Zwykły"
@@ -263,6 +268,10 @@ lore:
     owner: "Właściciel: {0}"
     not_linked: "Niepołączony"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Poziom: {0}"
+    range_bonus: "Premia do zasięgu: {0}%"
+    global: "Działa w całym bieżącym świecie"
 gui:
   give:
     title: "Przedmioty Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Sieć: aktywna"
       storage: "Magazyn: {0}"
       range: "Zasięg: {0} bloków"
+      global: "Globalny w bieżącym świecie"
       covered: "Gracz jest w zasięgu"
       not_covered: "Gracz jest poza zasięgiem tego nadajnika"
       missing: "Brakuje bloku nadajnika"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Gniazdo terminala: puste"
       terminal_present: "Gniazdo terminala: zajęte"
+      booster_empty: "Gniazdo wzmacniacza: puste"
+      booster_present: "Wzmacniacz: {0}"
   bus:
     import_title: "Szyna importu"
     export_title: "Szyna eksportu"

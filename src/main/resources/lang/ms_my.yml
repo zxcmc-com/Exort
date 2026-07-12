@@ -61,8 +61,9 @@ message:
   usage_give_header: "Beri item Exort:"
   usage_give_storage: "beri item storan mengikut tier"
   usage_give_chunk_loader: "beri pemuat chunk mengikut varian"
+  usage_give_wireless_booster: "beri Penggalak Isyarat Wayarles mengikut tier"
   usage_give_item: "beri item Exort tetap"
-  usage_give_items: "Item: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Item: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Penggunaan: /exort reload"
   unknown_subcommand: "Subarahan tidak diketahui."
   help_header: "Arahan Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Anda bukan pemilik. Pautkannya semula."
     out_of_range: "Terminal wayarles di luar julat."
     missing_storage: "Storan terpaut tidak ditemui."
+    storage_chunk_unloaded: "Chunk storan yang dipautkan belum dimuatkan."
     empty: "Terminal wayarles kehabisan cas."
     bound: "Terminal wayarles dipautkan."
     self_store: "Tidak boleh menyimpan terminal wayarles di dalam dirinya sendiri."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Pegang Terminal Wayarles di tangan utama atau tangan kedua."
     transmitter_slot_occupied: "Slot terminal Pemancar Wayarles telah diduduki."
     transmitter_terminal_only: "Hanya Terminal Wayarles boleh diletakkan di slot ini."
+    transmitter_booster_slot_occupied: "Slot penggalak Pemancar Wayarles telah diduduki."
+    transmitter_booster_only: "Hanya Penggalak Isyarat Wayarles boleh diletakkan di slot ini."
 debug:
   mode:
     read: "baca sahaja"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bas Import"
   export_bus: "Bas Eksport"
   wireless_terminal: "Terminal Wayarles"
+  wireless_booster: "Penggalak Isyarat Wayarles"
   transmitter: "Pemancar Wayarles"
 tier:
   common: "Biasa"
@@ -263,6 +268,10 @@ lore:
     owner: "Pemilik: {0}"
     not_linked: "Belum dipautkan"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Peringkat: {0}"
+    range_bonus: "Bonus jarak: {0}%"
+    global: "Berfungsi di seluruh dunia semasa"
 gui:
   give:
     title: "Item Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rangkaian: dalam talian"
       storage: "Storan: {0}"
       range: "Julat: {0} blok"
+      global: "Global dalam dunia semasa"
       covered: "Pemain berada dalam liputan"
       not_covered: "Pemain berada di luar julat pemancar ini"
       missing: "Blok pemancar tiada"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot terminal: kosong"
       terminal_present: "Slot terminal: diduduki"
+      booster_empty: "Slot penggalak: kosong"
+      booster_present: "Penggalak: {0}"
   bus:
     import_title: "Bas Import"
     export_title: "Bas Eksport"

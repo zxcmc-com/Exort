@@ -61,8 +61,9 @@ message:
   usage_give_header: "Da Exort res:"
   usage_give_storage: "da quietum res per gradum"
   usage_give_chunk_loader: "da Onustorem Chunk"
+  usage_give_wireless_booster: "da amplificatorem signi sine filo secundum gradum"
   usage_give_item: "da fixum Exort res"
-  usage_give_items: "Res: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Res: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Usus: /exort reload"
   unknown_subcommand: "Submandatum ignotum."
   help_header: "Exort Quietum rete imperia:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Non es custos. Iterum nectere."
     out_of_range: "Terminale sine filo extra spatium est."
     missing_storage: "Quietum nexum non inventum."
+    storage_chunk_unloaded: "Pars quieti conexi onerata non est."
     empty: "Terminale sine filo sine vis."
     bound: "Terminale sine filo nexum."
     self_store: "Terminale sine filo intra se ipsum recondi non potest."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Terminale sine filo in manu primaria vel altera tene."
     transmitter_slot_occupied: "Loculus terminalis transmissoris sine filo occupatus est."
     transmitter_terminal_only: "Solum terminale sine filo in hoc loculo poni potest."
+    transmitter_booster_slot_occupied: "Locus amplificatoris Transmissoris sine Filo occupatus est."
+    transmitter_booster_only: "Solum Amplificator Signi sine Filo in hoc loco poni potest."
 debug:
   mode:
     read: "lectio sola"
@@ -236,6 +240,7 @@ item:
   import_bus: "Via intrantis"
   export_bus: "Via exeuntis"
   wireless_terminal: "Terminale sine filo"
+  wireless_booster: "Amplificator Signi sine Filo"
   transmitter: "Transmissor sine filo"
 tier:
   common: "Commune"
@@ -263,6 +268,10 @@ lore:
     owner: "Custos: {0}"
     not_linked: "Non nexum"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Gradus: {0}"
+    range_bonus: "Incrementum spatii: {0}%"
+    global: "Per totum mundum praesentem operatur"
 gui:
   give:
     title: "Res Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rete: nexum"
       storage: "Quietum: {0}"
       range: "Spatium: {0} caudices"
+      global: "Ubique in mundo praesenti"
       covered: "Ludens intra tegimen est"
       not_covered: "Ludens extra spatium huius transmissoris est"
       missing: "Caudex transmissoris deest"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Loculus terminalis: vacuus"
       terminal_present: "Loculus terminalis: occupatus"
+      booster_empty: "Locus amplificatoris: vacuus"
+      booster_present: "Amplificator: {0}"
   bus:
     import_title: "Via intrantis"
     export_title: "Via exeuntis"

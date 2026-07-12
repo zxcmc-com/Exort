@@ -70,6 +70,28 @@ class TransmitterStoredTerminalTest {
   }
 
   @Test
+  void terminalAndBoosterUseIndependentTransactionalFields() {
+    Plugin plugin = BukkitTestDoubles.plugin();
+    Block block = transmitterBlock("stored-transmitter-items", 515);
+    ItemStack terminal = new TestItemStack(Material.ENDER_PEARL, 9);
+    ItemStack booster = new TestItemStack(Material.ENDER_PEARL, 12);
+
+    assertTrue(
+        TransmitterStoredTerminal.set(
+            plugin, block, terminal, this::acceptsEnderPearl, TEST_CODEC));
+    assertTrue(
+        TransmitterStoredBooster.setDetailed(
+                plugin, block, booster, this::acceptsEnderPearl, TEST_CODEC)
+            .success());
+
+    assertTrue(TransmitterStoredTerminal.terminalBlob(plugin, block).isPresent());
+    assertTrue(TransmitterStoredBooster.boosterBlob(plugin, block).isPresent());
+    TransmitterStoredBooster.clear(plugin, block);
+    assertTrue(TransmitterStoredTerminal.terminalBlob(plugin, block).isPresent());
+    assertTrue(TransmitterStoredBooster.boosterBlob(plugin, block).isEmpty());
+  }
+
+  @Test
   void setterStoresCanonicalRepresentationWhenFirstRoundTripNormalizes() {
     Plugin plugin = BukkitTestDoubles.plugin();
     Block block = transmitterBlock("stored-terminal-canonical", 510);

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Donar Exort objekti:"
   usage_give_storage: "donar stoko objekto segun rango"
   usage_give_chunk_loader: "donar Chunk-charjilo"
+  usage_give_wireless_booster: "donar senfila signalfortigilo segun nivelo"
   usage_give_item: "donar fixa Exort objekto"
-  usage_give_items: "Objekti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Objekti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uzo: /exort reload"
   unknown_subcommand: "Nekonocata subkomando."
   help_header: "Exort Stoko reto komandi:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Vu ne esas la proprietanto. Ligez itere."
     out_of_range: "Senfil-terminalo esas tro fore."
     missing_storage: "Konektita stoko ne trovita."
+    storage_chunk_unloaded: "La chunk di la ligita stoko ne esas cargita."
     empty: "Senfil-terminalo sen baterio."
     bound: "Senfil-terminalo ligita."
     self_store: "On ne povas depozar senfil-terminalo en su ipsa."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tenez senfila terminalo en la precipua o altra mano."
     transmitter_slot_occupied: "La terminal-fendo dil senfila transmisilo esas okupita."
     transmitter_terminal_only: "Nur senfila terminalo povas esar pozata en ca fendo."
+    transmitter_booster_slot_occupied: "La fortigilo-fako di la Senfila Transmisilo esas okupata."
+    transmitter_booster_only: "Nur Senfila Signalfortigilo povas esar pozita en ca fako."
 debug:
   mode:
     read: "nur-lekta"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-buso"
   export_bus: "Export-buso"
   wireless_terminal: "Senfil-terminalo"
+  wireless_booster: "Senfila Signalfortigilo"
   transmitter: "Senfila Transmisilo"
 tier:
   common: "Komuna"
@@ -263,6 +268,10 @@ lore:
     owner: "Proprietanto: {0}"
     not_linked: "Ne ligita"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivelo: {0}"
+    range_bonus: "Disto-bonuso: {0}%"
+    global: "Funkcionas tra la tota nuna mondo"
 gui:
   give:
     title: "Exort objekti"
@@ -324,6 +333,7 @@ gui:
       active: "Reto: konektita"
       storage: "Stoko: {0}"
       range: "Disto: {0} bloki"
+      global: "Globala en la nuna mondo"
       covered: "La ludero esas kovrita"
       not_covered: "La ludero esas ekster la disto di ca transmisilo"
       missing: "La transmisilo-bloko mankas"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal-fendo: vakua"
       terminal_present: "Terminal-fendo: okupita"
+      booster_empty: "Fortigilo-fako: vakua"
+      booster_present: "Fortigilo: {0}"
   bus:
     import_title: "Import-buso"
     export_title: "Export-buso"

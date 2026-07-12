@@ -55,13 +55,15 @@ public final class TransmitterStoredTerminal {
 
     private final Plugin plugin;
     private final Block block;
+    private final String field;
     private final byte[] blob;
     private final ItemStack item;
     private State state = State.OPEN;
 
-    private TakeReservation(Plugin plugin, Block block, byte[] blob, ItemStack item) {
+    private TakeReservation(Plugin plugin, Block block, String field, byte[] blob, ItemStack item) {
       this.plugin = plugin;
       this.block = block;
+      this.field = field;
       this.blob = Arrays.copyOf(blob, blob.length);
       this.item = item.clone();
     }
@@ -75,15 +77,15 @@ public final class TransmitterStoredTerminal {
         return false;
       }
       Optional<byte[]> current =
-          ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL);
+          ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field);
       if (current.isEmpty() || !Arrays.equals(blob, current.get())) {
         return false;
       }
       try {
-        clear(plugin, block);
+        clearStoredItem(plugin, block, field);
       } catch (RuntimeException failure) {
         Optional<byte[]> afterFailure =
-            ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL);
+            ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field);
         if (afterFailure.isEmpty()) {
           state = State.COMMITTED;
           return true;
@@ -98,16 +100,11 @@ public final class TransmitterStoredTerminal {
       if (state != State.COMMITTED) {
         return false;
       }
-      if (ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL)
-          .isPresent()) {
+      if (ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field).isPresent()) {
         return false;
       }
       ChunkMarkerStore.setBytes(
-          plugin,
-          block,
-          TransmitterMarker.SECTION,
-          FIELD_TERMINAL,
-          Arrays.copyOf(blob, blob.length));
+          plugin, block, TransmitterMarker.SECTION, field, Arrays.copyOf(blob, blob.length));
       state = State.ROLLED_BACK;
       return true;
     }
@@ -129,26 +126,13 @@ public final class TransmitterStoredTerminal {
   }
 
   public static Optional<byte[]> terminalBlob(Plugin plugin, Block block) {
-    return ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL)
-        .filter(bytes -> bytes.length > 0 && bytes.length <= MAX_ITEM_BLOB_BYTES)
-        .map(bytes -> Arrays.copyOf(bytes, bytes.length));
+    return storedItemBlob(plugin, block, FIELD_TERMINAL);
   }
 
   public static void restore(
       Plugin plugin, Block block, TransmitterMode mode, byte[] terminalBlob) {
     setMode(plugin, block, mode);
-    if (terminalBlob == null
-        || terminalBlob.length <= 0
-        || terminalBlob.length > MAX_ITEM_BLOB_BYTES) {
-      clear(plugin, block);
-      return;
-    }
-    ChunkMarkerStore.setBytes(
-        plugin,
-        block,
-        TransmitterMarker.SECTION,
-        FIELD_TERMINAL,
-        Arrays.copyOf(terminalBlob, terminalBlob.length));
+    restoreStoredItem(plugin, block, FIELD_TERMINAL, terminalBlob);
   }
 
   public static Optional<ItemStack> get(
@@ -162,28 +146,46 @@ public final class TransmitterStoredTerminal {
       Predicate<ItemStack> validator,
       Consumer<String> warning,
       ItemStackCodec codec) {
+    return getStoredItem(
+        plugin, block, FIELD_TERMINAL, "terminal", "Wireless Terminal", validator, warning, codec);
+  }
+
+  static Optional<ItemStack> getStoredItem(
+      Plugin plugin,
+      Block block,
+      String field,
+      String storedName,
+      String expectedName,
+      Predicate<ItemStack> validator,
+      Consumer<String> warning,
+      ItemStackCodec codec) {
     Optional<byte[]> raw =
-        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL);
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field);
     if (raw.isEmpty()) {
       return Optional.empty();
     }
     byte[] bytes = raw.get();
     if (bytes.length <= 0 || bytes.length > MAX_ITEM_BLOB_BYTES) {
-      warn(warning, "Invalid Wireless Transmitter stored terminal blob length: " + bytes.length);
-      clear(plugin, block);
+      warn(
+          warning,
+          "Invalid Wireless Transmitter stored " + storedName + " blob length: " + bytes.length);
+      clearStoredItem(plugin, block, field);
       return Optional.empty();
     }
     ItemStack stack;
     try {
       stack = codec.decode(Arrays.copyOf(bytes, bytes.length));
     } catch (RuntimeException error) {
-      warn(warning, "Invalid Wireless Transmitter stored terminal blob: " + error.getMessage());
-      clear(plugin, block);
+      warn(
+          warning,
+          "Invalid Wireless Transmitter stored " + storedName + " blob: " + error.getMessage());
+      clearStoredItem(plugin, block, field);
       return Optional.empty();
     }
     if (isEmpty(stack) || validator == null || !validator.test(stack)) {
-      warn(warning, "Wireless Transmitter stored terminal is not a Wireless Terminal.");
-      clear(plugin, block);
+      warn(
+          warning, "Wireless Transmitter stored " + storedName + " is not a " + expectedName + ".");
+      clearStoredItem(plugin, block, field);
       return Optional.empty();
     }
     stack.setAmount(1);
@@ -215,8 +217,20 @@ public final class TransmitterStoredTerminal {
       ItemStack stack,
       Predicate<ItemStack> validator,
       ItemStackCodec codec) {
+    return setStoredItemDetailed(
+        plugin, block, FIELD_TERMINAL, "Wireless Terminal", stack, validator, codec);
+  }
+
+  static WriteResult setStoredItemDetailed(
+      Plugin plugin,
+      Block block,
+      String field,
+      String expectedName,
+      ItemStack stack,
+      Predicate<ItemStack> validator,
+      ItemStackCodec codec) {
     if (isEmpty(stack) || validator == null || !validator.test(stack)) {
-      return WriteResult.rejected(WriteFailure.INVALID_ITEM, "item is not a Wireless Terminal");
+      return WriteResult.rejected(WriteFailure.INVALID_ITEM, "item is not a " + expectedName);
     }
     byte[] bytes;
     try {
@@ -237,7 +251,7 @@ public final class TransmitterStoredTerminal {
       ItemStack decoded = codec.decode(Arrays.copyOf(bytes, bytes.length));
       if (isEmpty(decoded) || !validator.test(decoded)) {
         return WriteResult.rejected(
-            WriteFailure.DESERIALIZATION_FAILED, "decoded item is not a Wireless Terminal");
+            WriteFailure.DESERIALIZATION_FAILED, "decoded item is not a " + expectedName);
       }
       decoded.setAmount(1);
       normalizedItem = decoded;
@@ -254,7 +268,7 @@ public final class TransmitterStoredTerminal {
       ItemStack stable = codec.decode(Arrays.copyOf(normalized, normalized.length));
       if (isEmpty(stable) || !validator.test(stable)) {
         return WriteResult.rejected(
-            WriteFailure.ROUND_TRIP_MISMATCH, "normalized item is not a Wireless Terminal");
+            WriteFailure.ROUND_TRIP_MISMATCH, "normalized item is not a " + expectedName);
       }
       stable.setAmount(1);
       byte[] stableRoundTrip = codec.encode(stable);
@@ -271,13 +285,13 @@ public final class TransmitterStoredTerminal {
       return WriteResult.rejected(WriteFailure.ROUND_TRIP_MISMATCH, failureDetail(error));
     }
     Optional<byte[]> previous =
-        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL);
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field);
     try {
       ChunkMarkerStore.setBytes(
           plugin,
           block,
           TransmitterMarker.SECTION,
-          FIELD_TERMINAL,
+          field,
           Arrays.copyOf(normalized, normalized.length));
       return WriteResult.accepted();
     } catch (RuntimeException failure) {
@@ -288,10 +302,10 @@ public final class TransmitterStoredTerminal {
               plugin,
               block,
               TransmitterMarker.SECTION,
-              FIELD_TERMINAL,
+              field,
               Arrays.copyOf(previous.get(), previous.get().length));
         } else {
-          clear(plugin, block);
+          clearStoredItem(plugin, block, field);
         }
       } catch (RuntimeException rollbackFailure) {
         rollbackFailed = true;
@@ -334,20 +348,53 @@ public final class TransmitterStoredTerminal {
       Predicate<ItemStack> validator,
       Consumer<String> warning,
       ItemStackCodec codec) {
+    return reserveStoredItem(
+        plugin, block, FIELD_TERMINAL, "terminal", "Wireless Terminal", validator, warning, codec);
+  }
+
+  static Optional<TakeReservation> reserveStoredItem(
+      Plugin plugin,
+      Block block,
+      String field,
+      String storedName,
+      String expectedName,
+      Predicate<ItemStack> validator,
+      Consumer<String> warning,
+      ItemStackCodec codec) {
     Optional<byte[]> raw =
-        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL);
+        ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field);
     if (raw.isEmpty()) {
       return Optional.empty();
     }
-    Optional<ItemStack> item = get(plugin, block, validator, warning, codec);
+    Optional<ItemStack> item =
+        getStoredItem(plugin, block, field, storedName, expectedName, validator, warning, codec);
     if (item.isEmpty()) {
       return Optional.empty();
     }
-    return Optional.of(new TakeReservation(plugin, block, raw.get(), item.get()));
+    return Optional.of(new TakeReservation(plugin, block, field, raw.get(), item.get()));
   }
 
   public static void clear(Plugin plugin, Block block) {
-    ChunkMarkerStore.removeField(plugin, block, TransmitterMarker.SECTION, FIELD_TERMINAL);
+    clearStoredItem(plugin, block, FIELD_TERMINAL);
+  }
+
+  static Optional<byte[]> storedItemBlob(Plugin plugin, Block block, String field) {
+    return ChunkMarkerStore.getBytes(plugin, block, TransmitterMarker.SECTION, field)
+        .filter(bytes -> bytes.length > 0 && bytes.length <= MAX_ITEM_BLOB_BYTES)
+        .map(bytes -> Arrays.copyOf(bytes, bytes.length));
+  }
+
+  static void restoreStoredItem(Plugin plugin, Block block, String field, byte[] blob) {
+    if (blob == null || blob.length <= 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+      clearStoredItem(plugin, block, field);
+      return;
+    }
+    ChunkMarkerStore.setBytes(
+        plugin, block, TransmitterMarker.SECTION, field, Arrays.copyOf(blob, blob.length));
+  }
+
+  static void clearStoredItem(Plugin plugin, Block block, String field) {
+    ChunkMarkerStore.removeField(plugin, block, TransmitterMarker.SECTION, field);
   }
 
   private static boolean isEmpty(ItemStack stack) {

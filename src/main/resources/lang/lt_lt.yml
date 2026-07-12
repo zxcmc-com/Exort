@@ -61,8 +61,9 @@ message:
   usage_give_header: "Duoti Exort daiktus:"
   usage_give_storage: "duoti saugyklos daiktą pagal pakopą"
   usage_give_chunk_loader: "duoti chunkų įkėliklį"
+  usage_give_wireless_booster: "duok belaidžio signalo stiprintuvą pagal lygį"
   usage_give_item: "duoti fiksuotą Exort daiktą"
-  usage_give_items: "Daiktai: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Daiktai: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Naudojimas: /exort reload"
   unknown_subcommand: "Nežinoma subkomanda."
   help_header: "Exort Storage Network komandos:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Jūs nesate savininkas. Pririškite iš naujo."
     out_of_range: "Belaidis terminalas už ryšio ribų."
     missing_storage: "Susieta saugykla nerasta."
+    storage_chunk_unloaded: "Susietos saugyklos chunkas neįkeltas."
     empty: "Belaidžio terminalo baterija išsikrovusi."
     bound: "Belaidis terminalas pririštas."
     self_store: "Negalima įdėti belaidžio terminalo į jį patį."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Laikykite belaidį terminalą pagrindinėje arba antroje rankoje."
     transmitter_slot_occupied: "Belaidžio siųstuvo terminalo vieta užimta."
     transmitter_terminal_only: "Į šią vietą galima įdėti tik belaidį terminalą."
+    transmitter_booster_slot_occupied: "Belaidžio siųstuvo stiprintuvo lizdas užimtas."
+    transmitter_booster_only: "Į šį lizdą galima įdėti tik belaidžio signalo stiprintuvą."
 debug:
   mode:
     read: "tik skaitymas"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importo šina"
   export_bus: "Eksporto šina"
   wireless_terminal: "Belaidis terminalas"
+  wireless_booster: "Belaidžio signalo stiprintuvas"
   transmitter: "Belaidis siųstuvas"
 tier:
   common: "Įprasta"
@@ -263,6 +268,10 @@ lore:
     owner: "Savininkas: {0}"
     not_linked: "Nepririštas"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Lygis: {0}"
+    range_bonus: "Nuotolio premija: {0}%"
+    global: "Veikia visame dabartiniame pasaulyje"
 gui:
   give:
     title: "Exort daiktai"
@@ -324,6 +333,7 @@ gui:
       active: "Tinklas: prisijungęs"
       storage: "Saugykla: {0}"
       range: "Nuotolis: {0} blokų"
+      global: "Visame dabartiniame pasaulyje"
       covered: "Žaidėjas yra ryšio zonoje"
       not_covered: "Žaidėjas yra už šio siųstuvo ryšio zonos"
       missing: "Trūksta siųstuvo bloko"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalo vieta: tuščia"
       terminal_present: "Terminalo vieta: užimta"
+      booster_empty: "Stiprintuvo lizdas: tuščias"
+      booster_present: "Stiprintuvas: {0}"
   bus:
     import_title: "Importo šina"
     export_title: "Eksporto šina"

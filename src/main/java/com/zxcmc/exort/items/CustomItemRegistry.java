@@ -32,6 +32,8 @@ public final class CustomItemRegistry {
   public static final CustomItemIdentity WIRE = new CustomItemIdentity("wire", "item.wire");
   public static final CustomItemIdentity WIRELESS_TERMINAL =
       new CustomItemIdentity("wireless_terminal", "item.wireless_terminal");
+  public static final CustomItemIdentity WIRELESS_BOOSTER =
+      new CustomItemIdentity("wireless_booster", "item.wireless_booster");
 
   private static final List<CustomItemIdentity> FIXED_ITEMS =
       List.of(
@@ -47,7 +49,8 @@ public final class CustomItemRegistry {
           PERSONAL_CHUNK_LOADER,
           DORMANT_CHUNK_LOADER,
           WIRE,
-          WIRELESS_TERMINAL);
+          WIRELESS_TERMINAL,
+          WIRELESS_BOOSTER);
   private static final Map<String, CustomItemIdentity> BY_ID =
       FIXED_ITEMS.stream()
           .collect(Collectors.toUnmodifiableMap(CustomItemIdentity::id, Function.identity()));

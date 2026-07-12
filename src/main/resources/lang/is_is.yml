@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gefa Exort-items:"
   usage_give_storage: "gefa geymsluitem eftir tier"
   usage_give_chunk_loader: "gefa chunk-hleðara eftir afbrigði"
+  usage_give_wireless_booster: "gefa þráðlausan merkjamagnara eftir stigi"
   usage_give_item: "gefa fast Exort-item"
-  usage_give_items: "Hlutir: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Hlutir: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Notkun: /exort reload"
   unknown_subcommand: "Óþekkt undirskipun."
   help_header: "Exort Storage Network skipanir:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Þú ert ekki eigandinn. Tengdu hann aftur."
     out_of_range: "Þráðlaus terminal er utan drægi."
     missing_storage: "Tengd geymsla fannst ekki."
+    storage_chunk_unloaded: "Chunk tengdu geymslunnar er ekki hlaðinn."
     empty: "Þráðlaus terminal er rafmagnslaus."
     bound: "Þráðlaus terminal tengdur."
     self_store: "Ekki er hægt að geyma þráðlausan terminal inni í sjálfum sér."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Haltu þráðlausum terminal í aðalhendi eða aukahendi."
     transmitter_slot_occupied: "Terminalhólf þráðlausa sendisins er upptekið."
     transmitter_terminal_only: "Aðeins þráðlaus terminal má fara í þetta hólf."
+    transmitter_booster_slot_occupied: "Magnararauf þráðlausa sendisins er upptekin."
+    transmitter_booster_only: "Aðeins Þráðlaus Merkjamagnari má fara í þessa rauf."
 debug:
   mode:
     read: "aðeins lesa"
@@ -236,6 +240,7 @@ item:
   import_bus: "Innflutningsbus"
   export_bus: "Útflutningsbus"
   wireless_terminal: "Þráðlaus terminal"
+  wireless_booster: "Þráðlaus Merkjamagnari"
   transmitter: "Þráðlaus sendir"
 tier:
   common: "Algengt"
@@ -263,6 +268,10 @@ lore:
     owner: "Eigandi: {0}"
     not_linked: "Ekki tengt"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stig: {0}"
+    range_bonus: "Drægniaukning: {0}%"
+    global: "Virkar um allan núverandi heim"
 gui:
   give:
     title: "Exort-hlutir"
@@ -324,6 +333,7 @@ gui:
       active: "Net: tengt"
       storage: "Geymsla: {0}"
       range: "Drægni: {0} blokkir"
+      global: "Um allan núverandi heim"
       covered: "Spilari er innan drægni"
       not_covered: "Spilari er utan drægni þessa sendis"
       missing: "Sendiblokk vantar"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalhólf: tómt"
       terminal_present: "Terminalhólf: upptekið"
+      booster_empty: "Magnararauf: tóm"
+      booster_present: "Magnari: {0}"
   bus:
     import_title: "Innflutningsbus"
     export_title: "Útflutningsbus"

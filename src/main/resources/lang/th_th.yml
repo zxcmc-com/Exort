@@ -61,8 +61,9 @@ message:
   usage_give_header: "มอบไอเท็ม Exort:"
   usage_give_storage: "มอบไอเท็มคลังตาม tier"
   usage_give_chunk_loader: "มอบตัวโหลด Chunk ตามรูปแบบ"
+  usage_give_wireless_booster: "มอบตัวเพิ่มสัญญาณไร้สายตามระดับ"
   usage_give_item: "มอบไอเท็ม Exort แบบกำหนด"
-  usage_give_items: "ไอเท็ม: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "ไอเท็ม: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "วิธีใช้: /exort reload"
   unknown_subcommand: "ไม่รู้จักคำสั่งย่อย"
   help_header: "คำสั่ง Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "คุณไม่ใช่เจ้าของ ลิงก์ใหม่อีกครั้ง"
     out_of_range: "เทอร์มินัลไร้สายอยู่นอกระยะ"
     missing_storage: "ไม่พบคลังที่ลิงก์ไว้"
+    storage_chunk_unloaded: "ยังไม่ได้โหลดชังก์ของคลังที่เชื่อมไว้"
     empty: "เทอร์มินัลไร้สายไม่มีพลังงาน"
     bound: "ลิงก์เทอร์มินัลไร้สายแล้ว"
     self_store: "ไม่สามารถเก็บเทอร์มินัลไร้สายไว้ในตัวมันเอง"
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "ถือเทอร์มินัลไร้สายในมือหลักหรือมือรอง"
     transmitter_slot_occupied: "ช่องเทอร์มินัลของเครื่องส่งสัญญาณไร้สายถูกใช้งานอยู่"
     transmitter_terminal_only: "ช่องนี้ใส่ได้เฉพาะเทอร์มินัลไร้สายเท่านั้น"
+    transmitter_booster_slot_occupied: "ช่องตัวเพิ่มของเครื่องส่งสัญญาณไร้สายถูกใช้งานอยู่"
+    transmitter_booster_only: "ช่องนี้ใส่ได้เฉพาะตัวเพิ่มสัญญาณไร้สายเท่านั้น"
 debug:
   mode:
     read: "อ่านอย่างเดียว"
@@ -236,6 +240,7 @@ item:
   import_bus: "บัสนำเข้า"
   export_bus: "บัสส่งออก"
   wireless_terminal: "เทอร์มินัลไร้สาย"
+  wireless_booster: "ตัวเพิ่มสัญญาณไร้สาย"
   transmitter: "เครื่องส่งสัญญาณไร้สาย"
 tier:
   common: "ธรรมดา"
@@ -263,6 +268,10 @@ lore:
     owner: "เจ้าของ: {0}"
     not_linked: "ยังไม่ได้ลิงก์"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "ระดับ: {0}"
+    range_bonus: "ระยะเพิ่ม: {0}%"
+    global: "ทำงานทั่วทั้งโลกปัจจุบัน"
 gui:
   give:
     title: "ไอเท็ม Exort"
@@ -324,6 +333,7 @@ gui:
       active: "เครือข่าย: ออนไลน์"
       storage: "คลัง: {0}"
       range: "ระยะ: {0} บล็อก"
+      global: "ทั่วทั้งโลกปัจจุบัน"
       covered: "ผู้เล่นอยู่ในพื้นที่ครอบคลุม"
       not_covered: "ผู้เล่นอยู่นอกระยะของเครื่องส่งนี้"
       missing: "ไม่พบบล็อกเครื่องส่ง"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "ช่องเทอร์มินัล: ว่าง"
       terminal_present: "ช่องเทอร์มินัล: ถูกใช้งาน"
+      booster_empty: "ช่องตัวเพิ่ม: ว่าง"
+      booster_present: "ตัวเพิ่ม: {0}"
   bus:
     import_title: "บัสนำเข้า"
     export_title: "บัสส่งออก"

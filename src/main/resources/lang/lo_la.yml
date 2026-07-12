@@ -61,8 +61,9 @@ message:
   usage_give_header: "ໃຫ້ໄອເທັມ Exort:"
   usage_give_storage: "ໃຫ້ໄອເທັມຄັງເກັບຕາມ tier"
   usage_give_chunk_loader: "ໃຫ້ຕົວໂຫຼດ Chunk ຕາມຮູບແບບ"
+  usage_give_wireless_booster: "ໃຫ້ຕົວເພີ່ມສັນຍານໄຮ້ສາຍຕາມ tier"
   usage_give_item: "ໃຫ້ໄອເທັມ Exort ແບບກໍານົດ"
-  usage_give_items: "ໄອເທັມ: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "ໄອເທັມ: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "ວິທີໃຊ້: /exort reload"
   unknown_subcommand: "ຄໍາສັ່ງຍ່ອຍບໍ່ຮູ້ຈັກ."
   help_header: "ຄໍາສັ່ງ Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "ເຈົ້າບໍ່ແມ່ນເຈົ້າຂອງ. ລິ້ງໃໝ່."
     out_of_range: "ເທີມິນັນໄຮ້ສາຍຢູ່ນອກລະຍະ."
     missing_storage: "ບໍ່ພົບຄັງເກັບທີ່ລິ້ງໄວ້."
+    storage_chunk_unloaded: "ຈັງຂອງຄັງເກັບທີ່ເຊື່ອມຕໍ່ຍັງບໍ່ໄດ້ໂຫຼດ."
     empty: "ເທີມິນັນໄຮ້ສາຍໝົດໄຟ."
     bound: "ລິ້ງເທີມິນັນໄຮ້ສາຍແລ້ວ."
     self_store: "ບໍ່ສາມາດເກັບເທີມິນັນໄຮ້ສາຍໃສ່ໃນຕົວມັນເອງ."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "ຖືເທີມິນັນໄຮ້ສາຍໄວ້ໃນມືຫຼັກ ຫຼື ມືຮອງ."
     transmitter_slot_occupied: "ຊ່ອງເທີມິນັນຂອງຕົວສົ່ງສັນຍານໄຮ້ສາຍຖືກໃຊ້ຢູ່."
     transmitter_terminal_only: "ສາມາດວາງໄດ້ແຕ່ເທີມິນັນໄຮ້ສາຍໃນຊ່ອງນີ້."
+    transmitter_booster_slot_occupied: "ຊ່ອງຕົວເພີ່ມຂອງຕົວສົ່ງສັນຍານໄຮ້ສາຍຖືກໃຊ້ຢູ່."
+    transmitter_booster_only: "ສາມາດວາງໄດ້ແຕ່ຕົວເພີ່ມສັນຍານໄຮ້ສາຍໃນຊ່ອງນີ້."
 debug:
   mode:
     read: "ອ່ານຢ່າງດຽວ"
@@ -236,6 +240,7 @@ item:
   import_bus: "ບັສນໍາເຂົ້າ"
   export_bus: "ບັສສົ່ງອອກ"
   wireless_terminal: "ເທີມິນັນໄຮ້ສາຍ"
+  wireless_booster: "ຕົວເພີ່ມສັນຍານໄຮ້ສາຍ"
   transmitter: "ຕົວສົ່ງສັນຍານໄຮ້ສາຍ"
 tier:
   common: "ທົ່ວໄປ"
@@ -263,6 +268,10 @@ lore:
     owner: "ເຈົ້າຂອງ: {0}"
     not_linked: "ຍັງບໍ່ລິ້ງ"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "ລະດັບ: {0}"
+    range_bonus: "ເພີ່ມໄລຍະ: {0}%"
+    global: "ໃຊ້ງານໄດ້ທົ່ວໂລກປັດຈຸບັນ"
 gui:
   give:
     title: "ໄອເທັມ Exort"
@@ -324,6 +333,7 @@ gui:
       active: "ເຄືອຂ່າຍ: ອອນລາຍ"
       storage: "ຄັງເກັບ: {0}"
       range: "ລະຍະ: {0} ບລັອກ"
+      global: "ທົ່ວໂລກປັດຈຸບັນ"
       covered: "ຜູ້ຫຼິ້ນຢູ່ໃນພື້ນທີ່ຄອບຄຸມ"
       not_covered: "ຜູ້ຫຼິ້ນຢູ່ນອກລະຍະຂອງຕົວສົ່ງນີ້"
       missing: "ບໍ່ພົບບລັອກຕົວສົ່ງ"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "ຊ່ອງເທີມິນັນ: ຫວ່າງ"
       terminal_present: "ຊ່ອງເທີມິນັນ: ຖືກໃຊ້ຢູ່"
+      booster_empty: "ຊ່ອງຕົວເພີ່ມ: ຫວ່າງ"
+      booster_present: "ຕົວເພີ່ມ: {0}"
   bus:
     import_title: "ບັສນໍາເຂົ້າ"
     export_title: "ບັສສົ່ງອອກ"

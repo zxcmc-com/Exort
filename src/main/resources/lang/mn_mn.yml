@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort item өгөх:"
   usage_give_storage: "tier-ээр хадгалах сангийн item өгөх"
   usage_give_chunk_loader: "хувилбараар Чанк ачаалагч өгөх"
+  usage_give_wireless_booster: "түвшнээр утасгүй дохио өсгөгч өгөх"
   usage_give_item: "тогтмол Exort item өгөх"
-  usage_give_items: "Item-үүд: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Item-үүд: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Хэрэглээ: /exort reload"
   unknown_subcommand: "Үл мэдэгдэх дэд команд."
   help_header: "Exort Storage Network командууд:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Та эзэмшигч биш. Дахин холбоно уу."
     out_of_range: "Утасгүй терминал хүрээнээс гадна байна."
     missing_storage: "Холбосон хадгалах сан олдсонгүй."
+    storage_chunk_unloaded: "Холбосон хадгалах сангийн чанк ачаалагдаагүй байна."
     empty: "Утасгүй терминал цэнэггүй."
     bound: "Утасгүй терминал холбогдлоо."
     self_store: "Утасгүй терминалыг өөр дотор нь хадгалах боломжгүй."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Утасгүй терминалыг үндсэн эсвэл туслах гартаа барина уу."
     transmitter_slot_occupied: "Утасгүй дамжуулагчийн терминалын үүр эзлэгдсэн байна."
     transmitter_terminal_only: "Энэ үүрэнд зөвхөн утасгүй терминал байрлуулж болно."
+    transmitter_booster_slot_occupied: "Утасгүй дамжуулагчийн өсгөгчийн үүр эзлэгдсэн байна."
+    transmitter_booster_only: "Энэ үүрэнд зөвхөн утасгүй дохио өсгөгч байрлуулж болно."
 debug:
   mode:
     read: "зөвхөн унших"
@@ -236,6 +240,7 @@ item:
   import_bus: "Импортын шин"
   export_bus: "Экспортын шин"
   wireless_terminal: "Утасгүй терминал"
+  wireless_booster: "Утасгүй дохио өсгөгч"
   transmitter: "Утасгүй дамжуулагч"
 tier:
   common: "Энгийн"
@@ -263,6 +268,10 @@ lore:
     owner: "Эзэмшигч: {0}"
     not_linked: "Холбоогүй"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Түвшин: {0}"
+    range_bonus: "Хүрээний нэмэгдэл: {0}%"
+    global: "Одоогийн ертөнц даяар үйлчилнэ"
 gui:
   give:
     title: "Exort эд зүйлс"
@@ -324,6 +333,7 @@ gui:
       active: "Сүлжээ: онлайн"
       storage: "Хадгалах сан: {0}"
       range: "Хүрээ: {0} блок"
+      global: "Одоогийн ертөнц даяар"
       covered: "Тоглогч хамрах хүрээнд байна"
       not_covered: "Тоглогч энэ дамжуулагчийн хүрээнээс гадуур байна"
       missing: "Дамжуулагчийн блок алга"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Терминалын үүр: хоосон"
       terminal_present: "Терминалын үүр: эзлэгдсэн"
+      booster_empty: "Өсгөгчийн үүр: хоосон"
+      booster_present: "Өсгөгч: {0}"
   bus:
     import_title: "Импортын шин"
     export_title: "Экспортын шин"

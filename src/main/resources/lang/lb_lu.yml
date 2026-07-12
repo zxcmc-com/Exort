@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort-Iteme ginn:"
   usage_give_storage: "e Späicher no Tier ginn"
   usage_give_chunk_loader: "e Chunk-Loader ginn"
+  usage_give_wireless_booster: "e Funksignalverstäerker no Stuf ginn"
   usage_give_item: "e fest Exort-Item ginn"
-  usage_give_items: "Géigestänn: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Géigestänn: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Benotzung: /exort reload"
   unknown_subcommand: "Onbekannten Ënnerkommando."
   help_header: "Exort Storage Network Kommandoen:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du bass net de Besëtzer. Verlink en nach eng Kéier."
     out_of_range: "Funkterminal ass ausser Reechwäit."
     missing_storage: "Verlinkte Späicher net fonnt."
+    storage_chunk_unloaded: "Den Chunk vum verlinkte Späicher ass net gelueden."
     empty: "Funkterminal huet keng Ladung méi."
     bound: "Funkterminal verlinkt."
     self_store: "E Funkterminal kann net an sech selwer gelagert ginn."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hal e Funkterminal an der Haapt- oder Niewenhand."
     transmitter_slot_occupied: "D'Terminalplaz vum Funksender ass besat."
     transmitter_terminal_only: "Nëmmen e Funkterminal kann op dës Plaz gesat ginn."
+    transmitter_booster_slot_occupied: "D'Verstäerkerplaz vum Funksender ass besat."
+    transmitter_booster_only: "Nëmmen e Funksignalverstäerker kann op dës Plaz geluecht ginn."
 debug:
   mode:
     read: "nëmme liesen"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funkterminal"
+  wireless_booster: "Funksignalverstäerker"
   transmitter: "Funksender"
 tier:
   common: "Gewéinlech"
@@ -263,6 +268,10 @@ lore:
     owner: "Besëtzer: {0}"
     not_linked: "Net verlinkt"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stuf: {0}"
+    range_bonus: "Reechwäitbonus: {0}%"
+    global: "Funktionéiert an der ganzer aktueller Welt"
 gui:
   give:
     title: "Exort-Itemen"
@@ -324,6 +333,7 @@ gui:
       active: "Netzwierk: online"
       storage: "Späicher: {0}"
       range: "Reechwäit: {0} Bléck"
+      global: "Global an der aktueller Welt"
       covered: "Spiller ass an der Reechwäit"
       not_covered: "Spiller ass ausserhalb vun der Reechwäit vun dësem Sender"
       missing: "Senderblock feelt"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplaz: eidel"
       terminal_present: "Terminalplaz: besat"
+      booster_empty: "Verstäerkerplaz: eidel"
+      booster_present: "Verstäerker: {0}"
   bus:
     import_title: "Import-Bus"
     export_title: "Export-Bus"

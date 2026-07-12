@@ -61,8 +61,9 @@ message:
   usage_give_header: "Give Exort items:"
   usage_give_storage: "give a storage item by tier"
   usage_give_chunk_loader: "give a chunk loader"
+  usage_give_wireless_booster: "give a Wireless Signal Booster by tier"
   usage_give_item: "give a fixed Exort item"
-  usage_give_items: "Items: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Items: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Usage: /exort reload"
   unknown_subcommand: "Unknown subcommand."
   help_header: "Exort Storage Network commands:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "You are not the owner. Link it again."
     out_of_range: "Wireless terminal is out of range."
     missing_storage: "Linked storage not found."
+    storage_chunk_unloaded: "Linked Storage chunk is not loaded."
     empty: "Wireless terminal battery is flat."
     bound: "Wireless terminal linked."
     self_store: "Cannot store a wireless terminal inside itself."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hold a Wireless Terminal in main hand or off-hand."
     transmitter_slot_occupied: "Wireless Transmitter terminal slot is occupied."
     transmitter_terminal_only: "Only a Wireless Terminal can be placed in this slot."
+    transmitter_booster_slot_occupied: "Wireless Transmitter booster slot is occupied."
+    transmitter_booster_only: "Only a Wireless Signal Booster can be placed in this slot."
 debug:
   mode:
     read: "read-only"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import Bus"
   export_bus: "Export Bus"
   wireless_terminal: "Wireless Terminal"
+  wireless_booster: "Wireless Signal Booster"
   transmitter: "Wireless Transmitter"
 tier:
   common: "Common"
@@ -263,6 +268,10 @@ lore:
     owner: "Owner: {0}"
     not_linked: "Not linked"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Tier: {0}"
+    range_bonus: "Range bonus: {0}%"
+    global: "Works throughout the current world"
 gui:
   give:
     title: "Exort Items"
@@ -324,6 +333,7 @@ gui:
       active: "Network: online"
       storage: "Storage: {0}"
       range: "Range: {0} blocks"
+      global: "Global in current world"
       covered: "Player is covered"
       not_covered: "Player is outside this transmitter range"
       missing: "Transmitter block is missing"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal slot: empty"
       terminal_present: "Terminal slot: occupied"
+      booster_empty: "Booster slot: empty"
+      booster_present: "Booster: {0}"
   bus:
     import_title: "Import Bus"
     export_title: "Export Bus"

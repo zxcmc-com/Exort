@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort アイテムを付与:"
   usage_give_storage: "tier 指定でストレージアイテムを付与"
   usage_give_chunk_loader: "チャンクローダーを付与"
+  usage_give_wireless_booster: "tier 指定で無線信号ブースターを付与"
   usage_give_item: "固定の Exort アイテムを付与"
-  usage_give_items: "アイテム: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "アイテム: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "使用法: /exort reload"
   unknown_subcommand: "不明なサブコマンドです。"
   help_header: "Exort Storage Network コマンド:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "あなたは所有者ではありません。もう一度リンクしてください。"
     out_of_range: "無線端末は範囲外です。"
     missing_storage: "リンクされたストレージが見つかりません。"
+    storage_chunk_unloaded: "接続先ストレージのチャンクが読み込まれていません。"
     empty: "無線端末の充電がありません。"
     bound: "無線端末をリンクしました。"
     self_store: "無線端末をそれ自身の中に保存することはできません。"
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "メインハンドまたはオフハンドに無線端末を持ってください。"
     transmitter_slot_occupied: "無線送信機の端末スロットは使用中です。"
     transmitter_terminal_only: "このスロットには無線端末のみ配置できます。"
+    transmitter_booster_slot_occupied: "無線送信機のブースタースロットは使用中です。"
+    transmitter_booster_only: "このスロットには無線信号ブースターのみ配置できます。"
 debug:
   mode:
     read: "読み取り専用"
@@ -236,6 +240,7 @@ item:
   import_bus: "インポートバス"
   export_bus: "エクスポートバス"
   wireless_terminal: "無線端末"
+  wireless_booster: "無線信号ブースター"
   transmitter: "無線送信機"
 tier:
   common: "コモン"
@@ -263,6 +268,10 @@ lore:
     owner: "所有者: {0}"
     not_linked: "未リンク"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "ティア: {0}"
+    range_bonus: "範囲ボーナス: {0}%"
+    global: "現在のワールド全域で有効"
 gui:
   give:
     title: "Exort アイテム"
@@ -324,6 +333,7 @@ gui:
       active: "ネットワーク: オンライン"
       storage: "ストレージ: {0}"
       range: "範囲: {0} ブロック"
+      global: "現在のワールド全域"
       covered: "プレイヤーは範囲内です"
       not_covered: "プレイヤーはこの送信機の範囲外です"
       missing: "送信機ブロックがありません"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "端末スロット: 空"
       terminal_present: "端末スロット: 使用中"
+      booster_empty: "ブースタースロット: 空"
+      booster_present: "ブースター: {0}"
   bus:
     import_title: "インポートバス"
     export_title: "エクスポートバス"

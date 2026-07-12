@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -60,6 +61,24 @@ class CustomItemClassifierTest {
             + " corrupt");
   }
 
+  @Test
+  void wirelessBoosterRequiresKnownTierAndPaperCarrier() {
+    SimplePdc validPdc = new SimplePdc();
+    validPdc.values.put(keys.type(), "wireless_booster");
+    validPdc.values.put(keys.wirelessBoosterTier(), "legendary");
+    ItemStack valid = new PdcStack(Material.PAPER, validPdc);
+
+    SimplePdc invalidPdc = new SimplePdc();
+    invalidPdc.values.put(keys.type(), "wireless_booster");
+    invalidPdc.values.put(keys.wirelessBoosterTier(), "unknown");
+
+    assertTrue(customItems.isWirelessBooster(valid));
+    assertTrue(
+        customItems.wirelessBoosterTier(valid).orElseThrow() == WirelessBoosterTier.LEGENDARY);
+    assertFalse(customItems.isWirelessBooster(new PdcStack(Material.PAPER, invalidPdc)));
+    assertFalse(customItems.isWirelessBooster(new PdcStack(Material.DIAMOND, validPdc)));
+  }
+
   private ItemStack stack(Material material, String type) {
     return stack(material, type, null, null);
   }
@@ -76,7 +95,25 @@ class CustomItemClassifierTest {
 
   private static CustomItems customItems(StorageKeys keys) {
     return new CustomItems(
-        keys, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
+        keys,
+        null,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        java.util.Map.of(),
+        false);
   }
 
   private static final class PdcStack extends ItemStack {

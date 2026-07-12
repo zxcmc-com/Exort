@@ -40,7 +40,25 @@ class CommandRuntimeAccessTest {
 
   private static CustomItems customItems() {
     return new CustomItems(
-        null, null, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", false);
+        null,
+        null,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        java.util.Map.of(),
+        false);
   }
 
   private static WirelessTerminalService wirelessService(CustomItems customItems) {

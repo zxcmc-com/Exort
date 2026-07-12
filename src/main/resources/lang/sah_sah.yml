@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort предметтарын биэрии:"
   usage_give_storage: "тиринэн харайыы предметын биэр"
   usage_give_chunk_loader: "варианынан Чанк тиэйээччи биэр"
+  usage_give_wireless_booster: "таһымынан сымнаах буолбатах сигнал күүһүрдүүрүн биэр"
   usage_give_item: "Exort туруктуу предметын биэр"
-  usage_give_items: "Предметтар: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Предметтар: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Туһаныы: /exort reload"
   unknown_subcommand: "Биллибэт subcommand."
   help_header: "Exort Storage Network командалара:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Эн иэһит буолбатаххын. Хат холбоо."
     out_of_range: "Симэ суох терминал радиустан тахсыбыт."
     missing_storage: "Холбоммут харайыы көстүбэтэ."
+    storage_chunk_unloaded: "Ситимнээх харайыы чанка хачайдамматах."
     empty: "Симэ суох терминал заряд суох."
     bound: "Симэ суох терминал холбоммут."
     self_store: "Симэ суох терминалы бэйэтин иһигэр угар кыах суох."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Сүрүн эбэтэр атын илиигэр сымнаах буолбатах терминалы тут."
     transmitter_slot_occupied: "Сымнаах буолбатах ыытааччы терминалын уяһа туолбут."
     transmitter_terminal_only: "Бу уяҕа сымнаах буолбатах терминалы эрэ ууруохха сөп."
+    transmitter_booster_slot_occupied: "Сымнаах буолбатах биэрээччи күүһүрдүүрүн уяһа толору."
+    transmitter_booster_only: "Бу уяҕа сымнаах буолбатах сигнал күүһүрдүүрүн эрэ ууруохха сөп."
 debug:
   mode:
     read: "ааҕыы эрэ"
@@ -236,6 +240,7 @@ item:
   import_bus: "Импорт шина"
   export_bus: "Экспорт шина"
   wireless_terminal: "Симэ суох терминал"
+  wireless_booster: "Сымнаах буолбатах сигнал күүһүрдүүрэ"
   transmitter: "Сымнаах буолбатах ыытааччы"
 tier:
   common: "Көннөрү"
@@ -263,6 +268,10 @@ lore:
     owner: "Иэһит: {0}"
     not_linked: "Холбоммотох"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Таһым: {0}"
+    range_bonus: "Ыраахтык бонуса: {0}%"
+    global: "Билиҥҥи дойду барытыгар үлэлиир"
 gui:
   give:
     title: "Exort предметтара"
@@ -324,6 +333,7 @@ gui:
       active: "Ситим: холбонон турар"
       storage: "Харайар: {0}"
       range: "Тиэрдиитэ: {0} блок"
+      global: "Билиҥҥи дойду барытыгар"
       covered: "Оонньооччу хапсыы иһигэр"
       not_covered: "Оонньооччу бу ыытааччы тиэрдиититтэн тас"
       missing: "Ыытааччы блогун суох"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Терминал уяһа: кураанах"
       terminal_present: "Терминал уяһа: туолбут"
+      booster_empty: "Күүһүрдүүр уяһа: кураанах"
+      booster_present: "Күүһүрдүүр: {0}"
   bus:
     import_title: "Импорт шина"
     export_title: "Экспорт шина"

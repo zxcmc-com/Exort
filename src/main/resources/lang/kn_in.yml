@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort ಐಟಂಗಳನ್ನು ನೀಡಿ:"
   usage_give_storage: "tier ಪ್ರಕಾರ ಸಂಗ್ರಹಣೆ ಐಟಂ ನೀಡಿ"
   usage_give_chunk_loader: "ವೇರಿಯಂಟ್ ಪ್ರಕಾರ ಚಂಕ್ ಲೋಡರ್ ನೀಡಿ"
+  usage_give_wireless_booster: "ಟಿಯರ್ ಪ್ರಕಾರ ವೈರ್‌ಲೆಸ್ ಸಿಗ್ನಲ್ ಬೂಸ್ಟರ್ ನೀಡಿ"
   usage_give_item: "ನಿಗದಿತ Exort ಐಟಂ ನೀಡಿ"
-  usage_give_items: "ಐಟಂಗಳು: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "ಐಟಂಗಳು: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "ಬಳಕೆ: /exort reload"
   unknown_subcommand: "ಅಪರಿಚಿತ ಉಪಕಮಾಂಡ್."
   help_header: "Exort Storage Network ಕಮಾಂಡ್‌ಗಳು:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "ನೀವು ಮಾಲೀಕರಲ್ಲ. ಮತ್ತೆ ಲಿಂಕ್ ಮಾಡಿ."
     out_of_range: "ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್ ವ್ಯಾಪ್ತಿಯಿಂದ ಹೊರಗಿದೆ."
     missing_storage: "ಲಿಂಕ್ ಮಾಡಿದ ಸಂಗ್ರಹಣೆ ಸಿಗಲಿಲ್ಲ."
+    storage_chunk_unloaded: "ಸಂಪರ್ಕಿತ ಸಂಗ್ರಹಣೆಯ ಚಂಕ್ ಲೋಡ್ ಆಗಿಲ್ಲ."
     empty: "ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್ ಚಾರ್ಜ್ ಇಲ್ಲ."
     bound: "ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್ ಲಿಂಕ್ ಆಗಿದೆ."
     self_store: "ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್ ಅನ್ನು ಅದರೊಳಗೇ ಸಂಗ್ರಹಿಸಲಾಗುವುದಿಲ್ಲ."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "ಮುಖ್ಯ ಕೈಯಲ್ಲಿ ಅಥವಾ ಇನ್ನೊಂದು ಕೈಯಲ್ಲಿ ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್ ಹಿಡಿದುಕೊಳ್ಳಿ."
     transmitter_slot_occupied: "ವೈರ್‌ಲೆಸ್ ಟ್ರಾನ್ಸ್‌ಮಿಟರ್‌ನ ಟರ್ಮಿನಲ್ ಸ್ಲಾಟ್ ಭರ್ತಿಯಾಗಿದೆ."
     transmitter_terminal_only: "ಈ ಸ್ಲಾಟ್‌ನಲ್ಲಿ ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್ ಮಾತ್ರ ಇರಿಸಬಹುದು."
+    transmitter_booster_slot_occupied: "ವೈರ್‌ಲೆಸ್ ಟ್ರಾನ್ಸ್‌ಮಿಟರ್‌ನ ಬೂಸ್ಟರ್ ಸ್ಲಾಟ್ ಭರ್ತಿಯಾಗಿದೆ."
+    transmitter_booster_only: "ಈ ಸ್ಲಾಟ್‌ನಲ್ಲಿ ವೈರ್‌ಲೆಸ್ ಸಿಗ್ನಲ್ ಬೂಸ್ಟರ್ ಮಾತ್ರ ಇರಿಸಬಹುದು."
 debug:
   mode:
     read: "ಓದು ಮಾತ್ರ"
@@ -236,6 +240,7 @@ item:
   import_bus: "ಆಮದು ಬಸ್"
   export_bus: "ರಫ್ತು ಬಸ್"
   wireless_terminal: "ವೈರ್‌ಲೆಸ್ ಟರ್ಮಿನಲ್"
+  wireless_booster: "ವೈರ್‌ಲೆಸ್ ಸಿಗ್ನಲ್ ಬೂಸ್ಟರ್"
   transmitter: "ವೈರ್‌ಲೆಸ್ ಟ್ರಾನ್ಸ್‌ಮಿಟರ್"
 tier:
   common: "ಸಾಮಾನ್ಯ"
@@ -263,6 +268,10 @@ lore:
     owner: "ಮಾಲೀಕ: {0}"
     not_linked: "ಲಿಂಕ್ ಆಗಿಲ್ಲ"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "ಟಿಯರ್: {0}"
+    range_bonus: "ವ್ಯಾಪ್ತಿ ಬೋನಸ್: {0}%"
+    global: "ಪ್ರಸ್ತುತ ಜಗತ್ತಿನಾದ್ಯಂತ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ"
 gui:
   give:
     title: "Exort ಐಟಂಗಳು"
@@ -324,6 +333,7 @@ gui:
       active: "ಜಾಲ: ಆನ್‌ಲೈನ್"
       storage: "ಸಂಗ್ರಹಣೆ: {0}"
       range: "ವ್ಯಾಪ್ತಿ: {0} ಬ್ಲಾಕ್‌ಗಳು"
+      global: "ಪ್ರಸ್ತುತ ಜಗತ್ತಿನಾದ್ಯಂತ"
       covered: "ಆಟಗಾರ ವ್ಯಾಪ್ತಿಯಲ್ಲಿದ್ದಾರೆ"
       not_covered: "ಆಟಗಾರ ಈ ಟ್ರಾನ್ಸ್‌ಮಿಟರ್‌ನ ವ್ಯಾಪ್ತಿಯಿಂದ ಹೊರಗಿದ್ದಾರೆ"
       missing: "ಟ್ರಾನ್ಸ್‌ಮಿಟರ್ ಬ್ಲಾಕ್ ಕಾಣೆಯಾಗಿದೆ"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "ಟರ್ಮಿನಲ್ ಸ್ಲಾಟ್: ಖಾಲಿ"
       terminal_present: "ಟರ್ಮಿನಲ್ ಸ್ಲಾಟ್: ಭರ್ತಿಯಾಗಿದೆ"
+      booster_empty: "ಬೂಸ್ಟರ್ ಸ್ಲಾಟ್: ಖಾಲಿ"
+      booster_present: "ಬೂಸ್ಟರ್: {0}"
   bus:
     import_title: "ಆಮದು ಬಸ್"
     export_title: "ರಫ್ತು ಬಸ್"

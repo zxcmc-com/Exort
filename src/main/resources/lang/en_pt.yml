@@ -61,8 +61,9 @@ message:
   usage_give_header: "Give Exort booty:"
   usage_give_storage: "give a cargo hold booty by tier"
   usage_give_chunk_loader: "give a Chunk Keeper"
+  usage_give_wireless_booster: "give a Wireless Signal Booster by booty rank"
   usage_give_item: "give a fixed Exort booty"
-  usage_give_items: "Booty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Booty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Use: /exort reload"
   unknown_subcommand: "Strange order."
   help_header: "Exort Cargo Hold Network orders:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "You are not the captain. Link again."
     out_of_range: "Wireless speakin tube be too far off."
     missing_storage: "Linked cargo hold not found."
+    storage_chunk_unloaded: "The lashed cargo hold's waters be not charted."
     empty: "Wireless Speaking Tube out of charge."
     bound: "Wireless Speaking Tube berthed."
     self_store: "Cannot stash a wireless speaking tube inside itself."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hold a Wireless Speakin' Tube in yer main hand or off-hand."
     transmitter_slot_occupied: "The Wireless Signal Mast's terminal berth be occupied."
     transmitter_terminal_only: "Only a Wireless Speakin' Tube may be placed in this berth."
+    transmitter_booster_slot_occupied: "The Wireless Signal Mast's booster berth be occupied."
+    transmitter_booster_only: "Only a Wireless Signal Booster may be stowed in this berth."
 debug:
   mode:
     read: "look-only"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import Skiff"
   export_bus: "Export Skiff"
   wireless_terminal: "Wireless Speaking Tube"
+  wireless_booster: "Wireless Signal Mast Booster"
   transmitter: "Wireless Signal Mast"
 tier:
   common: "Deckhand"
@@ -263,6 +268,10 @@ lore:
     owner: "Captain: {0}"
     not_linked: "No berth set"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Booty rank: {0}"
+    range_bonus: "Reach gain: {0}%"
+    global: "Carries across all these waters"
 gui:
   give:
     title: "Exort Booty"
@@ -324,6 +333,7 @@ gui:
       active: "Network: sails up"
       storage: "Cargo Hold: {0}"
       range: "Reach: {0} blocks"
+      global: "Across all these waters"
       covered: "Matey be in reach"
       not_covered: "Matey be outside this signal mast's reach"
       missing: "Signal mast block be missing"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Speakin' tube berth: empty"
       terminal_present: "Speakin' tube berth: occupied"
+      booster_empty: "Booster berth: empty"
+      booster_present: "Mast booster: {0}"
   bus:
     import_title: "Import Skiff"
     export_title: "Export Skiff"

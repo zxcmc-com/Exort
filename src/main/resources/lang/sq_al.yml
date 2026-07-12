@@ -61,8 +61,9 @@ message:
   usage_give_header: "Jep sende Exort:"
   usage_give_storage: "jep send depoje sipas nivelit"
   usage_give_chunk_loader: "jep ngarkues chunk"
+  usage_give_wireless_booster: "jep përforcues sinjali pa tel sipas nivelit"
   usage_give_item: "jep një send fiks Exort"
-  usage_give_items: "Sende: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Sende: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Përdorimi: /exort reload"
   unknown_subcommand: "Nënkomandë e panjohur."
   help_header: "Komandat Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Ti nuk je pronari. Lidhe përsëri."
     out_of_range: "Terminali pa tel është jashtë rrezes."
     missing_storage: "Depoja e lidhur nuk u gjet."
+    storage_chunk_unloaded: "Chunk-u i depos së lidhur nuk është i ngarkuar."
     empty: "Terminali pa tel është pa karikim."
     bound: "Terminali pa tel u lidh."
     self_store: "Nuk mund të ruash një terminal pa tel brenda vetes."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Mbaj një terminal pa tel në dorën kryesore ose dytësore."
     transmitter_slot_occupied: "Vendi i terminalit te transmetuesi pa tel është i zënë."
     transmitter_terminal_only: "Në këtë vend mund të vendoset vetëm një terminal pa tel."
+    transmitter_booster_slot_occupied: "Vendi i përforcuesit të transmetuesit pa tel është i zënë."
+    transmitter_booster_only: "Në këtë vend mund të vendoset vetëm një përforcues sinjali pa tel."
 debug:
   mode:
     read: "vetëm lexim"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus importi"
   export_bus: "Bus eksporti"
   wireless_terminal: "Terminal pa tel"
+  wireless_booster: "Përforcues sinjali pa tel"
   transmitter: "Transmetues pa tel"
 tier:
   common: "I zakonshëm"
@@ -263,6 +268,10 @@ lore:
     owner: "Pronari: {0}"
     not_linked: "I palidhur"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Niveli: {0}"
+    range_bonus: "Shtesë rrezeje: {0}%"
+    global: "Vepron në të gjithë botën e tanishme"
 gui:
   give:
     title: "Artikuj Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rrjeti: në linjë"
       storage: "Depoja: {0}"
       range: "Rrezja: {0} blloqe"
+      global: "Në të gjithë botën e tanishme"
       covered: "Lojtari është brenda mbulimit"
       not_covered: "Lojtari është jashtë rrezes së këtij transmetuesi"
       missing: "Mungon blloku i transmetuesit"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Vendi i terminalit: bosh"
       terminal_present: "Vendi i terminalit: i zënë"
+      booster_empty: "Vendi i përforcuesit: bosh"
+      booster_present: "Përforcuesi: {0}"
   bus:
     import_title: "Bus importi"
     export_title: "Bus eksporti"

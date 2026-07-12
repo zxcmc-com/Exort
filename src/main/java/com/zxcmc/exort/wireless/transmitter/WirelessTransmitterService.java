@@ -1,11 +1,15 @@
 package com.zxcmc.exort.wireless.transmitter;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.items.CustomItemClassifier;
+import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -22,6 +26,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 public final class WirelessTransmitterService implements Listener {
@@ -50,7 +55,7 @@ public final class WirelessTransmitterService implements Listener {
   private final Plugin plugin;
   private final StorageKeys keys;
   private final boolean enabled;
-  private final int rangeBlocks;
+  private final WirelessRuntimeConfig wirelessConfig;
   private final int wireLimit;
   private final int wireHardCap;
   private final int relayRangeChunks;
@@ -60,14 +65,15 @@ public final class WirelessTransmitterService implements Listener {
   private final Material relayCarrier;
   private final Supplier<NetworkGraphCache> graphCache;
   private final TransmitterSpatialIndex transmitters = new TransmitterSpatialIndex();
+  private final Map<TransmitterSpatialIndex.Position, Integer> effectiveRanges =
+      new ConcurrentHashMap<>();
   private final Map<TransmitterSpatialIndex.Position, CachedStatus> statusCache =
       new ConcurrentHashMap<>();
 
   public WirelessTransmitterService(
       Plugin plugin,
       StorageKeys keys,
-      boolean enabled,
-      int rangeBlocks,
+      WirelessRuntimeConfig wirelessConfig,
       int wireLimit,
       int wireHardCap,
       int relayRangeChunks,
@@ -78,8 +84,8 @@ public final class WirelessTransmitterService implements Listener {
       Supplier<NetworkGraphCache> graphCache) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.keys = Objects.requireNonNull(keys, "keys");
-    this.enabled = enabled;
-    this.rangeBlocks = Math.max(0, rangeBlocks);
+    this.wirelessConfig = Objects.requireNonNull(wirelessConfig, "wirelessConfig");
+    this.enabled = wirelessConfig.enabled();
     this.wireLimit = wireLimit;
     this.wireHardCap = wireHardCap;
     this.relayRangeChunks = relayRangeChunks;
@@ -95,11 +101,32 @@ public final class WirelessTransmitterService implements Listener {
   }
 
   public int rangeBlocks() {
-    return rangeBlocks;
+    return wirelessConfig.rangeBlocks();
+  }
+
+  public int effectiveRangeBlocks(Block transmitter) {
+    if (transmitter == null || transmitter.getWorld() == null) {
+      return wirelessConfig.rangeBlocks();
+    }
+    TransmitterSpatialIndex.Position pos = position(transmitter);
+    return effectiveRanges.computeIfAbsent(pos, ignored -> computeEffectiveRange(transmitter));
+  }
+
+  public void refreshRegistration(Block block) {
+    if (block == null || block.getWorld() == null) {
+      return;
+    }
+    invalidateStatus(block);
+    if (enabled && isValidTransmitter(block)) {
+      register(block);
+    } else {
+      unregister(block);
+    }
   }
 
   public void scanLoadedChunks() {
     transmitters.clear();
+    effectiveRanges.clear();
     statusCache.clear();
     if (!enabled) {
       return;
@@ -134,7 +161,9 @@ public final class WirelessTransmitterService implements Listener {
       return;
     }
     TransmitterSpatialIndex.Position pos = position(block);
-    transmitters.add(pos);
+    int effectiveRange = computeEffectiveRange(block);
+    effectiveRanges.put(pos, effectiveRange);
+    transmitters.add(pos, effectiveRange < 0);
     statusCache.remove(pos);
   }
 
@@ -144,6 +173,7 @@ public final class WirelessTransmitterService implements Listener {
     }
     TransmitterSpatialIndex.Position pos = position(block);
     transmitters.remove(pos);
+    effectiveRanges.remove(pos);
     statusCache.remove(pos);
   }
 
@@ -170,7 +200,12 @@ public final class WirelessTransmitterService implements Listener {
       statusCache.remove(pos);
       return new Status(State.MODE_DISABLED, 0, null);
     }
-    transmitters.add(pos);
+    Integer effectiveRange = effectiveRanges.get(pos);
+    if (effectiveRange == null) {
+      register(block);
+    } else {
+      transmitters.add(pos, effectiveRange < 0);
+    }
     long version = graphVersion();
     CachedStatus cached = statusCache.get(pos);
     if (version >= 0 && cached != null && cached.graphVersion() == version) {
@@ -187,29 +222,60 @@ public final class WirelessTransmitterService implements Listener {
     if (!enabled
         || transmitter == null
         || playerLocation == null
-        || transmitter.getWorld() == null) {
+        || transmitter.getWorld() == null
+        || playerLocation.getWorld() == null) {
       return false;
     }
-    return withinHorizontalRange(
-        transmitter.getWorld().getUID(), transmitter.getX(), transmitter.getZ(), playerLocation);
+    int effectiveRange = effectiveRangeBlocks(transmitter);
+    return effectiveRange < 0
+        ? transmitter.getWorld().getUID().equals(playerLocation.getWorld().getUID())
+        : withinHorizontalRange(
+            transmitter.getWorld().getUID(),
+            transmitter.getX(),
+            transmitter.getZ(),
+            playerLocation,
+            effectiveRange);
   }
 
   public boolean hasCoverage(String storageId, Location playerLocation) {
-    if (!enabled || storageId == null || storageId.isBlank() || playerLocation == null) {
+    if (!enabled
+        || storageId == null
+        || storageId.isBlank()
+        || playerLocation == null
+        || playerLocation.getWorld() == null) {
       return false;
     }
-    for (TransmitterSpatialIndex.Position pos :
-        transmitters.candidates(
-            playerLocation.getWorld().getUID(),
-            playerLocation.getBlockX(),
-            playerLocation.getBlockZ(),
-            rangeBlocks)) {
-      if (!withinHorizontalRange(pos.worldId(), pos.x(), pos.z(), playerLocation)) {
-        continue;
-      }
+    UUID worldId = playerLocation.getWorld().getUID();
+    for (TransmitterSpatialIndex.Position pos : transmitters.globalCandidates(worldId)) {
       Block block = blockAtLoaded(pos);
       if (block == null) {
         unregister(pos);
+        continue;
+      }
+      if (effectiveRangeBlocks(block) >= 0) {
+        refreshRegistration(block);
+        continue;
+      }
+      Status status = status(block);
+      if (status.active() && storageId.equals(status.storage().storageId())) {
+        return true;
+      }
+    }
+    for (TransmitterSpatialIndex.Position pos :
+        transmitters.candidates(
+            worldId,
+            playerLocation.getBlockX(),
+            playerLocation.getBlockZ(),
+            wirelessConfig.maxFiniteRangeBlocks())) {
+      Block block = blockAtLoaded(pos);
+      if (block == null) {
+        unregister(pos);
+        continue;
+      }
+      int effectiveRange = effectiveRangeBlocks(block);
+      if (effectiveRange < 0
+          || !withinHorizontalRange(
+              pos.worldId(), pos.x(), pos.z(), playerLocation, effectiveRange)) {
         continue;
       }
       Status status = status(block);
@@ -259,7 +325,7 @@ public final class WirelessTransmitterService implements Listener {
   }
 
   private boolean withinHorizontalRange(
-      UUID worldId, int blockX, int blockZ, Location playerLocation) {
+      UUID worldId, int blockX, int blockZ, Location playerLocation, int rangeBlocks) {
     if (worldId == null || playerLocation == null || playerLocation.getWorld() == null) {
       return false;
     }
@@ -270,6 +336,35 @@ public final class WirelessTransmitterService implements Listener {
     double dz = playerLocation.getZ() - (blockZ + 0.5D);
     double range = rangeBlocks;
     return dx * dx + dz * dz <= range * range;
+  }
+
+  private java.util.Optional<WirelessBoosterTier> boosterTier(Block block) {
+    if (block == null || block.getWorld() == null) {
+      return java.util.Optional.empty();
+    }
+    return TransmitterStoredBooster.get(plugin, block, this::isWirelessBooster, ignored -> {})
+        .flatMap(this::wirelessBoosterTier);
+  }
+
+  private int computeEffectiveRange(Block block) {
+    return wirelessConfig.effectiveRangeBlocks(boosterTier(block).orElse(null));
+  }
+
+  private boolean isWirelessBooster(org.bukkit.inventory.ItemStack stack) {
+    return wirelessBoosterTier(stack).isPresent();
+  }
+
+  private java.util.Optional<WirelessBoosterTier> wirelessBoosterTier(
+      org.bukkit.inventory.ItemStack stack) {
+    if (!CustomItemClassifier.isType(keys, stack, CustomItemRegistry.WIRELESS_BOOSTER.id())) {
+      return java.util.Optional.empty();
+    }
+    String raw =
+        stack
+            .getItemMeta()
+            .getPersistentDataContainer()
+            .get(keys.wirelessBoosterTier(), PersistentDataType.STRING);
+    return WirelessBoosterTier.fromId(raw);
   }
 
   private Block blockAtLoaded(TransmitterSpatialIndex.Position pos) {
@@ -295,6 +390,11 @@ public final class WirelessTransmitterService implements Listener {
     int chunkX = chunk.getX();
     int chunkZ = chunk.getZ();
     transmitters.removeChunk(worldId, chunkX, chunkZ);
+    effectiveRanges
+        .keySet()
+        .removeIf(
+            pos ->
+                pos.worldId().equals(worldId) && pos.x() >> 4 == chunkX && pos.z() >> 4 == chunkZ);
     statusCache
         .keySet()
         .removeIf(
@@ -304,6 +404,7 @@ public final class WirelessTransmitterService implements Listener {
 
   private void unregister(TransmitterSpatialIndex.Position pos) {
     transmitters.remove(pos);
+    effectiveRanges.remove(pos);
     statusCache.remove(pos);
   }
 

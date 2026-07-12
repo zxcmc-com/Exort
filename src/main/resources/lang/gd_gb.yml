@@ -61,8 +61,9 @@ message:
   usage_give_header: "Thoir nithean Exort:"
   usage_give_storage: "thoir nì stòrais a rèir ìre"
   usage_give_chunk_loader: "thoir Luchdaiche Chunk a rèir caochlaid"
+  usage_give_wireless_booster: "thoir neartaiche chomharran gun uèir a rèir ìre"
   usage_give_item: "thoir nì Exort stèidhichte"
-  usage_give_items: "Nithean: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Nithean: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Cleachdadh: /exort reload"
   unknown_subcommand: "Fo-àithne neo-aithnichte."
   help_header: "Àitheantan Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Chan tusa an sealbhadair. Ceangail a-rithist e."
     out_of_range: "Tha an tèirmineal gun uèir taobh a-muigh raoin."
     missing_storage: "Cha deach an stòras ceangailte a lorg."
+    storage_chunk_unloaded: "Chan eil chunk an stòrais cheangailte luchdaichte."
     empty: "Tha an tèirmineal gun uèir falamh de chumhachd."
     bound: "Chaidh an tèirmineal gun uèir a cheangal."
     self_store: "Chan urrainn dhut tèirmineal gun uèir a stòradh na bhroinn fhèin."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Cùm tèirmineal gun uèir sa phrìomh làmh no san làimh eile."
     transmitter_slot_occupied: "Tha slot tèirmineil an tar-chuiriche gun uèir làn."
     transmitter_terminal_only: "Chan fhaodar ach tèirmineal gun uèir a chur san t-slot seo."
+    transmitter_booster_slot_occupied: "Tha slot neartachaidh an Tar-chuiriche gun Uèir làn."
+    transmitter_booster_only: "Chan fhaodar ach Neartaiche Comharran gun Uèir a chur san t-slot seo."
 debug:
   mode:
     read: "leughadh a-mhàin"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Ion-phortaidh"
   export_bus: "Bus Às-phortaidh"
   wireless_terminal: "Tèirmineal gun Uèir"
+  wireless_booster: "Neartaiche Comharran gun Uèir"
   transmitter: "Tar-chuiriche gun Uèir"
 tier:
   common: "Cumanta"
@@ -263,6 +268,10 @@ lore:
     owner: "Sealbhadair: {0}"
     not_linked: "Gun cheangal"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Ìre: {0}"
+    range_bonus: "Buannachd raoin: {0}%"
+    global: "Ag obair air feadh an t-saoghail làithrich"
 gui:
   give:
     title: "Nithean Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Lìonra: air loidhne"
       storage: "Stòras: {0}"
       range: "Raon: {0} bloca"
+      global: "Air feadh an t-saoghail làithrich"
       covered: "Tha an cluicheadair fo chòmhdach"
       not_covered: "Tha an cluicheadair taobh a-muigh raon an tar-chuiriche seo"
       missing: "Tha bloc an tar-chuiriche a dhìth"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot tèirmineil: falamh"
       terminal_present: "Slot tèirmineil: làn"
+      booster_empty: "Slot neartachaidh: falamh"
+      booster_present: "Neartaiche: {0}"
   bus:
     import_title: "Bus Ion-phortaidh"
     export_title: "Bus Às-phortaidh"

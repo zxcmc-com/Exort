@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dar itens do Exort:"
   usage_give_storage: "dar item de armazenamento por tier"
   usage_give_chunk_loader: "dar carregador de chunks"
+  usage_give_wireless_booster: "dar um amplificador de sinal sem fios por nível"
   usage_give_item: "dar item fixo do Exort"
-  usage_give_items: "Itens: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Itens: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Utilização: /exort reload"
   unknown_subcommand: "Subcomando desconhecido."
   help_header: "Comandos do Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Não és o dono. Liga-o novamente."
     out_of_range: "O terminal sem fios está fora de alcance."
     missing_storage: "Armazenamento ligado não encontrado."
+    storage_chunk_unloaded: "O chunk do armazenamento ligado não está carregado."
     empty: "O terminal sem fios está sem carga."
     bound: "Terminal sem fios ligado."
     self_store: "Não é possível guardar um terminal sem fios dentro dele próprio."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Segura um terminal sem fios na mão principal ou secundária."
     transmitter_slot_occupied: "A ranhura do terminal do transmissor sem fios está ocupada."
     transmitter_terminal_only: "Apenas um terminal sem fios pode ser colocado nesta ranhura."
+    transmitter_booster_slot_occupied: "O espaço de amplificador do Transmissor Sem Fios está ocupado."
+    transmitter_booster_only: "Apenas um Amplificador de Sinal Sem Fios pode ser colocado neste espaço."
 debug:
   mode:
     read: "somente leitura"
@@ -236,6 +240,7 @@ item:
   import_bus: "Barramento de importação"
   export_bus: "Barramento de exportação"
   wireless_terminal: "Terminal sem fio"
+  wireless_booster: "Amplificador de Sinal Sem Fios"
   transmitter: "Transmissor sem fios"
 tier:
   common: "Comum"
@@ -263,6 +268,10 @@ lore:
     owner: "Dono: {0}"
     not_linked: "Não vinculado"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nível: {0}"
+    range_bonus: "Bónus de alcance: {0}%"
+    global: "Funciona em todo o mundo atual"
 gui:
   give:
     title: "Itens do Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rede: online"
       storage: "Armazenamento: {0}"
       range: "Alcance: {0} blocos"
+      global: "Global no mundo atual"
       covered: "O jogador tem cobertura"
       not_covered: "O jogador está fora do alcance deste transmissor"
       missing: "O bloco do transmissor está em falta"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Ranhura do terminal: vazia"
       terminal_present: "Ranhura do terminal: ocupada"
+      booster_empty: "Espaço do amplificador: vazio"
+      booster_present: "Amplificador: {0}"
   bus:
     import_title: "Barramento de importação"
     export_title: "Barramento de exportação"

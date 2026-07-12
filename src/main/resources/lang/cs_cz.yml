@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dávání předmětů Exort:"
   usage_give_storage: "dá předmět úložiště podle tieru"
   usage_give_chunk_loader: "dá loader chunků"
+  usage_give_wireless_booster: "dej zesilovač bezdrátového signálu podle úrovně"
   usage_give_item: "dá pevný předmět Exort"
-  usage_give_items: "Předměty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Předměty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Použití: /exort reload"
   unknown_subcommand: "Neznámý podpříkaz."
   help_header: "Příkazy Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Nejste vlastník. Propojte ho znovu."
     out_of_range: "Bezdrátový terminál je mimo dosah."
     missing_storage: "Propojené úložiště nebylo nalezeno."
+    storage_chunk_unloaded: "Chunk propojeného úložiště není načtený."
     empty: "Bezdrátový terminál je vybitý."
     bound: "Bezdrátový terminál propojen."
     self_store: "Bezdrátový terminál nelze uložit do něj samotného."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Držte bezdrátový terminál v hlavní nebo vedlejší ruce."
     transmitter_slot_occupied: "Slot terminálu v bezdrátovém vysílači je obsazený."
     transmitter_terminal_only: "Do tohoto slotu lze vložit pouze bezdrátový terminál."
+    transmitter_booster_slot_occupied: "Slot zesilovače bezdrátového vysílače je obsazený."
+    transmitter_booster_only: "Do tohoto slotu lze vložit pouze zesilovač bezdrátového signálu."
 debug:
   mode:
     read: "jen pro čtení"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importní sběrnice"
   export_bus: "Exportní sběrnice"
   wireless_terminal: "Bezdrátový terminál"
+  wireless_booster: "Zesilovač bezdrátového signálu"
   transmitter: "Bezdrátový vysílač"
 tier:
   common: "Běžná"
@@ -263,6 +268,10 @@ lore:
     owner: "Vlastník: {0}"
     not_linked: "Nepropojen"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Úroveň: {0}"
+    range_bonus: "Bonus dosahu: {0}%"
+    global: "Funguje v celém aktuálním světě"
 gui:
   give:
     title: "Předměty Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Síť: aktivní"
       storage: "Úložiště: {0}"
       range: "Dosah: {0} bloků"
+      global: "Globální v aktuálním světě"
       covered: "Hráč je v dosahu"
       not_covered: "Hráč je mimo dosah tohoto vysílače"
       missing: "Blok vysílače chybí"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot terminálu: prázdný"
       terminal_present: "Slot terminálu: obsazený"
+      booster_empty: "Slot zesilovače: prázdný"
+      booster_present: "Zesilovač: {0}"
   bus:
     import_title: "Importní sběrnice"
     export_title: "Exportní sběrnice"

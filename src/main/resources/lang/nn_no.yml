@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gje Exort-gjenstandar:"
   usage_give_storage: "gje eit lager etter tier"
   usage_give_chunk_loader: "gje ein Chunk-loader"
+  usage_give_wireless_booster: "gje ein trådlaus signalforsterkar etter nivå"
   usage_give_item: "gje ein fast Exort-gjenstand"
-  usage_give_items: "Gjenstandar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Gjenstandar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Bruk: /exort reload"
   unknown_subcommand: "Ukjend underkommando."
   help_header: "Exort Storage Network-kommandoar:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du er ikkje eigaren. Lenkja han på nytt."
     out_of_range: "Trådlaus terminal er utanfor rekkjevidd."
     missing_storage: "Lenkja lager vart ikkje funne."
+    storage_chunk_unloaded: "Chunken til det kopla lageret er ikkje lasta."
     empty: "Trådlaus terminal er tom for straum."
     bound: "Trådlaus terminal lenkja."
     self_store: "Ein trådlaus terminal kan ikkje lagrast i seg sjølv."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hald ein trådlaus terminal i hovudhanda eller den andre handa."
     transmitter_slot_occupied: "Terminalplassen i den trådlause sendaren er oppteken."
     transmitter_terminal_only: "Berre ein trådlaus terminal kan plasserast på denne plassen."
+    transmitter_booster_slot_occupied: "Forsterkarplassen til den Trådlause Sendaren er oppteken."
+    transmitter_booster_only: "Berre ein Trådlaus Signalforsterkar kan plasserast her."
 debug:
   mode:
     read: "berre lesing"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importbuss"
   export_bus: "Eksportbuss"
   wireless_terminal: "Trådlaus terminal"
+  wireless_booster: "Trådlaus Signalforsterkar"
   transmitter: "Trådlaus sendar"
 tier:
   common: "Vanleg"
@@ -263,6 +268,10 @@ lore:
     owner: "Eigar: {0}"
     not_linked: "Ikkje lenkja"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivå: {0}"
+    range_bonus: "Rekkjeviddebonus: {0}%"
+    global: "Verkar i heile den noverande verda"
 gui:
   give:
     title: "Exort-gjenstandar"
@@ -324,6 +333,7 @@ gui:
       active: "Nettverk: på"
       storage: "Lager: {0}"
       range: "Rekkjevidd: {0} blokker"
+      global: "Global i den noverande verda"
       covered: "Spelaren er innan rekkjevidd"
       not_covered: "Spelaren er utanfor rekkjevidda til denne sendaren"
       missing: "Sendarblokka manglar"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplass: tom"
       terminal_present: "Terminalplass: oppteken"
+      booster_empty: "Forsterkarplass: tom"
+      booster_present: "Forsterkar: {0}"
   bus:
     import_title: "Importbuss"
     export_title: "Eksportbuss"

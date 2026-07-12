@@ -61,8 +61,9 @@ message:
   usage_give_header: "Davanje Exort predmeta:"
   usage_give_storage: "daj predmet skladišta po tieru"
   usage_give_chunk_loader: "daj loader chunkova"
+  usage_give_wireless_booster: "daj pojačivač bežičnog signala prema nivou"
   usage_give_item: "daj fiksni Exort predmet"
-  usage_give_items: "Predmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Predmeti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Upotreba: /exort reload"
   unknown_subcommand: "Nepoznata podkomanda."
   help_header: "Komande Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Nisi vlasnik. Poveži ga ponovo."
     out_of_range: "Bežični terminal je van dometa."
     missing_storage: "Povezano skladište nije pronađeno."
+    storage_chunk_unloaded: "Chunk povezanog skladišta nije učitan."
     empty: "Bežični terminal je bez punjenja."
     bound: "Bežični terminal povezan."
     self_store: "Ne možeš spremiti bežični terminal u samog sebe."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Drži bežični terminal u glavnoj ili sporednoj ruci."
     transmitter_slot_occupied: "Utor za terminal u bežičnom odašiljaču je zauzet."
     transmitter_terminal_only: "U ovaj utor može se staviti samo bežični terminal."
+    transmitter_booster_slot_occupied: "Utor za pojačivač bežičnog odašiljača je zauzet."
+    transmitter_booster_only: "U ovaj utor može se staviti samo pojačivač bežičnog signala."
 debug:
   mode:
     read: "samo čitanje"
@@ -236,6 +240,7 @@ item:
   import_bus: "Uvozna sabirnica"
   export_bus: "Izvozna sabirnica"
   wireless_terminal: "Bežični terminal"
+  wireless_booster: "Pojačivač bežičnog signala"
   transmitter: "Bežični odašiljač"
 tier:
   common: "Obični"
@@ -263,6 +268,10 @@ lore:
     owner: "Vlasnik: {0}"
     not_linked: "Nije povezan"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivo: {0}"
+    range_bonus: "Bonus dometa: {0}%"
+    global: "Djeluje u cijelom trenutnom svijetu"
 gui:
   give:
     title: "Predmeti Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Mreža: aktivna"
       storage: "Skladište: {0}"
       range: "Domet: {0} blokova"
+      global: "Globalno u trenutnom svijetu"
       covered: "Igrač je u dometu"
       not_covered: "Igrač je izvan dometa ovog odašiljača"
       missing: "Blok odašiljača nedostaje"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Utor terminala: prazan"
       terminal_present: "Utor terminala: zauzet"
+      booster_empty: "Utor za pojačivač: prazan"
+      booster_present: "Pojačivač: {0}"
   bus:
     import_title: "Uvozna sabirnica"
     export_title: "Izvozna sabirnica"

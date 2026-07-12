@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.List;
 import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,17 @@ class RuntimeItemModelConfigTest {
   }
 
   @Test
+  void boosterModelsUseTierResourcePathsAndOneVanillaFallback() {
+    RuntimeItemModelConfig resource = RuntimeItemModelConfig.forMode(true);
+    RuntimeItemModelConfig vanilla = RuntimeItemModelConfig.forMode(false);
+
+    for (WirelessBoosterTier tier : WirelessBoosterTier.values()) {
+      assertEquals("exort:wireless_booster/" + tier.id(), resource.wirelessBoosterItemModel(tier));
+      assertEquals("minecraft:amethyst_shard", vanilla.wirelessBoosterItemModel(tier));
+    }
+  }
+
+  @Test
   void normalizeModelIdStripsInputNamespaceAndFallsBackForBlankValues() {
     assertEquals(
         "custom:path/model", RuntimeItemModelConfig.normalizeModelId("exort:path/model", "custom"));
@@ -65,6 +77,10 @@ class RuntimeItemModelConfigTest {
         config.personalChunkLoaderItemModel(),
         config.dormantChunkLoaderItemModel(),
         config.wirelessItemModel(),
-        config.wirelessDisabledModel());
+        config.wirelessDisabledModel(),
+        config.wirelessBoosterItemModel(WirelessBoosterTier.RARE),
+        config.wirelessBoosterItemModel(WirelessBoosterTier.MYTHICAL),
+        config.wirelessBoosterItemModel(WirelessBoosterTier.LEGENDARY),
+        config.wirelessBoosterItemModel(WirelessBoosterTier.IMMORTAL));
   }
 }

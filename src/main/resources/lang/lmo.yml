@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dai oggetti Exort:"
   usage_give_storage: "consegna un oggetto di stoccaggio in base al tier"
   usage_give_chunk_loader: "dar un cargador de chunk"
+  usage_give_wireless_booster: "dà on amplificator de segnàl wireless per livel"
   usage_give_item: "consegna un oggetto Exort specifico"
-  usage_give_items: "Oggett: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Oggett: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uso: /exort reload"
   unknown_subcommand: "Sottocomando sconosciuto."
   help_header: "Comandi Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Non sei il proprietario. Collegalo di nuovo."
     out_of_range: "Il terminale wireless è fuori portata."
     missing_storage: "Stoccaggio collegato non trovato."
+    storage_chunk_unloaded: "El chunk del stoccagg colegaa l'è minga cargaa."
     empty: "Il terminale wireless è scarico."
     bound: "Terminale wireless collegato."
     self_store: "Non puoi conservare un terminale wireless dentro sé stesso."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tegn on terminal wireless in la man principal o secondaria."
     transmitter_slot_occupied: "El slot del terminal del trasmetitor wireless l'è ocupaa."
     transmitter_terminal_only: "In sto slot se pò met minga alter che on terminal wireless."
+    transmitter_booster_slot_occupied: "El post de l'amplificator del Trasmetitor Wireless l'è occupaa."
+    transmitter_booster_only: "Dumà on Amplificator de Segnàl Wireless el pò vess mettuu in sto post."
 debug:
   mode:
     read: "sola lettura"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus di importazione"
   export_bus: "Bus di esportazione"
   wireless_terminal: "Terminale wireless"
+  wireless_booster: "Amplificator de Segnàl Wireless"
   transmitter: "Trasmetitor wireless"
 tier:
   common: "Comun"
@@ -263,6 +268,10 @@ lore:
     owner: "Proprietario: {0}"
     not_linked: "Non collegato"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Livel: {0}"
+    range_bonus: "Bonus de portada: {0}%"
+    global: "El funziona in tutt el mond de adess"
 gui:
   give:
     title: "Oggetti Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Ret: online"
       storage: "Stoccagg: {0}"
       range: "Portada: {0} blocch"
+      global: "Global nel mond de adess"
       covered: "El giugador l'è covert"
       not_covered: "El giugador l'è foeura de la portada de sto trasmetitor"
       missing: "El blocch del trasmetitor el manca"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot del terminal: voeuid"
       terminal_present: "Slot del terminal: ocupaa"
+      booster_empty: "Post de l'amplificator: voeud"
+      booster_present: "Amplificator: {0}"
   bus:
     import_title: "Bus di importazione"
     export_title: "Bus di esportazione"

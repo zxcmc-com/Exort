@@ -61,8 +61,9 @@ message:
   usage_give_header: "מתן פריטי Exort:"
   usage_give_storage: "תן פריט אחסון לפי tier"
   usage_give_chunk_loader: "תן טוען צ'אנקים לפי סוג"
+  usage_give_wireless_booster: "תן מגביר אות אלחוטי לפי דרגה"
   usage_give_item: "תן פריט Exort קבוע"
-  usage_give_items: "פריטים: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "פריטים: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "שימוש: /exort reload"
   unknown_subcommand: "תת-פקודה לא ידועה."
   help_header: "פקודות Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "אינך הבעלים. קשר אותו מחדש."
     out_of_range: "המסוף האלחוטי מחוץ לטווח."
     missing_storage: "האחסון המקושר לא נמצא."
+    storage_chunk_unloaded: "הצ'אנק של האחסון המקושר אינו טעון."
     empty: "המסוף האלחוטי ריק מטעינה."
     bound: "המסוף האלחוטי קושר."
     self_store: "אי אפשר לאחסן מסוף אלחוטי בתוך עצמו."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "החזק מסוף אלחוטי ביד הראשית או ביד המשנית."
     transmitter_slot_occupied: "חריץ המסוף של המשדר האלחוטי תפוס."
     transmitter_terminal_only: "אפשר להניח בחריץ זה רק מסוף אלחוטי."
+    transmitter_booster_slot_occupied: "חריץ המגביר של המשדר האלחוטי תפוס."
+    transmitter_booster_only: "אפשר להניח בחריץ זה רק מגביר אות אלחוטי."
 debug:
   mode:
     read: "קריאה בלבד"
@@ -236,6 +240,7 @@ item:
   import_bus: "אפיק ייבוא"
   export_bus: "אפיק ייצוא"
   wireless_terminal: "מסוף אלחוטי"
+  wireless_booster: "מגביר אות אלחוטי"
   transmitter: "משדר אלחוטי"
 tier:
   common: "נפוץ"
@@ -263,6 +268,10 @@ lore:
     owner: "בעלים: {0}"
     not_linked: "לא מקושר"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "דרגה: {0}"
+    range_bonus: "תוספת טווח: {0}%"
+    global: "פועל בכל העולם הנוכחי"
 gui:
   give:
     title: "פריטי Exort"
@@ -324,6 +333,7 @@ gui:
       active: "רשת: מחוברת"
       storage: "אחסון: {0}"
       range: "טווח: {0} בלוקים"
+      global: "כלל־עולמי בעולם הנוכחי"
       covered: "השחקן נמצא באזור הכיסוי"
       not_covered: "השחקן מחוץ לטווח המשדר הזה"
       missing: "בלוק המשדר חסר"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "חריץ המסוף: ריק"
       terminal_present: "חריץ המסוף: תפוס"
+      booster_empty: "חריץ מגביר: ריק"
+      booster_present: "מגביר: {0}"
   bus:
     import_title: "אפיק ייבוא"
     export_title: "אפיק ייצוא"

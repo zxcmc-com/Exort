@@ -61,8 +61,9 @@ message:
   usage_give_header: "دادن آیتم‌های Exort:"
   usage_give_storage: "دادن آیتم ذخیره‌سازی بر اساس tier"
   usage_give_chunk_loader: "دادن بارگذار چانک بر اساس گونه"
+  usage_give_wireless_booster: "دادن تقویت‌کنندهٔ سیگنال بی‌سیم بر اساس رده"
   usage_give_item: "دادن آیتم ثابت Exort"
-  usage_give_items: "آیتم‌ها: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "آیتم‌ها: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "استفاده: /exort reload"
   unknown_subcommand: "زیر‌فرمان ناشناخته."
   help_header: "فرمان‌های Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "شما مالک نیستید. دوباره لینک کنید."
     out_of_range: "پایانه بی‌سیم خارج از برد است."
     missing_storage: "ذخیره‌سازی لینک‌شده پیدا نشد."
+    storage_chunk_unloaded: "چانک ذخیره‌سازی پیوندشده بارگذاری نشده است."
     empty: "شارژ پایانه بی‌سیم تمام شده است."
     bound: "پایانه بی‌سیم لینک شد."
     self_store: "نمی‌توان یک پایانه بی‌سیم را داخل خودش ذخیره کرد."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "یک پایانه بی‌سیم را در دست اصلی یا دست فرعی نگه دارید."
     transmitter_slot_occupied: "شکاف پایانه فرستنده بی‌سیم اشغال است."
     transmitter_terminal_only: "فقط می‌توان یک پایانه بی‌سیم را در این شکاف قرار داد."
+    transmitter_booster_slot_occupied: "شکاف تقویت‌کنندهٔ فرستندهٔ بی‌سیم اشغال است."
+    transmitter_booster_only: "فقط می‌توان تقویت‌کنندهٔ سیگنال بی‌سیم را در این شکاف قرار داد."
 debug:
   mode:
     read: "فقط خواندن"
@@ -236,6 +240,7 @@ item:
   import_bus: "باس واردسازی"
   export_bus: "باس خروجی"
   wireless_terminal: "پایانه بی‌سیم"
+  wireless_booster: "تقویت‌کنندهٔ سیگنال بی‌سیم"
   transmitter: "فرستنده بی‌سیم"
 tier:
   common: "معمولی"
@@ -263,6 +268,10 @@ lore:
     owner: "مالک: {0}"
     not_linked: "لینک نشده"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "رده: {0}"
+    range_bonus: "افزایش بُرد: {0}%"
+    global: "در سراسر جهان فعلی کار می‌کند"
 gui:
   give:
     title: "آیتم‌های Exort"
@@ -324,6 +333,7 @@ gui:
       active: "شبکه: آنلاین"
       storage: "ذخیره‌سازی: {0}"
       range: "برد: {0} بلوک"
+      global: "سراسری در جهان فعلی"
       covered: "بازیکن در محدوده پوشش است"
       not_covered: "بازیکن خارج از برد این فرستنده است"
       missing: "بلوک فرستنده پیدا نشد"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "شکاف پایانه: خالی"
       terminal_present: "شکاف پایانه: اشغال"
+      booster_empty: "شکاف تقویت‌کننده: خالی"
+      booster_present: "تقویت‌کننده: {0}"
   bus:
     import_title: "باس واردسازی"
     export_title: "باس خروجی"

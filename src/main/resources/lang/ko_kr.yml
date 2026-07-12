@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort 아이템 지급:"
   usage_give_storage: "tier로 저장소 아이템 지급"
   usage_give_chunk_loader: "청크 로더 지급"
+  usage_give_wireless_booster: "등급별 무선 신호 증폭기 지급"
   usage_give_item: "고정 Exort 아이템 지급"
-  usage_give_items: "아이템: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "아이템: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "사용법: /exort reload"
   unknown_subcommand: "알 수 없는 하위 명령입니다."
   help_header: "Exort Storage Network 명령:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "소유자가 아닙니다. 다시 연결하세요."
     out_of_range: "무선 터미널이 범위를 벗어났습니다."
     missing_storage: "연결된 저장소를 찾을 수 없습니다."
+    storage_chunk_unloaded: "연결된 저장소의 청크가 로드되지 않았습니다."
     empty: "무선 터미널의 충전이 없습니다."
     bound: "무선 터미널이 연결되었습니다."
     self_store: "무선 터미널을 자기 자신 안에 저장할 수 없습니다."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "주 손이나 보조 손에 무선 터미널을 드세요."
     transmitter_slot_occupied: "무선 송신기의 터미널 슬롯이 사용 중입니다."
     transmitter_terminal_only: "이 슬롯에는 무선 터미널만 놓을 수 있습니다."
+    transmitter_booster_slot_occupied: "무선 송신기의 증폭기 슬롯이 사용 중입니다."
+    transmitter_booster_only: "이 슬롯에는 무선 신호 증폭기만 놓을 수 있습니다."
 debug:
   mode:
     read: "읽기 전용"
@@ -236,6 +240,7 @@ item:
   import_bus: "가져오기 버스"
   export_bus: "내보내기 버스"
   wireless_terminal: "무선 터미널"
+  wireless_booster: "무선 신호 증폭기"
   transmitter: "무선 송신기"
 tier:
   common: "보통"
@@ -263,6 +268,10 @@ lore:
     owner: "소유자: {0}"
     not_linked: "연결되지 않음"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "등급: {0}"
+    range_bonus: "범위 보너스: {0}%"
+    global: "현재 월드 전체에서 작동"
 gui:
   give:
     title: "Exort 아이템"
@@ -324,6 +333,7 @@ gui:
       active: "네트워크: 온라인"
       storage: "저장소: {0}"
       range: "범위: {0}블록"
+      global: "현재 월드 전체"
       covered: "플레이어가 범위 안에 있습니다"
       not_covered: "플레이어가 이 송신기의 범위 밖에 있습니다"
       missing: "송신기 블록이 없습니다"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "터미널 슬롯: 비어 있음"
       terminal_present: "터미널 슬롯: 사용 중"
+      booster_empty: "증폭기 슬롯: 비어 있음"
+      booster_present: "증폭기: {0}"
   bus:
     import_title: "가져오기 버스"
     export_title: "내보내기 버스"

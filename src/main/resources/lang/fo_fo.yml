@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gev Exort-lutir:"
   usage_give_storage: "gev ein goymslulut eftir tier"
   usage_give_chunk_loader: "gev ein Chunk-løðara"
+  usage_give_wireless_booster: "gev ein tráðleysan signalstyrkjara eftir stigi"
   usage_give_item: "gev ein fastan Exort-lut"
-  usage_give_items: "Lutir: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Lutir: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Nýtsla: /exort reload"
   unknown_subcommand: "Ókend undirskipan."
   help_header: "Exort Storage Network skipanir:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Tú ert ikki eigarin. Knyt hann aftur."
     out_of_range: "Tráðleysur terminalur er uttan fyri røkkivídd."
     missing_storage: "Knøtt goymsla ikki funnin."
+    storage_chunk_unloaded: "Chunkurin hjá knýttu goymsluni er ikki løddur."
     empty: "Tráðleysur terminalur er uttan streym."
     bound: "Tráðleysur terminalur knýttur."
     self_store: "Kann ikki leggja ein tráðleysan terminal í seg sjálvan."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Halt einum tráðleysum terminali í høvuðshondini ella hinari hondini."
     transmitter_slot_occupied: "Terminalplássið í tráðleysa sendaranum er upptikið."
     transmitter_terminal_only: "Bara ein tráðleysur terminalur kann setast í hetta plássið."
+    transmitter_booster_slot_occupied: "Styrkjaraplássið hjá tráðleysa sendaranum er upptikið."
+    transmitter_booster_only: "Bara ein Tráðleysur Signalstyrkjari kann setast í hetta plássið."
 debug:
   mode:
     read: "bert lesa"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-bussur"
   export_bus: "Export-bussur"
   wireless_terminal: "Tráðleysur terminalur"
+  wireless_booster: "Tráðleysur Signalstyrkjari"
   transmitter: "Tráðleysur sendari"
 tier:
   common: "Vanligur"
@@ -263,6 +268,10 @@ lore:
     owner: "Eigari: {0}"
     not_linked: "Ikki knýtt"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stig: {0}"
+    range_bonus: "Røkkivíddarískoyti: {0}%"
+    global: "Virkar um allan núverandi heimin"
 gui:
   give:
     title: "Exort-lutir"
@@ -324,6 +333,7 @@ gui:
       active: "Net: virkið"
       storage: "Goymsla: {0}"
       range: "Røkkivídd: {0} blokkar"
+      global: "Um allan núverandi heimin"
       covered: "Spælarin er innan røkkivídd"
       not_covered: "Spælarin er uttan fyri røkkivíddina hjá hesum sendara"
       missing: "Sendarablokkurin manglar"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalpláss: tómt"
       terminal_present: "Terminalpláss: upptikið"
+      booster_empty: "Styrkjarapláss: tómt"
+      booster_present: "Styrkjari: {0}"
   bus:
     import_title: "Import-bussur"
     export_title: "Export-bussur"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort yInob Dochmey:"
   usage_give_storage: "yInob Dochpol Doch patlhmoʼ"
   usage_give_chunk_loader: "Chunk loadwIʼ yInob"
+  usage_give_wireless_booster: "patlhmoʼ tlhegh Hutlh QIn HoSwIʼ yInob"
   usage_give_item: "yInob perluʼbogh Exort Doch"
-  usage_give_items: "Dochmey: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Dochmey: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "loʼmeH: /exort reload"
   unknown_subcommand: "raʼwIʼHom Sovbeʼluʼ."
   help_header: "Exort Dochpol pat raʼwIʼmey:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "SoHbeʼ ghajwiʼ. yIrarqaʼ."
     out_of_range: "tlhegh Hutlh terminal Hopquʼ."
     missing_storage: "Dochpol rarluʼbogh tuʼluʼbeʼ."
+    storage_chunk_unloaded: "rarbogh Dochpol chunk loadbeʼluʼ."
     empty: "tlhegh Hutlh terminal Hutlh hos."
     bound: "tlhegh Hutlh terminal rar."
     self_store: "tlhegh Hutlh terminalDaq terminalvam pollaHbeʼ."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "ghop waʼDIch pagh ghop chaʼDIchDaq tlhegh Hutlh terminal yIghaj."
     transmitter_slot_occupied: "tlhegh Hutlh labwIʼ terminal Daq tebluʼ."
     transmitter_terminal_only: "DaqvamDaq tlhegh Hutlh terminal neH lanlaHluʼ."
+    transmitter_booster_slot_occupied: "tlhegh Hutlh labwIʼ HoSwIʼ Daq tebluʼ."
+    transmitter_booster_only: "DaqvamDaq tlhegh Hutlh QIn HoSwIʼ neH lanlaHluʼ."
 debug:
   mode:
     read: "laD neH"
@@ -236,6 +240,7 @@ item:
   import_bus: "yapbeʼwIʼ lupwIʼ"
   export_bus: "teqmeH lupwIʼ"
   wireless_terminal: "tlhegh Hutlh terminal"
+  wireless_booster: "tlhegh Hutlh QIn HoSwIʼ"
   transmitter: "tlhegh Hutlh labwIʼ"
 tier:
   common: "motlh"
@@ -263,6 +268,10 @@ lore:
     owner: "ghajwIʼ: {0}"
     not_linked: "rarbeʼ"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "patlh: {0}"
+    range_bonus: "chuq ghurmoHluʼ: {0}%"
+    global: "qoʼvam naQDaq Qap"
 gui:
   give:
     title: "Exort Dochmey"
@@ -324,6 +333,7 @@ gui:
       active: "pat: rar"
       storage: "Dochpol: {0}"
       range: "chuq: {0} ngogh"
+      global: "qoʼvam naQDaq"
       covered: "QujwIʼ Soʼ labwIʼ"
       not_covered: "labwIʼvam chuqDaq QujwIʼ tuʼluʼbeʼ"
       missing: "labwIʼ ngogh tuʼluʼbeʼ"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "terminal Daq: chIm"
       terminal_present: "terminal Daq: tebluʼ"
+      booster_empty: "HoSwIʼ Daq: chIm"
+      booster_present: "HoSwIʼ: {0}"
   bus:
     import_title: "yapbeʼwIʼ lupwIʼ"
     export_title: "teqmeH lupwIʼ"

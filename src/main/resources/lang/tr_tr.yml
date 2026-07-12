@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort eşyaları ver:"
   usage_give_storage: "katmana göre depo eşyası ver"
   usage_give_chunk_loader: "varyanta göre chunk yükleyici ver"
+  usage_give_wireless_booster: "seviyeye göre Kablosuz Sinyal Güçlendirici ver"
   usage_give_item: "sabit bir Exort eşyası ver"
-  usage_give_items: "Eşyalar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Eşyalar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Kullanım: /exort reload"
   unknown_subcommand: "Bilinmeyen alt komut."
   help_header: "Exort Storage Network komutları:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Sahibi sen değilsin. Yeniden bağla."
     out_of_range: "Kablosuz terminal menzil dışında."
     missing_storage: "Bağlı depo bulunamadı."
+    storage_chunk_unloaded: "Bağlı deponun chunk'ı yüklü değil."
     empty: "Kablosuz terminalin şarjı bitti."
     bound: "Kablosuz terminal bağlandı."
     self_store: "Kablosuz terminal kendi içine depolanamaz."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Ana veya diğer elde bir kablosuz terminal tutun."
     transmitter_slot_occupied: "Kablosuz vericinin terminal yuvası dolu."
     transmitter_terminal_only: "Bu yuvaya yalnızca kablosuz terminal yerleştirilebilir."
+    transmitter_booster_slot_occupied: "Kablosuz Vericinin güçlendirici yuvası dolu."
+    transmitter_booster_only: "Bu yuvaya yalnızca Kablosuz Sinyal Güçlendirici yerleştirilebilir."
 debug:
   mode:
     read: "salt okunur"
@@ -236,6 +240,7 @@ item:
   import_bus: "İçe Aktarma Veri Yolu"
   export_bus: "Dışa Aktarma Veri Yolu"
   wireless_terminal: "Kablosuz Terminal"
+  wireless_booster: "Kablosuz Sinyal Güçlendirici"
   transmitter: "Kablosuz Verici"
 tier:
   common: "Yaygın"
@@ -263,6 +268,10 @@ lore:
     owner: "Sahip: {0}"
     not_linked: "Bağlı değil"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Seviye: {0}"
+    range_bonus: "Menzil bonusu: {0}%"
+    global: "Mevcut dünyanın tamamında çalışır"
 gui:
   give:
     title: "Exort Eşyaları"
@@ -324,6 +333,7 @@ gui:
       active: "Ağ: çevrimiçi"
       storage: "Depo: {0}"
       range: "Menzil: {0} blok"
+      global: "Mevcut dünyanın tamamında"
       covered: "Oyuncu kapsama alanında"
       not_covered: "Oyuncu bu vericinin menzili dışında"
       missing: "Verici bloğu eksik"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal yuvası: boş"
       terminal_present: "Terminal yuvası: dolu"
+      booster_empty: "Güçlendirici yuvası: boş"
+      booster_present: "Güçlendirici: {0}"
   bus:
     import_title: "İçe Aktarma Veri Yolu"
     export_title: "Dışa Aktarma Veri Yolu"

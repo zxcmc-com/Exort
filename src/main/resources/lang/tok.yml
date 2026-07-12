@@ -61,8 +61,9 @@ message:
   usage_give_header: "o pana e Exort ijo mute:"
   usage_give_storage: "o pana poki ijo tan kulupu"
   usage_give_chunk_loader: "o pana e ilo pi awen chunk kepeken nasin"
+  usage_give_wireless_booster: "o pana e ilo pi wawa sin pi toki kon tan kulupu"
   usage_give_item: "pana wan Exort ijo"
-  usage_give_items: "ijo: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "ijo: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "kepeken: /exort reload"
   unknown_subcommand: "sona ala e toki lawa lili."
   help_header: "Exort Poki kulupu-linja toki lawa:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "sina jan jo ala jan jo. o linja sin."
     out_of_range: "ilo poki pi linja ala li lon weka mute."
     missing_storage: "poki pi linja ni li lon ala."
+    storage_chunk_unloaded: "chunk pi poki ijo pi linja lon li kama ala."
     empty: "ilo poki pi linja ala jo ala e wawa."
     bound: "ilo poki pi linja ala jo e linja."
     self_store: "ilo poki pi linja ala li ken ala lon insa ona sama."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "o jo e ilo poki pi linja ala lon luka nanpa wan anu luka ante."
     transmitter_slot_occupied: "ma pi ilo poki lon ilo pana pi linja ala li jo e ijo."
     transmitter_terminal_only: "ilo poki pi linja ala taso li ken lon ma ni."
+    transmitter_booster_slot_occupied: "ma pi ilo wawa lon ilo pana pi linja ala li jo e ijo."
+    transmitter_booster_only: "ilo pi wawa sin pi toki kon taso li ken lon ma ni."
 debug:
   mode:
     read: "lukin taso"
@@ -236,6 +240,7 @@ item:
   import_bus: "linja tawa insa"
   export_bus: "linja tawa selo"
   wireless_terminal: "ilo poki pi linja ala"
+  wireless_booster: "ilo pi wawa sin pi toki kon"
   transmitter: "ilo pana pi linja ala"
 tier:
   common: "mute"
@@ -263,6 +268,10 @@ lore:
     owner: "jan jo: {0}"
     not_linked: "li jo ala e linja"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "kulupu: {0}"
+    range_bonus: "wawa pi ma suli: {0}%"
+    global: "li pali lon ma ale pi ma ni"
 gui:
   give:
     title: "ijo Exort"
@@ -324,6 +333,7 @@ gui:
       active: "kulupu linja: pali"
       storage: "poki: {0}"
       range: "weka: leko {0}"
+      global: "lon ma ale pi ma ni"
       covered: "jan musi li lon ma pana"
       not_covered: "jan musi li lon selo pi ma pana ilo ni"
       missing: "leko pi ilo pana li lon ala"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "ma pi ilo poki: jo ala e ijo"
       terminal_present: "ma pi ilo poki: jo e ijo"
+      booster_empty: "ma pi ilo wawa: li jo ala e ijo"
+      booster_present: "ilo wawa: {0}"
   bus:
     import_title: "linja tawa insa"
     export_title: "linja tawa selo"

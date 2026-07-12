@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gje Exort-ting:"
   usage_give_storage: "gje eit lagringsting etter tier"
   usage_give_chunk_loader: "gje ein Chunk-loader"
+  usage_give_wireless_booster: "ge ein trådlaus signalstyrkare etter nivå"
   usage_give_item: "gje eit fast Exort-ting"
-  usage_give_items: "Saker: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Saker: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Bruk: /exort reload"
   unknown_subcommand: "Okund underkommando."
   help_header: "Kommandoar for Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du ir int eigaren. Lenk han på nytt."
     out_of_range: "Trådlaus terminal ir utanfor rekkevidd."
     missing_storage: "Lenka lagring fanst int."
+    storage_chunk_unloaded: "Chunken åt det lenkade lagret ir int laddad."
     empty: "Trådlaus terminal ir tom for lading."
     bound: "Trådlaus terminal lenka."
     self_store: "Kan int leggja ein trådlaus terminal inni seg sjølv."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hald en trådlaus terminal i huvudhandn eller andra handn."
     transmitter_slot_occupied: "Terminalplatsn i den trådlause sändarn ir upptagen."
     transmitter_terminal_only: "Bara en trådlaus terminal kan sättas på den här platsn."
+    transmitter_booster_slot_occupied: "Styrkarplassen på den Trådlause Sändaren ir upptikin."
+    transmitter_booster_only: "Berre ein Trådlaus Signalstyrkare kan leggast i denne plassen."
 debug:
   mode:
     read: "berre lesing"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-buss"
   export_bus: "Export-buss"
   wireless_terminal: "Trådlaus terminal"
+  wireless_booster: "Trådlaus Signalstyrkare"
   transmitter: "Trådlaus sändare"
 tier:
   common: "Vanleg"
@@ -263,6 +268,10 @@ lore:
     owner: "Eigar: {0}"
     not_linked: "Int lenka"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivå: {0}"
+    range_bonus: "Räckviddsbonus: {0}%"
+    global: "Virkar i heile noverande verda"
 gui:
   give:
     title: "Exort-grejer"
@@ -324,6 +333,7 @@ gui:
       active: "Nätverk: på"
       storage: "Lagring: {0}"
       range: "Räckvidd: {0} blokker"
+      global: "Över heile noverande verda"
       covered: "Spelarn ir inom räckvidd"
       not_covered: "Spelarn ir utanför räckviddn för den här sändarn"
       missing: "Sändarblokken saknas"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplats: tom"
       terminal_present: "Terminalplats: upptagen"
+      booster_empty: "Styrkarplass: tom"
+      booster_present: "Styrkare: {0}"
   bus:
     import_title: "Import-buss"
     export_title: "Export-buss"

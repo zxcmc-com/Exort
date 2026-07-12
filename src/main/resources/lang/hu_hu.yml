@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort tárgyak adása:"
   usage_give_storage: "tárolótárgy adása szint alapján"
   usage_give_chunk_loader: "chunkbetöltő adása változat alapján"
+  usage_give_wireless_booster: "adj vezeték nélküli jelerősítőt szint alapján"
   usage_give_item: "rögzített Exort tárgy adása"
-  usage_give_items: "Tárgyak: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Tárgyak: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Használat: /exort reload"
   unknown_subcommand: "Ismeretlen alparancs."
   help_header: "Exort Storage Network parancsok:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Nem te vagy a tulajdonos. Kapcsold össze újra."
     out_of_range: "A vezeték nélküli terminál hatótávon kívül van."
     missing_storage: "A kapcsolt tároló nem található."
+    storage_chunk_unloaded: "A hozzárendelt tároló chunkja nincs betöltve."
     empty: "A vezeték nélküli terminál lemerült."
     bound: "Vezeték nélküli terminál összekapcsolva."
     self_store: "Vezeték nélküli terminált nem lehet önmagába tárolni."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tarts egy vezeték nélküli terminált a fő- vagy a mellékkézben."
     transmitter_slot_occupied: "A vezeték nélküli adó terminálhelye foglalt."
     transmitter_terminal_only: "Ebbe a helybe csak vezeték nélküli terminál helyezhető."
+    transmitter_booster_slot_occupied: "A vezeték nélküli adó erősítőhelye foglalt."
+    transmitter_booster_only: "Ebbe a helybe csak vezeték nélküli jelerősítő helyezhető."
 debug:
   mode:
     read: "csak olvasás"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import busz"
   export_bus: "Export busz"
   wireless_terminal: "Vezeték nélküli terminál"
+  wireless_booster: "Vezeték nélküli jelerősítő"
   transmitter: "Vezeték nélküli adó"
 tier:
   common: "Gyakori"
@@ -263,6 +268,10 @@ lore:
     owner: "Tulajdonos: {0}"
     not_linked: "Nincs összekapcsolva"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Szint: {0}"
+    range_bonus: "Hatótávbónusz: {0}%"
+    global: "A teljes jelenlegi világban működik"
 gui:
   give:
     title: "Exort tárgyak"
@@ -324,6 +333,7 @@ gui:
       active: "Hálózat: online"
       storage: "Tároló: {0}"
       range: "Hatótáv: {0} blokk"
+      global: "Globális a jelenlegi világban"
       covered: "A játékos lefedettségben van"
       not_covered: "A játékos az adó hatótávján kívül van"
       missing: "Az adó blokkja hiányzik"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminálhely: üres"
       terminal_present: "Terminálhely: foglalt"
+      booster_empty: "Erősítőhely: üres"
+      booster_present: "Erősítő: {0}"
   bus:
     import_title: "Import busz"
     export_title: "Export busz"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Hāʻawi i nā mea Exort:"
   usage_give_storage: "hāʻawi i mea waihona ma tier"
   usage_give_chunk_loader: "hāʻawi i hoʻouka chunk"
+  usage_give_wireless_booster: "hāʻawi i mea hoʻoikaika hōʻailona uea ʻole ma ke kūlana"
   usage_give_item: "hāʻawi i mea Exort paʻa"
-  usage_give_items: "Nā mea: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Nā mea: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Hoʻohana: /exort reload"
   unknown_subcommand: "Subcommand ʻike ʻole ʻia."
   help_header: "Nā kauoha Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "ʻAʻole ʻoe ka mea nona. E link hou."
     out_of_range: "Ma waho o ka palena ka terminal uea ʻole."
     missing_storage: "ʻAʻole i loaʻa ka waihona i link ʻia."
+    storage_chunk_unloaded: "ʻAʻole i hoʻouka ʻia ka chunk o ka waihona i hoʻopili ʻia."
     empty: "Ua pau ka charge o ka terminal uea ʻole."
     bound: "Ua link ʻia ka terminal uea ʻole."
     self_store: "ʻAʻole hiki ke mālama i terminal uea ʻole i loko iho."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "E paʻa i kahi terminal uea ʻole ma ka lima nui a i ʻole ka lima ʻē aʻe."
     transmitter_slot_occupied: "Ua paʻa ka hakahaka terminal o ka mea hoʻouna uea ʻole."
     transmitter_terminal_only: "Hiki ke hoʻokomo wale ʻia kahi terminal uea ʻole ma kēia hakahaka."
+    transmitter_booster_slot_occupied: "Ua paʻa ka hakahaka hoʻoikaika o ka mea hoʻouna uea ʻole."
+    transmitter_booster_only: "Hiki ke hoʻokomo wale ʻia ka mea hoʻoikaika hōʻailona uea ʻole ma kēia hakahaka."
 debug:
   mode:
     read: "helu-wale"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Hoʻokomo"
   export_bus: "Bus Hoʻouna"
   wireless_terminal: "Terminal Uea ʻOle"
+  wireless_booster: "Mea Hoʻoikaika Hōʻailona Uea ʻOle"
   transmitter: "Mea Hoʻouna Uea ʻOle"
 tier:
   common: "Maʻamau"
@@ -263,6 +268,10 @@ lore:
     owner: "Mea nona: {0}"
     not_linked: "ʻAʻole link"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Kūlana: {0}"
+    range_bonus: "Hoʻonui laulā: {0}%"
+    global: "Hana ma ke ao holoʻokoʻa o kēia honua"
 gui:
   give:
     title: "Nā mea Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Pūnaewele: pili"
       storage: "Waihona: {0}"
       range: "Laulā: {0} poloka"
+      global: "Ma ke ao holoʻokoʻa o kēia honua"
       covered: "Aia ka mea pāʻani i loko o ka laulā"
       not_covered: "Aia ka mea pāʻani ma waho o ka laulā o kēia mea hoʻouna"
       missing: "Nalo ka poloka mea hoʻouna"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Hakahaka terminal: kaʻawale"
       terminal_present: "Hakahaka terminal: paʻa"
+      booster_empty: "Hakahaka hoʻoikaika: ʻaʻohe mea"
+      booster_present: "Mea hoʻoikaika: {0}"
   bus:
     import_title: "Bus Hoʻokomo"
     export_title: "Bus Hoʻouna"

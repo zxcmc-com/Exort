@@ -61,8 +61,9 @@ message:
   usage_give_header: "Ak' Exort items:"
   usage_give_storage: "ak' item stsobel ta tier"
   usage_give_chunk_loader: "ak' Chunk Loader"
+  usage_give_wireless_booster: "ak’ jchik’os mu’yuk kable ta stsobel"
   usage_give_item: "ak' Exort item fijo"
-  usage_give_items: "Items Exort: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Items Exort: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Biti'il: /exort reload"
   unknown_subcommand: "Subcommand mu'yuk k'ajbil."
   help_header: "Comandos ta red stsobel Exort:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Ma vo'otuk yajval. Link yan vuelta."
     out_of_range: "Terminal mu'yuk kable lok'em ta snaul."
     missing_storage: "Mu'yuk ta stael stsobel ch'akbil."
+    storage_chunk_unloaded: "Mu’yuk to chlik chunk ta stsobel chapbil."
     empty: "Terminal mu'yuk kable mu'yuk carga."
     bound: "Terminal mu'yuk kable laj xch'akel."
     self_store: "Ma xu' xstsobel terminal mu'yuk kable ta stojol sba."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tsako jun terminal mu'yuk kable ta sk'ob derecha o ta yan k'ob."
     transmitter_slot_occupied: "Sna terminal ta transmisor mu'yuk kable oy xa k'usitik."
     transmitter_terminal_only: "Ja' no'ox jun terminal mu'yuk kable xu' xak' ta sna li'i."
+    transmitter_booster_slot_occupied: "Sna jchik’os ta transmisor mu’yuk kable oy xa k’usitik."
+    transmitter_booster_only: "Ja’ no’ox jchik’os señal mu’yuk kable xu’ xak’ ta sna li’i."
 debug:
   mode:
     read: "il-k'el no'ox"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus ta yich'el"
   export_bus: "Bus ta slok'esel"
   wireless_terminal: "Terminal mu'yuk kable"
+  wireless_booster: "Jchik’os Señal Mu’yuk Kable"
   transmitter: "Transmisor mu'yuk kable"
 tier:
   common: "Komun"
@@ -263,6 +268,10 @@ lore:
     owner: "Yajval: {0}"
     not_linked: "Mu'yuk linked"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stsobel: {0}"
+    range_bonus: "Chik’ubal sjelaw: {0}%"
+    global: "Xchi’uk ta sjunul balamil li’i"
 gui:
   give:
     title: "Items Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Ch'akel: yakal"
       storage: "Stsobel: {0}"
       range: "Snaul: {0} bloques"
+      global: "Ta sjunul balamil li’i"
       covered: "Jugador oy ta snaul"
       not_covered: "Jugador lok'em ta snaul transmisor li'i"
       missing: "Mu'yuk bloque transmisor"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Sna terminal: mu'yuk k'usi"
       terminal_present: "Sna terminal: oy k'usi"
+      booster_empty: "Sna jchik’os: komon"
+      booster_present: "Jchik’os: {0}"
   bus:
     import_title: "Bus ta yich'el"
     export_title: "Bus ta slok'esel"

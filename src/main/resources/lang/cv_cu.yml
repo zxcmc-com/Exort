@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort предметӗсене пар:"
   usage_give_storage: "тир тӑрӑх хранилище предметне пар"
   usage_give_chunk_loader: "Чанк загрузчикӗ пар"
+  usage_give_wireless_booster: "тапхӑр тӑрӑх сымсӑр сигнал вӑйлатӑрӑшне пар"
   usage_give_item: "ҫирӗп Exort предметне пар"
-  usage_give_items: "Предметсем: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Предметсем: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Усӑ курасси: /exort reload"
   unknown_subcommand: "Палламалла subcommand."
   help_header: "Exort Storage Network командисем:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Эсӗ владелец мар. Калле ҫыхӑнтар."
     out_of_range: "Проводсӑр терминал диапазонран тухнӑ."
     missing_storage: "Ҫыхӑннӑ хранилище тупӑнмарӗ."
+    storage_chunk_unloaded: "Ҫыхӑннӑ управа чанкӗ тиенмен."
     empty: "Проводсӑр терминал зарядсӑр."
     bound: "Проводсӑр терминал ҫыхӑннӑ."
     self_store: "Проводсӑр терминалӑ хӑйне хӑй кӗртме ҫук."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Тӗп е тепӗр алӑра проводсӑр терминал тытӑр."
     transmitter_slot_occupied: "Проводсӑр яракан терминал вырӑнӗ йышӑннӑ."
     transmitter_terminal_only: "Ку вырӑна проводсӑр терминал кӑна лартма пулать."
+    transmitter_booster_slot_occupied: "Сымсӑр ӑсатаканӑн вӑйлатӑрӑш вырӑнӗ йышӑннӑ."
+    transmitter_booster_only: "Ку вырӑна сымсӑр сигнал вӑйлатӑрӑшне ҫеҫ лартма юрать."
 debug:
   mode:
     read: "вуламалли анчах"
@@ -236,6 +240,7 @@ item:
   import_bus: "Импорт шинийӗ"
   export_bus: "Экспорт шинийӗ"
   wireless_terminal: "Проводсӑр терминал"
+  wireless_booster: "Сымсӑр сигнал вӑйлатӑрӑшӗ"
   transmitter: "Проводсӑр яракан"
 tier:
   common: "Обычный"
@@ -263,6 +268,10 @@ lore:
     owner: "Владелец: {0}"
     not_linked: "Ҫыхӑнман"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Тапхӑр: {0}"
+    range_bonus: "Инҫетлӗх бонусӗ: {0}%"
+    global: "Хальхи тӗнчен пур ҫӗрӗнче ӗҫлет"
 gui:
   give:
     title: "Exort предметсем"
@@ -324,6 +333,7 @@ gui:
       active: "Сеть: ӗҫлет"
       storage: "Управҫӑ: {0}"
       range: "Аяклӑх: {0} блок"
+      global: "Хальхи тӗнчере глобаллӑ"
       covered: "Вӑйӑҫӑ хупӑрлавра"
       not_covered: "Вӑйӑҫӑ ку яракан аяклӑхӗнчен тухнӑ"
       missing: "Яракан блок ҫук"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Терминал вырӑнӗ: пушӑ"
       terminal_present: "Терминал вырӑнӗ: йышӑннӑ"
+      booster_empty: "Вӑйлатӑрӑш вырӑнӗ: пушӑ"
+      booster_present: "Вӑйлатӑрӑш: {0}"
   bus:
     import_title: "Импорт шина"
     export_title: "Экспорт шина"

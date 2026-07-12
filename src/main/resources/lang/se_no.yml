@@ -61,8 +61,9 @@ message:
   usage_give_header: "Atte Exort diŋggaid:"
   usage_give_storage: "atte vuorkkádiŋgga dási mielde"
   usage_give_chunk_loader: "atte Chunk-loader variašuvnna mielde"
+  usage_give_wireless_booster: "atte jođaskeahtes signálanan nannejeaddji dási mielde"
   usage_give_item: "atte bissovaš Exort diŋgga"
-  usage_give_items: "Diŋggat: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Diŋggat: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Geavaheapmi: /exort reload"
   unknown_subcommand: "Amas vuollegohččun."
   help_header: "Exort Storage Network gohččumat:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Don it leat eaiggát. Čana dan ođđasit."
     out_of_range: "Jođaskeahttes terminála lea olggobealde rádjái."
     missing_storage: "Čatnon vuorkká ii gávdnon."
+    storage_chunk_unloaded: "Čatnon vuorká chunk ii leat lohkkon."
     empty: "Jođaskeahttes terminálas ii leat šleađga."
     bound: "Jođaskeahttes terminála čatnon."
     self_store: "It sáhte bidjat jođaskeahttes terminála iežas sisa."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Doala jođaskeahttes terminála váldogiettis dahje nuppi gieđas."
     transmitter_slot_occupied: "Jođaskeahttes sáddenapparáhta terminálasajis lea juo diŋga."
     transmitter_terminal_only: "Dán sadjái sáhttá bidjat dušše jođaskeahttes terminála."
+    transmitter_booster_slot_occupied: "Jođaskeahttes sáddenapparáhta nannejeaddjisajis lea juo diŋga."
+    transmitter_booster_only: "Dán sadjái sáhttá bidjat dušše jođaskeahtes signálanan nannejeaddji."
 debug:
   mode:
     read: "dušše lohkan"
@@ -236,6 +240,7 @@ item:
   import_bus: "Sisafievrridanbus"
   export_bus: "Olggosfievrridanbus"
   wireless_terminal: "Jođaskeahttes terminála"
+  wireless_booster: "Jođaskeahtes signálanan nannejeaddji"
   transmitter: "Jođaskeahttes sáddenapparáhta"
 tier:
   common: "Dábálaš"
@@ -263,6 +268,10 @@ lore:
     owner: "Eaiggát: {0}"
     not_linked: "Ii čatnon"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Dássi: {0}"
+    range_bonus: "Lasi olahussii: {0}%"
+    global: "Doaibmá olles dálá máilmmis"
 gui:
   give:
     title: "Exort diŋggat"
@@ -324,6 +333,7 @@ gui:
       active: "Fierpmádat: neahtas"
       storage: "Vuorkká: {0}"
       range: "Rádji: {0} blohka"
+      global: "Olles dálá máilmmis"
       covered: "Stoahkki lea doaibmanguovllus"
       not_covered: "Stoahkki lea dán sáddenapparáhta doaibmanguovllu olggobealde"
       missing: "Sáddenapparáhta blohkka váilu"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminálasadji: guorus"
       terminal_present: "Terminálasadji: deavdán"
+      booster_empty: "Nannejeaddjisadji: guorus"
+      booster_present: "Nannejeaddji: {0}"
   bus:
     import_title: "Sisafievrridanbus"
     export_title: "Olggosfievrridanbus"

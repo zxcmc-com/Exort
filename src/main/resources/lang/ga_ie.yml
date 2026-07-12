@@ -61,8 +61,9 @@ message:
   usage_give_header: "Tabhair rudaí Exort:"
   usage_give_storage: "tabhair rud stóráis de réir leibhéil"
   usage_give_chunk_loader: "tabhair Luchtóir Chunk de réir leagain"
+  usage_give_wireless_booster: "tabhair aimplitheoir comhartha gan sreang de réir sraithe"
   usage_give_item: "tabhair rud seasta Exort"
-  usage_give_items: "Rudaí: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Rudaí: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Úsáid: /exort reload"
   unknown_subcommand: "Fo-ordú anaithnid."
   help_header: "Orduithe Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Ní tusa an t-úinéir. Nasc arís é."
     out_of_range: "Tá an teirminéal gan sreang as raon."
     missing_storage: "Níor aimsíodh an stóras nasctha."
+    storage_chunk_unloaded: "Níl chunk an stórais nasctha luchtaithe."
     empty: "Tá an teirminéal gan sreang as lucht."
     bound: "Nascadh an teirminéal gan sreang."
     self_store: "Ní féidir teirminéal gan sreang a stóráil ann féin."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Coinnigh teirminéal gan sreang sa phríomhlámh nó sa lámh thánaisteach."
     transmitter_slot_occupied: "Tá sliotán teirminéil an tarchuradóra gan sreang gafa."
     transmitter_terminal_only: "Ní féidir ach teirminéal gan sreang a chur sa sliotán seo."
+    transmitter_booster_slot_occupied: "Tá sliotán aimplitheora an Tarchuradóra Gan Sreang gafa."
+    transmitter_booster_only: "Ní féidir ach Aimplitheoir Comhartha Gan Sreang a chur sa sliotán seo."
 debug:
   mode:
     read: "léamh amháin"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Iompórtála"
   export_bus: "Bus Easpórtála"
   wireless_terminal: "Teirminéal Gan Sreang"
+  wireless_booster: "Aimplitheoir Comhartha Gan Sreang"
   transmitter: "Tarchuradóir Gan Sreang"
 tier:
   common: "Coitianta"
@@ -263,6 +268,10 @@ lore:
     owner: "Úinéir: {0}"
     not_linked: "Gan nascadh"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Sraith: {0}"
+    range_bonus: "Bónas raoin: {0}%"
+    global: "Oibríonn ar fud an domhain reatha"
 gui:
   give:
     title: "Rudaí Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Líonra: ar líne"
       storage: "Stóras: {0}"
       range: "Raon: {0} bloc"
+      global: "Domhanda sa saol reatha"
       covered: "Tá an t-imreoir faoi chlúdach"
       not_covered: "Tá an t-imreoir lasmuigh de raon an tarchuradóra seo"
       missing: "Tá bloc an tarchuradóra ar iarraidh"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Sliotán teirminéil: folamh"
       terminal_present: "Sliotán teirminéil: gafa"
+      booster_empty: "Sliotán aimplitheora: folamh"
+      booster_present: "Aimplitheoir: {0}"
   bus:
     import_title: "Bus Iompórtála"
     export_title: "Bus Easpórtála"

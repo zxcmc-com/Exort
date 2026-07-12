@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dar ítems de Exort:"
   usage_give_storage: "dar un ítem de almacenamiento por tier"
   usage_give_chunk_loader: "dar un cargador de chunks"
+  usage_give_wireless_booster: "dar un amplificador de señal inalámbrica por nivel"
   usage_give_item: "dar un ítem fijo de Exort"
-  usage_give_items: "Ítems: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Ítems: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uso: /exort reload"
   unknown_subcommand: "Subcomando desconocido."
   help_header: "Comandos de la red de almacenamiento Exort:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "No eres el propietario. Vincúlalo de nuevo."
     out_of_range: "El terminal inalámbrico está fuera de alcance."
     missing_storage: "No se encontró el almacenamiento vinculado."
+    storage_chunk_unloaded: "El chunk del almacenamiento vinculado no está cargado."
     empty: "El terminal inalámbrico no tiene carga."
     bound: "Terminal inalámbrico vinculado."
     self_store: "No puedes guardar un terminal inalámbrico dentro de sí mismo."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Sostén un terminal inalámbrico en la mano principal o secundaria."
     transmitter_slot_occupied: "La ranura del terminal del transmisor inalámbrico está ocupada."
     transmitter_terminal_only: "Solo se puede colocar un terminal inalámbrico en esta ranura."
+    transmitter_booster_slot_occupied: "La ranura del amplificador del Transmisor Inalámbrico está ocupada."
+    transmitter_booster_only: "En esta ranura solo se puede colocar un Amplificador de Señal Inalámbrica."
 debug:
   mode:
     read: "solo lectura"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus de importación"
   export_bus: "Bus de exportación"
   wireless_terminal: "Terminal inalámbrico"
+  wireless_booster: "Amplificador de Señal Inalámbrica"
   transmitter: "Transmisor inalámbrico"
 tier:
   common: "Común"
@@ -263,6 +268,10 @@ lore:
     owner: "Propietario: {0}"
     not_linked: "Sin vincular"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivel: {0}"
+    range_bonus: "Bonificación de alcance: {0}%"
+    global: "Funciona en todo el mundo actual"
 gui:
   give:
     title: "Ítems de Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Red: en línea"
       storage: "Almacenamiento: {0}"
       range: "Alcance: {0} bloques"
+      global: "Global en el mundo actual"
       covered: "El jugador tiene cobertura"
       not_covered: "El jugador está fuera del alcance de este transmisor"
       missing: "Falta el bloque del transmisor"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Ranura del terminal: vacía"
       terminal_present: "Ranura del terminal: ocupada"
+      booster_empty: "Ranura del amplificador: vacía"
+      booster_present: "Amplificador: {0}"
   bus:
     import_title: "Bus de importación"
     export_title: "Bus de exportación"

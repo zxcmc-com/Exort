@@ -61,8 +61,9 @@ message:
   usage_give_header: "Doni Exort eroj:"
   usage_give_storage: "doni stokejo ero laŭ nivelo"
   usage_give_chunk_loader: "doni Chunk-ŝargilon"
+  usage_give_wireless_booster: "doni sendratan signalfortigilon laŭ nivelo"
   usage_give_item: "doni fiksan Exort ero"
-  usage_give_items: "Eroj: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Eroj: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uzado: /exort reload"
   unknown_subcommand: "Nekonata subkomando."
   help_header: "Exort Stokejo reto komandoj:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Vi ne estas la posedanto. Ligu denove."
     out_of_range: "Sendrata terminalo estas ekster atingo."
     missing_storage: "Ligita stokejo ne trovita."
+    storage_chunk_unloaded: "La chunk de la ligita stokejo ne estas ŝargita."
     empty: "Sendrata terminalo sen baterio."
     bound: "Sendrata terminalo ligita."
     self_store: "Ne eblas konservi sendratan terminalon en ĝi mem."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tenu sendratan terminalon en la ĉefa aŭ dua mano."
     transmitter_slot_occupied: "La terminala fendo de la sendrata dissendilo estas okupita."
     transmitter_terminal_only: "Nur sendrata terminalo povas esti metita en ĉi tiun fendon."
+    transmitter_booster_slot_occupied: "La fortigila fendo de la Sendrata Dissendilo estas okupita."
+    transmitter_booster_only: "Nur Sendrata Signalfortigilo povas esti metita en ĉi tiun fendon."
 debug:
   mode:
     read: "nurlega"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importa buso"
   export_bus: "Eksporta buso"
   wireless_terminal: "Sendrata terminalo"
+  wireless_booster: "Sendrata Signalfortigilo"
   transmitter: "Sendrata Dissendilo"
 tier:
   common: "Komuna"
@@ -263,6 +268,10 @@ lore:
     owner: "Posedanto: {0}"
     not_linked: "Ne ligita"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivelo: {0}"
+    range_bonus: "Distanca gratifiko: {0}%"
+    global: "Funkcias tra la tuta nuna mondo"
 gui:
   give:
     title: "Exort-aĵoj"
@@ -324,6 +333,7 @@ gui:
       active: "Reto: konektita"
       storage: "Stokejo: {0}"
       range: "Distanco: {0} blokoj"
+      global: "Tutmonda en la nuna mondo"
       covered: "La ludanto estas kovrita"
       not_covered: "La ludanto estas ekster la atingopovo de ĉi tiu dissendilo"
       missing: "La dissendila bloko mankas"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminala fendo: malplena"
       terminal_present: "Terminala fendo: okupita"
+      booster_empty: "Fortigila fendo: malplena"
+      booster_present: "Fortigilo: {0}"
   bus:
     import_title: "Importa buso"
     export_title: "Eksporta buso"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dunda lo Exort dacti:"
   usage_give_storage: "dunda sorcu dacti mu'i lo klesi"
   usage_give_chunk_loader: "dunda lo chunk cargau"
+  usage_give_wireless_booster: "dunda lo cladu se benji tsali poi se klesi lo nilrai"
   usage_give_item: "dunda stodi Exort dacti"
-  usage_give_items: "dacti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "dacti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "pilno: /exort reload"
   unknown_subcommand: "na se djuno lo subminde."
   help_header: "Exort Sorcu samjo'e bende minde:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "do na ponse. ko di'a jorne."
     out_of_range: "lo cladu medomoi samjongau cu mutce darno."
     missing_storage: "lo jorne sorcu na se facki."
+    storage_chunk_unloaded: "lo chunk pe lo jorne sorcu na cargau."
     empty: "cladu medomoi samjongau claxu dikca."
     bound: "cladu medomoi samjongau jorne."
     self_store: "na kakne lo nu sorcu lo cladu medomoi samjongau ne'i ri."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "ko bevri lo cladu medomoi samjongau le ralju xance ja le drata xance."
     transmitter_slot_occupied: "lo samjongau kevna be lo cladu benji cu se pilno."
     transmitter_terminal_only: "po'o lo cladu medomoi samjongau cu kakne lo nu zvati le kevna."
+    transmitter_booster_slot_occupied: "lo selstu be lo tsali pe lo cladu benji cu se nenri."
+    transmitter_booster_only: "po'o lo cladu se benji tsali ka'e se punji ti."
 debug:
   mode:
     read: "tcidu poonai"
@@ -236,6 +240,7 @@ item:
   import_bus: "nerbei tanbo"
   export_bus: "barbei tanbo"
   wireless_terminal: "cladu medomoi samjongau"
+  wireless_booster: "cladu se benji tsali"
   transmitter: "cladu benji"
 tier:
   common: "fadni"
@@ -263,6 +268,10 @@ lore:
     owner: "ponse: {0}"
     not_linked: "na jorne"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "nilrai: {0}"
+    range_bonus: "te benji zenba: {0}%"
+    global: "gunka vi ro stu pe lo ca munje"
 gui:
   give:
     title: "Exort dacti"
@@ -324,6 +333,7 @@ gui:
       active: "samjo'e: jorne"
       storage: "sorcu: {0}"
       range: "sepli: {0} bliku"
+      global: "kakne ro stu vi lo ca munje"
       covered: "lo kelci cu nenri lo te benji"
       not_covered: "lo kelci cu bartu lo te benji be lo cladu benji"
       missing: "lo cladu benji bliku na zvati"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "samjongau kevna: kunti"
       terminal_present: "samjongau kevna: se pilno"
+      booster_empty: "tsali selstu: kunti"
+      booster_present: "tsali: {0}"
   bus:
     import_title: "nerbei tanbo"
     export_title: "barbei tanbo"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gee Exort-items:"
   usage_give_storage: "gee 'n bergingsitem volgens tier"
   usage_give_chunk_loader: "gee 'n Chunk-laaier"
+  usage_give_wireless_booster: "gee 'n Draadlose Seinversterker volgens vlak"
   usage_give_item: "gee 'n vaste Exort-item"
-  usage_give_items: "Items beskikbaar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Items beskikbaar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Gebruik: /exort reload"
   unknown_subcommand: "Onbekende subopdrag."
   help_header: "Exort Storage Network-opdragte:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Jy is nie die eienaar nie. Koppel dit weer."
     out_of_range: "Draadlose terminaal is buite bereik."
     missing_storage: "Gekoppelde berging nie gevind nie."
+    storage_chunk_unloaded: "Die gekoppelde berging se chunk is nie gelaai nie."
     empty: "Draadlose terminaal se krag is leeg."
     bound: "Draadlose terminaal gekoppel."
     self_store: "Kan nie 'n draadlose terminaal in homself berg nie."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hou 'n draadlose terminaal in jou hoofhand of afhand."
     transmitter_slot_occupied: "Die terminaalgleuf van die draadlose sender is beset."
     transmitter_terminal_only: "Slegs 'n draadlose terminaal kan in hierdie gleuf geplaas word."
+    transmitter_booster_slot_occupied: "Die versterkergleuf van die Draadlose Sender is beset."
+    transmitter_booster_only: "Slegs 'n Draadlose Seinversterker kan in hierdie gleuf geplaas word."
 debug:
   mode:
     read: "lees-alleen"
@@ -236,6 +240,7 @@ item:
   import_bus: "Invoerbus"
   export_bus: "Uitvoerbus"
   wireless_terminal: "Draadlose terminaal"
+  wireless_booster: "Draadlose Seinversterker"
   transmitter: "Draadlose sender"
 tier:
   common: "Algemeen"
@@ -263,6 +268,10 @@ lore:
     owner: "Eienaar: {0}"
     not_linked: "Nie gekoppel nie"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Vlak: {0}"
+    range_bonus: "Reikwydtebonus: {0}%"
+    global: "Werk oral in die huidige wêreld"
 gui:
   give:
     title: "Exort-items"
@@ -324,6 +333,7 @@ gui:
       active: "Netwerk: aanlyn"
       storage: "Berging: {0}"
       range: "Reikwydte: {0} blokke"
+      global: "Wêreldwyd in die huidige wêreld"
       covered: "Speler is binne bereik"
       not_covered: "Speler is buite hierdie sender se reikwydte"
       missing: "Senderblok ontbreek"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminaalgleuf: leeg"
       terminal_present: "Terminaalgleuf: beset"
+      booster_empty: "Versterkergleuf: leeg"
+      booster_present: "Versterker: {0}"
   bus:
     import_title: "Invoerbus"
     export_title: "Uitvoerbus"

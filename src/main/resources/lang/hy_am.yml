@@ -61,8 +61,9 @@ message:
   usage_give_header: "Տալ Exort իրեր."
   usage_give_storage: "տալ պահեստի իր ըստ tier-ի"
   usage_give_chunk_loader: "տալ Chunk բեռնիչ ըստ տարբերակի"
+  usage_give_wireless_booster: "տալ անլար ազդանշանի ուժեղացուցիչ՝ ըստ աստիճանի"
   usage_give_item: "տալ ֆիքսված Exort իր"
-  usage_give_items: "Իրեր՝ storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Իրեր՝ storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Օգտագործում: /exort reload"
   unknown_subcommand: "Անհայտ ենթահրաման."
   help_header: "Exort Storage Network հրամաններ."
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Դուք սեփականատերը չեք. կրկին link արեք."
     out_of_range: "Անլար տերմինալը հեռավորությունից դուրս է."
     missing_storage: "Linked պահեստը չի գտնվել."
+    storage_chunk_unloaded: "Կապված պահեստի chunk-ը բեռնված չէ։"
     empty: "Անլար տերմինալի լիցքը սպառվել է."
     bound: "Անլար տերմինալը linked եղավ."
     self_store: "Չի կարելի անլար տերմինալը պահել հենց իր մեջ."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Անլար տերմինալը պահեք հիմնական կամ երկրորդ ձեռքում."
     transmitter_slot_occupied: "Անլար հաղորդիչի տերմինալի բնիկը զբաղված է."
     transmitter_terminal_only: "Այս բնիկում կարելի է տեղադրել միայն անլար տերմինալ."
+    transmitter_booster_slot_occupied: "Անլար հաղորդիչի ուժեղացուցիչի բնիկը զբաղված է։"
+    transmitter_booster_only: "Այս բնիկում կարելի է տեղադրել միայն անլար ազդանշանի ուժեղացուցիչ։"
 debug:
   mode:
     read: "միայն կարդալ"
@@ -236,6 +240,7 @@ item:
   import_bus: "Ներմուծման bus"
   export_bus: "Արտահանման bus"
   wireless_terminal: "Անլար տերմինալ"
+  wireless_booster: "Անլար ազդանշանի ուժեղացուցիչ"
   transmitter: "Անլար հաղորդիչ"
 tier:
   common: "Սովորական"
@@ -263,6 +268,10 @@ lore:
     owner: "Սեփականատեր: {0}"
     not_linked: "Linked չէ"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Աստիճան՝ {0}"
+    range_bonus: "Հեռավորության հավելում՝ {0}%"
+    global: "Գործում է ամբողջ ընթացիկ աշխարհում"
 gui:
   give:
     title: "Exort իրեր"
@@ -324,6 +333,7 @@ gui:
       active: "Ցանց՝ առցանց"
       storage: "Պահեստ՝ {0}"
       range: "Հասանելիություն՝ {0} բլոկ"
+      global: "Ամբողջ ընթացիկ աշխարհում"
       covered: "Խաղացողը ծածկույթի մեջ է"
       not_covered: "Խաղացողը այս հաղորդիչի հասանելիությունից դուրս է"
       missing: "Հաղորդիչի բլոկը բացակայում է"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Տերմինալի բնիկ՝ դատարկ"
       terminal_present: "Տերմինալի բնիկ՝ զբաղված"
+      booster_empty: "Ուժեղացուցիչի բնիկ՝ դատարկ"
+      booster_present: "Ուժեղացուցիչ՝ {0}"
   bus:
     import_title: "Ներմուծման bus"
     export_title: "Արտահանման bus"

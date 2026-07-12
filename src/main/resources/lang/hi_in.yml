@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort आइटम दें:"
   usage_give_storage: "tier के अनुसार भंडारण आइटम दें"
   usage_give_chunk_loader: "चंक लोडर दें"
+  usage_give_wireless_booster: "श्रेणी के अनुसार वायरलेस सिग्नल बूस्टर दें"
   usage_give_item: "स्थिर Exort आइटम दें"
-  usage_give_items: "आइटम: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "आइटम: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "उपयोग: /exort reload"
   unknown_subcommand: "अज्ञात subcommand."
   help_header: "Exort Storage Network कमांड:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "आप मालिक नहीं हैं. इसे फिर से लिंक करें."
     out_of_range: "वायरलेस टर्मिनल सीमा से बाहर है."
     missing_storage: "लिंक किया गया भंडारण नहीं मिला."
+    storage_chunk_unloaded: "जुड़े हुए भंडारण का चंक लोड नहीं है।"
     empty: "वायरलेस टर्मिनल की charge खत्म है."
     bound: "वायरलेस टर्मिनल लिंक हो गया."
     self_store: "वायरलेस टर्मिनल को उसके अंदर ही संग्रहीत नहीं कर सकते."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "मुख्य हाथ या दूसरे हाथ में वायरलेस टर्मिनल पकड़ें।"
     transmitter_slot_occupied: "वायरलेस ट्रांसमीटर का टर्मिनल स्लॉट भरा हुआ है।"
     transmitter_terminal_only: "इस स्लॉट में केवल वायरलेस टर्मिनल रखा जा सकता है।"
+    transmitter_booster_slot_occupied: "वायरलेस ट्रांसमीटर का बूस्टर स्लॉट भरा हुआ है।"
+    transmitter_booster_only: "इस स्लॉट में केवल वायरलेस सिग्नल बूस्टर रखा जा सकता है।"
 debug:
   mode:
     read: "केवल पढ़ना"
@@ -236,6 +240,7 @@ item:
   import_bus: "इम्पोर्ट बस"
   export_bus: "एक्सपोर्ट बस"
   wireless_terminal: "वायरलेस टर्मिनल"
+  wireless_booster: "वायरलेस सिग्नल बूस्टर"
   transmitter: "वायरलेस ट्रांसमीटर"
 tier:
   common: "सामान्य"
@@ -263,6 +268,10 @@ lore:
     owner: "मालिक: {0}"
     not_linked: "लिंक नहीं"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "श्रेणी: {0}"
+    range_bonus: "रेंज बोनस: {0}%"
+    global: "वर्तमान संसार में हर जगह काम करता है"
 gui:
   give:
     title: "Exort आइटम"
@@ -324,6 +333,7 @@ gui:
       active: "नेटवर्क: ऑनलाइन"
       storage: "भंडारण: {0}"
       range: "सीमा: {0} ब्लॉक"
+      global: "वर्तमान संसार में वैश्विक"
       covered: "खिलाड़ी कवरेज में है"
       not_covered: "खिलाड़ी इस ट्रांसमीटर की सीमा से बाहर है"
       missing: "ट्रांसमीटर ब्लॉक मौजूद नहीं है"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "टर्मिनल स्लॉट: खाली"
       terminal_present: "टर्मिनल स्लॉट: भरा हुआ"
+      booster_empty: "बूस्टर स्लॉट: खाली"
+      booster_present: "बूस्टर: {0}"
   bus:
     import_title: "इम्पोर्ट बस"
     export_title: "एक्सपोर्ट बस"

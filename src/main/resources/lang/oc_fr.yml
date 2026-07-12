@@ -61,8 +61,9 @@ message:
   usage_give_header: "Donner des objets Exort:"
   usage_give_storage: "donner un objet de stockage par tier"
   usage_give_chunk_loader: "donar un cargaire de chunks"
+  usage_give_wireless_booster: "donar un amplificador de senhal sens fial per nivèl"
   usage_give_item: "donner un objet Exort fixe"
-  usage_give_items: "Objèctes: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Objèctes: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Utilisation: /exort reload"
   unknown_subcommand: "Sous-commande inconnue."
   help_header: "Commandes Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Tu n’es pas le propriétaire. Lie-le à nouveau."
     out_of_range: "Le terminal sans fil est hors de portée."
     missing_storage: "Stockage lié introuvable."
+    storage_chunk_unloaded: "Lo chunk de l'estocatge ligat es pas cargat."
     empty: "Le terminal sans fil est déchargé."
     bound: "Terminal sans fil lié."
     self_store: "Impossible de stocker un terminal sans fil dans lui-même."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Tengatz un terminal sens fial dins la man principala o segondària."
     transmitter_slot_occupied: "L’emplaçament del terminal del transmetedor sens fial es ocupat."
     transmitter_terminal_only: "Sonque un terminal sens fial pòt èsser plaçat dins aqueste emplaçament."
+    transmitter_booster_slot_occupied: "L'emplaçament de l'amplificador del Transmetedor Sens Fial es ocupat."
+    transmitter_booster_only: "Sonque un Amplificador de Senhal Sens Fial pòt èsser plaçat dins aqueste emplaçament."
 debug:
   mode:
     read: "lecture seule"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus d’importacion"
   export_bus: "Bus d’exportacion"
   wireless_terminal: "Terminal sens fial"
+  wireless_booster: "Amplificador de Senhal Sens Fial"
   transmitter: "Transmetedor sens fial"
 tier:
   common: "Comun"
@@ -263,6 +268,10 @@ lore:
     owner: "Proprietari: {0}"
     not_linked: "Pas ligat"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivèl: {0}"
+    range_bonus: "Bonus de portada: {0}%"
+    global: "Fonciona dins tot lo mond actual"
 gui:
   give:
     title: "Objèctes Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Ret: en linha"
       storage: "Emmagazinatge: {0}"
       range: "Portada: {0} blòts"
+      global: "Global dins lo mond actual"
       covered: "Lo jogaire es cobèrt"
       not_covered: "Lo jogaire es fòra de la portada d’aqueste transmetedor"
       missing: "Lo blòt del transmetedor manca"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Emplaçament del terminal: void"
       terminal_present: "Emplaçament del terminal: ocupat"
+      booster_empty: "Emplaçament de l'amplificador: void"
+      booster_present: "Amplificador: {0}"
   bus:
     import_title: "Bus d’importation"
     export_title: "Bus d’exportation"

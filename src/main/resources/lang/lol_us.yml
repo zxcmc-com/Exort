@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gib Exort thingies:"
   usage_give_storage: "gib stash thingy by tier"
   usage_give_chunk_loader: "gib Chunk Loadr"
+  usage_give_wireless_booster: "gib No-Wire Signal Boostr by tierz"
   usage_give_item: "gib fixed Exort thingy"
-  usage_give_items: "Thingies: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Thingies: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Usez: /exort reload"
   unknown_subcommand: "No idea wut lil command."
   help_header: "Exort Stash netwurk cmdz:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "U iz not hooman. Link agin."
     out_of_range: "No-wire termnul too farz."
     missing_storage: "Linked stash not found."
+    storage_chunk_unloaded: "Linky Stash chunk iz not loadz."
     empty: "No-Wire Termnul no powah."
     bound: "No-Wire Termnul linky."
     self_store: "Cannot stash a no-wire termnul inside itself."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hold No-Wire Termnul in main paw or othr paw."
     transmitter_slot_occupied: "No-Wire Sendr termnul slot iz fullz."
     transmitter_terminal_only: "Only No-Wire Termnul can go in dis slot."
+    transmitter_booster_slot_occupied: "No-Wire Sendr boostr slot iz fullz."
+    transmitter_booster_only: "Onlee No-Wire Signal Boostr fitz in dis slot."
 debug:
   mode:
     read: "read-onlyz"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bring-in Bus"
   export_bus: "Send-Out Bus"
   wireless_terminal: "No-Wire Termnul"
+  wireless_booster: "No-Wire Signal Boostr"
   transmitter: "No-Wire Sendr"
 tier:
   common: "Commonz"
@@ -263,6 +268,10 @@ lore:
     owner: "Hooman: {0}"
     not_linked: "No linky"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Tierz: {0}"
+    range_bonus: "Range boosty: {0}%"
+    global: "Werkz everywher in dis wurld"
 gui:
   give:
     title: "Exort Stuff"
@@ -324,6 +333,7 @@ gui:
       active: "Netwurk: onlinez"
       storage: "Stash: {0}"
       range: "Range: {0} blockz"
+      global: "Everywher in dis wurld"
       covered: "Hooman iz coverd"
       not_covered: "Hooman iz outsidz dis sendr range"
       missing: "Sendr block iz missin"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Termnul slot: emptyz"
       terminal_present: "Termnul slot: fullz"
+      booster_empty: "Boostr slot: emptyz"
+      booster_present: "Boostr: {0}"
   bus:
     import_title: "Bring-in Bus"
     export_title: "Send-Out Bus"

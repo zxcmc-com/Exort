@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort elementuak eman:"
   usage_give_storage: "eman biltegi-elementua tier bidez"
   usage_give_chunk_loader: "eman chunk-kargatzaile bat aldaeraren arabera"
+  usage_give_wireless_booster: "eman haririk gabeko seinale-indargailu bat mailaren arabera"
   usage_give_item: "eman Exort elementu finko bat"
-  usage_give_items: "Elementuak: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Elementuak: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Erabilera: /exort reload"
   unknown_subcommand: "Azpikomando ezezaguna."
   help_header: "Exort Storage Network komandoak:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Ez zara jabea. Lotu berriro."
     out_of_range: "Haririk gabeko terminala irismenetik kanpo dago."
     missing_storage: "Lotutako biltegia ez da aurkitu."
+    storage_chunk_unloaded: "Lotutako biltegiaren chunk-a ez dago kargatuta."
     empty: "Haririk gabeko terminala bateriarik gabe dago."
     bound: "Haririk gabeko terminala lotu da."
     self_store: "Ezin da haririk gabeko terminal bat bere baitan gorde."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Eduki haririk gabeko terminal bat esku nagusian edo bigarren eskuan."
     transmitter_slot_occupied: "Haririk gabeko transmisorearen terminalaren zirrikitua beteta dago."
     transmitter_terminal_only: "Zirrikitu honetan haririk gabeko terminal bat soilik jar daiteke."
+    transmitter_booster_slot_occupied: "Haririk Gabeko Transmisorearen indargailuaren zirrikitua beteta dago."
+    transmitter_booster_only: "Haririk Gabeko Seinale-indargailu bat bakarrik jar daiteke zirrikitu honetan."
 debug:
   mode:
     read: "irakurtzeko soilik"
@@ -236,6 +240,7 @@ item:
   import_bus: "Inportazio-busa"
   export_bus: "Esportazio-busa"
   wireless_terminal: "Haririk gabeko terminala"
+  wireless_booster: "Haririk Gabeko Seinale-indargailua"
   transmitter: "Haririk gabeko transmisorea"
 tier:
   common: "Arrunta"
@@ -263,6 +268,10 @@ lore:
     owner: "Jabea: {0}"
     not_linked: "Lotu gabe"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Maila: {0}"
+    range_bonus: "Irismen-hobaria: {0}%"
+    global: "Uneko mundu osoan dabil"
 gui:
   give:
     title: "Exort elementuak"
@@ -324,6 +333,7 @@ gui:
       active: "Sarea: konektatuta"
       storage: "Biltegia: {0}"
       range: "Irismena: {0} bloke"
+      global: "Globala uneko munduan"
       covered: "Jokalaria estaldurapean dago"
       not_covered: "Jokalaria transmisore honen irismenetik kanpo dago"
       missing: "Transmisorearen blokea falta da"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalaren zirrikitua: hutsik"
       terminal_present: "Terminalaren zirrikitua: beteta"
+      booster_empty: "Indargailuaren zirrikitua: hutsik"
+      booster_present: "Indargailua: {0}"
   bus:
     import_title: "Inportazio-busa"
     export_title: "Esportazio-busa"

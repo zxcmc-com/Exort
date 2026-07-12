@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dávanie predmetov Exort:"
   usage_give_storage: "dať predmet úložiska podľa úrovne"
   usage_give_chunk_loader: "dať loader chunkov"
+  usage_give_wireless_booster: "daj zosilňovač bezdrôtového signálu podľa úrovne"
   usage_give_item: "dať pevný predmet Exort"
-  usage_give_items: "Predmety: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Predmety: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Použitie: /exort reload"
   unknown_subcommand: "Neznámy podpríkaz."
   help_header: "Príkazy Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Nie ste vlastník. Prepojte ho znovu."
     out_of_range: "Bezdrôtový terminál je mimo dosahu."
     missing_storage: "Prepojené úložisko sa nenašlo."
+    storage_chunk_unloaded: "Chunk prepojeného úložiska nie je načítaný."
     empty: "Bezdrôtový terminál je vybitý."
     bound: "Bezdrôtový terminál prepojený."
     self_store: "Bezdrôtový terminál nemožno uložiť do seba samého."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Držte bezdrôtový terminál v hlavnej alebo vedľajšej ruke."
     transmitter_slot_occupied: "Slot terminálu v bezdrôtovom vysielači je obsadený."
     transmitter_terminal_only: "Do tohto slotu možno vložiť iba bezdrôtový terminál."
+    transmitter_booster_slot_occupied: "Slot zosilňovača bezdrôtového vysielača je obsadený."
+    transmitter_booster_only: "Do tohto slotu možno vložiť iba zosilňovač bezdrôtového signálu."
 debug:
   mode:
     read: "iba na čítanie"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importná zbernica"
   export_bus: "Exportná zbernica"
   wireless_terminal: "Bezdrôtový terminál"
+  wireless_booster: "Zosilňovač bezdrôtového signálu"
   transmitter: "Bezdrôtový vysielač"
 tier:
   common: "Bežná"
@@ -263,6 +268,10 @@ lore:
     owner: "Vlastník: {0}"
     not_linked: "Nepripojené"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Úroveň: {0}"
+    range_bonus: "Bonus dosahu: {0}%"
+    global: "Funguje v celom aktuálnom svete"
 gui:
   give:
     title: "Predmety Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Sieť: aktívna"
       storage: "Úložisko: {0}"
       range: "Dosah: {0} blokov"
+      global: "Globálne v aktuálnom svete"
       covered: "Hráč je v dosahu"
       not_covered: "Hráč je mimo dosahu tohto vysielača"
       missing: "Blok vysielača chýba"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot terminálu: prázdny"
       terminal_present: "Slot terminálu: obsadený"
+      booster_empty: "Slot zosilňovača: prázdny"
+      booster_present: "Zosilňovač: {0}"
   bus:
     import_title: "Importná zbernica"
     export_title: "Exportná zbernica"

@@ -27,7 +27,14 @@ class ResourcePackTranslationExportTest {
       assertTrue(json.contains("\"exort.item.storage\": \"Storage\""));
       assertTrue(json.contains("\"exort.item.storage_core\": \"Storage Core\""));
       assertTrue(json.contains("\"exort.tier.rare\": \"Rare\""));
+      assertTrue(json.contains("\"exort.item.wireless_booster\": \"Wireless Signal Booster\""));
       assertTrue(json.contains("\"exort.lore.storage.tier\": \"Tier: %1$s\""));
+      assertTrue(json.contains("\"exort.lore.wireless_booster.tier\": \"Tier: %1$s\""));
+      assertTrue(
+          json.contains("\"exort.lore.wireless_booster.range_bonus\": \"Range bonus: %1$s%%\""));
+      assertTrue(
+          json.contains(
+              "\"exort.lore.wireless_booster.global\": \"Works throughout the current world\""));
       assertTrue(json.contains("\"exort.lore.wireless_terminal.battery\": \"Battery: %1$s%%\""));
       assertFalse(json.contains("exort.message.no_permission"));
       assertFalse(json.contains("exort.gui.search.button"));

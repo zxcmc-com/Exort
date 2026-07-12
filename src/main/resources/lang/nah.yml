@@ -61,8 +61,9 @@ message:
   usage_give_header: "Xitemaka Exort tlamantin:"
   usage_give_storage: "ximaka tlamantli tlapialoni ika tlapejpenilli"
   usage_give_chunk_loader: "ximaka Ilo Awen Chunk"
+  usage_give_wireless_booster: "ximaka chikawaloni tlanextilli amo mecatl ika tlapejpenilli"
   usage_give_item: "ximaka se tlamantli Exort"
-  usage_give_items: "Tlamantin Exort: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Tlamantin Exort: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Tlatki: /exort reload"
   unknown_subcommand: "Tlanahuatilli amo ixmatki."
   help_header: "Tlanahuatilli Exort tlapialoni mecatla:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Amo tehuatl tikone. Xikpilo okseppa."
     out_of_range: "Terminal amo mecatl ka uejka itech tlaixpacho."
     missing_storage: "Amo monexti tlapialoni mopiloa."
+    storage_chunk_unloaded: "In chunk itech tlapialoni tlamachtili ayamo tlacuic."
     empty: "Terminal amo mecatl amo kipia chikaualistli."
     bound: "Terminal amo mecatl omopilo."
     self_store: "Amo huel tikajokui terminal amo mecatl itech san yehuatl."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Xikpiya terminal amo mecatl ipan momaj yekmajtli oso okse majtli."
     transmitter_slot_occupied: "In calpixka terminal ipan tlatitlanili amo mecatl tentok."
     transmitter_terminal_only: "San terminal amo mecatl huel motlalia ipan nin calpixka."
+    transmitter_booster_slot_occupied: "In calpixka chikawaloni ipan tlatitlanili amo mecatl tentok."
+    transmitter_booster_only: "San chikawaloni tlanextilli amo mecatl huel motlalia ipan nin calpixka."
 debug:
   mode:
     read: "san tlapoua"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Kalaki"
   export_bus: "Bus Kisa"
   wireless_terminal: "Terminal Amo Mecatl"
+  wireless_booster: "Chikawaloni Tlanextilli Amo Mecatl"
   transmitter: "Tlatitlanili Amo Mecatl"
 tier:
   common: "Maseual"
@@ -263,6 +268,10 @@ lore:
     owner: "Tekone: {0}"
     not_linked: "Amo mopiloa"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Tlapejpenilli: {0}"
+    range_bonus: "Achka wejka: {0}%"
+    global: "Tekiti ipan nochi nin tlaltikpaktli"
 gui:
   give:
     title: "Tlamantli Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Mecatl: mopiloa"
       storage: "Tlapialoni: {0}"
       range: "Uejka: {0} tepantli"
+      global: "Nochi ipan nin tlaltikpaktli"
       covered: "In maseuali ka itech in tlaixpacho"
       not_covered: "In maseuali ka uejka itech in tlaixpacho tlatitlanili"
       missing: "Amo onka in tepantli tlatitlanili"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Calpixka terminal: kakauak"
       terminal_present: "Calpixka terminal: tentok"
+      booster_empty: "Calpixka chikawaloni: kakastik"
+      booster_present: "Chikawaloni: {0}"
   bus:
     import_title: "Bus Kalaki"
     export_title: "Bus Kisa"

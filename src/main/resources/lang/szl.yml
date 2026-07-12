@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dowaniy przedmiotōw Exort:"
   usage_give_storage: "dej przedmiot magazynu podle poziōmu"
   usage_give_chunk_loader: "dej ładowarka chunkōw"
+  usage_give_wireless_booster: "dej wzmacniŏcz bezdrôtowego sygnału podle poziōmu"
   usage_give_item: "dej stały przedmiot Exort"
-  usage_give_items: "Przedmioty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Przedmioty: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Użycie: /exort reload"
   unknown_subcommand: "Niyznōmo podkōmynda."
   help_header: "Kōmyndy necwerke magazynōw Exort:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Niy żeś właściciel. Przipnij go jeszcze roz."
     out_of_range: "Bezdrôtowy terminal je poza zasiyngym."
     missing_storage: "Przipiynty magazyn niy znodniynty."
+    storage_chunk_unloaded: "Chunk przipisanego magazynu niy je wczytany."
     empty: "Bezdrôtowy terminal je bez energie."
     bound: "Bezdrôtowy terminal przipiynty."
     self_store: "Niy idzie wrazić bezdrôtowego terminala do niego samego."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Trzim bezdrôtowy terminal we głōwnyj abo drugi rynce."
     transmitter_slot_occupied: "Plac na terminal we bezdrôtowym nadajniku je zajynty."
     transmitter_terminal_only: "Na tym placu idzie położyć ino bezdrôtowy terminal."
+    transmitter_booster_slot_occupied: "Plac na wzmacniŏcz bezdrôtowego nadajnika je zajynty."
+    transmitter_booster_only: "Na tym placu idzie położyć ino wzmacniŏcz bezdrôtowego sygnału."
 debug:
   mode:
     read: "ino czytanie"
@@ -236,6 +240,7 @@ item:
   import_bus: "Szyna importu"
   export_bus: "Szyna eksportu"
   wireless_terminal: "Bezdrôtowy terminal"
+  wireless_booster: "Wzmacniŏcz bezdrôtowego sygnału"
   transmitter: "Bezdrôtowy nadajnik"
 tier:
   common: "Zwykły"
@@ -263,6 +268,10 @@ lore:
     owner: "Właściciel: {0}"
     not_linked: "Niy przipiynty"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Poziōm: {0}"
+    range_bonus: "Przidŏwek do zasiōngu: {0}%"
+    global: "Dziyłŏ we cołkim teroźnym świecie"
 gui:
   give:
     title: "Przedmioty Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Necwerk: funguje"
       storage: "Magazyn: {0}"
       range: "Dosiyng: {0} blokōw"
+      global: "We cołkim teroźnym świecie"
       covered: "Gracz je we dosiyngu"
       not_covered: "Gracz je poza dosiyngym tego nadajnika"
       missing: "Chybi bloku nadajnika"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Plac na terminal: prōżny"
       terminal_present: "Plac na terminal: zajynty"
+      booster_empty: "Plac na wzmacniŏcz: prōżny"
+      booster_present: "Wzmacniŏcz: {0}"
   bus:
     import_title: "Szyna importu"
     export_title: "Szyna eksportu"

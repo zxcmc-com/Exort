@@ -61,8 +61,9 @@ message:
   usage_give_header: "Agħti oġġetti Exort:"
   usage_give_storage: "agħti oġġett tal-ħażna skont il-livell"
   usage_give_chunk_loader: "agħti loader tal-chunks skont il-varjant"
+  usage_give_wireless_booster: "agħti amplifikatur tas-sinjal bla wajer skont il-livell"
   usage_give_item: "agħti oġġett fiss ta' Exort"
-  usage_give_items: "Oġġetti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Oġġetti: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Użu: /exort reload"
   unknown_subcommand: "Subkmand mhux magħruf."
   help_header: "Kmandi Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "M'intix is-sid. Orbotu mill-ġdid."
     out_of_range: "It-terminal bla wajer huwa barra mill-firxa."
     missing_storage: "Il-ħażna marbuta ma nstabitx."
+    storage_chunk_unloaded: "Iċ-chunk tal-ħażna mqabbda mhuwiex mgħobbi."
     empty: "It-terminal bla wajer spiċċalu ċ-ċarġ."
     bound: "It-terminal bla wajer ġie marbut."
     self_store: "Ma tistax taħżen terminal bla wajer ġo fih innifsu."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Żomm terminal bla wajer fl-id prinċipali jew fl-id l-oħra."
     transmitter_slot_occupied: "L-islott tat-terminal tat-trażmettitur bla wajer huwa okkupat."
     transmitter_terminal_only: "F'dan l-islott jista' jitqiegħed biss terminal bla wajer."
+    transmitter_booster_slot_occupied: "L-islott tal-amplifikatur tat-Trażmettitur Bla Wajer huwa okkupat."
+    transmitter_booster_only: "Amplifikatur tas-Sinjal Bla Wajer biss jista' jitqiegħed f'dan l-islott."
 debug:
   mode:
     read: "qari biss"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus tal-Importazzjoni"
   export_bus: "Bus tal-Esportazzjoni"
   wireless_terminal: "Terminal Bla Wajer"
+  wireless_booster: "Amplifikatur tas-Sinjal Bla Wajer"
   transmitter: "Trażmettitur Bla Wajer"
 tier:
   common: "Komuni"
@@ -263,6 +268,10 @@ lore:
     owner: "Sid: {0}"
     not_linked: "Mhux marbut"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Livell: {0}"
+    range_bonus: "Bonus tal-medda: {0}%"
+    global: "Jaħdem fid-dinja attwali kollha"
 gui:
   give:
     title: "Oġġetti ta' Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Netwerk: online"
       storage: "Ħażna: {0}"
       range: "Medda: {0} blokka"
+      global: "Globali fid-dinja attwali"
       covered: "Il-plejer jinsab kopert"
       not_covered: "Il-plejer jinsab barra l-medda ta' dan it-trażmettitur"
       missing: "Il-blokka tat-trażmettitur hija nieqsa"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slott tat-terminal: vojt"
       terminal_present: "Slott tat-terminal: okkupat"
+      booster_empty: "Slott tal-amplifikatur: vojt"
+      booster_present: "Amplifikatur: {0}"
   bus:
     import_title: "Bus tal-Importazzjoni"
     export_title: "Bus tal-Esportazzjoni"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Ge Exort itemoj:"
   usage_give_storage: "ge stokado itemo efter nivå"
   usage_give_chunk_loader: "ge en Chunk-laddare"
+  usage_give_wireless_booster: "ge en signal-förstärkare sen drato efter nivå"
   usage_give_item: "ge fast Exort itemo"
-  usage_give_items: "Itemoj: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Itemoj: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uso: /exort reload"
   unknown_subcommand: "Nekent subkomand."
   help_header: "Exort Stokado nät komandoj:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du är nai tenanto. Koppla igen."
     out_of_range: "Terminal sen drato for långt borta."
     missing_storage: "Ligita stokado nai funnen."
+    storage_chunk_unloaded: "Chunk de linkad stokado ar nai laddad."
     empty: "Terminal sen drato utan baterio."
     bound: "Terminal sen drato ligita."
     self_store: "Terminal sen drato kan nai lagra sig själv."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Håll terminal sen drato i huvudhand eller andra hand."
     transmitter_slot_occupied: "Terminalplatsen i sändare sen drato är upptagen."
     transmitter_terminal_only: "Bara terminal sen drato kan läggas i denna plats."
+    transmitter_booster_slot_occupied: "Förstärkar-plats i Sändare sen Drato ar upptagen."
+    transmitter_booster_only: "Solo un Signalförstärkare sen Drato kan läggas i denna plats."
 debug:
   mode:
     read: "nur read"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus de enporto"
   export_bus: "Bus de elporto"
   wireless_terminal: "Terminal sen drato"
+  wireless_booster: "Signalförstärkare sen Drato"
   transmitter: "Sändare sen drato"
 tier:
   common: "Vanlig"
@@ -263,6 +268,10 @@ lore:
     owner: "Tenanto: {0}"
     not_linked: "Ne ligita"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivå: {0}"
+    range_bonus: "Räckvidd-bonus: {0}%"
+    global: "Funkar i toda denna värld"
 gui:
   give:
     title: "Exort itemi"
@@ -324,6 +333,7 @@ gui:
       active: "Nät: kopplat"
       storage: "Stokado: {0}"
       range: "Räckvidd: {0} block"
+      global: "Global i denna värld"
       covered: "Spelare är täckt"
       not_covered: "Spelare är utanför denna sändares räckvidd"
       missing: "Sändarens block saknas"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplats: tom"
       terminal_present: "Terminalplats: upptagen"
+      booster_empty: "Förstärkar-plats: tom"
+      booster_present: "Förstärkare: {0}"
   bus:
     import_title: "Bus de enporto"
     export_title: "Bus de elporto"

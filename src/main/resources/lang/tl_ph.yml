@@ -61,8 +61,9 @@ message:
   usage_give_header: "Magbigay ng mga item ng Exort:"
   usage_give_storage: "magbigay ng item ng imbakan ayon sa tier"
   usage_give_chunk_loader: "magbigay ng Tagapag-load ng Chunk"
+  usage_give_wireless_booster: "magbigay ng Pampalakas ng Wireless na Signal ayon sa tier"
   usage_give_item: "magbigay ng nakatakdang bagay ng Exort"
-  usage_give_items: "Mga item: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Mga item: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Paggamit: /exort reload"
   unknown_subcommand: "Hindi kilalang subcommand."
   help_header: "Mga command ng Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Hindi ikaw ang may-ari. I-link itong muli."
     out_of_range: "Lampas sa saklaw ang wireless terminal."
     missing_storage: "Hindi natagpuan ang naka-link na storage."
+    storage_chunk_unloaded: "Hindi naka-load ang chunk ng nakakabit na imbakan."
     empty: "Wala nang charge ang wireless terminal."
     bound: "Naka-link na ang wireless terminal."
     self_store: "Hindi maaaring ilagay ang wireless terminal sa loob ng sarili nito."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hawakan ang Walang-kawad na Terminal sa pangunahing kamay o kabilang kamay."
     transmitter_slot_occupied: "May laman ang puwesto ng terminal sa Walang-kawad na Tagapagpadala."
     transmitter_terminal_only: "Walang-kawad na Terminal lamang ang maaaring ilagay sa puwestong ito."
+    transmitter_booster_slot_occupied: "May laman ang puwesto ng pampalakas sa Walang-kawad na Tagapagpadala."
+    transmitter_booster_only: "Pampalakas ng Wireless na Signal lamang ang maaaring ilagay sa puwestong ito."
 debug:
   mode:
     read: "basa lang"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus ng Pag-import"
   export_bus: "Bus ng Pag-export"
   wireless_terminal: "Terminal na Wireless"
+  wireless_booster: "Pampalakas ng Wireless na Signal"
   transmitter: "Walang-kawad na Tagapagpadala"
 tier:
   common: "Karaniwan"
@@ -263,6 +268,10 @@ lore:
     owner: "May-ari: {0}"
     not_linked: "Hindi naka-link"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Antas: {0}"
+    range_bonus: "Dagdag na saklaw: {0}%"
+    global: "Gumagana sa buong kasalukuyang mundo"
 gui:
   give:
     title: "Mga Item ng Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Ugnayan: nakaugnay"
       storage: "Imbakan: {0}"
       range: "Abot: {0} bloke"
+      global: "Sakop ang kasalukuyang mundo"
       covered: "Sakop ang manlalaro"
       not_covered: "Wala sa abot ng tagapagpadalang ito ang manlalaro"
       missing: "Nawawala ang bloke ng tagapagpadala"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Puwesto ng terminal: walang laman"
       terminal_present: "Puwesto ng terminal: may laman"
+      booster_empty: "Puwesto ng pampalakas: walang laman"
+      booster_present: "Pampalakas: {0}"
   bus:
     import_title: "Bus ng Pag-import"
     export_title: "Bus ng Pag-export"

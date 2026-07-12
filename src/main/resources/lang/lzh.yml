@@ -61,8 +61,9 @@ message:
   usage_give_header: "給 Exort 物品："
   usage_give_storage: "按 tier 給儲藏物品"
   usage_give_chunk_loader: "給區塊載入器"
+  usage_give_wireless_booster: "按品第給無線訊號增幅器"
   usage_give_item: "給固定 Exort 物品"
-  usage_give_items: "物品：storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "物品：storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "用法：/exort reload"
   unknown_subcommand: "未知 subcommand。"
   help_header: "Exort Storage Network 之令："
@@ -211,6 +212,7 @@ message:
     wrong_owner: "汝非其主。請重連。"
     out_of_range: "Wireless terminal 超出範圍。"
     missing_storage: "所連儲藏未尋得。"
+    storage_chunk_unloaded: "所連之藏區未載。"
     empty: "Wireless terminal 無電。"
     bound: "Wireless terminal 已連結。"
     self_store: "不可置 wireless terminal 於其自身。"
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "執無線終端於主手或副手。"
     transmitter_slot_occupied: "發射器之終端槽已滿。"
     transmitter_terminal_only: "此槽唯容無線終端。"
+    transmitter_booster_slot_occupied: "無線發射器之增幅槽已滿。"
+    transmitter_booster_only: "此槽唯容無線訊號增幅器。"
 debug:
   mode:
     read: "唯讀"
@@ -236,6 +240,7 @@ item:
   import_bus: "輸入匯流排"
   export_bus: "輸出匯流排"
   wireless_terminal: "無線終端"
+  wireless_booster: "無線訊號增幅器"
   transmitter: "無線發射器"
 tier:
   common: "凡品"
@@ -263,6 +268,10 @@ lore:
     owner: "主人：{0}"
     not_linked: "未連結"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "品第：{0}"
+    range_bonus: "增程：{0}%"
+    global: "行於今界之全境"
 gui:
   give:
     title: "Exort 物品"
@@ -324,6 +333,7 @@ gui:
       active: "網絡：已通"
       storage: "儲藏：{0}"
       range: "所及：{0} 方塊"
+      global: "通於今界"
       covered: "玩家在所及之內"
       not_covered: "玩家在此發射器所及之外"
       missing: "發射器方塊不存"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "終端槽：空"
       terminal_present: "終端槽：滿"
+      booster_empty: "增幅槽：虛"
+      booster_present: "增幅器：{0}"
   bus:
     import_title: "輸入匯流排"
     export_title: "輸出匯流排"

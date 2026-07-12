@@ -61,8 +61,9 @@ message:
   usage_give_header: "Đưa item Exort:"
   usage_give_storage: "đưa item lưu trữ theo tier"
   usage_give_chunk_loader: "đưa bộ tải chunk theo biến thể"
+  usage_give_wireless_booster: "đưa Bộ tăng cường tín hiệu không dây theo cấp"
   usage_give_item: "đưa item Exort cố định"
-  usage_give_items: "Vật phẩm: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Vật phẩm: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Cách dùng: /exort reload"
   unknown_subcommand: "Subcommand không xác định."
   help_header: "Lệnh Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Bạn không phải chủ sở hữu. Hãy liên kết lại."
     out_of_range: "Wireless terminal ngoài phạm vi."
     missing_storage: "Không tìm thấy storage đã liên kết."
+    storage_chunk_unloaded: "Chunk của kho lưu trữ được liên kết chưa được tải."
     empty: "Wireless terminal hết pin."
     bound: "Wireless terminal đã liên kết."
     self_store: "Không thể cất wireless terminal vào chính nó."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Cầm Terminal không dây ở tay chính hoặc tay phụ."
     transmitter_slot_occupied: "Ô terminal của Bộ phát không dây đã bị chiếm."
     transmitter_terminal_only: "Chỉ có thể đặt Terminal không dây vào ô này."
+    transmitter_booster_slot_occupied: "Ô tăng cường của Bộ phát không dây đã bị chiếm."
+    transmitter_booster_only: "Chỉ có thể đặt Bộ tăng cường tín hiệu không dây vào ô này."
 debug:
   mode:
     read: "chỉ đọc"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus nhập"
   export_bus: "Bus xuất"
   wireless_terminal: "Terminal không dây"
+  wireless_booster: "Bộ tăng cường tín hiệu không dây"
   transmitter: "Bộ phát không dây"
 tier:
   common: "Thường"
@@ -263,6 +268,10 @@ lore:
     owner: "Chủ sở hữu: {0}"
     not_linked: "Chưa liên kết"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Cấp: {0}"
+    range_bonus: "Thưởng phạm vi: {0}%"
+    global: "Hoạt động trên toàn bộ thế giới hiện tại"
 gui:
   give:
     title: "Vật phẩm Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Mạng: trực tuyến"
       storage: "Kho lưu trữ: {0}"
       range: "Phạm vi: {0} khối"
+      global: "Toàn bộ thế giới hiện tại"
       covered: "Người chơi đang trong vùng phủ sóng"
       not_covered: "Người chơi ở ngoài phạm vi của bộ phát này"
       missing: "Thiếu khối bộ phát"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Ô terminal: trống"
       terminal_present: "Ô terminal: đã có"
+      booster_empty: "Ô tăng cường: trống"
+      booster_present: "Bộ tăng cường: {0}"
   bus:
     import_title: "Bus nhập"
     export_title: "Bus xuất"

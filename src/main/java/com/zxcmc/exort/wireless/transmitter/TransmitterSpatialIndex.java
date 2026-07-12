@@ -15,16 +15,30 @@ final class TransmitterSpatialIndex {
 
   private final Set<Position> positions = ConcurrentHashMap.newKeySet();
   private final Map<ChunkKey, Set<Position>> byChunk = new ConcurrentHashMap<>();
+  private final Map<UUID, Set<Position>> globalByWorld = new ConcurrentHashMap<>();
 
   void add(Position position) {
-    if (position == null || !positions.add(position)) return;
+    add(position, false);
+  }
+
+  void add(Position position, boolean global) {
+    if (position == null) return;
+    positions.add(position);
     byChunk
         .computeIfAbsent(chunkKey(position), ignored -> ConcurrentHashMap.newKeySet())
         .add(position);
+    if (global) {
+      globalByWorld
+          .computeIfAbsent(position.worldId(), ignored -> ConcurrentHashMap.newKeySet())
+          .add(position);
+    } else {
+      removeGlobal(position);
+    }
   }
 
   void remove(Position position) {
     if (position == null || !positions.remove(position)) return;
+    removeGlobal(position);
     ChunkKey key = chunkKey(position);
     byChunk.computeIfPresent(
         key,
@@ -36,7 +50,10 @@ final class TransmitterSpatialIndex {
 
   void removeChunk(UUID worldId, int chunkX, int chunkZ) {
     Set<Position> removed = byChunk.remove(new ChunkKey(worldId, chunkX, chunkZ));
-    if (removed != null) positions.removeAll(removed);
+    if (removed != null) {
+      positions.removeAll(removed);
+      removed.forEach(this::removeGlobal);
+    }
   }
 
   List<Position> candidates(UUID worldId, int blockX, int blockZ, int rangeBlocks) {
@@ -59,9 +76,15 @@ final class TransmitterSpatialIndex {
     return List.copyOf(result);
   }
 
+  List<Position> globalCandidates(UUID worldId) {
+    Set<Position> positions = globalByWorld.get(worldId);
+    return positions == null ? List.of() : List.copyOf(positions);
+  }
+
   void clear() {
     positions.clear();
     byChunk.clear();
+    globalByWorld.clear();
   }
 
   int size() {
@@ -70,5 +93,14 @@ final class TransmitterSpatialIndex {
 
   private static ChunkKey chunkKey(Position position) {
     return new ChunkKey(position.worldId(), position.x() >> 4, position.z() >> 4);
+  }
+
+  private void removeGlobal(Position position) {
+    globalByWorld.computeIfPresent(
+        position.worldId(),
+        (ignored, bucket) -> {
+          bucket.remove(position);
+          return bucket.isEmpty() ? null : bucket;
+        });
   }
 }

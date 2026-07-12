@@ -138,7 +138,7 @@ public final class MarkerSanityService {
             if (Carriers.isBarrier(block)) {
               migrateTransmitterCarrier(block);
             } else {
-              dropStoredTransmitterTerminal(block);
+              dropStoredTransmitterItems(block);
               TransmitterMarker.clear(plugin, block);
               unregisterTransmitter(block);
               displayRefreshService.removeTransmitterDisplay(block);
@@ -245,7 +245,7 @@ public final class MarkerSanityService {
       displayRefreshService.removeRelayDisplay(block);
     }
     if (state.hadTransmitter()) {
-      dropStoredTransmitterTerminal(block);
+      dropStoredTransmitterItems(block);
       unregisterTransmitter(block);
       displayRefreshService.removeTransmitterDisplay(block);
     }
@@ -365,10 +365,10 @@ public final class MarkerSanityService {
     }
   }
 
-  private void dropStoredTransmitterTerminal(Block block) {
+  private void dropStoredTransmitterItems(Block block) {
     TransmitterSessionManager manager = transmitterSessionManager.get();
     if (manager != null) {
-      manager.dropStoredTerminal(block);
+      manager.dropStoredItems(block);
     }
   }
 

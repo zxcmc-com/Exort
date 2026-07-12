@@ -379,6 +379,7 @@ public class Lang {
     fallback.put("message.usage_debug_chunkloaders_active", "list placed Chunk Loaders");
     fallback.put("message.usage_debug_chunkloaders_all", "list all registered Chunk Loader UUIDs");
     fallback.put("message.usage_give_chunk_loader", "give a chunk loader");
+    fallback.put("message.usage_give_wireless_booster", "give a Wireless Signal Booster by tier");
     fallback.put("message.help_header", "Exort Storage Network commands:");
     fallback.put("message.version", "Exort Storage Network v{0} by phantomfighterxx");
     fallback.put(
@@ -393,6 +394,12 @@ public class Lang {
     fallback.put(
         "message.wireless.transmitter_terminal_only",
         "Only a Wireless Terminal can be placed in this slot.");
+    fallback.put(
+        "message.wireless.transmitter_booster_slot_occupied",
+        "Wireless Transmitter booster slot is occupied.");
+    fallback.put(
+        "message.wireless.transmitter_booster_only",
+        "Only a Wireless Signal Booster can be placed in this slot.");
     fallback.put("item.storage", "Storage");
     fallback.put("item.storage_core", "Storage Core");
     fallback.put("item.terminal", "Storage Terminal");
@@ -407,6 +414,7 @@ public class Lang {
     fallback.put("item.import_bus", "Import Bus");
     fallback.put("item.export_bus", "Export Bus");
     fallback.put("item.wireless_terminal", "Wireless Terminal");
+    fallback.put("item.wireless_booster", "Wireless Signal Booster");
     fallback.put("tier.common", "Common");
     fallback.put("tier.rare", "Rare");
     fallback.put("tier.mythical", "Mythical");
@@ -422,6 +430,7 @@ public class Lang {
     fallback.put("gui.transmitter.status.active", "Network: online");
     fallback.put("gui.transmitter.status.storage", "Storage: {0}");
     fallback.put("gui.transmitter.status.range", "Range: {0} blocks");
+    fallback.put("gui.transmitter.status.global", "Global in current world");
     fallback.put("gui.transmitter.status.covered", "Player is covered");
     fallback.put("gui.transmitter.status.not_covered", "Player is outside this transmitter range");
     fallback.put("gui.transmitter.status.missing", "Transmitter block is missing");
@@ -443,6 +452,8 @@ public class Lang {
         "Wireless coverage is disabled; inserted terminal still charges.");
     fallback.put("gui.transmitter.slot.terminal_empty", "Terminal slot: empty");
     fallback.put("gui.transmitter.slot.terminal_present", "Terminal slot: occupied");
+    fallback.put("gui.transmitter.slot.booster_empty", "Booster slot: empty");
+    fallback.put("gui.transmitter.slot.booster_present", "Booster: {0}");
     fallback.put("lore.storage.tier", "Tier: {0}");
     fallback.put("lore.storage.capacity", "{0} / {1} ({2})");
     fallback.put("lore.storage.id_tail", "{0}");

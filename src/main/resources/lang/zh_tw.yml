@@ -61,8 +61,9 @@ message:
   usage_give_header: "給予 Exort 物品："
   usage_give_storage: "依階級給予一個儲存物品"
   usage_give_chunk_loader: "給予區塊載入器"
+  usage_give_wireless_booster: "按階級給予無線訊號增強器"
   usage_give_item: "給予一個固定的 Exort 物品"
-  usage_give_items: "物品：storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "物品：storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "用法：/exort reload"
   unknown_subcommand: "未知子指令。"
   help_header: "Exort Storage Network 指令："
@@ -211,6 +212,7 @@ message:
     wrong_owner: "你不是擁有者。請重新綁定。"
     out_of_range: "無線終端超出範圍。"
     missing_storage: "找不到已綁定的儲存。"
+    storage_chunk_unloaded: "所連接儲存的區塊尚未載入。"
     empty: "無線終端電量耗盡。"
     bound: "無線終端已綁定。"
     self_store: "不能把無線終端存入它自己。"
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "請在主手或副手持有無線終端。"
     transmitter_slot_occupied: "無線發射器的終端欄位已被占用。"
     transmitter_terminal_only: "此欄位只能放置無線終端。"
+    transmitter_booster_slot_occupied: "無線發射器的增強器欄位已被佔用。"
+    transmitter_booster_only: "此欄位只能放置無線訊號增強器。"
 debug:
   mode:
     read: "唯讀"
@@ -236,6 +240,7 @@ item:
   import_bus: "匯入匯流排"
   export_bus: "匯出匯流排"
   wireless_terminal: "無線終端"
+  wireless_booster: "無線訊號增強器"
   transmitter: "無線發射器"
 tier:
   common: "普通"
@@ -263,6 +268,10 @@ lore:
     owner: "擁有者：{0}"
     not_linked: "未綁定"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "階級：{0}"
+    range_bonus: "範圍加成：{0}%"
+    global: "在目前世界全域生效"
 gui:
   give:
     title: "Exort 物品"
@@ -324,6 +333,7 @@ gui:
       active: "網路：上線"
       storage: "儲存：{0}"
       range: "範圍：{0} 個方塊"
+      global: "涵蓋目前世界全域"
       covered: "玩家位於涵蓋範圍內"
       not_covered: "玩家位於此發射器的範圍外"
       missing: "發射器方塊遺失"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "終端欄位：空"
       terminal_present: "終端欄位：已占用"
+      booster_empty: "增強器欄位：空"
+      booster_present: "增強器：{0}"
   bus:
     import_title: "匯入匯流排"
     export_title: "匯出匯流排"

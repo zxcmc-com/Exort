@@ -61,8 +61,9 @@ message:
   usage_give_header: "Anna Exort-esineitä:"
   usage_give_storage: "anna varastoesine tason mukaan"
   usage_give_chunk_loader: "anna chunk-lataaja"
+  usage_give_wireless_booster: "anna langattoman signaalin vahvistin tason mukaan"
   usage_give_item: "anna kiinteä Exort-esine"
-  usage_give_items: "Esineet: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Esineet: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Käyttö: /exort reload"
   unknown_subcommand: "Tuntematon alikomento."
   help_header: "Exort Storage Network -komennot:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Et ole omistaja. Linkitä se uudelleen."
     out_of_range: "Langaton pääte on kantaman ulkopuolella."
     missing_storage: "Linkitettyä varastoa ei löytynyt."
+    storage_chunk_unloaded: "Yhdistetyn varaston chunk ei ole ladattu."
     empty: "Langattoman päätteen lataus on loppu."
     bound: "Langaton pääte linkitetty."
     self_store: "Langatonta päätettä ei voi varastoida itseensä."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Pidä langatonta päätettä pää- tai sivukädessä."
     transmitter_slot_occupied: "Langattoman lähettimen päätepaikka on varattu."
     transmitter_terminal_only: "Tähän paikkaan voi asettaa vain langattoman päätteen."
+    transmitter_booster_slot_occupied: "Langattoman lähettimen vahvistinpaikka on varattu."
+    transmitter_booster_only: "Tähän paikkaan voi asettaa vain langattoman signaalin vahvistimen."
 debug:
   mode:
     read: "vain luku"
@@ -236,6 +240,7 @@ item:
   import_bus: "Tuontiväylä"
   export_bus: "Vientiväylä"
   wireless_terminal: "Langaton pääte"
+  wireless_booster: "Langattoman signaalin vahvistin"
   transmitter: "Langaton lähetin"
 tier:
   common: "Tavallinen"
@@ -263,6 +268,10 @@ lore:
     owner: "Omistaja: {0}"
     not_linked: "Ei linkitetty"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Taso: {0}"
+    range_bonus: "Kantaman lisäys: {0}%"
+    global: "Toimii koko nykyisessä maailmassa"
 gui:
   give:
     title: "Exort-esineet"
@@ -324,6 +333,7 @@ gui:
       active: "Verkko: yhteydessä"
       storage: "Varasto: {0}"
       range: "Kantama: {0} lohkoa"
+      global: "Kattaa koko nykyisen maailman"
       covered: "Pelaaja on kantaman sisällä"
       not_covered: "Pelaaja on tämän lähettimen kantaman ulkopuolella"
       missing: "Lähetinlohko puuttuu"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Päätepaikka: tyhjä"
       terminal_present: "Päätepaikka: varattu"
+      booster_empty: "Vahvistinpaikka: tyhjä"
+      booster_present: "Vahvistin: {0}"
   bus:
     import_title: "Tuontiväylä"
     export_title: "Vientiväylä"

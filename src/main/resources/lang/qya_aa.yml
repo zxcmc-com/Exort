@@ -61,8 +61,9 @@ message:
   usage_give_header: "Á anta Exort nati:"
   usage_give_storage: "anta harmava nat pan i anda"
   usage_give_chunk_loader: "anta Colindo Chunk ve nostalë"
+  usage_give_wireless_booster: "anta tulcamo tengwa rámenna pan i anda"
   usage_give_item: "anta panta Exort nat"
-  usage_give_items: "Nati: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Nati: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Hantië: /exort reload"
   unknown_subcommand: "Úsina canwa-cilya."
   help_header: "Exort Harmava núnat canwar:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Lá nalyë heru. Á nuta ata."
     out_of_range: "Sarnie rámenna haira."
     missing_storage: "Harmava nútina úhírina."
+    storage_chunk_unloaded: "I cilya i nútina harmava lá colina."
     empty: "Sarnie rámenna sáma pen sáma."
     bound: "Sarnie rámenna nútina."
     self_store: "Sarnie rámenna úpolë caita immo-mittas."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Á mapa sarnie rámenna i forma mássë hya hyarma mássë."
     transmitter_slot_occupied: "I sarnie-sambo mentano rámenna quanta."
     transmitter_terminal_only: "Er sarnie rámenna polë caita sina sambossë."
+    transmitter_booster_slot_occupied: "I tulcamo-sambo mentano rámenna quanta."
+    transmitter_booster_only: "Er tulcamo tengwa rámenna polë caita sina sambossë."
 debug:
   mode:
     read: "cenda er"
@@ -236,6 +240,7 @@ item:
   import_bus: "Raxë mitta"
   export_bus: "Raxë etten"
   wireless_terminal: "Sarnie rámenna"
+  wireless_booster: "Tulcamo Tengwa Rámenna"
   transmitter: "Mentano Rámenna"
 tier:
   common: "Sanya"
@@ -263,6 +268,10 @@ lore:
     owner: "Heru: {0}"
     not_linked: "Úva nútina"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Anda: {0}"
+    range_bonus: "Rámen-ampa: {0}%"
+    global: "Marta mi ilya sina ambar"
 gui:
   give:
     title: "Exort Nati"
@@ -324,6 +333,7 @@ gui:
       active: "Núnat: nútina"
       storage: "Harmava: {0}"
       range: "Landa: {0} sarni"
+      global: "Ilya sina ambar"
       covered: "I tyalindo ná nurtaina"
       not_covered: "I tyalindo ná et sina mentano landallo"
       missing: "I mentano-sarna vanta"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Sarnie-sambo: lusta"
       terminal_present: "Sarnie-sambo: quanta"
+      booster_empty: "Tulcamo-sambo: cúma"
+      booster_present: "Tulcamo: {0}"
   bus:
     import_title: "Raxë mitta"
     export_title: "Raxë etten"

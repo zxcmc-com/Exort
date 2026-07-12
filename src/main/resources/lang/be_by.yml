@@ -61,8 +61,9 @@ message:
   usage_give_header: "Выдача прадметаў Exort:"
   usage_give_storage: "выдаць прадмет сховішча па тыр"
   usage_give_chunk_loader: "выдаць загрузчык чанкаў"
+  usage_give_wireless_booster: "выдаць узмацняльнік бесправаднога сігналу паводле ўзроўню"
   usage_give_item: "выдаць фіксаваны прадмет Exort"
-  usage_give_items: "Прадметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Прадметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Выкарыстанне: /exort reload"
   unknown_subcommand: "Невядомая падкаманда."
   help_header: "Каманды Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Вы не ўладальнік. Прывяжыце яго зноў."
     out_of_range: "Бесправадны тэрмінал па-за радыусам дзеяння."
     missing_storage: "Прывязанае сховішча не знойдзена."
+    storage_chunk_unloaded: "Чанк прывязанага сховішча не загружаны."
     empty: "Бесправадны тэрмінал разраджаны."
     bound: "Бесправадны тэрмінал прывязаны."
     self_store: "Нельга пакласці бесправадны тэрмінал у самога сябе."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Трымайце бесправадны тэрмінал у асноўнай або другой руцэ."
     transmitter_slot_occupied: "Слот тэрмінала бесправаднога перадатчыка заняты."
     transmitter_terminal_only: "У гэты слот можна змясціць толькі бесправадны тэрмінал."
+    transmitter_booster_slot_occupied: "Слот узмацняльніка бесправаднога перадатчыка заняты."
+    transmitter_booster_only: "У гэты слот можна змясціць толькі ўзмацняльнік бесправаднога сігналу."
 debug:
   mode:
     read: "толькі чытанне"
@@ -236,6 +240,7 @@ item:
   import_bus: "Шына імпарту"
   export_bus: "Шына экспарту"
   wireless_terminal: "Бесправадны тэрмінал"
+  wireless_booster: "Узмацняльнік бесправаднога сігналу"
   transmitter: "Бесправадны перадатчык"
 tier:
   common: "Звычайны"
@@ -263,6 +268,10 @@ lore:
     owner: "Уладальнік: {0}"
     not_linked: "Не прывязаны"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Тыр: {0}"
+    range_bonus: "Бонус радыусу: {0}%"
+    global: "Дзейнічае ва ўсім бягучым свеце"
 gui:
   give:
     title: "Прадметы Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Сетка: у сетцы"
       storage: "Сховішча: {0}"
       range: "Радыус: {0} блокаў"
+      global: "Глабальна ў бягучым свеце"
       covered: "Гулец у зоне пакрыцця"
       not_covered: "Гулец па-за радыусам гэтага перадатчыка"
       missing: "Блок перадатчыка адсутнічае"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Слот тэрмінала: пусты"
       terminal_present: "Слот тэрмінала: заняты"
+      booster_empty: "Слот узмацняльніка: пусты"
+      booster_present: "Узмацняльнік: {0}"
   bus:
     import_title: "Шына імпарту"
     export_title: "Шына экспарту"

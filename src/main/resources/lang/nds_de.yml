@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort-Items geven:"
   usage_give_storage: "en Spieker na Tier geven"
   usage_give_chunk_loader: "en Chunk-Loader geven"
+  usage_give_wireless_booster: "en Funk-Signaalverstarker na Stoop geven"
   usage_give_item: "en fast Exort-Item geven"
-  usage_give_items: "Saken: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Saken: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Bruuk: /exort reload"
   unknown_subcommand: "Nich bekannt Ünnerbefehl."
   help_header: "Exort Storage Network Befehle:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du büst nich de Eegner. Link em nochmaal."
     out_of_range: "Funk-Terminal is buten Reekwiede."
     missing_storage: "Verlinkten Spieker nich funnen."
+    storage_chunk_unloaded: "De Chunk vun den verbunnen Spieker is nich laden."
     empty: "Funk-Terminal hett keen Ladung mehr."
     bound: "Funk-Terminal verlinkt."
     self_store: "En Funk-Terminal kann nich in sik sülven lagert warrn."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Holl en Funk-Terminal in de Hööft- oder Nevenhand."
     transmitter_slot_occupied: "De Terminalplatz vun den Funk-Sender is besett."
     transmitter_terminal_only: "Op dissen Platz dörv blots en Funk-Terminal."
+    transmitter_booster_slot_occupied: "De Verstarkersteed vun den Funk-Sender is besett."
+    transmitter_booster_only: "In disse Steed kann blots en Funk-Signaalverstarker leggt warrn."
 debug:
   mode:
     read: "blots lesen"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funk-Terminal"
+  wireless_booster: "Funk-Signaalverstarker"
   transmitter: "Funk-Sender"
 tier:
   common: "Allgemeen"
@@ -263,6 +268,10 @@ lore:
     owner: "Eegner: {0}"
     not_linked: "Nich verlinkt"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stoop: {0}"
+    range_bonus: "Reekwiedbonus: {0}%"
+    global: "Warkt in de hele aktuelle Welt"
 gui:
   give:
     title: "Exort-Items"
@@ -324,6 +333,7 @@ gui:
       active: "Nettwark: an"
       storage: "Spieker: {0}"
       range: "Reekwied: {0} Blöcke"
+      global: "Överall in de aktuelle Welt"
       covered: "Speler is in Reekwied"
       not_covered: "Speler is buten de Reekwied vun dissen Funk-Sender"
       missing: "Funk-Sender-Block fehlt"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplatz: leddig"
       terminal_present: "Terminalplatz: besett"
+      booster_empty: "Verstarkersteed: leddig"
+      booster_present: "Verstarker: {0}"
   bus:
     import_title: "Import-Bus"
     export_title: "Export-Bus"

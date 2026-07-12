@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort-Dinge jävve:"
   usage_give_storage: "ene Spiescher noh Tier jävve"
   usage_give_chunk_loader: "ene Chunk-Loader jävve"
+  usage_give_wireless_booster: "ene Funk-Sinjaal-Verstärker noh Stufe jevve"
   usage_give_item: "e fest Exort-Ding jävve"
-  usage_give_items: "Jäjestänn: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Jäjestänn: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Benotzung: /exort reload"
   unknown_subcommand: "Onbekannte Onderbefehl."
   help_header: "Exort Storage Network Befehle:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Do bes nit dä Besitzer. Verlink et neu."
     out_of_range: "Funk-Terminal es usser Reichwidd."
     missing_storage: "Verlinkte Spiescher nit jefonge."
+    storage_chunk_unloaded: "Dä Chunk vum verlinkte Spiescher es nit jelade."
     empty: "Funk-Terminal hät kei Ladung mieh."
     bound: "Funk-Terminal verlinkt."
     self_store: "E Funk-Terminal kann nit en sich selvs jelagert wäde."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hal e Funk-Terminal en de Haupthand odder de Nebenhand."
     transmitter_slot_occupied: "Dä Terminal-Plaz em Funk-Sänder es besatz."
     transmitter_terminal_only: "Op dä Plaz darf nor e Funk-Terminal."
+    transmitter_booster_slot_occupied: "Dä Verstärker-Plaz vum Funk-Sänder es besatz."
+    transmitter_booster_only: "En dä Plaz kann nor ene Funk-Sinjaal-Verstärker jedonn wääde."
 debug:
   mode:
     read: "nor läse"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import-Bus"
   export_bus: "Export-Bus"
   wireless_terminal: "Funk-Terminal"
+  wireless_booster: "Funk-Sinjaal-Verstärker"
   transmitter: "Funk-Sänder"
 tier:
   common: "Jemeen"
@@ -263,6 +268,10 @@ lore:
     owner: "Besitzer: {0}"
     not_linked: "Nit verlinkt"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stuf: {0}"
+    range_bonus: "Reekwied-Bonus: {0}%"
+    global: "Deiht et en dä janze aktuelle Welt"
 gui:
   give:
     title: "Exort-Dinge"
@@ -324,6 +333,7 @@ gui:
       active: "Netzwärk: aan"
       storage: "Spiescher: {0}"
       range: "Reekwied: {0} Blöck"
+      global: "Överall en dä aktuelle Welt"
       covered: "Spiller es en Reekwied"
       not_covered: "Spiller es usserhalb vun dä Reekwied vum Funk-Sänder"
       missing: "Funk-Sänder-Block fehlt"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal-Plaz: frei"
       terminal_present: "Terminal-Plaz: besatz"
+      booster_empty: "Verstärker-Plaz: leer"
+      booster_present: "Verstärker: {0}"
   bus:
     import_title: "Import-Bus"
     export_title: "Export-Bus"

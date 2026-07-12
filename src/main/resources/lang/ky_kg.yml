@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort буюмдарын берүү:"
   usage_give_storage: "tier боюнча сактагыч буюмун берүү"
   usage_give_chunk_loader: "Чанк жүктөгүч берүү"
+  usage_give_wireless_booster: "деңгээли боюнча зымсыз сигнал күчөткүчүн бер"
   usage_give_item: "бекитилген Exort буюмун берүү"
-  usage_give_items: "Буюмдар: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Буюмдар: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Колдонуу: /exort reload"
   unknown_subcommand: "Белгисиз ички команда."
   help_header: "Exort Storage Network командалары:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Сиз ээси эмессиз. Кайра байлаңыз."
     out_of_range: "Зымсыз терминал диапазондон тышкары."
     missing_storage: "Байланган сактагыч табылган жок."
+    storage_chunk_unloaded: "Байланган сактагычтын чанкы жүктөлгөн эмес."
     empty: "Зымсыз терминалдын кубаты жок."
     bound: "Зымсыз терминал байланды."
     self_store: "Зымсыз терминалды өзүнүн ичине сактоого болбойт."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Негизги же кошумча колго зымсыз терминал кармаңыз."
     transmitter_slot_occupied: "Зымсыз өткөргүчтүн терминал уясы бош эмес."
     transmitter_terminal_only: "Бул уяга зымсыз терминалды гана коюуга болот."
+    transmitter_booster_slot_occupied: "Зымсыз өткөргүчтүн күчөткүч уячасы бош эмес."
+    transmitter_booster_only: "Бул уячага зымсыз сигнал күчөткүчүн гана салууга болот."
 debug:
   mode:
     read: "окуу гана"
@@ -236,6 +240,7 @@ item:
   import_bus: "Импорт шинасы"
   export_bus: "Экспорт шинасы"
   wireless_terminal: "Зымсыз терминал"
+  wireless_booster: "Зымсыз сигнал күчөткүчү"
   transmitter: "Зымсыз өткөргүч"
 tier:
   common: "Кадимки"
@@ -263,6 +268,10 @@ lore:
     owner: "Ээси: {0}"
     not_linked: "Байланган эмес"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Деңгээл: {0}"
+    range_bonus: "Аралык бонусу: {0}%"
+    global: "Учурдагы дүйнөнүн баарында иштейт"
 gui:
   give:
     title: "Exort буюмдары"
@@ -324,6 +333,7 @@ gui:
       active: "Тармак: туташкан"
       storage: "Сактагыч: {0}"
       range: "Аралык: {0} блок"
+      global: "Учурдагы дүйнөнүн баарында"
       covered: "Оюнчу камтуу аймагында"
       not_covered: "Оюнчу бул өткөргүчтүн аралыгынан тышкары"
       missing: "Өткөргүч блогу жок"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Терминал уясы: бош"
       terminal_present: "Терминал уясы: бош эмес"
+      booster_empty: "Күчөткүч уячасы: бош"
+      booster_present: "Күчөткүч: {0}"
   bus:
     import_title: "Импорт шинасы"
     export_title: "Экспорт шинасы"

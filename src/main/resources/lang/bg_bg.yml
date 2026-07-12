@@ -61,8 +61,9 @@ message:
   usage_give_header: "Даване на Exort предмети:"
   usage_give_storage: "дава предмет хранилище по tier"
   usage_give_chunk_loader: "дава зареждач на чанкове"
+  usage_give_wireless_booster: "дай усилвател на безжичен сигнал според нивото"
   usage_give_item: "дава фиксиран Exort предмет"
-  usage_give_items: "Предмети: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Предмети: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Употреба: /exort reload"
   unknown_subcommand: "Неизвестна подкоманда."
   help_header: "Команди на Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Не сте собственикът. Свържете го отново."
     out_of_range: "Безжичният терминал е извън обхват."
     missing_storage: "Свързаното хранилище не е намерено."
+    storage_chunk_unloaded: "Чънкът на свързаното хранилище не е зареден."
     empty: "Безжичният терминал е без заряд."
     bound: "Безжичният терминал е свързан."
     self_store: "Не може да поставите безжичен терминал в самия него."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Дръжте безжичен терминал в основната или вторичната ръка."
     transmitter_slot_occupied: "Слотът за терминал на безжичния предавател е зает."
     transmitter_terminal_only: "В този слот може да се постави само безжичен терминал."
+    transmitter_booster_slot_occupied: "Слотът за усилвател на безжичния предавател е зает."
+    transmitter_booster_only: "В този слот може да се постави само усилвател на безжичен сигнал."
 debug:
   mode:
     read: "само четене"
@@ -236,6 +240,7 @@ item:
   import_bus: "Шина за импорт"
   export_bus: "Шина за експорт"
   wireless_terminal: "Безжичен терминал"
+  wireless_booster: "Усилвател на безжичен сигнал"
   transmitter: "Безжичен предавател"
 tier:
   common: "Обикновен"
@@ -263,6 +268,10 @@ lore:
     owner: "Собственик: {0}"
     not_linked: "Не е свързан"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Ниво: {0}"
+    range_bonus: "Бонус към обхвата: {0}%"
+    global: "Действа в целия текущ свят"
 gui:
   give:
     title: "Предмети Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Мрежа: онлайн"
       storage: "Хранилище: {0}"
       range: "Обхват: {0} блока"
+      global: "Глобален в текущия свят"
       covered: "Играчът е в обхват"
       not_covered: "Играчът е извън обхвата на този предавател"
       missing: "Блокът на предавателя липсва"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Слот за терминал: празен"
       terminal_present: "Слот за терминал: зает"
+      booster_empty: "Слот за усилвател: празен"
+      booster_present: "Усилвател: {0}"
   bus:
     import_title: "Шина за импорт"
     export_title: "Шина за експорт"

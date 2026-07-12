@@ -61,8 +61,9 @@ message:
   usage_give_header: "Give Exort wares:"
   usage_give_storage: "give a storehouse ware by tier"
   usage_give_chunk_loader: "bestow a Chunk Warden"
+  usage_give_wireless_booster: "give an Unseen Signal Strengthener by rank"
   usage_give_item: "give a fixed Exort ware"
-  usage_give_items: "Wares: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Wares: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Use: /exort reload"
   unknown_subcommand: "Unkenned under-command."
   help_header: "Exort Storehouse Network charges:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "You are not the master. Link again."
     out_of_range: "Unseen terminal is beyond reach."
     missing_storage: "Linked storehouse not found."
+    storage_chunk_unloaded: "The joined Storehouse tract hath not awakened."
     empty: "Unseen Terminal out of battery."
     bound: "Unseen Terminal bound."
     self_store: "Cannot store an unseen terminal within itself."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hold an Unseen Terminal in thy main hand or off-hand."
     transmitter_slot_occupied: "The Unseen Beacon's terminal place is occupied."
     transmitter_terminal_only: "Only an Unseen Terminal may be placed herein."
+    transmitter_booster_slot_occupied: "The Unseen Beacon's strengthener place is filled."
+    transmitter_booster_only: "Only an Unseen Signal Strengthener may be set within this place."
 debug:
   mode:
     read: "read alone"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import Coach"
   export_bus: "Export Coach"
   wireless_terminal: "Unseen Terminal"
+  wireless_booster: "Unseen Signal Strengthener"
   transmitter: "Unseen Beacon"
 tier:
   common: "Common-born"
@@ -263,6 +268,10 @@ lore:
     owner: "Master: {0}"
     not_linked: "Not bound"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Rank: {0}"
+    range_bonus: "Reach boon: {0}%"
+    global: "Worketh throughout this present world"
 gui:
   give:
     title: "Exort Wares"
@@ -324,6 +333,7 @@ gui:
       active: "Network: awake"
       storage: "Storehouse: {0}"
       range: "Reach: {0} blocks"
+      global: "Throughout this present world"
       covered: "The player is within reach"
       not_covered: "The player is beyond this beacon's reach"
       missing: "The beacon block is missing"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal place: empty"
       terminal_present: "Terminal place: occupied"
+      booster_empty: "Strengthener place: vacant"
+      booster_present: "Strengthener: {0}"
   bus:
     import_title: "Import Coach"
     export_title: "Export Coach"

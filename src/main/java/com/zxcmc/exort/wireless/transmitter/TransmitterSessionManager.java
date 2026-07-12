@@ -5,6 +5,7 @@ import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.protection.RegionProtection;
+import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -15,6 +16,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -39,6 +41,7 @@ public final class TransmitterSessionManager {
   private final Plugin plugin;
   private final WirelessTransmitterService transmitterService;
   private final WirelessTerminalService wirelessService;
+  private final CustomItems customItems;
   private final Lang lang;
   private final PlayerFeedback playerFeedback;
   private final RegionProtection regionProtection;
@@ -55,6 +58,7 @@ public final class TransmitterSessionManager {
       Plugin plugin,
       WirelessTransmitterService transmitterService,
       WirelessTerminalService wirelessService,
+      CustomItems customItems,
       Lang lang,
       PlayerFeedback playerFeedback,
       RegionProtection regionProtection,
@@ -64,6 +68,7 @@ public final class TransmitterSessionManager {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.transmitterService = Objects.requireNonNull(transmitterService, "transmitterService");
     this.wirelessService = Objects.requireNonNull(wirelessService, "wirelessService");
+    this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.lang = Objects.requireNonNull(lang, "lang");
     this.playerFeedback = Objects.requireNonNull(playerFeedback, "playerFeedback");
     this.regionProtection = Objects.requireNonNull(regionProtection, "regionProtection");
@@ -82,6 +87,10 @@ public final class TransmitterSessionManager {
 
   Plugin plugin() {
     return plugin;
+  }
+
+  CustomItems customItems() {
+    return customItems;
   }
 
   public void open(Player player, Block transmitter) {
@@ -153,22 +162,39 @@ public final class TransmitterSessionManager {
     cancelChargingRefreshTasks();
   }
 
-  public void dropStoredTerminal(Block transmitter) {
+  public void dropStoredItems(Block transmitter) {
     if (transmitter == null) {
       return;
     }
     closeSessionsForTransmitter(transmitter);
     cancelChargingRefresh(transmitter);
-    TransmitterStoredTerminal.TakeReservation reservation =
+    TransmitterStoredTerminal.TakeReservation terminal =
         TransmitterStoredTerminal.reserveTake(
                 plugin, transmitter, wirelessService::isWireless, message -> ExortLog.warn(message))
             .orElse(null);
+    dropReservation(
+        transmitter, terminal, wirelessService::extractFromStorage, "Wireless Terminal");
+    TransmitterStoredTerminal.TakeReservation booster =
+        TransmitterStoredBooster.reserveTake(
+                plugin,
+                transmitter,
+                customItems::isWirelessBooster,
+                message -> ExortLog.warn(message))
+            .orElse(null);
+    dropReservation(transmitter, booster, Function.identity(), "Wireless Signal Booster");
+  }
+
+  private void dropReservation(
+      Block transmitter,
+      TransmitterStoredTerminal.TakeReservation reservation,
+      Function<ItemStack, ItemStack> prepareDrop,
+      String itemName) {
     if (reservation == null || !reservation.commit()) {
       return;
     }
     boolean spawned = false;
     try {
-      ItemStack drop = wirelessService.extractFromStorage(reservation.item());
+      ItemStack drop = prepareDrop.apply(reservation.item());
       var dropped =
           transmitter.getWorld().dropItem(transmitter.getLocation().add(0.5, 0.5, 0.5), drop);
       spawned = true;
@@ -184,7 +210,9 @@ public final class TransmitterSessionManager {
       }
       if (!spawned && !restored) {
         ExortLog.error(
-            "Failed to restore Wireless Terminal after transmitter drop error: "
+            "Failed to restore "
+                + itemName
+                + " after transmitter drop error: "
                 + failure.getMessage());
       } else {
         ExortLog.warn("Wireless Transmitter item drop failed: " + failure.getMessage());

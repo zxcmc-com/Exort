@@ -61,8 +61,9 @@ message:
   usage_give_header: "Berikan item Exort:"
   usage_give_storage: "berikan item penyimpanan berdasarkan tier"
   usage_give_chunk_loader: "berikan pemuat chunk berdasarkan varian"
+  usage_give_wireless_booster: "berikan Penguat Sinyal Nirkabel berdasarkan tier"
   usage_give_item: "berikan item Exort tetap"
-  usage_give_items: "Item: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Item: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Penggunaan: /exort reload"
   unknown_subcommand: "Subperintah tidak dikenal."
   help_header: "Perintah Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Anda bukan pemiliknya. Tautkan lagi."
     out_of_range: "Terminal nirkabel di luar jangkauan."
     missing_storage: "Penyimpanan tertaut tidak ditemukan."
+    storage_chunk_unloaded: "Chunk penyimpanan yang tertaut belum dimuat."
     empty: "Terminal nirkabel kehabisan daya."
     bound: "Terminal nirkabel ditautkan."
     self_store: "Tidak dapat menyimpan terminal nirkabel di dalam dirinya sendiri."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Pegang Terminal Nirkabel di tangan utama atau tangan sekunder."
     transmitter_slot_occupied: "Slot terminal Pemancar Nirkabel sudah terisi."
     transmitter_terminal_only: "Hanya Terminal Nirkabel yang dapat ditempatkan di slot ini."
+    transmitter_booster_slot_occupied: "Slot penguat Pemancar Nirkabel telah terisi."
+    transmitter_booster_only: "Hanya Penguat Sinyal Nirkabel yang dapat ditempatkan di slot ini."
 debug:
   mode:
     read: "hanya baca"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Impor"
   export_bus: "Bus Ekspor"
   wireless_terminal: "Terminal Nirkabel"
+  wireless_booster: "Penguat Sinyal Nirkabel"
   transmitter: "Pemancar Nirkabel"
 tier:
   common: "Biasa"
@@ -263,6 +268,10 @@ lore:
     owner: "Pemilik: {0}"
     not_linked: "Belum ditautkan"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Tingkat: {0}"
+    range_bonus: "Bonus jangkauan: {0}%"
+    global: "Berfungsi di seluruh dunia saat ini"
 gui:
   give:
     title: "Item Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Jaringan: online"
       storage: "Penyimpanan: {0}"
       range: "Jangkauan: {0} blok"
+      global: "Global di dunia saat ini"
       covered: "Pemain berada dalam jangkauan"
       not_covered: "Pemain berada di luar jangkauan pemancar ini"
       missing: "Blok pemancar tidak ada"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot terminal: kosong"
       terminal_present: "Slot terminal: terisi"
+      booster_empty: "Slot penguat: kosong"
+      booster_present: "Penguat: {0}"
   bus:
     import_title: "Bus Impor"
     export_title: "Bus Ekspor"

@@ -61,8 +61,9 @@ message:
   usage_give_header: "Sii walxaha Exort:"
   usage_give_storage: "sii shay kayd iyadoo tier ah"
   usage_give_chunk_loader: "sii Raraha Chunk"
+  usage_give_wireless_booster: "sii Xoojiye Calaamad Bilaa Fiilo iyadoo tier ah"
   usage_give_item: "sii shay Exort go'an"
-  usage_give_items: "Walxo: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Walxo: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Adeegsi: /exort reload"
   unknown_subcommand: "Subcommand lama yaqaan."
   help_header: "Amarada Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Adigu ma tihid milkiilaha. Mar kale link garee."
     out_of_range: "Wireless terminal wuu ka baxay range."
     missing_storage: "Kaydkii linked lama helin."
+    storage_chunk_unloaded: "Chunk-ka kaydka ku xiran lama rarin."
     empty: "Wireless terminal charge wuu ka dhammaaday."
     bound: "Wireless terminal waa la link gareeyay."
     self_store: "Lama kaydin karo wireless terminal gudaha naftiisa."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Ku hay terminal bilaa fiilo gacanta weyn ama gacanta kale."
     transmitter_slot_occupied: "Booska terminal-ka gudbiyaha bilaa fiilo waa mashquul."
     transmitter_terminal_only: "Booskan waxaa la gelin karaa terminal bilaa fiilo oo keliya."
+    transmitter_booster_slot_occupied: "Booska xoojiyaha gudbiyaha bilaa fiilo waa mashquul."
+    transmitter_booster_only: "Booskan waxaa la gelin karaa Xoojiye Calaamad Bilaa Fiilo oo keliya."
 debug:
   mode:
     read: "akhris-keliya"
@@ -236,6 +240,7 @@ item:
   import_bus: "Baska Soo-gelinta"
   export_bus: "Baska Dhoofinta"
   wireless_terminal: "Terminal Wireless"
+  wireless_booster: "Xoojiye Calaamad Bilaa Fiilo"
   transmitter: "Gudbiye Bilaa Fiilo"
 tier:
   common: "Caadi"
@@ -263,6 +268,10 @@ lore:
     owner: "Milkiile: {0}"
     not_linked: "Kuma xirna"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Heer: {0}"
+    range_bonus: "Kordhinta masaafada: {0}%"
+    global: "Wuxuu ka shaqeeyaa dunida hadda oo dhan"
 gui:
   give:
     title: "Walxaha Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Shabakad: ku xiran"
       storage: "Kayd: {0}"
       range: "Gaarsiis: {0} baloog"
+      global: "Caalami ah dunida hadda"
       covered: "Ciyaaryahanku wuxuu ku jiraa daboolka"
       not_covered: "Ciyaaryahanku wuxuu ka baxsan yahay gaarsiiska gudbiyahan"
       missing: "Baloogga gudbiyaha waa maqan yahay"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Booska terminal-ka: madhan"
       terminal_present: "Booska terminal-ka: mashquul"
+      booster_empty: "Booska xoojiyaha: madhan"
+      booster_present: "Xoojiye: {0}"
   bus:
     import_title: "Baska Soo-gelinta"
     export_title: "Baska Dhoofinta"

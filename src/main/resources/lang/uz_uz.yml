@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort itemlarini berish:"
   usage_give_storage: "tier bo'yicha ombor itemini berish"
   usage_give_chunk_loader: "Chunk yuklagich berish"
+  usage_give_wireless_booster: "daraja bo‘yicha simsiz signal kuchaytirgichini berish"
   usage_give_item: "belgilangan Exort itemini berish"
-  usage_give_items: "Itemlar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Itemlar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Foydalanish: /exort reload"
   unknown_subcommand: "Noma'lum quyi buyruq."
   help_header: "Exort Storage Network buyruqlari:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Siz egasi emassiz. Qayta bog'lang."
     out_of_range: "Simsiz terminal masofadan tashqarida."
     missing_storage: "Bog'langan ombor topilmadi."
+    storage_chunk_unloaded: "Bog‘langan omborning chunki yuklanmagan."
     empty: "Simsiz terminal zaryadsiz."
     bound: "Simsiz terminal bog'landi."
     self_store: "Simsiz terminalni o'z ichiga saqlab bo'lmaydi."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Asosiy yoki ikkinchi qo‘lda simsiz terminal tuting."
     transmitter_slot_occupied: "Simsiz uzatgich terminal uyasi band."
     transmitter_terminal_only: "Bu uyaga faqat simsiz terminal qo‘yish mumkin."
+    transmitter_booster_slot_occupied: "Simsiz uzatgichning kuchaytirgich uyasi band."
+    transmitter_booster_only: "Bu uyaga faqat simsiz signal kuchaytirgichini joylashtirish mumkin."
 debug:
   mode:
     read: "faqat o'qish"
@@ -236,6 +240,7 @@ item:
   import_bus: "Import shinasi"
   export_bus: "Eksport shinasi"
   wireless_terminal: "Simsiz terminal"
+  wireless_booster: "Simsiz signal kuchaytirgichi"
   transmitter: "Simsiz uzatgich"
 tier:
   common: "Oddiy"
@@ -263,6 +268,10 @@ lore:
     owner: "Egasi: {0}"
     not_linked: "Bog'lanmagan"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Daraja: {0}"
+    range_bonus: "Masofa bonusi: {0}%"
+    global: "Joriy dunyoning hamma joyida ishlaydi"
 gui:
   give:
     title: "Exort buyumlari"
@@ -324,6 +333,7 @@ gui:
       active: "Tarmoq: ulangan"
       storage: "Ombor: {0}"
       range: "Qamrov: {0} blok"
+      global: "Joriy dunyoning hamma joyida"
       covered: "O‘yinchi qamrov ichida"
       not_covered: "O‘yinchi bu uzatgich qamrovidan tashqarida"
       missing: "Uzatgich bloki yo‘q"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal uyasi: bo‘sh"
       terminal_present: "Terminal uyasi: band"
+      booster_empty: "Kuchaytirgich uyasi: bo‘sh"
+      booster_present: "Kuchaytirgich: {0}"
   bus:
     import_title: "Import shinasi"
     export_title: "Eksport shinasi"

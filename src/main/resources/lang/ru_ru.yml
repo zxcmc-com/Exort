@@ -61,8 +61,9 @@ message:
   usage_give_header: "Выдача предметов Exort:"
   usage_give_storage: "выдать хранилище по тиру"
   usage_give_chunk_loader: "выдать загрузчик чанков"
+  usage_give_wireless_booster: "выдать усилитель беспроводного сигнала по тиру"
   usage_give_item: "выдать фиксированный предмет Exort"
-  usage_give_items: "Предметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Предметы: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Использование: /exort reload"
   unknown_subcommand: "Неизвестная подкоманда."
   help_header: "Команды Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Вы не владелец этого терминала. Привяжите заново."
     out_of_range: "Беспроводной терминал вне радиуса действия."
     missing_storage: "Связанное хранилище не найдено."
+    storage_chunk_unloaded: "Чанк привязанного хранилища не загружен."
     empty: "Беспроводной терминал разряжен."
     bound: "Беспроводной терминал привязан."
     self_store: "Нельзя положить беспроводной терминал сам в себя."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Возьмите беспроводной терминал в основную или вторую руку."
     transmitter_slot_occupied: "Слот терминала передатчика уже занят."
     transmitter_terminal_only: "В этот слот можно положить только беспроводной терминал."
+    transmitter_booster_slot_occupied: "Слот усилителя беспроводного передатчика уже занят."
+    transmitter_booster_only: "В этот слот можно положить только усилитель беспроводного сигнала."
 debug:
   mode:
     read: "только чтение"
@@ -236,6 +240,7 @@ item:
   import_bus: "Шина импорта"
   export_bus: "Шина экспорта"
   wireless_terminal: "Беспроводной терминал"
+  wireless_booster: "Усилитель беспроводного сигнала"
   transmitter: "Беспроводной передатчик"
 tier:
   common: "Обычный"
@@ -263,6 +268,10 @@ lore:
     owner: "Владелец: {0}"
     not_linked: "Не привязан"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Тир: {0}"
+    range_bonus: "Бонус радиуса: {0}%"
+    global: "Действует во всём текущем мире"
 gui:
   give:
     title: "Предметы Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Сеть: активна"
       storage: "Хранилище: {0}"
       range: "Радиус: {0} блоков"
+      global: "Глобально в текущем мире"
       covered: "Игрок в зоне покрытия"
       not_covered: "Игрок вне радиуса этого передатчика"
       missing: "Блок передатчика не найден"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Слот терминала: пусто"
       terminal_present: "Слот терминала: занят"
+      booster_empty: "Слот усилителя: пусто"
+      booster_present: "Усилитель: {0}"
   bus:
     import_title: "Шина импорта"
     export_title: "Шина экспорта"

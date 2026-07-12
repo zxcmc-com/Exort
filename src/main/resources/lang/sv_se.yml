@@ -61,8 +61,9 @@ message:
   usage_give_header: "Ge Exort-föremål:"
   usage_give_storage: "ge ett lagringsföremål efter nivå"
   usage_give_chunk_loader: "ge en Chunk-loader"
+  usage_give_wireless_booster: "ge en trådlös signalförstärkare efter nivå"
   usage_give_item: "ge ett fast Exort-föremål"
-  usage_give_items: "Föremål: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Föremål: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Användning: /exort reload"
   unknown_subcommand: "Okänt underkommando."
   help_header: "Kommandon för Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du är inte ägaren. Länka den igen."
     out_of_range: "Trådlös terminal är utom räckvidd."
     missing_storage: "Länkad lagring hittades inte."
+    storage_chunk_unloaded: "Chunken för det länkade lagret är inte laddad."
     empty: "Trådlös terminal är urladdad."
     bound: "Trådlös terminal länkad."
     self_store: "Kan inte lagra en trådlös terminal i sig själv."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Håll en trådlös terminal i huvudhanden eller den andra handen."
     transmitter_slot_occupied: "Terminalplatsen i den trådlösa sändaren är upptagen."
     transmitter_terminal_only: "Endast en trådlös terminal kan placeras på den här platsen."
+    transmitter_booster_slot_occupied: "Förstärkarplatsen i den Trådlösa Sändaren är upptagen."
+    transmitter_booster_only: "Endast en Trådlös Signalförstärkare kan placeras här."
 debug:
   mode:
     read: "skrivskyddat"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importbuss"
   export_bus: "Exportbuss"
   wireless_terminal: "Trådlös terminal"
+  wireless_booster: "Trådlös Signalförstärkare"
   transmitter: "Trådlös sändare"
 tier:
   common: "Vanlig"
@@ -263,6 +268,10 @@ lore:
     owner: "Ägare: {0}"
     not_linked: "Inte länkad"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivå: {0}"
+    range_bonus: "Räckviddsbonus: {0}%"
+    global: "Fungerar i hela den nuvarande världen"
 gui:
   give:
     title: "Exort-föremål"
@@ -324,6 +333,7 @@ gui:
       active: "Nätverk: online"
       storage: "Lagring: {0}"
       range: "Räckvidd: {0} block"
+      global: "Global i den nuvarande världen"
       covered: "Spelaren är inom räckvidd"
       not_covered: "Spelaren är utanför räckvidden för den här sändaren"
       missing: "Sändarblocket saknas"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplats: tom"
       terminal_present: "Terminalplats: upptagen"
+      booster_empty: "Förstärkarplats: tom"
+      booster_present: "Förstärkare: {0}"
   bus:
     import_title: "Importbuss"
     export_title: "Exportbuss"

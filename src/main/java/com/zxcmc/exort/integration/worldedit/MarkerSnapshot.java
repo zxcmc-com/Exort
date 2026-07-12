@@ -54,9 +54,9 @@ record MarkerSnapshot(
     this(storage, terminal, bus, monitor, relay, false, null, null, wire, storageCore);
   }
 
-  MarkerSnapshot withoutTransmitterTerminal() {
+  MarkerSnapshot withoutTransmitterStoredItems() {
     TransmitterData sanitized =
-        transmitterData == null ? null : transmitterData.withoutTerminalBlob();
+        transmitterData == null ? null : transmitterData.withoutStoredItems();
     return new MarkerSnapshot(
         storage,
         terminal,

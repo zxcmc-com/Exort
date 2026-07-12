@@ -61,8 +61,9 @@ message:
   usage_give_header: "Fun awọn nnkan Exort:"
   usage_give_storage: "fun nnkan ipamọ nipa tier"
   usage_give_chunk_loader: "fun Ẹrọ Ikójọpọ̀ Chunk"
+  usage_give_wireless_booster: "fun ohun amúná ìfihàn alailowaya nípa tier"
   usage_give_item: "fun nnkan Exort to wa titi"
-  usage_give_items: "Awọn nnkan: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Awọn nnkan: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Lilo: /exort reload"
   unknown_subcommand: "Subcommand aimọ."
   help_header: "Awọn aṣẹ Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Iwọ kii ṣe oluwa. Link rẹ lẹẹkansi."
     out_of_range: "Terminal alailowaya wa ni ita range."
     missing_storage: "A ko ri ipamọ linked."
+    storage_chunk_unloaded: "A kò tíì gbé chunk ibi ìpamọ́ tí a so pọ̀ wọlé."
     empty: "Terminal alailowaya ko ni charge."
     bound: "Terminal alailowaya ti link."
     self_store: "Ko le fi terminal alailowaya pamọ sinu ara rẹ."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Di tẹminaali alailowaya mú ní ọwọ́ àkọ́kọ́ tàbí ọwọ́ kejì."
     transmitter_slot_occupied: "Ààyè tẹminaali atagba alailowaya ti kún."
     transmitter_terminal_only: "Tẹminaali alailowaya nìkan ni a lè fi sí ààyè yìí."
+    transmitter_booster_slot_occupied: "Ààyè amúná atagba alailowaya ti kún."
+    transmitter_booster_only: "Ohun amúná ìfihàn alailowaya nìkan ni a lè fi sí ààyè yìí."
 debug:
   mode:
     read: "ka-nikan"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Gbigbe-wọle"
   export_bus: "Bus Gbigbe-jade"
   wireless_terminal: "Tẹminaali Alailowaya"
+  wireless_booster: "Ohun Amúná Ìfihàn Alailowaya"
   transmitter: "Atagba Alailowaya"
 tier:
   common: "Wọpọ"
@@ -263,6 +268,10 @@ lore:
     owner: "Oluwa: {0}"
     not_linked: "Ko link"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Ìpele: {0}"
+    range_bonus: "Àfikún ìjìnnà: {0}%"
+    global: "Ó ń ṣiṣẹ́ káàkiri ayé tó wà yìí"
 gui:
   give:
     title: "Awọn nnkan Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Nẹ́tíwọ́ọ̀kì: ti sopọ̀"
       storage: "Ipamọ́: {0}"
       range: "Ìbùdó: {0} búlọ́ọ̀kù"
+      global: "Kárí ayé tó wà yìí"
       covered: "Ẹlẹ́rọ̀ wà lábẹ́ ààbò"
       not_covered: "Ẹlẹ́rọ̀ wà lóde ìbùdó atagba yìí"
       missing: "Búlọ́ọ̀kù atagba ti sọnù"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Ààyè tẹminaali: òfo"
       terminal_present: "Ààyè tẹminaali: kún"
+      booster_empty: "Ààyè amúná: ṣófo"
+      booster_present: "Amúná: {0}"
   bus:
     import_title: "Bus Gbigbe-wọle"
     export_title: "Bus Gbigbe-jade"

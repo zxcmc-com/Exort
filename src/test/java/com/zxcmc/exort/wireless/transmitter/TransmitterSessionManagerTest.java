@@ -91,6 +91,7 @@ class TransmitterSessionManagerTest {
             itemModels.wirelessItemModel(),
             itemModels.wirelessDisabledModel(),
             "minecraft:target",
+            itemModels.wirelessBoosterItemModels(),
             true);
     WirelessTerminalService wirelessService =
         new WirelessTerminalService(lang, keys, customItems, true, 48);
@@ -98,8 +99,7 @@ class TransmitterSessionManagerTest {
         new WirelessTransmitterService(
             plugin,
             keys,
-            true,
-            48,
+            new com.zxcmc.exort.wireless.WirelessRuntimeConfig(true, 48, java.util.Map.of()),
             256,
             4096,
             3,
@@ -114,6 +114,7 @@ class TransmitterSessionManagerTest {
             plugin,
             transmitterService,
             wirelessService,
+            customItems,
             lang,
             new PlayerFeedback(lang),
             RegionProtection.allowAll(),

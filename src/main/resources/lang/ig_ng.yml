@@ -61,8 +61,9 @@ message:
   usage_give_header: "Nye ihe Exort:"
   usage_give_storage: "nye ihe nchekwa site na tier"
   usage_give_chunk_loader: "nye Ihe Ibu Chunk"
+  usage_give_wireless_booster: "nye Ihe Nkwalite Mgbaama Enweghị Waya site na tier"
   usage_give_item: "nye ihe Exort a kapịrị ọnụ"
-  usage_give_items: "Ihe: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Ihe: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Ojiji: /exort reload"
   unknown_subcommand: "Subcommand amaghị ama."
   help_header: "Iwu Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Ị bụghị onye nwe ya. Link ya ọzọ."
     out_of_range: "Terminal enweghị waya dị n'èzí range."
     missing_storage: "Ahụghị nchekwa e linkịrị."
+    storage_chunk_unloaded: "Ebugobeghị chunk nke nchekwa ejikọrọ."
     empty: "Terminal enweghị waya enweghị charge."
     bound: "E linkịrị terminal enweghị waya."
     self_store: "Enweghị ike itinye terminal enweghị waya n'ime onwe ya."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Jide terminal enweghị waya n'aka isi ma ọ bụ n'aka nke ọzọ."
     transmitter_slot_occupied: "Oghere terminal ihe nzipụ enweghị waya ejupụtala."
     transmitter_terminal_only: "Naanị terminal enweghị waya ka a ga-etinye n'oghere a."
+    transmitter_booster_slot_occupied: "Oghere ihe nkwalite nke ihe nzipụ enweghị waya ejupụtala."
+    transmitter_booster_only: "Naanị Ihe Nkwalite Mgbaama Enweghị Waya ka a ga-etinye n’oghere a."
 debug:
   mode:
     read: "gụ-naanị"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus Mbubata"
   export_bus: "Bus Mbupụ"
   wireless_terminal: "Terminal Enweghị Waya"
+  wireless_booster: "Ihe Nkwalite Mgbaama Enweghị Waya"
   transmitter: "Ihe Nzipụ Enweghị Waya"
 tier:
   common: "Nkịtị"
@@ -263,6 +268,10 @@ lore:
     owner: "Onye nwe: {0}"
     not_linked: "Ejikọghị"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Ọkwa: {0}"
+    range_bonus: "Mgbakwunye oke: {0}%"
+    global: "Ọ na-arụ ọrụ n’ụwa a dum"
 gui:
   give:
     title: "Ihe Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Netwọkụ: jikọtara"
       storage: "Nchekwa: {0}"
       range: "Ogologo: {0} blọk"
+      global: "Gbasara ụwa a dum"
       covered: "Onye egwuregwu nọ n'okpuru mkpuchi"
       not_covered: "Onye egwuregwu nọ n'èzí ogologo ihe nzipụ a"
       missing: "Blọk ihe nzipụ adịghị"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Oghere terminal: efu"
       terminal_present: "Oghere terminal: jupụtara"
+      booster_empty: "Oghere ihe nkwalite: ghe oghe"
+      booster_present: "Ihe nkwalite: {0}"
   bus:
     import_title: "Bus Mbubata"
     export_title: "Bus Mbupụ"

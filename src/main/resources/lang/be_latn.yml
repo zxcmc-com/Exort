@@ -61,8 +61,9 @@ message:
   usage_give_header: "Vydača pradmetaŭ Exort:"
   usage_give_storage: "vydać pradmiet schovišča pa tyr"
   usage_give_chunk_loader: "vydać zahružčyk čankaŭ"
+  usage_give_wireless_booster: "vydać uzmacnialnik biaspravadnoha sihnału pavodle ŭzroŭniu"
   usage_give_item: "vydać fiksavany pradmiet Exort"
-  usage_give_items: "Pradmiety: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Pradmiety: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Vykarystannie: /exort reload"
   unknown_subcommand: "Nieviadomaja padkamanda."
   help_header: "Kamandy Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Vy nie ŭladaĺnik. Pryvjažycie jaho znoŭ."
     out_of_range: "Biespravadny terminal pa-za radyjusam dziejannia."
     missing_storage: "Pryviazanaje schovišča nie znojdziena."
+    storage_chunk_unloaded: "Čank pryviazanaha schovišča nie zahružany."
     empty: "Biespravadny terminal razradžany."
     bound: "Biespravadny terminal pryvjazany."
     self_store: "Nieĺha paklasci biespravadny terminal u samoha siabie."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Trymajcie biespravadny terminal u asnoŭnaj albo druhoj rucy."
     transmitter_slot_occupied: "Slot terminala biespravadnoha pieradatčyka zaniaty."
     transmitter_terminal_only: "U hety slot možna źmiascić toĺki biespravadny terminal."
+    transmitter_booster_slot_occupied: "Slot uzmacnialnika biaspravadnoha pieradatčyka zaniaty."
+    transmitter_booster_only: "U hety slot možna źmiaścić tolki uzmacnialnik biaspravadnoha sihnału."
 debug:
   mode:
     read: "toĺki čytannie"
@@ -236,6 +240,7 @@ item:
   import_bus: "Šyna importu"
   export_bus: "Šyna eksportu"
   wireless_terminal: "Biespravadny terminal"
+  wireless_booster: "Uzmacnialnik biaspravadnoha sihnału"
   transmitter: "Biespravadny pieradatčyk"
 tier:
   common: "Zvyčajny"
@@ -263,6 +268,10 @@ lore:
     owner: "Uladaĺnik: {0}"
     not_linked: "Nie pryvjazany"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Tyr: {0}"
+    range_bonus: "Bonus radyusu: {0}%"
+    global: "Dziejničaje va ŭsim biahučym śviecie"
 gui:
   give:
     title: "Pradmiety Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Sietka: u sietcy"
       storage: "Schovišča: {0}"
       range: "Radyjus: {0} blokaŭ"
+      global: "Hlabalna ŭ biahučym śviecie"
       covered: "Huliec u zonie pakryccia"
       not_covered: "Huliec pa-za radyjusam hetaha pieradatčyka"
       missing: "Blok pieradatčyka adsutničaje"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot terminala: pusty"
       terminal_present: "Slot terminala: zaniaty"
+      booster_empty: "Slot uzmacnialnika: pusty"
+      booster_present: "Uzmacnialnik: {0}"
   bus:
     import_title: "Šyna importu"
     export_title: "Šyna eksportu"

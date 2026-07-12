@@ -34,12 +34,21 @@ class BundledLanguageFilesTest {
           "message.wireless.no_terminal_in_hand",
           "message.wireless.transmitter_slot_occupied",
           "message.wireless.transmitter_terminal_only",
+          "message.wireless.transmitter_booster_slot_occupied",
+          "message.wireless.transmitter_booster_only",
+          "message.wireless.storage_chunk_unloaded",
+          "message.usage_give_wireless_booster",
           "item.transmitter",
+          "item.wireless_booster",
+          "lore.wireless_booster.tier",
+          "lore.wireless_booster.range_bonus",
+          "lore.wireless_booster.global",
           "gui.transmitter.title",
           "gui.transmitter.status.item",
           "gui.transmitter.status.active",
           "gui.transmitter.status.storage",
           "gui.transmitter.status.range",
+          "gui.transmitter.status.global",
           "gui.transmitter.status.covered",
           "gui.transmitter.status.not_covered",
           "gui.transmitter.status.missing",
@@ -56,7 +65,9 @@ class BundledLanguageFilesTest {
           "gui.transmitter.mode.bind_lore",
           "gui.transmitter.mode.disabled_lore",
           "gui.transmitter.slot.terminal_empty",
-          "gui.transmitter.slot.terminal_present");
+          "gui.transmitter.slot.terminal_present",
+          "gui.transmitter.slot.booster_empty",
+          "gui.transmitter.slot.booster_present");
   private static final Set<String> CRITICAL_PLAYER_FACING_KEYS =
       Set.of(
           "item.storage",
@@ -71,7 +82,11 @@ class BundledLanguageFilesTest {
           "item.import_bus",
           "item.export_bus",
           "item.wireless_terminal",
+          "item.wireless_booster",
           "lore.storage.tier",
+          "lore.wireless_booster.tier",
+          "lore.wireless_booster.range_bonus",
+          "lore.wireless_booster.global",
           "tier.common",
           "tier.rare",
           "tier.mythical",
@@ -190,6 +205,7 @@ class BundledLanguageFilesTest {
       assertTrue(
           !value.contains("chunk_loader <immortal|personal|dormant>"),
           locale + " still uses old chunk loader variant syntax");
+      assertTrue(value.contains("wireless_booster"), locale + " missing wireless booster id");
     }
   }
 

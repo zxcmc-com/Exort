@@ -62,6 +62,7 @@ import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.transmitter.TransmitterMode;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterStoredBooster;
 import com.zxcmc.exort.wireless.transmitter.TransmitterStoredTerminal;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -139,6 +140,7 @@ public final class WorldEditBridge implements Listener {
   private static final String FIELD_ITEM_KEY = "item_key";
   private static final String FIELD_ITEM_BLOB = "item_blob";
   private static final String FIELD_TERMINAL_BLOB = "terminal_blob";
+  private static final String FIELD_BOOSTER_BLOB = "booster_blob";
   private static final String FIELD_PRESENT = "present";
   private static final String FIELD_LINK_WORLD = "link_world";
   private static final String FIELD_LINK_X = "link_x";
@@ -1357,21 +1359,28 @@ public final class WorldEditBridge implements Listener {
     if (candidate == null) {
       return current;
     }
-    if (current.transmitter()
-        && candidate.transmitter()
-        && hasTransmitterTerminal(candidate)
-        && !hasTransmitterTerminal(current)) {
-      return candidate;
+    if (current.transmitter() && candidate.transmitter()) {
+      TransmitterData currentData = current.transmitterData();
+      TransmitterData candidateData = candidate.transmitterData();
+      if (currentData == null) {
+        return candidateData == null ? current : candidate;
+      }
+      TransmitterData merged = currentData.mergeMissingFrom(candidateData);
+      if (!merged.equals(currentData)) {
+        return new MarkerSnapshot(
+            current.storage(),
+            current.terminal(),
+            current.bus(),
+            current.monitor(),
+            current.relay(),
+            true,
+            merged,
+            current.chunkLoader(),
+            current.wire(),
+            current.storageCore());
+      }
     }
     return current;
-  }
-
-  private static boolean hasTransmitterTerminal(MarkerSnapshot snapshot) {
-    if (snapshot == null || snapshot.transmitterData() == null) {
-      return false;
-    }
-    byte[] terminalBlob = snapshot.transmitterData().terminalBlob();
-    return terminalBlob != null && terminalBlob.length > 0;
   }
 
   private void enqueue(MarkerUpdate update) {
@@ -1783,6 +1792,7 @@ public final class WorldEditBridge implements Listener {
             block,
             TransmitterMode.fromString(transmitterData.mode()),
             transmitterData.terminalBlob());
+        TransmitterStoredBooster.restore(plugin, block, transmitterData.boosterBlob());
       }
       deps.wirelessTransmitterService().register(block);
     }
@@ -2344,12 +2354,17 @@ public final class WorldEditBridge implements Listener {
         buildExortTag(world.getBlockAt(position.x(), position.y(), position.z()), true));
   }
 
-  private TransmitterData captureTransmitterData(Block block, boolean includeTerminalBlob) {
+  private TransmitterData captureTransmitterData(Block block, boolean includeStoredItems) {
     byte[] terminalBlob =
-        includeTerminalBlob
+        includeStoredItems
             ? TransmitterStoredTerminal.terminalBlob(plugin, block).orElse(null)
             : null;
-    return new TransmitterData(TransmitterStoredTerminal.mode(plugin, block).id(), terminalBlob);
+    byte[] boosterBlob =
+        includeStoredItems
+            ? TransmitterStoredBooster.boosterBlob(plugin, block).orElse(null)
+            : null;
+    return new TransmitterData(
+        TransmitterStoredTerminal.mode(plugin, block).id(), terminalBlob, boosterBlob);
   }
 
   private static void writeTransmitterData(
@@ -2363,6 +2378,10 @@ public final class WorldEditBridge implements Listener {
     byte[] terminalBlob = data.terminalBlob();
     if (terminalBlob != null && terminalBlob.length > 0) {
       transmitterTag.putByteArray(FIELD_TERMINAL_BLOB, terminalBlob);
+    }
+    byte[] boosterBlob = data.boosterBlob();
+    if (boosterBlob != null && boosterBlob.length > 0) {
+      transmitterTag.putByteArray(FIELD_BOOSTER_BLOB, boosterBlob);
     }
   }
 
@@ -2660,7 +2679,8 @@ public final class WorldEditBridge implements Listener {
         transmitterData =
             new TransmitterData(
                 readString(transmitterTag, FIELD_MODE),
-                readByteArray(transmitterTag, FIELD_TERMINAL_BLOB));
+                readByteArray(transmitterTag, FIELD_TERMINAL_BLOB),
+                readByteArray(transmitterTag, FIELD_BOOSTER_BLOB));
       }
     }
 
@@ -2897,7 +2917,7 @@ public final class WorldEditBridge implements Listener {
       LinCompoundTag exort = readExort(root);
       MarkerSnapshot parsed = parseSnapshot(exort);
       if (parsed != null && historyAction == null) {
-        MarkerSnapshot sanitized = parsed.withoutTransmitterTerminal();
+        MarkerSnapshot sanitized = parsed.withoutTransmitterStoredItems();
         if (sanitized != parsed) {
           parsed = sanitized;
           exort = buildExortTag(parsed);

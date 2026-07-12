@@ -37,6 +37,7 @@ class ExortGiveMenuTest {
     assertFalse(ids.contains("dormant_chunk_loader"));
     assertFalse(ids.contains("transmitter"));
     assertFalse(ids.contains("wireless_terminal"));
+    assertFalse(ids.stream().anyMatch(id -> id.startsWith("wireless_booster:")));
     assertTrue(ids.contains("wire"));
     assertTrue(ids.contains("terminal"));
   }

@@ -61,8 +61,8 @@ class WirelessTransmitterServiceTest {
     return new WirelessTransmitterService(
         plugin,
         new StorageKeys(plugin),
-        enabled,
-        rangeBlocks,
+        new com.zxcmc.exort.wireless.WirelessRuntimeConfig(
+            enabled, rangeBlocks, java.util.Map.of()),
         256,
         4096,
         3,

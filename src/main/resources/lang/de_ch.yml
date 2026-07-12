@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort-Gegenstaende geben:"
   usage_give_storage: "einen Speichergegenstand nach Tier geben"
   usage_give_chunk_loader: "einen Chunk-Loader geben"
+  usage_give_wireless_booster: "einen Funksignalverstärker nach Stufe geben"
   usage_give_item: "einen festen Exort-Gegenstand geben"
-  usage_give_items: "Gegenstaende: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Gegenstaende: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Verwendung: /exort reload"
   unknown_subcommand: "Unbekannter Unterbefehl."
   help_header: "Exort Storage Network-Befehle:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du bist nicht der Besitzer. Verbinde es erneut."
     out_of_range: "Drahtloses Terminal ist ausser Reichweite."
     missing_storage: "Verbundener Speicher nicht gefunden."
+    storage_chunk_unloaded: "Der Chunk des verbundenen Speichers ist nicht geladen."
     empty: "Drahtloses Terminal ist entladen."
     bound: "Drahtloses Terminal verbunden."
     self_store: "Ein drahtloses Terminal kann nicht in sich selbst gespeichert werden."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Halte ein drahtloses Terminal in der Haupt- oder Nebenhand."
     transmitter_slot_occupied: "Der Terminalplatz des Funksenders ist belegt."
     transmitter_terminal_only: "Nur ein drahtloses Terminal kann auf diesem Platz abgelegt werden."
+    transmitter_booster_slot_occupied: "Der Verstärkerplatz des Funksenders ist belegt."
+    transmitter_booster_only: "In diesen Platz kann nur ein Funksignalverstärker gelegt werden."
 debug:
   mode:
     read: "nur Lesen"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importbus"
   export_bus: "Exportbus"
   wireless_terminal: "Drahtloses Terminal"
+  wireless_booster: "Funksignalverstärker"
   transmitter: "Funksender"
 tier:
   common: "Gewoehnlich"
@@ -263,6 +268,10 @@ lore:
     owner: "Besitzer: {0}"
     not_linked: "Nicht verbunden"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Stufe: {0}"
+    range_bonus: "Reichweitenbonus: {0}%"
+    global: "Funktioniert in der gesamten aktuellen Welt"
 gui:
   give:
     title: "Exort-Gegenstaende"
@@ -324,6 +333,7 @@ gui:
       active: "Netzwerk: online"
       storage: "Speicher: {0}"
       range: "Reichweite: {0} Bloecke"
+      global: "Global in der aktuellen Welt"
       covered: "Spieler ist in Reichweite"
       not_covered: "Spieler ist ausserhalb der Reichweite dieses Senders"
       missing: "Senderblock fehlt"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplatz: leer"
       terminal_present: "Terminalplatz: belegt"
+      booster_empty: "Verstärkerplatz: leer"
+      booster_present: "Verstärker: {0}"
   bus:
     import_title: "Importbus"
     export_title: "Exportbus"

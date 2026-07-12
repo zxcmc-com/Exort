@@ -61,8 +61,9 @@ message:
   usage_give_header: "Gi Exort-gjenstander:"
   usage_give_storage: "gi et lager etter tier"
   usage_give_chunk_loader: "gi en Chunk-loader"
+  usage_give_wireless_booster: "gi en trådløs signalforsterker etter nivå"
   usage_give_item: "gi en fast Exort-gjenstand"
-  usage_give_items: "Gjenstander: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Gjenstander: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Bruk: /exort reload"
   unknown_subcommand: "Ukjent underkommando."
   help_header: "Exort Storage Network-kommandoer:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Du er ikke eieren. Koble den på nytt."
     out_of_range: "Trådløs terminal er utenfor rekkevidde."
     missing_storage: "Lenket lager ble ikke funnet."
+    storage_chunk_unloaded: "Chunken til det tilkoblede lageret er ikke lastet."
     empty: "Trådløs terminal er tom for strøm."
     bound: "Trådløs terminal lenket."
     self_store: "En trådløs terminal kan ikke lagres i seg selv."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Hold en trådløs terminal i hovedhånden eller den andre hånden."
     transmitter_slot_occupied: "Terminalplassen i den trådløse senderen er opptatt."
     transmitter_terminal_only: "Bare en trådløs terminal kan plasseres på denne plassen."
+    transmitter_booster_slot_occupied: "Forsterkerplassen til den Trådløse Senderen er opptatt."
+    transmitter_booster_only: "Bare en Trådløs Signalforsterker kan plasseres her."
 debug:
   mode:
     read: "skrivebeskyttet"
@@ -236,6 +240,7 @@ item:
   import_bus: "Importbuss"
   export_bus: "Eksportbuss"
   wireless_terminal: "Trådløs terminal"
+  wireless_booster: "Trådløs Signalforsterker"
   transmitter: "Trådløs sender"
 tier:
   common: "Vanlig"
@@ -263,6 +268,10 @@ lore:
     owner: "Eier: {0}"
     not_linked: "Ikke lenket"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivå: {0}"
+    range_bonus: "Rekkeviddebonus: {0}%"
+    global: "Virker i hele den nåværende verdenen"
 gui:
   give:
     title: "Exort-gjenstander"
@@ -324,6 +333,7 @@ gui:
       active: "Nettverk: på"
       storage: "Lager: {0}"
       range: "Rekkevidde: {0} blokker"
+      global: "Global i den nåværende verdenen"
       covered: "Spilleren er innenfor rekkevidde"
       not_covered: "Spilleren er utenfor rekkevidden til denne senderen"
       missing: "Senderblokken mangler"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminalplass: tom"
       terminal_present: "Terminalplass: opptatt"
+      booster_empty: "Forsterkerplass: tom"
+      booster_present: "Forsterker: {0}"
   bus:
     import_title: "Importbuss"
     export_title: "Eksportbuss"

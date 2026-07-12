@@ -61,8 +61,9 @@ message:
   usage_give_header: "Exort əşyalarını ver:"
   usage_give_storage: "tier üzrə saxlama əşyası ver"
   usage_give_chunk_loader: "Çank yükləyici ver"
+  usage_give_wireless_booster: "səviyyəyə görə Simsiz Siqnal Gücləndiricisi ver"
   usage_give_item: "sabit Exort əşyası ver"
-  usage_give_items: "Əşyalar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Əşyalar: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "İstifadə: /exort reload"
   unknown_subcommand: "Naməlum alt əmr."
   help_header: "Exort Storage Network əmrləri:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Siz sahibi deyilsiniz. Yenidən bağlayın."
     out_of_range: "Simsiz terminal məsafədən kənardadır."
     missing_storage: "Bağlı saxlama tapılmadı."
+    storage_chunk_unloaded: "Bağlanmış anbarın çankı yüklənməyib."
     empty: "Simsiz terminalın enerjisi bitib."
     bound: "Simsiz terminal bağlandı."
     self_store: "Simsiz terminalı öz içinə saxlamaq olmaz."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Əsas və ya köməkçi əldə simsiz terminal saxlayın."
     transmitter_slot_occupied: "Simsiz ötürücünün terminal yuvası doludur."
     transmitter_terminal_only: "Bu yuvaya yalnız simsiz terminal qoymaq olar."
+    transmitter_booster_slot_occupied: "Simsiz ötürücünün gücləndirici yuvası doludur."
+    transmitter_booster_only: "Bu yuvaya yalnız Simsiz Siqnal Gücləndiricisi qoymaq olar."
 debug:
   mode:
     read: "yalnız oxuma"
@@ -236,6 +240,7 @@ item:
   import_bus: "İdxal bus-u"
   export_bus: "İxrac bus-u"
   wireless_terminal: "Simsiz terminal"
+  wireless_booster: "Simsiz Siqnal Gücləndiricisi"
   transmitter: "Simsiz ötürücü"
 tier:
   common: "Adi"
@@ -263,6 +268,10 @@ lore:
     owner: "Sahib: {0}"
     not_linked: "Bağlanmayıb"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Səviyyə: {0}"
+    range_bonus: "Məsafə bonusu: {0}%"
+    global: "Cari dünyanın hər yerində işləyir"
 gui:
   give:
     title: "Exort əşyaları"
@@ -324,6 +333,7 @@ gui:
       active: "Şəbəkə: aktiv"
       storage: "Anbar: {0}"
       range: "Əhatə: {0} blok"
+      global: "Cari dünyada qlobal"
       covered: "Oyunçu əhatə daxilindədir"
       not_covered: "Oyunçu bu ötürücünün əhatəsindən kənardadır"
       missing: "Ötürücü bloku yoxdur"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Terminal yuvası: boş"
       terminal_present: "Terminal yuvası: dolu"
+      booster_empty: "Gücləndirici yuvası: boş"
+      booster_present: "Gücləndirici: {0}"
   bus:
     import_title: "İdxal bus-u"
     export_title: "İxrac bus-u"

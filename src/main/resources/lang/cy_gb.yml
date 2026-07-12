@@ -61,8 +61,9 @@ message:
   usage_give_header: "Rhoi eitemau Exort:"
   usage_give_storage: "rhoi eitem storfa yn ôl tier"
   usage_give_chunk_loader: "rhoi Llwythwr Chunk yn ôl amrywiad"
+  usage_give_wireless_booster: "rho atgyfner signal diwifr yn ôl haen"
   usage_give_item: "rhoi eitem Exort benodol"
-  usage_give_items: "Eitemau: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Eitemau: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Defnydd: /exort reload"
   unknown_subcommand: "Is-orchymyn anhysbys."
   help_header: "Gorchmynion Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Nid chi yw'r perchennog. Cysylltwch eto."
     out_of_range: "Mae'r derfynell ddiwifr allan o gyrraedd."
     missing_storage: "Ni chanfuwyd y storfa gysylltiedig."
+    storage_chunk_unloaded: "Nid yw chunk y storfa gysylltiedig wedi'i lwytho."
     empty: "Mae'r derfynell ddiwifr heb wefr."
     bound: "Cysylltwyd y derfynell ddiwifr."
     self_store: "Ni ellir storio terfynell ddiwifr ynddi hi ei hun."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Daliwch derfynell ddiwifr yn y brif law neu'r llaw arall."
     transmitter_slot_occupied: "Mae slot terfynell y trosglwyddydd diwifr wedi'i feddiannu."
     transmitter_terminal_only: "Dim ond terfynell ddiwifr y gellir ei rhoi yn y slot hwn."
+    transmitter_booster_slot_occupied: "Mae slot atgyfnerthu'r Trosglwyddydd Diwifr yn llawn."
+    transmitter_booster_only: "Dim ond Atgyfnerthydd Signal Diwifr y gellir ei roi yn y slot hwn."
 debug:
   mode:
     read: "darllen yn unig"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bws Mewnforio"
   export_bus: "Bws Allforio"
   wireless_terminal: "Terfynell Ddiwifr"
+  wireless_booster: "Atgyfnerthydd Signal Diwifr"
   transmitter: "Trosglwyddydd Diwifr"
 tier:
   common: "Cyffredin"
@@ -263,6 +268,10 @@ lore:
     owner: "Perchennog: {0}"
     not_linked: "Heb ei gysylltu"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Haen: {0}"
+    range_bonus: "Bonws cyrhaeddiad: {0}%"
+    global: "Yn gweithio ledled y byd presennol"
 gui:
   give:
     title: "Eitemau Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rhwydwaith: ar-lein"
       storage: "Storfa: {0}"
       range: "Cyrhaeddiad: {0} bloc"
+      global: "Byd-eang yn y byd presennol"
       covered: "Mae'r chwaraewr o fewn y ddarpariaeth"
       not_covered: "Mae'r chwaraewr y tu allan i gyrhaeddiad y trosglwyddydd hwn"
       missing: "Mae bloc y trosglwyddydd ar goll"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot terfynell: gwag"
       terminal_present: "Slot terfynell: wedi'i feddiannu"
+      booster_empty: "Slot atgyfnerthu: gwag"
+      booster_present: "Atgyfnerthydd: {0}"
   bus:
     import_title: "Bws Mewnforio"
     export_title: "Bws Allforio"

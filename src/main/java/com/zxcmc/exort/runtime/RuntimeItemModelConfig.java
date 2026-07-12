@@ -1,7 +1,10 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 import org.bukkit.Material;
 
 public record RuntimeItemModelConfig(
@@ -27,8 +30,22 @@ public record RuntimeItemModelConfig(
     String personalChunkLoaderItemModel,
     String dormantChunkLoaderItemModel,
     String wirelessItemModel,
-    String wirelessDisabledModel) {
+    String wirelessDisabledModel,
+    Map<WirelessBoosterTier, String> wirelessBoosterItemModels) {
   private static final String VANILLA_NAMESPACE = "minecraft";
+
+  public RuntimeItemModelConfig {
+    wirelessBoosterItemModels =
+        wirelessBoosterItemModels == null ? Map.of() : Map.copyOf(wirelessBoosterItemModels);
+  }
+
+  public String wirelessBoosterItemModel(WirelessBoosterTier tier) {
+    if (tier == null) {
+      return normalizeModelId("amethyst_shard", VANILLA_NAMESPACE);
+    }
+    return wirelessBoosterItemModels.getOrDefault(
+        tier, normalizeModelId("amethyst_shard", VANILLA_NAMESPACE));
+  }
 
   public static RuntimeItemModelConfig forMode(boolean resourceMode) {
     return forMode(resourceMode, false);
@@ -76,7 +93,8 @@ public record RuntimeItemModelConfig(
         normalizeModelId("chunkloader/mythical", resourceNamespace),
         normalizeModelId("chunkloader/legendary", resourceNamespace),
         normalizeModelId("terminal/wireless", resourceNamespace),
-        normalizeModelId("terminal/wireless_disabled", resourceNamespace));
+        normalizeModelId("terminal/wireless_disabled", resourceNamespace),
+        boosterModels(resourceNamespace, true));
   }
 
   private static RuntimeItemModelConfig vanillaConfig() {
@@ -103,6 +121,18 @@ public record RuntimeItemModelConfig(
         normalizeModelId("respawn_anchor", VANILLA_NAMESPACE),
         normalizeModelId("respawn_anchor", VANILLA_NAMESPACE),
         normalizeModelId("target", VANILLA_NAMESPACE),
-        normalizeModelId("target", VANILLA_NAMESPACE));
+        normalizeModelId("target", VANILLA_NAMESPACE),
+        boosterModels(VANILLA_NAMESPACE, false));
+  }
+
+  private static Map<WirelessBoosterTier, String> boosterModels(
+      String namespace, boolean resourceMode) {
+    EnumMap<WirelessBoosterTier, String> result = new EnumMap<>(WirelessBoosterTier.class);
+    for (WirelessBoosterTier tier : WirelessBoosterTier.values()) {
+      result.put(
+          tier,
+          normalizeModelId(resourceMode ? tier.resourceModelId() : "amethyst_shard", namespace));
+    }
+    return Map.copyOf(result);
   }
 }

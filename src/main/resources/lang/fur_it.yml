@@ -61,8 +61,9 @@ message:
   usage_give_header: "Dai oggetti Exort:"
   usage_give_storage: "consegna un oggetto di stoccaggio in base al tier"
   usage_give_chunk_loader: "dâ un cjariadôr di chunks"
+  usage_give_wireless_booster: "da un amplificadôr di segnâl cence fîl par nivel"
   usage_give_item: "consegna un oggetto Exort specifico"
-  usage_give_items: "Ogjets: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, transmitter"
+  usage_give_items: "Ogjets: storage_core, terminal, crafting_terminal, monitor, import_bus, export_bus, wire, relay, chunk_loader, personal_chunk_loader, dormant_chunk_loader, wireless_terminal, wireless_booster, transmitter"
   usage_reload: "Uso: /exort reload"
   unknown_subcommand: "Sottocomando sconosciuto."
   help_header: "Comandi Exort Storage Network:"
@@ -211,6 +212,7 @@ message:
     wrong_owner: "Non sei il proprietario. Collegalo di nuovo."
     out_of_range: "Il terminale wireless è fuori portata."
     missing_storage: "Stoccaggio collegato non trovato."
+    storage_chunk_unloaded: "Il chunk dal dipuesit colegât nol è cjariât."
     empty: "Il terminale wireless è scarico."
     bound: "Terminale wireless collegato."
     self_store: "Non puoi conservare un terminale wireless dentro sé stesso."
@@ -218,6 +220,8 @@ message:
     no_terminal_in_hand: "Ten un terminâl cence fîl te man principâl o te seconde man."
     transmitter_slot_occupied: "Il slot dal terminâl dal trasmetitôr cence fîl al è ocupât."
     transmitter_terminal_only: "In chest slot si pues meti dome un terminâl cence fîl."
+    transmitter_booster_slot_occupied: "Il puest dal amplificadôr dal Trasmetitôr cence Fîl al è ocupât."
+    transmitter_booster_only: "Dome un Amplificadôr di Segnâl cence Fîl al pues jessi metût in chest puest."
 debug:
   mode:
     read: "sola lettura"
@@ -236,6 +240,7 @@ item:
   import_bus: "Bus di importazione"
   export_bus: "Bus di esportazione"
   wireless_terminal: "Terminale wireless"
+  wireless_booster: "Amplificadôr di Segnâl cence Fîl"
   transmitter: "Trasmetitôr cence fîl"
 tier:
   common: "Comun"
@@ -263,6 +268,10 @@ lore:
     owner: "Proprietario: {0}"
     not_linked: "Non collegato"
     storage_tail: "{0}"
+  wireless_booster:
+    tier: "Nivel: {0}"
+    range_bonus: "Bonus di rai: {0}%"
+    global: "Al funzione in dut il mont atuâl"
 gui:
   give:
     title: "Ogjets Exort"
@@ -324,6 +333,7 @@ gui:
       active: "Rêt: in linie"
       storage: "Dipuesit: {0}"
       range: "Rai: {0} blocs"
+      global: "Globâl tal mont atuâl"
       covered: "Il zuiadôr al è cuviert"
       not_covered: "Il zuiadôr al è fûr dal rai di chest trasmetitôr"
       missing: "Il bloc dal trasmetitôr al mancje"
@@ -344,6 +354,8 @@ gui:
     slot:
       terminal_empty: "Slot dal terminâl: vueit"
       terminal_present: "Slot dal terminâl: ocupât"
+      booster_empty: "Puest dal amplificadôr: vueit"
+      booster_present: "Amplificadôr: {0}"
   bus:
     import_title: "Bus di importazione"
     export_title: "Bus di esportazione"
