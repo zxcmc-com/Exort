@@ -34,12 +34,13 @@ import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.items.listener.PickListener;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -51,6 +52,12 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLocaleChangeEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -67,7 +74,10 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   private final String packetEventsVersion;
   private final Consumer<String> pickDebugSink;
   private final List<PacketListenerCommon> packetListeners = new ArrayList<>();
-  private final Map<Feature, FeatureProbe> featureProbes = new EnumMap<>(Feature.class);
+  private final Map<Feature, FeatureProbe> featureProbes = new ConcurrentHashMap<>();
+  private final PacketPlayerLanguageSnapshot playerLanguages = new PacketPlayerLanguageSnapshot();
+  private volatile LocalizationHandlers localizationHandlers = LocalizationHandlers.disabled();
+  private Listener localeListener;
   private boolean localizationRegistered;
   private boolean pickBridgeRegistered;
   private boolean customBreakingRegistered;
@@ -118,6 +128,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
 
   @Override
   public boolean registerLocalization(
+      LanguageResolver languageResolver,
       ItemLocalizer itemLocalizer,
       DisplayLocalizer displayLocalizer,
       boolean resourceMode,
@@ -125,31 +136,40 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     PacketLocalizationLevel level =
         requestedLevel == null ? PacketLocalizationLevel.SIMPLE : requestedLevel;
     if (resourceMode) {
+      localizationHandlers = LocalizationHandlers.disabled();
+      playerLanguages.replace(Map.of());
       setProbe(
           Feature.LOCALIZATION,
           FeatureStatus.DISABLED_BY_CONFIG,
           "RESOURCE mode uses resource-pack translations.");
       return false;
     }
-    if (itemLocalizer == null) {
+    if (languageResolver == null || itemLocalizer == null) {
+      localizationHandlers = LocalizationHandlers.disabled();
+      playerLanguages.replace(Map.of());
       setProbe(Feature.LOCALIZATION, FeatureStatus.UNAVAILABLE, "Missing item localizer.");
       return false;
     }
-    if (localizationRegistered) {
-      return level == PacketLocalizationLevel.FULL && displayLocalizer != null;
-    }
 
     boolean full = level == PacketLocalizationLevel.FULL && displayLocalizer != null;
-    PacketListener listener =
-        new PacketListener() {
-          @Override
-          public void onPacketSend(PacketSendEvent event) {
-            handleLocalizationPacket(event, itemLocalizer, full ? displayLocalizer : null);
-          }
-        };
-    packetListeners.add(
-        api.getEventManager().registerListener(listener, PacketListenerPriority.NORMAL));
-    localizationRegistered = true;
+    String defaultLanguage = resolvedLanguage(languageResolver, null, "en_us");
+    localizationHandlers =
+        new LocalizationHandlers(
+            languageResolver, itemLocalizer, full ? displayLocalizer : null, defaultLanguage);
+    refreshPlayerLanguages(localizationHandlers);
+    ensureLocaleListener();
+    if (!localizationRegistered) {
+      PacketListener listener =
+          new PacketListener() {
+            @Override
+            public void onPacketSend(PacketSendEvent event) {
+              handleLocalizationPacket(event);
+            }
+          };
+      packetListeners.add(
+          api.getEventManager().registerListener(listener, PacketListenerPriority.NORMAL));
+      localizationRegistered = true;
+    }
     setProbe(
         Feature.LOCALIZATION,
         full ? FeatureStatus.ENABLED : FeatureStatus.PARTIAL,
@@ -296,6 +316,12 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
 
   @Override
   public void unregister() {
+    localizationHandlers = LocalizationHandlers.disabled();
+    playerLanguages.replace(Map.of());
+    if (localeListener != null) {
+      HandlerList.unregisterAll(localeListener);
+      localeListener = null;
+    }
     for (PacketListenerCommon listener : List.copyOf(packetListeners)) {
       try {
         api.getEventManager().unregisterListener(listener);
@@ -310,23 +336,25 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     customBreakingPackets = null;
   }
 
-  private void handleLocalizationPacket(
-      PacketSendEvent event, ItemLocalizer itemLocalizer, DisplayLocalizer displayLocalizer) {
+  private void handleLocalizationPacket(PacketSendEvent event) {
     if (event == null || event.isCancelled()) {
       return;
     }
-    Object rawPlayer = event.getPlayer();
-    if (!(rawPlayer instanceof Player player)) {
+    LocalizationHandlers handlers = localizationHandlers;
+    if (!handlers.enabled() || event.getUser() == null) {
       return;
     }
+    UUID playerId = event.getUser().getUUID();
+    String language = playerLanguages.language(playerId, handlers.defaultLanguage());
     PacketTypeCommon type = event.getPacketType();
     try {
       if (type == PacketType.Play.Server.SET_SLOT) {
-        localizeSetSlot(event, player, itemLocalizer);
+        localizeSetSlot(event, language, handlers.itemLocalizer());
       } else if (type == PacketType.Play.Server.WINDOW_ITEMS) {
-        localizeWindowItems(event, player, itemLocalizer);
-      } else if (type == PacketType.Play.Server.ENTITY_METADATA && displayLocalizer != null) {
-        localizeEntityMetadata(event, player, displayLocalizer);
+        localizeWindowItems(event, language, handlers.itemLocalizer());
+      } else if (type == PacketType.Play.Server.ENTITY_METADATA
+          && handlers.displayLocalizer() != null) {
+        localizeEntityMetadata(event, language, handlers.displayLocalizer());
       }
     } catch (LinkageError | RuntimeException e) {
       setProbe(Feature.LOCALIZATION, FeatureStatus.UNAVAILABLE, describeError(e));
@@ -334,10 +362,10 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   }
 
   private static void localizeSetSlot(
-      PacketSendEvent event, Player player, ItemLocalizer itemLocalizer) {
+      PacketSendEvent event, String language, ItemLocalizer itemLocalizer) {
     WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
     ItemStack original = fromPacketItem(packet.getItem());
-    ItemStack localized = PacketItemLocalizer.localizeSlot(player, original, itemLocalizer);
+    ItemStack localized = PacketItemLocalizer.localizeSlot(language, original, itemLocalizer);
     if (localized == original) {
       return;
     }
@@ -346,7 +374,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   }
 
   private static void localizeWindowItems(
-      PacketSendEvent event, Player player, ItemLocalizer itemLocalizer) {
+      PacketSendEvent event, String language, ItemLocalizer itemLocalizer) {
     WrapperPlayServerWindowItems packet = new WrapperPlayServerWindowItems(event);
     List<com.github.retrooper.packetevents.protocol.item.ItemStack> packetItems = packet.getItems();
     if (packetItems == null || packetItems.isEmpty()) {
@@ -359,7 +387,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
 
     boolean changed = false;
     List<ItemStack> localizedItems =
-        PacketItemLocalizer.localizeItems(player, bukkitItems, itemLocalizer);
+        PacketItemLocalizer.localizeItems(language, bukkitItems, itemLocalizer);
     if (localizedItems != bukkitItems) {
       List<com.github.retrooper.packetevents.protocol.item.ItemStack> encoded =
           new ArrayList<>(localizedItems.size());
@@ -375,7 +403,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
     if (carried.isPresent()) {
       ItemStack carriedItem = fromPacketItem(carried.get());
       ItemStack localizedCarried =
-          PacketItemLocalizer.localizeSlot(player, carriedItem, itemLocalizer);
+          PacketItemLocalizer.localizeSlot(language, carriedItem, itemLocalizer);
       if (localizedCarried != carriedItem) {
         packet.setCarriedItem(toPacketItem(localizedCarried));
         changed = true;
@@ -388,17 +416,84 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   }
 
   private static void localizeEntityMetadata(
-      PacketSendEvent event, Player player, DisplayLocalizer displayLocalizer) {
+      PacketSendEvent event, String language, DisplayLocalizer displayLocalizer) {
     WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
     List<EntityData<?>> metadata = packet.getEntityMetadata();
     List<EntityData<?>> localized =
         PacketDisplayLocalizer.localizeValues(
-            player, packet.getEntityId(), metadata, METADATA_ADAPTER, displayLocalizer);
+            language, packet.getEntityId(), metadata, METADATA_ADAPTER, displayLocalizer);
     if (localized == metadata) {
       return;
     }
     packet.setEntityMetadata(localized);
     event.markForReEncode(true);
+  }
+
+  private void refreshPlayerLanguages(LocalizationHandlers handlers) {
+    Map<UUID, String> refreshed = new LinkedHashMap<>();
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      refreshed.put(
+          player.getUniqueId(),
+          resolvedLanguage(
+              handlers.languageResolver(), player.locale().toString(), handlers.defaultLanguage()));
+    }
+    playerLanguages.replace(refreshed);
+  }
+
+  private void ensureLocaleListener() {
+    if (localeListener != null) {
+      return;
+    }
+    localeListener = new LocaleListener();
+    Bukkit.getPluginManager().registerEvents(localeListener, plugin);
+  }
+
+  private void updatePlayerLanguage(Player player, String requestedLanguage) {
+    LocalizationHandlers handlers = localizationHandlers;
+    if (!handlers.enabled() || player == null) {
+      return;
+    }
+    playerLanguages.update(
+        player.getUniqueId(),
+        resolvedLanguage(
+            handlers.languageResolver(), requestedLanguage, handlers.defaultLanguage()));
+  }
+
+  private static String resolvedLanguage(
+      LanguageResolver resolver, String requestedLanguage, String fallback) {
+    String resolved = resolver == null ? null : resolver.resolve(requestedLanguage);
+    return resolved == null || resolved.isBlank() ? fallback : resolved;
+  }
+
+  private final class LocaleListener implements Listener {
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+      updatePlayerLanguage(event.getPlayer(), event.getPlayer().locale().toString());
+    }
+
+    @EventHandler
+    public void onLocaleChange(PlayerLocaleChangeEvent event) {
+      updatePlayerLanguage(event.getPlayer(), event.locale().toString());
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+      playerLanguages.remove(event.getPlayer().getUniqueId());
+    }
+  }
+
+  private record LocalizationHandlers(
+      LanguageResolver languageResolver,
+      ItemLocalizer itemLocalizer,
+      DisplayLocalizer displayLocalizer,
+      String defaultLanguage) {
+    static LocalizationHandlers disabled() {
+      return new LocalizationHandlers(null, null, null, "en_us");
+    }
+
+    boolean enabled() {
+      return languageResolver != null && itemLocalizer != null;
+    }
   }
 
   private void handlePickPacket(PacketReceiveEvent event, PickListener pickListener) {

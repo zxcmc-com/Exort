@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 public interface PacketEnhancements {
   enum FeatureStatus {
@@ -30,14 +31,24 @@ public interface PacketEnhancements {
       FeatureProbe localization) {}
 
   @FunctionalInterface
-  interface ItemLocalizer extends PacketItemLocalizer.ItemLocalizer {}
+  interface LanguageResolver {
+    String resolve(String requestedLanguage);
+  }
 
   @FunctionalInterface
-  interface DisplayLocalizer extends PacketDisplayLocalizer.DisplayLocalizer {}
+  interface ItemLocalizer {
+    ItemStack localize(String language, ItemStack item);
+  }
+
+  @FunctionalInterface
+  interface DisplayLocalizer {
+    String localize(String language, int entityId);
+  }
 
   Diagnostics diagnostics();
 
   boolean registerLocalization(
+      LanguageResolver languageResolver,
       ItemLocalizer itemLocalizer,
       DisplayLocalizer displayLocalizer,
       boolean resourceMode,

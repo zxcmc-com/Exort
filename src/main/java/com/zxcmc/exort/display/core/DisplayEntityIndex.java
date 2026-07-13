@@ -2,21 +2,20 @@ package com.zxcmc.exort.display.core;
 
 import com.zxcmc.exort.debug.PerfStats;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 
 public final class DisplayEntityIndex {
-  private final Map<UUID, Entry> byEntityId = new HashMap<>();
-  private final Map<Integer, UUID> byNetworkId = new HashMap<>();
-  private final Map<SectionKey, Set<UUID>> bySection = new HashMap<>();
+  private final Map<UUID, Entry> byEntityId = new ConcurrentHashMap<>();
+  private final Map<Integer, UUID> byNetworkId = new ConcurrentHashMap<>();
+  private final Map<SectionKey, Set<UUID>> bySection = new ConcurrentHashMap<>();
 
   public void clear() {
     byEntityId.clear();
@@ -65,10 +64,12 @@ public final class DisplayEntityIndex {
       removeFromSection(previous);
     }
     if (previous != null && previous.entityId() != entry.entityId()) {
-      byNetworkId.remove(previous.entityId());
+      byNetworkId.remove(previous.entityId(), previous.entityUuid());
     }
     byNetworkId.put(entry.entityId(), entry.entityUuid());
-    bySection.computeIfAbsent(entry.section(), ignored -> new HashSet<>()).add(entry.entityUuid());
+    bySection
+        .computeIfAbsent(entry.section(), ignored -> ConcurrentHashMap.newKeySet())
+        .add(entry.entityUuid());
     updateGauge();
   }
 
@@ -78,7 +79,7 @@ public final class DisplayEntityIndex {
     }
     Entry previous = byEntityId.remove(entityUuid);
     if (previous != null) {
-      byNetworkId.remove(previous.entityId());
+      byNetworkId.remove(previous.entityId(), previous.entityUuid());
       removeFromSection(previous);
       updateGauge();
     }
@@ -151,7 +152,7 @@ public final class DisplayEntityIndex {
     }
     ids.remove(entry.entityUuid());
     if (ids.isEmpty()) {
-      bySection.remove(entry.section());
+      bySection.remove(entry.section(), ids);
     }
   }
 

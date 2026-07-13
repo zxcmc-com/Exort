@@ -2895,6 +2895,7 @@ public final class WorldEditBridge implements Listener {
       if (world == null) {
         return super.setBlock(position, block);
       }
+      ensureHistoryCapacity();
       BlockVector3 resolved = resolvePosition(position);
       int chunkX = resolved.x() >> 4;
       int chunkZ = resolved.z() >> 4;
@@ -3123,6 +3124,7 @@ public final class WorldEditBridge implements Listener {
           resolved,
           undoSnapshot,
           normalHistoryFrame);
+      ensureHistoryCapacity();
       boolean storageCloneRequired =
           parsed != null
               && parsed.storage() != null
@@ -3243,6 +3245,12 @@ public final class WorldEditBridge implements Listener {
                 moveOperation));
       }
       return result || markerCleanupRequested;
+    }
+
+    private void ensureHistoryCapacity() throws WorldEditHistoryLimitException {
+      if (normalHistoryFrame != null && normalHistoryFrame.overflowed()) {
+        throw new WorldEditHistoryLimitException();
+      }
     }
 
     private boolean isUsableHistoryState(BaseBlock base, WorldEditMarkerHistory.FrameState state) {

@@ -53,10 +53,19 @@ public final class ExortItemLocalizationService {
   }
 
   public ItemStack localize(Player player, ItemStack source) {
-    return localize(source, lang.pluginTextLanguage(player));
+    return localize(source, lang.pluginTextLanguage(player), true);
   }
 
   ItemStack localize(ItemStack source, String language) {
+    return localize(source, language, true);
+  }
+
+  /** Pure packet-worker path: no Bukkit player/offline-player lookup is performed. */
+  public ItemStack localizeForPacket(String language, ItemStack source) {
+    return localize(source, language, false);
+  }
+
+  private ItemStack localize(ItemStack source, String language, boolean resolveOfflineOwner) {
     if (!CustomItemClassifier.isCustomItem(keys, source)) {
       return source;
     }
@@ -82,7 +91,8 @@ public final class ExortItemLocalizationService {
           case "storage" -> localizeStorage(meta, localizedPdc, language);
           case "chunk_loader", "personal_chunk_loader", "dormant_chunk_loader" ->
               localizeChunkLoader(meta, localizedPdc, language);
-          case "wireless_terminal" -> localizeWireless(meta, localizedPdc, language);
+          case "wireless_terminal" ->
+              localizeWireless(meta, localizedPdc, language, resolveOfflineOwner);
           case "wireless_booster" -> localizeWirelessBooster(meta, localizedPdc, language);
           default ->
               CustomItemRegistry.fixedItem(type)
@@ -168,7 +178,8 @@ public final class ExortItemLocalizationService {
     return true;
   }
 
-  private boolean localizeWireless(ItemMeta meta, PersistentDataContainer pdc, String language) {
+  private boolean localizeWireless(
+      ItemMeta meta, PersistentDataContainer pdc, String language, boolean resolveOfflineOwner) {
     meta.itemName(text(language, "item.wireless_terminal"));
     int charge =
         WirelessChargeService.computeChargeValue(
@@ -181,7 +192,7 @@ public final class ExortItemLocalizationService {
     lore.add(
         text(language, "lore.wireless_terminal.battery", Math.max(0, Math.min(100, charge)))
             .color(NamedTextColor.GREEN));
-    String ownerDisplay = ownerDisplay(metaInfo.owner(), metaInfo.ownerName());
+    String ownerDisplay = ownerDisplay(metaInfo.owner(), metaInfo.ownerName(), resolveOfflineOwner);
     if (ownerDisplay != null && !ownerDisplay.isBlank()) {
       lore.add(
           text(language, "lore.wireless_terminal.owner", ownerDisplay).color(NamedTextColor.AQUA));
@@ -231,9 +242,10 @@ public final class ExortItemLocalizationService {
     return new WirelessMeta(tier, storageId, owner, ownerName);
   }
 
-  private String ownerDisplay(String owner, String ownerName) {
+  private String ownerDisplay(String owner, String ownerName, boolean resolveOfflineOwner) {
     if (ownerName != null && !ownerName.isBlank()) return ownerName;
     if (owner == null || owner.isBlank()) return owner;
+    if (!resolveOfflineOwner) return owner;
     try {
       OfflinePlayer player = Bukkit.getOfflinePlayer(UUID.fromString(owner));
       String name = player.getName();

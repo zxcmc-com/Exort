@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.3 — 2026-07-13
+- PacketEvents item and display localization now reads immutable per-player locale snapshots and a thread-safe display index instead of accessing mutable Bukkit-backed state from packet workers; locale changes and reloads are published atomically.
+- Exort now bounds retained WorldEdit/FAWE marker history by operation size, estimated payload weight, total retained state, frame count, and per-position depth. An edit that would make custom-block undo incomplete is stopped before the next carrier block is changed.
+
 ## 0.19.2 — 2026-07-12
 - Wireless Transmitters now persist exactly one Wireless Signal Booster in their booster slot and return it safely on normal destruction; WorldEdit/FAWE move and history preserve the booster, while ordinary clipboard copies omit it to prevent duplication.
 - Added Rare, Mythical, Legendary, and Immortal Wireless Signal Boosters with localized tier-colored names and configurable bonus lore, RESOURCE textures, VANILLA fallbacks, admin give/catalog access, and configurable `1.5x`, `2x`, `6x`, or same-world global coverage for loaded active transmitters. Wireless Transmitter terminal and booster slots now support direct inventory extraction with either Shift-click.

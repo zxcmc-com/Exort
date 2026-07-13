@@ -45,6 +45,11 @@ record TransmitterData(String mode, byte[] terminalBlob, byte[] boosterBlob) {
         boosterBlob == null ? other.boosterBlob : boosterBlob);
   }
 
+  int estimatedPayloadBytes() {
+    return (terminalBlob == null ? 0 : terminalBlob.length)
+        + (boosterBlob == null ? 0 : boosterBlob.length);
+  }
+
   @Override
   public boolean equals(Object obj) {
     return obj instanceof TransmitterData other

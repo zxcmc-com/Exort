@@ -14,6 +14,11 @@ public final class ExortDisplayLocalizationService {
   }
 
   public String localize(Player player, int entityId) {
+    return localize(lang == null ? null : lang.pluginTextLanguage(player), entityId);
+  }
+
+  /** Packet-worker path backed only by safely published language and display-index state. */
+  public String localize(String language, int entityId) {
     if (index == null || lang == null) {
       return null;
     }
@@ -21,6 +26,6 @@ public final class ExortDisplayLocalizationService {
     if (entry == null || entry.localizationKey() == null || entry.localizationKey().isBlank()) {
       return null;
     }
-    return lang.trLanguage(lang.pluginTextLanguage(player), entry.localizationKey());
+    return lang.trLanguage(language, entry.localizationKey());
   }
 }

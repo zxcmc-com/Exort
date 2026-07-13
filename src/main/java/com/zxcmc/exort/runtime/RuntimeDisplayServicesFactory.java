@@ -204,8 +204,9 @@ public final class RuntimeDisplayServicesFactory {
         new ExortDisplayLocalizationService(displayEntityIndex, deps.lang());
     return deps.packetEnhancements()
         .registerLocalization(
+            deps.lang()::pluginTextLanguage,
             new ExortItemLocalizationService(deps.keys(), deps.lang(), deps.wirelessConfig())
-                ::localize,
+                ::localizeForPacket,
             displayLocalization::localize,
             deps.resourceMode(),
             level);

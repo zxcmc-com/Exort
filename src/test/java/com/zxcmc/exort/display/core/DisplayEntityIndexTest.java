@@ -1,5 +1,6 @@
 package com.zxcmc.exort.display.core;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
@@ -45,6 +50,52 @@ class DisplayEntityIndexTest {
     index.queryInto(null, 4.0, out);
 
     assertTrue(out.isEmpty());
+  }
+
+  @Test
+  void packetReadersRemainSafeWhileServerThreadUpdatesIndex() throws Exception {
+    UUID worldId = UUID.randomUUID();
+    World world = world(worldId);
+    DisplayEntityIndex index = new DisplayEntityIndex();
+    Display display = display(UUID.randomUUID(), 11, new Location(world, 0.0, 64.0, 0.0));
+    CountDownLatch start = new CountDownLatch(1);
+    ExecutorService executor = Executors.newFixedThreadPool(3);
+    try {
+      Future<?> writer =
+          executor.submit(
+              () -> {
+                await(start);
+                for (int i = 0; i < 5_000; i++) {
+                  index.register(display);
+                  index.unregister(display.getUniqueId());
+                }
+              });
+      Future<?> firstReader = executor.submit(() -> readRepeatedly(index, start));
+      Future<?> secondReader = executor.submit(() -> readRepeatedly(index, start));
+
+      start.countDown();
+      assertDoesNotThrow(() -> writer.get());
+      assertDoesNotThrow(() -> firstReader.get());
+      assertDoesNotThrow(() -> secondReader.get());
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  private static void readRepeatedly(DisplayEntityIndex index, CountDownLatch start) {
+    await(start);
+    for (int i = 0; i < 10_000; i++) {
+      index.findByNetworkId(11);
+    }
+  }
+
+  private static void await(CountDownLatch latch) {
+    try {
+      latch.await();
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(exception);
+    }
   }
 
   private static World world(UUID worldId) {

@@ -7,11 +7,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class WorldEditMarkerHistory {
   private static final long HISTORY_TTL_MS = TimeUnit.MINUTES.toMillis(10);
   private static final long MAINTENANCE_INTERVAL_MS = TimeUnit.MINUTES.toMillis(1);
+  private static final Limits DEFAULT_LIMITS =
+      new Limits(100_000, 64L * 1024L * 1024L, 500_000, 256L * 1024L * 1024L, 4_096, 64, 128);
 
   private final Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> undoMarkerHistory =
       new ConcurrentHashMap<>();
@@ -23,8 +26,19 @@ final class WorldEditMarkerHistory {
       new ConcurrentHashMap<>();
   private final Map<FrameKey, Frame> normalFrames = new ConcurrentHashMap<>();
   private final AtomicLong nextMaintenanceAt = new AtomicLong();
+  private final Limits limits;
+  private final RetentionBudget budget;
 
-  Frame beginNormalOperation(UUID actorId, UUID worldId, long operationId) {
+  WorldEditMarkerHistory() {
+    this(DEFAULT_LIMITS);
+  }
+
+  WorldEditMarkerHistory(Limits limits) {
+    this.limits = limits;
+    this.budget = new RetentionBudget(limits);
+  }
+
+  synchronized Frame beginNormalOperation(UUID actorId, UUID worldId, long operationId) {
     if (actorId == null || worldId == null) return null;
     long now = System.currentTimeMillis();
     maintainIfDue(now);
@@ -32,18 +46,27 @@ final class WorldEditMarkerHistory {
     pruneFrameStack(undoFrames, actorWorldKey, now);
     clearRedo(actorWorldKey);
     FrameKey frameKey = new FrameKey(actorId, worldId, operationId);
-    return normalFrames.computeIfAbsent(
-        frameKey,
-        ignored -> {
-          Frame frame = new Frame(actorId, worldId, operationId, now);
-          undoFrames
-              .computeIfAbsent(actorWorldKey, key -> new ConcurrentLinkedDeque<>())
-              .addFirst(frame);
-          return frame;
-        });
+    Frame existing = normalFrames.get(frameKey);
+    if (existing != null) {
+      return existing;
+    }
+    Frame created = Frame.create(actorId, worldId, operationId, now, limits, budget);
+    if (created.overflowed()) {
+      return created;
+    }
+    existing = normalFrames.putIfAbsent(frameKey, created);
+    if (existing != null) {
+      created.release();
+      return existing;
+    }
+    ConcurrentLinkedDeque<Frame> stack =
+        undoFrames.computeIfAbsent(actorWorldKey, key -> new ConcurrentLinkedDeque<>());
+    stack.addFirst(created);
+    trimFrameStack(undoFrames, actorWorldKey, stack);
+    return created;
   }
 
-  Frame beginReplay(UUID actorId, UUID worldId, HistoryAction action) {
+  synchronized Frame beginReplay(UUID actorId, UUID worldId, HistoryAction action) {
     if (actorId == null || worldId == null || action == null) return null;
     long now = System.currentTimeMillis();
     maintainIfDue(now);
@@ -51,13 +74,15 @@ final class WorldEditMarkerHistory {
     Frame frame = pollValidFrame(framesFor(action), actorWorldKey, now);
     if (frame == null) return null;
     frame.refresh(now);
-    framesFor(opposite(action))
-        .computeIfAbsent(actorWorldKey, ignored -> new ConcurrentLinkedDeque<>())
-        .addFirst(frame);
+    Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> oppositeFrames = framesFor(opposite(action));
+    ConcurrentLinkedDeque<Frame> oppositeStack =
+        oppositeFrames.computeIfAbsent(actorWorldKey, ignored -> new ConcurrentLinkedDeque<>());
+    oppositeStack.addFirst(frame);
+    trimFrameStack(oppositeFrames, actorWorldKey, oppositeStack);
     return frame;
   }
 
-  void remember(
+  synchronized void remember(
       UUID actorId,
       HistoryAction activeAction,
       UUID worldId,
@@ -68,7 +93,7 @@ final class WorldEditMarkerHistory {
     remember(actorId, activeAction, worldId, x, y, z, snapshot, null);
   }
 
-  void remember(
+  synchronized void remember(
       UUID actorId,
       HistoryAction activeAction,
       UUID worldId,
@@ -87,29 +112,29 @@ final class WorldEditMarkerHistory {
     } else {
       targetHistory = undoMarkerHistory;
       if (activeAction == null) {
-        redoMarkerHistory.remove(key);
+        releaseHistoryStack(redoMarkerHistory.remove(key));
         if (normalFrame != null) {
           normalFrame.rememberUndo(WorldEditMarkerMath.blockKey(x, y, z), snapshot);
+          if (normalFrame.overflowed()) {
+            return;
+          }
         }
       }
     }
-    ConcurrentLinkedDeque<HistoryEntry> stack =
-        targetHistory.computeIfAbsent(key, ignored -> new ConcurrentLinkedDeque<>());
-    stack.addFirst(new HistoryEntry(FrameState.marker(snapshot), now));
-    pruneHistoryStack(targetHistory, key, stack, now);
+    retainHistory(targetHistory, key, FrameState.marker(snapshot), now, normalFrame);
   }
 
-  void rememberRedoTarget(
+  synchronized void rememberRedoTarget(
       UUID actorId, UUID worldId, int x, int y, int z, MarkerSnapshot snapshot) {
     rememberRedoTarget(actorId, worldId, x, y, z, snapshot, null, false);
   }
 
-  void rememberRedoTarget(
+  synchronized void rememberRedoTarget(
       UUID actorId, UUID worldId, int x, int y, int z, MarkerSnapshot snapshot, Frame normalFrame) {
     rememberRedoTarget(actorId, worldId, x, y, z, snapshot, normalFrame, false);
   }
 
-  void rememberRedoTarget(
+  synchronized void rememberRedoTarget(
       UUID actorId,
       UUID worldId,
       int x,
@@ -122,22 +147,28 @@ final class WorldEditMarkerHistory {
     long now = System.currentTimeMillis();
     maintainIfDue(now);
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
-    ConcurrentLinkedDeque<HistoryEntry> stack =
-        redoMarkerHistory.computeIfAbsent(key, ignored -> new ConcurrentLinkedDeque<>());
-    stack.addFirst(new HistoryEntry(FrameState.marker(snapshot, storageCloneRequired), now));
     if (normalFrame != null) {
       normalFrame.rememberRedo(
           WorldEditMarkerMath.blockKey(x, y, z), snapshot, storageCloneRequired);
+      if (normalFrame.overflowed()) {
+        return;
+      }
     }
-    pruneHistoryStack(redoMarkerHistory, key, stack, now);
+    retainHistory(
+        redoMarkerHistory,
+        key,
+        FrameState.marker(snapshot, storageCloneRequired),
+        now,
+        normalFrame);
   }
 
-  void clearRedoTarget(UUID actorId, UUID worldId, int x, int y, int z) {
+  synchronized void clearRedoTarget(UUID actorId, UUID worldId, int x, int y, int z) {
     if (actorId == null) return;
-    redoMarkerHistory.remove(new HistoryKey(actorId, worldId, x, y, z));
+    releaseHistoryStack(redoMarkerHistory.remove(new HistoryKey(actorId, worldId, x, y, z)));
   }
 
-  MarkerSnapshot peek(UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+  synchronized MarkerSnapshot peek(
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     FrameState state = peekState(actorId, action, worldId, x, y, z);
     return state == null ? null : state.snapshot();
   }
@@ -152,7 +183,8 @@ final class WorldEditMarkerHistory {
     return frame.state(action, WorldEditMarkerMath.blockKey(x, y, z));
   }
 
-  FrameState peekState(UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+  synchronized FrameState peekState(
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     if (actorId == null || action == null) return null;
     maintainIfDue(System.currentTimeMillis());
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
@@ -160,12 +192,14 @@ final class WorldEditMarkerHistory {
     return entry == null ? null : entry.state();
   }
 
-  MarkerSnapshot consume(UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+  synchronized MarkerSnapshot consume(
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     FrameState state = consumeState(actorId, action, worldId, x, y, z);
     return state == null ? null : state.snapshot();
   }
 
-  FrameState consumeState(UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+  synchronized FrameState consumeState(
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
     if (actorId == null || action == null) return null;
     maintainIfDue(System.currentTimeMillis());
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
@@ -173,27 +207,37 @@ final class WorldEditMarkerHistory {
     return entry == null ? null : entry.state();
   }
 
-  void rememberUndoClear(Frame normalFrame, int x, int y, int z) {
+  synchronized void rememberUndoClear(Frame normalFrame, int x, int y, int z) {
     rememberUndoClear(null, null, normalFrame, x, y, z);
   }
 
-  void rememberUndoClear(UUID actorId, UUID worldId, Frame normalFrame, int x, int y, int z) {
+  synchronized void rememberUndoClear(
+      UUID actorId, UUID worldId, Frame normalFrame, int x, int y, int z) {
     if (normalFrame == null) return;
     normalFrame.rememberUndoClear(WorldEditMarkerMath.blockKey(x, y, z));
-    rememberClear(actorId, HistoryAction.UNDO, worldId, x, y, z);
+    if (!normalFrame.overflowed()) {
+      rememberClear(actorId, HistoryAction.UNDO, worldId, x, y, z, normalFrame);
+    }
   }
 
-  void rememberRedoClear(Frame normalFrame, int x, int y, int z) {
+  synchronized void rememberRedoClear(Frame normalFrame, int x, int y, int z) {
     rememberRedoClear(null, null, normalFrame, x, y, z);
   }
 
-  void rememberRedoClear(UUID actorId, UUID worldId, Frame normalFrame, int x, int y, int z) {
+  synchronized void rememberRedoClear(
+      UUID actorId, UUID worldId, Frame normalFrame, int x, int y, int z) {
     if (normalFrame == null) return;
     normalFrame.rememberRedoClear(WorldEditMarkerMath.blockKey(x, y, z));
-    rememberClear(actorId, HistoryAction.REDO, worldId, x, y, z);
+    if (!normalFrame.overflowed()) {
+      rememberClear(actorId, HistoryAction.REDO, worldId, x, y, z, normalFrame);
+    }
   }
 
-  void clear() {
+  synchronized void clear() {
+    releaseAllHistory(undoMarkerHistory);
+    releaseAllHistory(redoMarkerHistory);
+    releaseAllFrames(undoFrames);
+    releaseAllFrames(redoFrames);
     undoMarkerHistory.clear();
     redoMarkerHistory.clear();
     undoFrames.clear();
@@ -202,14 +246,14 @@ final class WorldEditMarkerHistory {
     nextMaintenanceAt.set(0L);
   }
 
-  void clearActor(UUID actorId) {
+  synchronized void clearActor(UUID actorId) {
     if (actorId == null) {
       return;
     }
-    undoMarkerHistory.keySet().removeIf(key -> actorId.equals(key.actorId()));
-    redoMarkerHistory.keySet().removeIf(key -> actorId.equals(key.actorId()));
-    undoFrames.keySet().removeIf(key -> actorId.equals(key.actorId()));
-    redoFrames.keySet().removeIf(key -> actorId.equals(key.actorId()));
+    releaseActorHistory(undoMarkerHistory, actorId);
+    releaseActorHistory(redoMarkerHistory, actorId);
+    releaseActorFrames(undoFrames, actorId);
+    releaseActorFrames(redoFrames, actorId);
     normalFrames.keySet().removeIf(key -> actorId.equals(key.actorId()));
   }
 
@@ -218,16 +262,13 @@ final class WorldEditMarkerHistory {
   }
 
   private void rememberClear(
-      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z) {
+      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z, Frame normalFrame) {
     if (actorId == null || action == null) return;
     long now = System.currentTimeMillis();
     maintainIfDue(now);
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> targetHistory = historyFor(action);
-    ConcurrentLinkedDeque<HistoryEntry> stack =
-        targetHistory.computeIfAbsent(key, ignored -> new ConcurrentLinkedDeque<>());
-    stack.addFirst(new HistoryEntry(FrameState.cleared(), now));
-    pruneHistoryStack(targetHistory, key, stack, now);
+    retainHistory(targetHistory, key, FrameState.cleared(), now, normalFrame);
   }
 
   private Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> framesFor(HistoryAction action) {
@@ -239,13 +280,105 @@ final class WorldEditMarkerHistory {
   }
 
   private void clearRedo(ActorWorldKey actorWorldKey) {
-    redoFrames.remove(actorWorldKey);
-    redoMarkerHistory
-        .keySet()
-        .removeIf(
-            key ->
-                actorWorldKey.actorId().equals(key.actorId())
-                    && actorWorldKey.worldId().equals(key.worldId()));
+    releaseFrameStack(redoFrames.remove(actorWorldKey));
+    redoMarkerHistory.forEach(
+        (key, stack) -> {
+          if (actorWorldKey.actorId().equals(key.actorId())
+              && actorWorldKey.worldId().equals(key.worldId())
+              && redoMarkerHistory.remove(key, stack)) {
+            releaseHistoryStack(stack);
+          }
+        });
+  }
+
+  private void retainHistory(
+      Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history,
+      HistoryKey key,
+      FrameState state,
+      long now,
+      Frame normalFrame) {
+    long weight = state.estimatedBytes();
+    if (!budget.reserveState(weight)) {
+      if (normalFrame != null) {
+        normalFrame.markOverflow();
+      }
+      return;
+    }
+    ConcurrentLinkedDeque<HistoryEntry> stack =
+        history.computeIfAbsent(key, ignored -> new ConcurrentLinkedDeque<>());
+    stack.addFirst(new HistoryEntry(state, now));
+    while (stack.size() > limits.maxEntriesPerHistoryKey()) {
+      HistoryEntry evicted = stack.pollLast();
+      if (evicted == null) {
+        break;
+      }
+      budget.releaseState(evicted.state().estimatedBytes());
+    }
+    pruneHistoryStack(history, key, stack, now);
+  }
+
+  private void trimFrameStack(
+      Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> frames,
+      ActorWorldKey key,
+      ConcurrentLinkedDeque<Frame> stack) {
+    while (stack.size() > limits.maxFramesPerActorWorld()) {
+      Frame evicted = stack.pollLast();
+      if (evicted == null) {
+        break;
+      }
+      normalFrames.remove(
+          new FrameKey(evicted.actorId(), evicted.worldId(), evicted.operationId()), evicted);
+      evicted.release();
+    }
+    if (stack.isEmpty()) {
+      frames.remove(key, stack);
+    }
+  }
+
+  private void releaseHistoryStack(Deque<HistoryEntry> stack) {
+    if (stack == null) return;
+    HistoryEntry entry;
+    while ((entry = stack.pollFirst()) != null) {
+      budget.releaseState(entry.state().estimatedBytes());
+    }
+  }
+
+  private void releaseFrameStack(Deque<Frame> stack) {
+    if (stack == null) return;
+    Frame frame;
+    while ((frame = stack.pollFirst()) != null) {
+      normalFrames.remove(
+          new FrameKey(frame.actorId(), frame.worldId(), frame.operationId()), frame);
+      frame.release();
+    }
+  }
+
+  private void releaseAllHistory(Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history) {
+    history.values().forEach(this::releaseHistoryStack);
+  }
+
+  private void releaseAllFrames(Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> frames) {
+    frames.values().forEach(this::releaseFrameStack);
+  }
+
+  private void releaseActorHistory(
+      Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> history, UUID actorId) {
+    history.forEach(
+        (key, stack) -> {
+          if (actorId.equals(key.actorId()) && history.remove(key, stack)) {
+            releaseHistoryStack(stack);
+          }
+        });
+  }
+
+  private void releaseActorFrames(
+      Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> frames, UUID actorId) {
+    frames.forEach(
+        (key, stack) -> {
+          if (actorId.equals(key.actorId()) && frames.remove(key, stack)) {
+            releaseFrameStack(stack);
+          }
+        });
   }
 
   private HistoryEntry peekValidHistory(
@@ -262,7 +395,9 @@ final class WorldEditMarkerHistory {
       if (now - entry.timestampMs() <= HISTORY_TTL_MS) {
         return entry;
       }
-      stack.pollFirst();
+      if (stack.pollFirst() == entry) {
+        budget.releaseState(entry.state().estimatedBytes());
+      }
     }
   }
 
@@ -280,6 +415,7 @@ final class WorldEditMarkerHistory {
       if (stack.isEmpty()) {
         history.remove(key, stack);
       }
+      budget.releaseState(entry.state().estimatedBytes());
       if (now - entry.timestampMs() <= HISTORY_TTL_MS) {
         return entry;
       }
@@ -304,6 +440,7 @@ final class WorldEditMarkerHistory {
       if (!frame.expired(now)) {
         return frame;
       }
+      frame.release();
     }
   }
 
@@ -323,6 +460,7 @@ final class WorldEditMarkerHistory {
       stack.pollLast();
       normalFrames.remove(
           new FrameKey(frame.actorId(), frame.worldId(), frame.operationId()), frame);
+      frame.release();
     }
   }
 
@@ -340,11 +478,13 @@ final class WorldEditMarkerHistory {
       if (now - entry.timestampMs() <= HISTORY_TTL_MS) {
         return;
       }
-      stack.pollLast();
+      if (stack.pollLast() == entry) {
+        budget.releaseState(entry.state().estimatedBytes());
+      }
     }
   }
 
-  void pruneExpired(long now) {
+  synchronized void pruneExpired(long now) {
     pruneExpiredHistory(undoMarkerHistory, now);
     pruneExpiredHistory(redoMarkerHistory, now);
     pruneExpiredFrames(undoFrames, now);
@@ -352,17 +492,27 @@ final class WorldEditMarkerHistory {
     normalFrames.forEach(
         (key, frame) -> {
           if (frame.expired(now)) {
-            normalFrames.remove(key, frame);
+            if (normalFrames.remove(key, frame)) {
+              frame.release();
+            }
           }
         });
   }
 
-  int retainedKeyCount() {
+  synchronized int retainedKeyCount() {
     return undoMarkerHistory.size()
         + redoMarkerHistory.size()
         + undoFrames.size()
         + redoFrames.size()
         + normalFrames.size();
+  }
+
+  synchronized long retainedStateCount() {
+    return budget.retainedStates();
+  }
+
+  synchronized long retainedWeightBytes() {
+    return budget.retainedBytes();
   }
 
   private void maintainIfDue(long now) {
@@ -388,15 +538,42 @@ final class WorldEditMarkerHistory {
     private final UUID actorId;
     private final UUID worldId;
     private final long operationId;
+    private final Limits limits;
+    private final RetentionBudget budget;
     private final ConcurrentMap<Long, FrameState> undoStates = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, FrameState> redoStates = new ConcurrentHashMap<>();
+    private final AtomicBoolean released = new AtomicBoolean();
     private volatile long timestampMs;
+    private long retainedStates;
+    private long retainedBytes;
+    private volatile boolean overflowed;
 
-    private Frame(UUID actorId, UUID worldId, long operationId, long timestampMs) {
+    private Frame(
+        UUID actorId,
+        UUID worldId,
+        long operationId,
+        long timestampMs,
+        Limits limits,
+        RetentionBudget budget,
+        boolean overflowed) {
       this.actorId = actorId;
       this.worldId = worldId;
       this.operationId = operationId;
       this.timestampMs = timestampMs;
+      this.limits = limits;
+      this.budget = budget;
+      this.overflowed = overflowed;
+    }
+
+    static Frame create(
+        UUID actorId,
+        UUID worldId,
+        long operationId,
+        long timestampMs,
+        Limits limits,
+        RetentionBudget budget) {
+      boolean accepted = budget.reserveFrame();
+      return new Frame(actorId, worldId, operationId, timestampMs, limits, budget, !accepted);
     }
 
     UUID actorId() {
@@ -411,9 +588,9 @@ final class WorldEditMarkerHistory {
       return operationId;
     }
 
-    void rememberUndo(long blockKey, MarkerSnapshot snapshot) {
+    synchronized void rememberUndo(long blockKey, MarkerSnapshot snapshot) {
       if (snapshot != null) {
-        undoStates.putIfAbsent(blockKey, FrameState.marker(snapshot));
+        rememberIfAbsent(undoStates, blockKey, FrameState.marker(snapshot));
       }
     }
 
@@ -421,18 +598,19 @@ final class WorldEditMarkerHistory {
       rememberRedo(blockKey, snapshot, false);
     }
 
-    void rememberRedo(long blockKey, MarkerSnapshot snapshot, boolean storageCloneRequired) {
+    synchronized void rememberRedo(
+        long blockKey, MarkerSnapshot snapshot, boolean storageCloneRequired) {
       if (snapshot != null) {
-        redoStates.put(blockKey, FrameState.marker(snapshot, storageCloneRequired));
+        rememberReplacing(redoStates, blockKey, FrameState.marker(snapshot, storageCloneRequired));
       }
     }
 
-    void rememberUndoClear(long blockKey) {
-      undoStates.putIfAbsent(blockKey, FrameState.cleared());
+    synchronized void rememberUndoClear(long blockKey) {
+      rememberIfAbsent(undoStates, blockKey, FrameState.cleared());
     }
 
-    void rememberRedoClear(long blockKey) {
-      redoStates.put(blockKey, FrameState.cleared());
+    synchronized void rememberRedoClear(long blockKey) {
+      rememberReplacing(redoStates, blockKey, FrameState.cleared());
     }
 
     FrameState state(HistoryAction action, long blockKey) {
@@ -451,6 +629,66 @@ final class WorldEditMarkerHistory {
     boolean expired(long now) {
       return now - timestampMs > HISTORY_TTL_MS;
     }
+
+    boolean overflowed() {
+      return overflowed;
+    }
+
+    void markOverflow() {
+      overflowed = true;
+    }
+
+    synchronized void release() {
+      if (!released.compareAndSet(false, true)) {
+        return;
+      }
+      overflowed = true;
+      undoStates.clear();
+      redoStates.clear();
+      budget.releaseFrame(retainedStates, retainedBytes);
+      retainedStates = 0L;
+      retainedBytes = 0L;
+    }
+
+    private void rememberIfAbsent(
+        ConcurrentMap<Long, FrameState> states, long blockKey, FrameState state) {
+      if (overflowed || released.get() || states.containsKey(blockKey)) {
+        return;
+      }
+      long weight = state.estimatedBytes();
+      if (!canRetain(1L, weight) || !budget.reserveState(weight)) {
+        overflowed = true;
+        return;
+      }
+      states.put(blockKey, state);
+      retainedStates++;
+      retainedBytes += weight;
+    }
+
+    private void rememberReplacing(
+        ConcurrentMap<Long, FrameState> states, long blockKey, FrameState state) {
+      if (overflowed || released.get()) {
+        return;
+      }
+      FrameState previous = states.get(blockKey);
+      long previousWeight = previous == null ? 0L : previous.estimatedBytes();
+      long weight = state.estimatedBytes();
+      long stateDelta = previous == null ? 1L : 0L;
+      long weightDelta = weight - previousWeight;
+      if (!canRetain(stateDelta, weightDelta)
+          || !budget.replaceState(previous == null, previousWeight, weight)) {
+        overflowed = true;
+        return;
+      }
+      states.put(blockKey, state);
+      retainedStates += stateDelta;
+      retainedBytes += weightDelta;
+    }
+
+    private boolean canRetain(long stateDelta, long weightDelta) {
+      return retainedStates + stateDelta <= limits.maxFrameStates()
+          && retainedBytes + weightDelta <= limits.maxFrameWeightBytes();
+    }
   }
 
   record FrameState(MarkerSnapshot snapshot, boolean clear, boolean storageCloneRequired) {
@@ -464,6 +702,105 @@ final class WorldEditMarkerHistory {
 
     static FrameState cleared() {
       return new FrameState(null, true, false);
+    }
+
+    long estimatedBytes() {
+      if (snapshot == null) {
+        return 64L;
+      }
+      long bytes = 512L;
+      if (snapshot.bus() != null) {
+        bytes += snapshot.bus().estimatedPayloadBytes();
+      }
+      if (snapshot.monitor() != null) {
+        bytes += snapshot.monitor().estimatedPayloadBytes();
+      }
+      if (snapshot.transmitterData() != null) {
+        bytes += snapshot.transmitterData().estimatedPayloadBytes();
+      }
+      return bytes;
+    }
+  }
+
+  record Limits(
+      long maxFrameStates,
+      long maxFrameWeightBytes,
+      long maxRetainedStates,
+      long maxRetainedWeightBytes,
+      long maxFrames,
+      int maxFramesPerActorWorld,
+      int maxEntriesPerHistoryKey) {
+    Limits {
+      if (maxFrameStates <= 0
+          || maxFrameWeightBytes <= 0
+          || maxRetainedStates <= 0
+          || maxRetainedWeightBytes <= 0
+          || maxFrames <= 0
+          || maxFramesPerActorWorld <= 0
+          || maxEntriesPerHistoryKey <= 0) {
+        throw new IllegalArgumentException("WorldEdit history limits must be positive");
+      }
+    }
+  }
+
+  private static final class RetentionBudget {
+    private final Limits limits;
+    private long frames;
+    private long retainedStates;
+    private long retainedBytes;
+
+    private RetentionBudget(Limits limits) {
+      this.limits = limits;
+    }
+
+    synchronized boolean reserveFrame() {
+      if (frames >= limits.maxFrames()) {
+        return false;
+      }
+      frames++;
+      return true;
+    }
+
+    synchronized boolean reserveState(long weight) {
+      if (retainedStates >= limits.maxRetainedStates()
+          || retainedBytes + weight > limits.maxRetainedWeightBytes()) {
+        return false;
+      }
+      retainedStates++;
+      retainedBytes += weight;
+      return true;
+    }
+
+    synchronized boolean replaceState(
+        boolean addingState, long previousWeight, long replacementWeight) {
+      long statesAfter = retainedStates + (addingState ? 1L : 0L);
+      long bytesAfter = retainedBytes - previousWeight + replacementWeight;
+      if (statesAfter > limits.maxRetainedStates()
+          || bytesAfter > limits.maxRetainedWeightBytes()) {
+        return false;
+      }
+      retainedStates = statesAfter;
+      retainedBytes = bytesAfter;
+      return true;
+    }
+
+    synchronized void releaseState(long weight) {
+      retainedStates = Math.max(0L, retainedStates - 1L);
+      retainedBytes = Math.max(0L, retainedBytes - weight);
+    }
+
+    synchronized void releaseFrame(long states, long bytes) {
+      frames = Math.max(0L, frames - 1L);
+      retainedStates = Math.max(0L, retainedStates - states);
+      retainedBytes = Math.max(0L, retainedBytes - bytes);
+    }
+
+    synchronized long retainedStates() {
+      return retainedStates;
+    }
+
+    synchronized long retainedBytes() {
+      return retainedBytes;
     }
   }
 

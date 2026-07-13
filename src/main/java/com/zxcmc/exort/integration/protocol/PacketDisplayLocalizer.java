@@ -5,17 +5,11 @@ import java.util.List;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 final class PacketDisplayLocalizer {
   private static final int ENTITY_CUSTOM_NAME_METADATA_INDEX = 2;
-
-  @FunctionalInterface
-  interface DisplayLocalizer {
-    String localize(Player player, int entityId);
-  }
 
   interface MetadataValueAdapter<T> {
     int index(T value);
@@ -42,15 +36,15 @@ final class PacketDisplayLocalizer {
   private PacketDisplayLocalizer() {}
 
   static <T> List<T> localizeValues(
-      Player player,
+      String language,
       int entityId,
       List<T> values,
       MetadataValueAdapter<T> adapter,
-      DisplayLocalizer localizer) {
+      PacketEnhancements.DisplayLocalizer localizer) {
     if (values == null || values.isEmpty() || adapter == null || localizer == null) {
       return values;
     }
-    String localizedName = localizer.localize(player, entityId);
+    String localizedName = localizer.localize(language, entityId);
     if (localizedName == null || localizedName.isBlank()) {
       return values;
     }
