@@ -45,6 +45,7 @@ public final class RecipeService {
   private final WirelessTerminalService wirelessService;
   private final Supplier<FeatureAccessConfig> featureAccess;
   private final ChoiceFactory choiceFactory;
+  private final RecipeRegistry recipeRegistry;
   private final List<NamespacedKey> registered = new ArrayList<>();
   private final List<RecipeDiscoveryEntry> discoveryEntries = new ArrayList<>();
   private boolean registrationFailed;
@@ -79,11 +80,28 @@ public final class RecipeService {
       WirelessTerminalService wirelessService,
       Supplier<FeatureAccessConfig> featureAccess,
       ChoiceFactory choiceFactory) {
+    this(
+        plugin,
+        customItems,
+        wirelessService,
+        featureAccess,
+        choiceFactory,
+        RecipeRegistry.bukkit());
+  }
+
+  RecipeService(
+      JavaPlugin plugin,
+      CustomItems customItems,
+      WirelessTerminalService wirelessService,
+      Supplier<FeatureAccessConfig> featureAccess,
+      ChoiceFactory choiceFactory,
+      RecipeRegistry recipeRegistry) {
     this.plugin = plugin;
     this.customItems = customItems;
     this.wirelessService = wirelessService;
     this.featureAccess = featureAccess == null ? FeatureAccessConfig::defaults : featureAccess;
     this.choiceFactory = choiceFactory == null ? ChoiceFactory.bukkit() : choiceFactory;
+    this.recipeRegistry = Objects.requireNonNull(recipeRegistry, "recipeRegistry");
   }
 
   public void reload() {
@@ -100,7 +118,13 @@ public final class RecipeService {
           "Failed to load recipes.yml; keeping the last-known-good recipes: " + e.getMessage());
       return false;
     }
-    if (!RecipeRuntimeConfig.fromConfig(plugin.getConfig()).enabled()) {
+    return reloadReplacing(
+        previous, config, RecipeRuntimeConfig.fromConfig(plugin.getConfig()).enabled());
+  }
+
+  boolean reloadReplacing(RecipeService previous, YamlConfiguration config, boolean enabled) {
+    Objects.requireNonNull(config, "config");
+    if (!enabled) {
       if (previous != null) {
         previous.unregisterAll();
       } else {
@@ -209,7 +233,7 @@ public final class RecipeService {
 
   public void unregisterAll() {
     for (NamespacedKey key : registered) {
-      Bukkit.removeRecipe(key);
+      recipeRegistry.remove(key);
     }
     registered.clear();
     discoveryEntries.clear();
@@ -596,7 +620,7 @@ public final class RecipeService {
       if (validationMode) {
         continue;
       }
-      if (Bukkit.removeRecipe(key)) {
+      if (recipeRegistry.remove(key)) {
         NamespacedKey removedKey = key;
         registered.remove(removedKey);
         discoveryEntries.removeIf(entry -> entry.key().equals(removedKey));
@@ -840,7 +864,7 @@ public final class RecipeService {
       return true;
     }
     try {
-      if (!Bukkit.addRecipe(recipe)) {
+      if (!recipeRegistry.add(recipe)) {
         logSkip(id, "Bukkit rejected recipe");
         registrationFailed = true;
         return false;
@@ -857,7 +881,7 @@ public final class RecipeService {
   private RecipeSnapshot snapshot() {
     List<RegisteredRecipe> recipes = new ArrayList<>();
     for (NamespacedKey key : registered) {
-      Recipe recipe = Bukkit.getRecipe(key);
+      Recipe recipe = recipeRegistry.get(key);
       if (recipe != null) {
         recipes.add(new RegisteredRecipe(key, recipe));
       }
@@ -883,7 +907,7 @@ public final class RecipeService {
       if (key == null || excludedKeys.contains(key) || !seen.add(key)) {
         continue;
       }
-      Recipe recipe = Bukkit.getRecipe(key);
+      Recipe recipe = recipeRegistry.get(key);
       if (recipe != null) {
         recipes.add(new RegisteredRecipe(key, recipe));
       }
@@ -899,7 +923,7 @@ public final class RecipeService {
     }
     for (RegisteredRecipe entry : snapshot.recipes()) {
       try {
-        if (Bukkit.addRecipe(entry.recipe())) {
+        if (recipeRegistry.add(entry.recipe())) {
           registered.add(entry.key());
         } else {
           ExortLog.error("Failed to restore recipe '" + entry.key() + "' after reload rollback.");
@@ -921,10 +945,10 @@ public final class RecipeService {
     }
     for (RegisteredRecipe entry : recipes) {
       try {
-        if (Bukkit.getRecipe(entry.key()) != null) {
+        if (recipeRegistry.get(entry.key()) != null) {
           continue;
         }
-        if (!Bukkit.addRecipe(entry.recipe())) {
+        if (!recipeRegistry.add(entry.recipe())) {
           ExortLog.error(
               "Failed to restore disabled recipe '" + entry.key() + "' after reload rollback.");
         }

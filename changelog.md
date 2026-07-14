@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.4 — 2026-07-14
+- Manual Exort item placement now restores the replaced block if placement-event dispatch aborts unexpectedly, preventing an unmarked carrier block from being left behind.
+
 ## 0.19.3 — 2026-07-13
 - PacketEvents item and display localization now reads immutable per-player locale snapshots and a thread-safe display index instead of accessing mutable Bukkit-backed state from packet workers; locale changes and reloads are published atomically.
 - Exort now bounds retained WorldEdit/FAWE marker history by operation size, estimated payload weight, total retained state, frame count, and per-position depth. An edit that would make custom-block undo incomplete is stopped before the next carrier block is changed.

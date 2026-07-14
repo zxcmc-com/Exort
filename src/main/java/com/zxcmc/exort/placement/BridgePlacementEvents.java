@@ -6,7 +6,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockCanBuildEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -35,7 +37,34 @@ public final class BridgePlacementEvents {
     Objects.requireNonNull(target, "target");
     Objects.requireNonNull(placedAgainst, "placedAgainst");
     Objects.requireNonNull(carrier, "carrier");
-    var intendedData = carrier.createBlockData();
+    return authorize(
+        player,
+        hand,
+        item,
+        target,
+        placedAgainst,
+        carrier,
+        carrier.createBlockData(),
+        event -> Bukkit.getPluginManager().callEvent(event));
+  }
+
+  static Approval authorize(
+      Player player,
+      EquipmentSlot hand,
+      ItemStack item,
+      Block target,
+      Block placedAgainst,
+      Material carrier,
+      BlockData intendedData,
+      EventDispatcher eventDispatcher) {
+    Objects.requireNonNull(player, "player");
+    Objects.requireNonNull(hand, "hand");
+    Objects.requireNonNull(item, "item");
+    Objects.requireNonNull(target, "target");
+    Objects.requireNonNull(placedAgainst, "placedAgainst");
+    Objects.requireNonNull(carrier, "carrier");
+    Objects.requireNonNull(intendedData, "intendedData");
+    Objects.requireNonNull(eventDispatcher, "eventDispatcher");
     if (target.getY() < target.getWorld().getMinHeight()
         || target.getY() >= target.getWorld().getMaxHeight()
         || !target
@@ -46,7 +75,7 @@ public final class BridgePlacementEvents {
     }
     BlockCanBuildEvent canBuild =
         new BlockCanBuildEvent(target, player, intendedData, target.canPlace(intendedData), hand);
-    Bukkit.getPluginManager().callEvent(canBuild);
+    eventDispatcher.call(canBuild);
     if (!canBuild.isBuildable()) return null;
 
     BlockState replaced = target.getState();
@@ -55,7 +84,10 @@ public final class BridgePlacementEvents {
         new BlockPlaceEvent(target, replaced, placedAgainst, item, player, true, hand);
     enterDispatch();
     try {
-      Bukkit.getPluginManager().callEvent(place);
+      eventDispatcher.call(place);
+    } catch (RuntimeException failure) {
+      restoreAfterFailure(replaced, failure);
+      throw failure;
     } finally {
       exitDispatch();
     }
@@ -64,6 +96,14 @@ public final class BridgePlacementEvents {
       return null;
     }
     return new Approval(replaced);
+  }
+
+  private static void restoreAfterFailure(BlockState replaced, RuntimeException failure) {
+    try {
+      replaced.update(true, false);
+    } catch (RuntimeException rollbackFailure) {
+      failure.addSuppressed(rollbackFailure);
+    }
   }
 
   private static void enterDispatch() {
@@ -87,5 +127,10 @@ public final class BridgePlacementEvents {
     public void rollback() {
       replacedState.update(true, false);
     }
+  }
+
+  @FunctionalInterface
+  interface EventDispatcher {
+    void call(Event event);
   }
 }

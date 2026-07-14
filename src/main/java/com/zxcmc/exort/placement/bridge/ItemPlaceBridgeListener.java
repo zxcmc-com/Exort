@@ -49,7 +49,6 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -62,7 +61,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 /**
@@ -175,8 +173,8 @@ public class ItemPlaceBridgeListener implements Listener {
       }
     }
     Block target = resolveTarget(clicked, event.getBlockFace());
-    if (target == null || !isReplaceable(target)) return;
-    if (!hasPlacementSpace(target)) return;
+    if (target == null || !BridgePlacementPolicy.isReplaceable(target)) return;
+    if (!BridgePlacementPolicy.hasPlacementSpace(target)) return;
 
     // Wire
     if (isWire(stack)) {
@@ -618,45 +616,24 @@ public class ItemPlaceBridgeListener implements Listener {
 
   private Block resolveTarget(Block clicked, BlockFace face) {
     if (clicked == null) return null;
-    if (isReplaceable(clicked)) {
+    if (BridgePlacementPolicy.isReplaceable(clicked)) {
       return clicked;
     }
     return clicked.getRelative(face);
   }
 
-  private boolean isReplaceable(Block block) {
-    if (block == null) return false;
-    Material type = block.getType();
-    return type.isAir() || block.isReplaceable();
-  }
-
-  private boolean hasPlacementSpace(Block target) {
-    BoundingBox box =
-        new BoundingBox(
-            target.getX(),
-            target.getY(),
-            target.getZ(),
-            target.getX() + 1,
-            target.getY() + 1,
-            target.getZ() + 1);
-    for (var entity : target.getWorld().getNearbyEntities(box)) {
-      if (entity instanceof LivingEntity) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   private boolean shouldUseOffhand(PlayerInteractEvent event) {
-    if (event.getHand() != EquipmentSlot.OFF_HAND) return true;
     ItemStack main = event.getPlayer().getInventory().getItemInMainHand();
-    if (main == null || main.getType() == Material.AIR) return true;
-    if (main.hasItemMeta() && customItems.isCustomItem(main)) return false;
-    Material type = main.getType();
-    if (type.isEdible() && event.getPlayer().getFoodLevel() >= 20) return true;
-    if (type.isBlock()) return false;
-    if (type.isEdible()) return false;
-    return true;
+    boolean empty = main == null || main.getType() == Material.AIR;
+    boolean custom = !empty && main.hasItemMeta() && customItems.isCustomItem(main);
+    Material type = empty ? Material.AIR : main.getType();
+    return BridgePlacementPolicy.shouldUseOffhand(
+        event.getHand(),
+        empty,
+        custom,
+        !empty && type.isBlock(),
+        !empty && type.isEdible(),
+        event.getPlayer().getFoodLevel());
   }
 
   private BusMode defaultBusMode(boolean exportBus) {

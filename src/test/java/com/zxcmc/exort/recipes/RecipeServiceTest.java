@@ -11,15 +11,19 @@ import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.recipe.CookingBookCategory;
 import org.bukkit.inventory.recipe.CraftingBookCategory;
@@ -238,6 +242,110 @@ class RecipeServiceTest {
     assertTrue(service.discoveryEntries().isEmpty());
   }
 
+  @Test
+  void malformedCandidateLeavesLastKnownGoodRegistryUntouched() {
+    FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
+    RecipeService previous = recipeService(registry);
+    assertTrue(previous.reloadReplacing(null, shapelessConfig("old"), true));
+    registry.resetOperations();
+
+    YamlConfiguration malformed = shapelessConfig("new_recipe");
+    malformed.set("shapeless.invalid.ingredients", List.of("minecraft:not_a_material"));
+    malformed.set("shapeless.invalid.result.item", "exort:wire");
+
+    assertFalse(recipeService(registry).reloadReplacing(previous, malformed, true));
+    assertEquals(Set.of(key("old")), registry.keys());
+    assertEquals(0, registry.addCalls);
+    assertEquals(0, registry.removeCalls);
+    assertEquals(0, registry.getCalls);
+  }
+
+  @Test
+  void rejectedCandidateRegistrationRestoresPreviousRecipesAndDiscovery() {
+    assertCandidateRegistrationFailureRollsBack(false);
+  }
+
+  @Test
+  void exceptionalCandidateRegistrationRestoresPreviousRecipesAndDiscovery() {
+    assertCandidateRegistrationFailureRollsBack(true);
+  }
+
+  @Test
+  void failureAfterRemovingConfiguredExternalRecipeRestoresIt() {
+    FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
+    Recipe external = recipe(NamespacedKey.minecraft("external_recipe"));
+    assertTrue(registry.add(external));
+    RecipeService previous = recipeService(registry);
+    assertTrue(previous.reloadReplacing(null, shapelessConfig("old"), true));
+
+    YamlConfiguration candidate = shapelessConfig("new_recipe");
+    candidate.set("disabled", List.of("minecraft:external_recipe"));
+    registry.removeThenThrowOnce(NamespacedKey.minecraft("external_recipe"));
+
+    assertFalse(recipeService(registry).reloadReplacing(previous, candidate, true));
+    assertEquals(Set.of(key("old"), NamespacedKey.minecraft("external_recipe")), registry.keys());
+    assertTrue(
+        previous.discoveryEntries().stream().anyMatch(entry -> entry.key().equals(key("old"))));
+  }
+
+  @Test
+  void successfulCandidateReplacesPreviousRecipeSetOnce() {
+    FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
+    RecipeService previous = recipeService(registry);
+    assertTrue(previous.reloadReplacing(null, shapelessConfig("old"), true));
+    registry.resetOperations();
+    RecipeService candidate = recipeService(registry);
+
+    assertTrue(candidate.reloadReplacing(previous, shapelessConfig("first", "second"), true));
+    assertEquals(Set.of(key("first"), key("second")), registry.keys());
+    assertEquals(2, registry.addCalls);
+    assertEquals(1, registry.removeCalls);
+    assertTrue(previous.discoveryEntries().isEmpty());
+    assertEquals(2, candidate.discoveryEntries().size());
+  }
+
+  private static void assertCandidateRegistrationFailureRollsBack(boolean exceptional) {
+    FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
+    RecipeService previous = recipeService(registry);
+    assertTrue(previous.reloadReplacing(null, shapelessConfig("old"), true));
+    registry.failAddOnce(key("second"), exceptional);
+    RecipeService candidate = recipeService(registry);
+
+    assertFalse(candidate.reloadReplacing(previous, shapelessConfig("first", "second"), true));
+    assertEquals(Set.of(key("old")), registry.keys());
+    assertTrue(
+        previous.discoveryEntries().stream().anyMatch(entry -> entry.key().equals(key("old"))));
+    assertTrue(candidate.discoveryEntries().isEmpty());
+  }
+
+  private static RecipeService recipeService(RecipeRegistry registry) {
+    return new RecipeService(
+        null,
+        new RecordingCustomItems(),
+        null,
+        FeatureAccessConfig::defaults,
+        testChoiceFactory(),
+        registry);
+  }
+
+  private static YamlConfiguration shapelessConfig(String... ids) {
+    YamlConfiguration config = new YamlConfiguration();
+    for (String id : ids) {
+      config.set("shapeless." + id + ".result.item", "exort:wire");
+      config.set("shapeless." + id + ".ingredients", List.of("minecraft:redstone"));
+      config.set("shapeless." + id + ".unlock", List.of("minecraft:redstone"));
+    }
+    return config;
+  }
+
+  private static NamespacedKey key(String id) {
+    return NamespacedKey.fromString("exort:" + id);
+  }
+
+  private static Recipe recipe(NamespacedKey key) {
+    return new TestRecipe(key);
+  }
+
   private static final class RecordingCustomItems extends CustomItems {
     private ChunkLoaderType lastType;
 
@@ -282,6 +390,78 @@ class RecipeServiceTest {
   }
 
   private static final class TestItemStack extends ItemStack {}
+
+  private record TestRecipe(NamespacedKey key) implements Recipe, Keyed {
+    @Override
+    public NamespacedKey getKey() {
+      return key;
+    }
+
+    @Override
+    public ItemStack getResult() {
+      return new MarkerItemStack(Material.STONE, null);
+    }
+  }
+
+  private static final class FaultInjectingRecipeRegistry implements RecipeRegistry {
+    private final Map<NamespacedKey, Recipe> recipes = new LinkedHashMap<>();
+    private NamespacedKey failedAddKey;
+    private boolean exceptionalAdd;
+    private NamespacedKey exceptionalRemoveKey;
+    private int addCalls;
+    private int removeCalls;
+    private int getCalls;
+
+    @Override
+    public boolean add(Recipe recipe) {
+      addCalls++;
+      NamespacedKey key = ((Keyed) recipe).getKey();
+      if (key.equals(failedAddKey)) {
+        failedAddKey = null;
+        if (exceptionalAdd) {
+          throw new IllegalStateException("injected add failure for " + key);
+        }
+        return false;
+      }
+      return recipes.putIfAbsent(key, recipe) == null;
+    }
+
+    @Override
+    public boolean remove(NamespacedKey key) {
+      removeCalls++;
+      boolean removed = recipes.remove(key) != null;
+      if (key.equals(exceptionalRemoveKey)) {
+        exceptionalRemoveKey = null;
+        throw new IllegalStateException("injected remove failure for " + key);
+      }
+      return removed;
+    }
+
+    @Override
+    public Recipe get(NamespacedKey key) {
+      getCalls++;
+      return recipes.get(key);
+    }
+
+    private void failAddOnce(NamespacedKey key, boolean exceptional) {
+      failedAddKey = key;
+      exceptionalAdd = exceptional;
+    }
+
+    private void removeThenThrowOnce(NamespacedKey key) {
+      exceptionalRemoveKey = key;
+    }
+
+    private Set<NamespacedKey> keys() {
+      return Set.copyOf(recipes.keySet());
+    }
+
+    private void resetOperations() {
+      addCalls = 0;
+      removeCalls = 0;
+      getCalls = 0;
+    }
+  }
 
   private static RecipeService.ChoiceFactory testChoiceFactory() {
     return new RecipeService.ChoiceFactory() {
