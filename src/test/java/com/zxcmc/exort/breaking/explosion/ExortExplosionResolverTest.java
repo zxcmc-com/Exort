@@ -106,6 +106,53 @@ class ExortExplosionResolverTest {
   }
 
   @Test
+  void blastResistantWallShieldsExortBlockButStillSuppressesVanillaDestruction() {
+    BukkitTestDoubles.TestWorld world = world("occluded-wire", 9);
+    Block wire = world.block(2, 64, 0, Material.CHORUS_PLANT);
+    world.block(1, 64, 0, Material.OBSIDIAN);
+    WireMarker.setWire(plugin, wire);
+    List<Block> vanillaBlocks = new ArrayList<>(List.of(wire));
+    List<Block> broken = new ArrayList<>();
+
+    listener(Material.CHORUS_PLANT, broken, BlockBreakHandler.BreakResult.BROKEN)
+        .handleExplosion(center(world, 0, 64, 0), TNT_RADIUS, vanillaBlocks);
+
+    assertFalse(vanillaBlocks.contains(wire));
+    assertTrue(broken.isEmpty());
+  }
+
+  @Test
+  void lowResistanceBlockAttenuatesBlastWithoutActingAsBinaryOcclusion() {
+    BukkitTestDoubles.TestWorld world = world("weak-occlusion", 10);
+    Block wire = world.block(2, 64, 0, Material.CHORUS_PLANT);
+    world.block(1, 64, 0, Material.GLASS);
+    WireMarker.setWire(plugin, wire);
+    List<Block> broken = new ArrayList<>();
+
+    listener(Material.CHORUS_PLANT, broken, BlockBreakHandler.BreakResult.BROKEN)
+        .handleExplosion(center(world, 0, 64, 0), TNT_RADIUS, new ArrayList<>());
+
+    assertEquals(List.of(wire), broken);
+  }
+
+  @Test
+  void unloadedIntermediateChunkFailsClosedWithoutLoadingIt() {
+    BukkitTestDoubles.TestWorld world = world("unloaded-occlusion", 11);
+    Block wire = world.block(32, 64, 0, Material.CHORUS_PLANT);
+    WireMarker.setWire(plugin, wire);
+    world.unloadChunk(1, 0);
+    List<Block> vanillaBlocks = new ArrayList<>(List.of(wire));
+    List<Block> broken = new ArrayList<>();
+
+    listener(Material.CHORUS_PLANT, broken, BlockBreakHandler.BreakResult.BROKEN)
+        .handleExplosion(center(world, 0, 64, 0), 20.0F, vanillaBlocks);
+
+    assertFalse(vanillaBlocks.contains(wire));
+    assertTrue(broken.isEmpty());
+    assertFalse(world.isChunkLoaded(1, 0));
+  }
+
+  @Test
   void tntScaleExplosionBreaksLowResistanceUtilityBlocks() {
     BukkitTestDoubles.TestWorld world = world("utility-breaks", 3);
     Block bus = world.block(-1, 64, 0, Material.BARRIER);
@@ -258,7 +305,17 @@ class ExortExplosionResolverTest {
   }
 
   private ExortExplosionResolver resolver(Material wireMaterial, ExortBlastResistance resistance) {
-    return new ExortExplosionResolver(plugin, materials(wireMaterial), resistance);
+    return new ExortExplosionResolver(
+        plugin,
+        materials(wireMaterial),
+        resistance,
+        new ExplosionOcclusion(
+            material ->
+                switch (material) {
+                  case OBSIDIAN -> 1200.0F;
+                  case GLASS -> 0.3F;
+                  default -> 6.0F;
+                }));
   }
 
   private static RuntimeMaterials materials(Material wireMaterial) {

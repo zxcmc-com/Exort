@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.5 — 2026-07-15
+- Blast-resistant walls now shield Exort blocks from custom explosion destruction when the wall absorbs the blast.
+
 ## 0.19.4 — 2026-07-14
 - Manual Exort item placement now restores the replaced block if placement-event dispatch aborts unexpectedly, preventing an unmarked carrier block from being left behind.
 

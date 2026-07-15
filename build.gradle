@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.19.4'
+version = '0.19.5'
 description = 'Exort Storage Network'
 
 def pluginVersion = version.toString()
@@ -331,15 +331,12 @@ tasks.register('verifyPluginJar') {
             'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder$1.class',
             'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder$JsonObject.class'
         ] as Set
-        def forbiddenPrefixes = [
-            '.codex/', '.git/', '.github/', '.gradle/', 'build/', 'docs/', 'public/',
-            'src/', 'test/', 'tests/', 'tmp/', 'tools/'
-        ]
-        def forbiddenFiles = [
-            'AGENTS.md', 'ae2plan.md', 'article.md', 'script.md', 'todo.md'
+        def allowedRootFiles = [
+            'config.yml', 'paper-plugin.yml', 'recipes.yml', 'storage-tiers.yml'
         ] as Set
-        def forbiddenDependencyPrefixes = [
-            'com/sk89q/', 'io/papermc/', 'org/junit/', 'org/sqlite/'
+        def allowedDirectoryEntries = ['com/', 'com/zxcmc/'] as Set
+        def allowedPrefixes = [
+            'META-INF/', 'com/zxcmc/exort/', 'lang/', 'pack/'
         ]
 
         new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
@@ -400,14 +397,16 @@ tasks.register('verifyPluginJar') {
                 throw new GradleException('Plugin JAR contains unrelocated org.bstats classes')
             }
 
-            def leakedEntry = entryNames.find { name ->
-                forbiddenPrefixes.any { name.startsWith(it) } ||
-                    forbiddenFiles.contains(name) ||
-                    forbiddenDependencyPrefixes.any { name.startsWith(it) } ||
-                    name.endsWith('.java')
+            def unexpectedEntry = entryNames.find { name ->
+                def allowedPath = allowedRootFiles.contains(name) ||
+                    allowedDirectoryEntries.contains(name) ||
+                    allowedPrefixes.any { name.startsWith(it) }
+                !allowedPath || name.endsWith('.java')
             }
-            if (leakedEntry != null) {
-                throw new GradleException("Plugin JAR contains forbidden internal/dependency entry: ${leakedEntry}")
+            if (unexpectedEntry != null) {
+                throw new GradleException(
+                    "Plugin JAR contains an entry outside the artifact allowlist: ${unexpectedEntry}"
+                )
             }
         }
     }

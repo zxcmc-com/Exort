@@ -36,6 +36,7 @@ final class ExortExplosionResolver {
   private final Plugin plugin;
   private final RuntimeMaterials materials;
   private final ExortBlastResistance blastResistance;
+  private final ExplosionOcclusion explosionOcclusion;
 
   ExortExplosionResolver(Plugin plugin, RuntimeMaterials materials) {
     this(plugin, materials, ExortBlastResistance.defaults());
@@ -43,9 +44,18 @@ final class ExortExplosionResolver {
 
   ExortExplosionResolver(
       Plugin plugin, RuntimeMaterials materials, ExortBlastResistance blastResistance) {
+    this(plugin, materials, blastResistance, new ExplosionOcclusion());
+  }
+
+  ExortExplosionResolver(
+      Plugin plugin,
+      RuntimeMaterials materials,
+      ExortBlastResistance blastResistance,
+      ExplosionOcclusion explosionOcclusion) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.materials = Objects.requireNonNull(materials, "materials");
     this.blastResistance = Objects.requireNonNull(blastResistance, "blastResistance");
+    this.explosionOcclusion = Objects.requireNonNull(explosionOcclusion, "explosionOcclusion");
   }
 
   ExplosionPlan plan(Location center, float radius, Collection<Block> knownBlocks) {
@@ -178,6 +188,16 @@ final class ExortExplosionResolver {
     }
     int airSteps = Math.max(0, (int) Math.floor(distance / RAY_STEP));
     strength -= airSteps * AIR_ATTENUATION_PER_STEP;
+    if (strength <= 0.0F) {
+      return false;
+    }
+    float occlusionAttenuation =
+        explosionOcclusion.attenuation(
+            center.getWorld(), center, block, distance, RAY_STEP, strength);
+    if (!Float.isFinite(occlusionAttenuation)) {
+      return false;
+    }
+    strength -= occlusionAttenuation;
     strength -= (target.resistance() + 0.3F) * 0.3F;
     return strength > 0.0F;
   }

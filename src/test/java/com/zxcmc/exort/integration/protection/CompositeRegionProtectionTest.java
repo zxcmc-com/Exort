@@ -39,6 +39,27 @@ class CompositeRegionProtectionTest {
         new CompositeRegionProtection(List.of(adapter("throwing", throwing())), null, true);
 
     assertFalse(protection.canBuild(null, null, null));
+    assertFalse(protection.canBreak(null, null));
+    assertFalse(protection.canInteract(null, null));
+    assertFalse(protection.canUse(null, null));
+    assertFalse(protection.canBuild(null, null, null));
+    assertFalse(protection.canBreak(null, null));
+    assertFalse(protection.canInteract(null, null));
+    assertFalse(protection.canUse(null, null));
+    assertEquals(
+        List.of("throwing:break", "throwing:build", "throwing:interact", "throwing:use"),
+        protection.runtimeFailureKeys());
+  }
+
+  @Test
+  void failClosedDoesNotDenyWhenNoProviderIsActive() {
+    CompositeRegionProtection protection = new CompositeRegionProtection(List.of(), null, true);
+
+    assertTrue(protection.canBuild(null, null, null));
+    assertTrue(protection.canBreak(null, null));
+    assertTrue(protection.canInteract(null, null));
+    assertTrue(protection.canUse(null, null));
+    assertTrue(protection.runtimeFailureKeys().isEmpty());
   }
 
   private static CompositeRegionProtection.Adapter adapter(
