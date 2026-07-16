@@ -1,6 +1,8 @@
 package com.zxcmc.exort.breaking.explosion;
 
 import com.zxcmc.exort.breaking.BreakType;
+import com.zxcmc.exort.infra.config.ConfigNumbers;
+import java.util.logging.Logger;
 import org.bukkit.configuration.file.FileConfiguration;
 
 final class ExortBlastResistance {
@@ -47,18 +49,23 @@ final class ExortBlastResistance {
   }
 
   static ExortBlastResistance fromConfig(FileConfiguration config) {
+    return fromConfig(config, null);
+  }
+
+  static ExortBlastResistance fromConfig(FileConfiguration config, Logger logger) {
     if (config == null) {
       return defaults();
     }
+    ConfigNumbers numbers = new ConfigNumbers(config, logger);
     return new ExortBlastResistance(
-        configured(config, "break.storage.blastResistance", STORAGE),
-        configured(config, "break.terminal.blastResistance", TERMINAL),
-        configured(config, "break.monitor.blastResistance", MONITOR),
-        configured(config, "break.bus.blastResistance", BUS),
-        configured(config, "break.relay.blastResistance", RELAY),
-        configured(config, "break.transmitter.blastResistance", TRANSMITTER),
-        configured(config, "break.chunkLoader.blastResistance", CHUNK_LOADER),
-        configured(config, "break.wire.blastResistance", WIRE));
+        configured(numbers, "break.storage.blastResistance", STORAGE),
+        configured(numbers, "break.terminal.blastResistance", TERMINAL),
+        configured(numbers, "break.monitor.blastResistance", MONITOR),
+        configured(numbers, "break.bus.blastResistance", BUS),
+        configured(numbers, "break.relay.blastResistance", RELAY),
+        configured(numbers, "break.transmitter.blastResistance", TRANSMITTER),
+        configured(numbers, "break.chunkLoader.blastResistance", CHUNK_LOADER),
+        configured(numbers, "break.wire.blastResistance", WIRE));
   }
 
   float forBreakType(BreakType type) {
@@ -75,8 +82,8 @@ final class ExortBlastResistance {
     };
   }
 
-  private static float configured(FileConfiguration config, String path, float fallback) {
-    return sanitize((float) config.getDouble(path, fallback), fallback);
+  private static float configured(ConfigNumbers numbers, String path, float fallback) {
+    return (float) numbers.decimal(path, fallback, 0.0D, Float.MAX_VALUE);
   }
 
   private static float sanitize(float value, float fallback) {

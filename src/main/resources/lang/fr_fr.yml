@@ -185,6 +185,8 @@ message:
     handoff: "Passage au fournisseur: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Point d’écoute SELFHOST: {0}; URL publique: {1}; limite de concurrence: {2}"
+    self_host_requests: "Requêtes SELFHOST: actives {0}/{1}, pic {2}, acceptées {3}, terminées {4}, rejetées {5}, échouées {6}"
     note: "Remarque: {0}"
     provider_note: "Le transfert du pack de ressources est prêt pour {0}; le fournisseur l’inclut au démarrage ou lors de la génération du pack. Si {0} était déjà activé, redémarre ou recharge ce fournisseur manuellement."
     error: "Erreur: {0}"

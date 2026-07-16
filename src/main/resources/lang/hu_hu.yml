@@ -185,6 +185,8 @@ message:
     handoff: "Átadás providernek: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST figyelő: {0}; nyilvános URL: {1}; párhuzamossági korlát: {2}"
+    self_host_requests: "SELFHOST kérések: aktív {0}/{1}, csúcs {2}, elfogadott {3}, befejezett {4}, elutasított {5}, sikertelen {6}"
     note: "Megjegyzés: {0}"
     provider_note: "Az erőforráscsomag átadása készen áll ehhez: {0}; a szolgáltató indításkor vagy a csomag létrehozásakor beépíti. Ha {0} már engedélyezve volt, indítsd újra vagy töltsd újra kézzel a szolgáltatót."
     error: "Hiba: {0}"

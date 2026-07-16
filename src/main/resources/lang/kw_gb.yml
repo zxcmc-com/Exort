@@ -185,6 +185,8 @@ message:
     handoff: "Treylyans dhe'n proviador: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Goslowyas SELFHOST: {0}; URL poblek: {1}; fin kethober: {2}"
+    self_host_requests: "Govynnow SELFHOST: oberus {0}/{1}, uhelha {2}, degemerys {3}, gorfenys {4}, naghes {5}, fyllys {6}"
     note: "Noten: {0}"
     provider_note: "Parys yw treylyans an pakians asnodhow rag {0}; y wra an proviador y ynworrans pan dhallath po pan wra an pakians. Mar kwrug {0} bos galoseg seulabrys, dasdhallath po daslonka an proviador-na dre dhorn."
     error: "Gwall: {0}"

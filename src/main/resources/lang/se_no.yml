@@ -185,6 +185,8 @@ message:
     handoff: "Sirdin fálaldahkii: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-guldaleaddji: {0}; almmolaš URL: {1}; oktanisvuođa rádji: {2}"
+    self_host_requests: "SELFHOST-jearaldagat: aktiivvalaččat {0}/{1}, alimus {2}, dohkkehuvvon {3}, geargan {4}, hilgojuvvon {5}, filten {6}"
     note: "Mearkkašupmi: {0}"
     provider_note: "Resursapáhka sirdin lea gárvvis {0} várás; fálaldat váldá dan mielde álggiheamis dahje páhka ráhkadeamis. Jus {0} lei juo alde, álggat dahje viečča fálaldaga ođđasit gieđain."
     error: "Meattáhus: {0}"

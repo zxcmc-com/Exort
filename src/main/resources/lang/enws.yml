@@ -185,6 +185,8 @@ message:
     handoff: "Provider handoff standeth thus: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST listener: {0}; public URL: {1}; concurrence bound: {2}"
+    self_host_requests: "SELFHOST requests: awake {0}/{1}, crest {2}, admitted {3}, fulfilled {4}, refused {5}, failed {6}"
     note: "Notice: {0}"
     provider_note: "Livery pack handoff awaiteth {0}; the provider includeth it whilst starting and making the pack. If {0} was already awake, restart or reload the provider by hand."
     error: "Fault: {0}"

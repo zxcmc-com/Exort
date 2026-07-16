@@ -185,6 +185,8 @@ message:
     handoff: "Aistriú chuig provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Éisteoir SELFHOST: {0}; URL poiblí: {1}; teorainn chomhthreomhaireachta: {2}"
+    self_host_requests: "Iarratais SELFHOST: gníomhach {0}/{1}, buaic {2}, glactha {3}, críochnaithe {4}, diúltaithe {5}, teipthe {6}"
     note: "Nóta: {0}"
     provider_note: "Tá aistriú an phacáiste acmhainní réidh do {0}; cuireann an provider isteach é le linn tosaithe nó giniúna pacáiste. Má bhí {0} cumasaithe cheana, atosaigh nó athluchtaigh an provider sin de láimh."
     error: "Earráid: {0}"

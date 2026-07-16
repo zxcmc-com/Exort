@@ -185,6 +185,8 @@ message:
     handoff: "Provider-afhending: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-hlustari: {0}; opinbert URL: {1}; samhliða takmörk: {2}"
+    self_host_requests: "SELFHOST-beiðnir: virkar {0}/{1}, hámark {2}, samþykktar {3}, lokið {4}, hafnað {5}, misheppnaðar {6}"
     note: "Athugasemd: {0}"
     provider_note: "Afhending resource-pakkans er tilbúin fyrir {0}; providerinn tekur hann með við ræsingu eða pack-gerð. Ef {0} var þegar virkt skaltu endurræsa eða endurhlaða providerinn handvirkt."
     error: "Villa: {0}"

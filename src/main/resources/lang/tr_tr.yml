@@ -185,6 +185,8 @@ message:
     handoff: "Provider devri: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST dinleyicisi: {0}; herkese açık URL: {1}; eşzamanlılık sınırı: {2}"
+    self_host_requests: "SELFHOST istekleri: etkin {0}/{1}, zirve {2}, kabul edilen {3}, tamamlanan {4}, reddedilen {5}, başarısız {6}"
     note: "Not: {0}"
     provider_note: "Kaynak paketi aktarımı {0} için hazır; sağlayıcı bunu başlatma veya paket oluşturma sırasında ekler. {0} zaten etkinse o sağlayıcıyı elle yeniden başlatın veya yeniden yükleyin."
     error: "Hata: {0}"

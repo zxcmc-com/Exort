@@ -185,6 +185,8 @@ message:
     handoff: "提供者交接：{0}"
     sha1: "SHA-1：{0}"
     url: "URL：{0}"
+    self_host_listener: "SELFHOST 監聽器：{0}；公開 URL：{1}；並行處理上限：{2}"
+    self_host_requests: "SELFHOST 請求：處理中 {0}/{1}，峰值 {2}，已接受 {3}，已完成 {4}，已拒絕 {5}，失敗 {6}"
     note: "備註：{0}"
     provider_note: "資源包交接已為 {0} 就緒；該提供者會在啟動或產生資源包時包含它。如果 {0} 已經啟用，請手動重新啟動或重新載入該提供者。"
     error: "錯誤：{0}"

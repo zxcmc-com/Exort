@@ -3,6 +3,8 @@ package com.zxcmc.exort.i18n;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -30,6 +32,8 @@ class BundledLanguageFilesTest {
       Set.of(
           "message.chunk_loader_initializing",
           "message.chunk_loader_limit_reached",
+          "message.pack_status.self_host_listener",
+          "message.pack_status.self_host_requests",
           "message.wireless.transmitter_inactive",
           "message.wireless.no_terminal_in_hand",
           "message.wireless.transmitter_slot_occupied",
@@ -249,6 +253,33 @@ class BundledLanguageFilesTest {
           0,
           files.filter(path -> path.getFileName().toString().endsWith(".json")).count(),
           "resource-pack language JSON must not be committed");
+    }
+  }
+
+  @Test
+  void everyBundledLocaleGeneratesValidClientResourcePackJson() throws IOException {
+    long expectedClientKeys =
+        readRuntimeLang("en_us").keySet().stream()
+            .filter(LocalizationFiles::isClientResourcePackKey)
+            .count();
+
+    for (String locale : checkedLocales()) {
+      Map<String, String> language = readRuntimeLang(locale);
+      String rawJson =
+          new String(LocalizationFiles.clientResourcePackJson(language), StandardCharsets.UTF_8);
+      JsonObject json = JsonParser.parseString(rawJson).getAsJsonObject();
+      assertEquals(expectedClientKeys, json.size(), locale + " has a mismatched client key set");
+      for (var entry : language.entrySet()) {
+        if (!LocalizationFiles.isClientResourcePackKey(entry.getKey())) {
+          continue;
+        }
+        String clientKey = "exort." + entry.getKey();
+        assertTrue(json.has(clientKey), locale + " is missing client key " + clientKey);
+        assertEquals(
+            LocalizationFiles.serverToResourcePack(entry.getValue()),
+            json.get(clientKey).getAsString(),
+            locale + " has invalid client placeholder conversion for " + entry.getKey());
+      }
     }
   }
 

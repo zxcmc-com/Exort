@@ -185,6 +185,8 @@ message:
     handoff: "Traditio ad praebitor: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Punctum auscultationis SELFHOST: {0}; URL publica: {1}; limes concurrentiae: {2}"
+    self_host_requests: "Petitiones SELFHOST: activae {0}/{1}, culmen {2}, acceptae {3}, completae {4}, reiectae {5}, frustratae {6}"
     note: "Nota: {0}"
     provider_note: "Traditio fasciculi facultatum parata est pro {0}; praebitor eum in initio vel generatione fasciculi includit. Si {0} iam effectus erat, illum praebitor manu denuo incipe vel reonera."
     error: "Errorem: {0}"

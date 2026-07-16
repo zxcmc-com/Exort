@@ -11,6 +11,7 @@ import java.util.function.Function;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Explosive;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,6 +19,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ExortExplosionListener implements Listener {
@@ -36,11 +38,27 @@ public final class ExortExplosionListener implements Listener {
 
   public ExortExplosionListener(
       JavaPlugin plugin, RuntimeMaterials materials, BlockBreakHandler breakHandler) {
+    this(plugin, plugin.getConfig(), materials, breakHandler);
+  }
+
+  public ExortExplosionListener(
+      JavaPlugin plugin,
+      FileConfiguration config,
+      RuntimeMaterials materials,
+      BlockBreakHandler breakHandler) {
+    this(plugin, config, materials, block -> breakHandler.handleBreak(null, block, false));
+    Objects.requireNonNull(breakHandler, "breakHandler");
+  }
+
+  ExortExplosionListener(
+      Plugin plugin,
+      FileConfiguration config,
+      RuntimeMaterials materials,
+      Function<Block, BlockBreakHandler.BreakResult> breaker) {
     this(
         new ExortExplosionResolver(
-            plugin, materials, ExortBlastResistance.fromConfig(plugin.getConfig())),
-        block -> breakHandler.handleBreak(null, block, false));
-    Objects.requireNonNull(breakHandler, "breakHandler");
+            plugin, materials, ExortBlastResistance.fromConfig(config, plugin.getLogger())),
+        breaker);
   }
 
   ExortExplosionListener(

@@ -185,6 +185,8 @@ message:
     handoff: "Oorhandiging aan verskaffer: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-luisteraar: {0}; openbare URL: {1}; gelyktydigheidslimiet: {2}"
+    self_host_requests: "SELFHOST-versoeke: aktief {0}/{1}, piek {2}, aanvaar {3}, voltooi {4}, verwerp {5}, misluk {6}"
     note: "Nota: {0}"
     provider_note: "Die hulpbronpak-oordrag is gereed vir {0}; die provider voeg dit tydens aanskakeling of pakgenerering in. As {0} reeds geaktiveer was, herbegin of herlaai daardie provider handmatig."
     error: "Fout: {0}"

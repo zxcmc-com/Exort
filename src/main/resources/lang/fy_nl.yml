@@ -185,6 +185,8 @@ message:
     handoff: "Provider-oerdracht: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-lústerder: {0}; iepenbiere URL: {1}; limyt foar tagelyk ôfhanneljen: {2}"
+    self_host_requests: "SELFHOST-fersiken: aktyf {0}/{1}, hichtepunt {2}, akseptearre {3}, foltôge {4}, wegere {5}, mislearre {6}"
     note: "Noat: {0}"
     provider_note: "De resourcepack-oerdracht is klear foar {0}; de provider nimt dy mei by it opstarten of meitsjen fan it pack. As {0} al ynskeakele wie, start of laad dy provider hânmjittich opnij."
     error: "Flater: {0}"

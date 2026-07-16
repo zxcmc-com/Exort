@@ -185,6 +185,8 @@ message:
     handoff: "Provider handoff: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST listener: {0}; public URL: {1}; concurrency limit: {2}"
+    self_host_requests: "SELFHOST requests: active {0}/{1}, peak {2}, accepted {3}, completed {4}, rejected {5}, failed {6}"
     note: "Note: {0}"
     provider_note: "Resource-pack handoff is ready for {0}; the provider includes it during startup/pack generation. If {0} was already enabled, restart or reload that provider manually."
     error: "Error: {0}"

@@ -185,6 +185,8 @@ message:
     handoff: "Przekazanie providerowi: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adres nasłuchiwania SELFHOST: {0}; publiczny URL: {1}; limit jednoczesnych żądań: {2}"
+    self_host_requests: "Żądania SELFHOST: aktywne {0}/{1}, maksimum {2}, przyjęte {3}, zakończone {4}, odrzucone {5}, nieudane {6}"
     note: "Notatka: {0}"
     provider_note: "Przekazanie pakietu zasobów jest gotowe dla {0}; dostawca dołącza go podczas uruchamiania lub tworzenia pakietu. Jeśli {0} był już włączony, ręcznie uruchom ponownie albo przeładuj tego dostawcę."
     error: "Błąd: {0}"

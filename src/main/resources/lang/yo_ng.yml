@@ -185,6 +185,8 @@ message:
     handoff: "Gbigbe provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Olùgbọ́ SELFHOST: {0}; URL gbogbogbò: {1}; ààlà àwọn ìbéèrè lẹ́ẹ̀kan náà: {2}"
+    self_host_requests: "Àwọn ìbéèrè SELFHOST: ńṣiṣẹ́ {0}/{1}, tí ó ga jù {2}, tí a gbà {3}, tí a parí {4}, tí a kọ̀ {5}, tí ó kùnà {6}"
     note: "Akọsilẹ: {0}"
     provider_note: "ifijiṣẹ àpò ohun elo ti ṣetan fun {0}; olupèsè yoo fi kun nigba ìbẹ̀rẹ̀/ṣíṣe àpò. Ti {0} ba ti tan tẹlẹ, bẹ̀rẹ̀ sí i lẹ́ẹ̀kansi tabi kojọpọ̀ lẹ́ẹ̀kansi olupèsè yẹn pẹlu ọwọ."
     error: "Aṣiṣe: {0}"

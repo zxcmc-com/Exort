@@ -185,6 +185,8 @@ message:
     handoff: "Übergabe an Anbieter: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-Listener: {0}; öffentliche URL: {1}; Nebenläufigkeitslimit: {2}"
+    self_host_requests: "SELFHOST-Anfragen: aktiv {0}/{1}, Spitze {2}, angenommen {3}, abgeschlossen {4}, abgelehnt {5}, fehlgeschlagen {6}"
     note: "Hinweis: {0}"
     provider_note: "Die Übergabe des Ressourcenpakets an {0} ist bereit; der Anbieter bindet es beim Start oder bei der Paketerstellung ein. Falls {0} bereits aktiviert war, starte oder lade diesen Anbieter manuell neu."
     error: "Fehler: {0}"

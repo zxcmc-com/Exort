@@ -185,6 +185,8 @@ message:
     handoff: "Entrega al proveedor: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Punt d'escolta SELFHOST: {0}; URL pública: {1}; límit de concurrència: {2}"
+    self_host_requests: "Sol·licituds SELFHOST: actives {0}/{1}, pic {2}, acceptades {3}, completades {4}, rebutjades {5}, fallides {6}"
     note: "Nota: {0}"
     provider_note: "El lliurament del paquet de recursos està preparat per a {0}; el proveïdor l'inclou durant l'arrencada o la generació del paquet. Si {0} ja estava activat, reinicia o recarrega manualment aquest proveïdor."
     error: "Error: {0}"

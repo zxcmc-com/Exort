@@ -185,6 +185,8 @@ message:
     handoff: "pana jan-pana: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "ilo kute SELFHOST: {0}; URL pi jan ale: {1}; mute pi pali lon tenpo sama: {2}"
+    self_host_requests: "wile SELFHOST: pali {0}/{1}, mute suli {2}, kama jo {3}, pini {4}, weka {5}, pakala {6}"
     note: "sitelen lili: {0}"
     provider_note: "Poki lukin li ken kama tawa {0}; ilo pana li jo e ona lon tenpo open anu lon pali poki. {0} li open lon tenpo pini la o open sin anu o kama sin e ilo pana kepeken luka."
     error: "pakala: {0}"

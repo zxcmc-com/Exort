@@ -185,6 +185,8 @@ message:
     handoff: "nobwIʼ nob: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST ʼIjwIʼ: {0}; HochvaD URL: {1}; Quʼmey quq mIʼ ʼaqroS: {2}"
+    self_host_requests: "SELFHOST tlhobtaʼghachmey: QaptaH {0}/{1}, mIʼ ʼaqroS {2}, lajluʼ {3}, rInmoHluʼ {4}, lajHaʼluʼ {5}, Qagh {6}"
     note: "QInHom: {0}"
     provider_note: "{0}vaD JoHagh lunobrup; taghDI' pagh JoHagh chenmoHlu'DI' nobwI' tlhej. {0} chu'ta'lu'chugh, nobwI' ghopDu'lIj yIchu'qa' pagh yIloadqa'."
     error: "Qagh: {0}"

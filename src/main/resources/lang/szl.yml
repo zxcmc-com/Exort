@@ -185,6 +185,8 @@ message:
     handoff: "Przekazanie providerowi: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adresa nasłuchu SELFHOST: {0}; publiczny URL: {1}; limit jednoczesnych zapytań: {2}"
+    self_host_requests: "Zapytania SELFHOST: aktywne {0}/{1}, nojwyższy poziōm {2}, przijynte {3}, skōńczōne {4}, ôdciepniynte {5}, niyudane {6}"
     note: "Poznōmka: {0}"
     provider_note: "Przekazanie paketu resursōw dlo {0} je fertich; dostowca dołoży go przi sztarcie abo rychtowaniu paketu. Jak {0} już bōł włōnczōny, ryncznie restartnij abo przeładuj tego dostowca."
     error: "Feler: {0}"

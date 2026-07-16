@@ -185,6 +185,8 @@ message:
     handoff: "hesto antatë: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST hlárindo: {0}; URL ilquenna: {1}; concurrency metta: {2}"
+    self_host_requests: "SELFHOST maquetta: cuina {0}/{1}, analta {2}, camna {3}, tyelina {4}, lá camna {5}, úfaila {6}"
     note: "Tehta: {0}"
     provider_note: "I carmaparmë-antale manwa an {0}; i hesto samna ta yá yesta hya cara i parma. Qui {0} né cuina yá, á yesta ata hya colë ata i hesto mánen."
     error: "Úfaila: {0}"

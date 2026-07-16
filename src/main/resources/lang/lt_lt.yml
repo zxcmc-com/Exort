@@ -185,6 +185,8 @@ message:
     handoff: "Perdavimas teikėjui: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST klausytojas: {0}; viešasis URL: {1}; lygiagrečių užklausų limitas: {2}"
+    self_host_requests: "SELFHOST užklausos: aktyvios {0}/{1}, pikas {2}, priimtos {3}, užbaigtos {4}, atmestos {5}, nepavykusios {6}"
     note: "Pastaba: {0}"
     provider_note: "Išteklių paketo perdavimas paruoštas {0}; teikėjas jį įtrauks paleidimo arba paketo generavimo metu. Jei {0} jau buvo įjungtas, perkraukite arba rankiniu būdu atnaujinkite tą teikėją."
     error: "Klaida: {0}"

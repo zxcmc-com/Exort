@@ -1,5 +1,6 @@
 package com.zxcmc.exort.breaking;
 
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -73,24 +74,26 @@ public final class BreakConfig {
   }
 
   public static BreakConfig fromConfig(FileConfiguration config, Logger logger) {
+    ConfigNumbers numbers = new ConfigNumbers(config, logger);
     return new BreakConfig(
-        load(config, logger, "break.storage", 20.0, defaultStorageTools()),
-        load(config, logger, "break.terminal", 12.0, defaultTerminalTools()),
-        load(config, logger, "break.monitor", 12.0, defaultTerminalTools()),
-        load(config, logger, "break.bus", 14.0, defaultTerminalTools()),
-        load(config, logger, "break.relay", 16.0, defaultTerminalTools()),
-        load(config, logger, "break.transmitter", 16.0, defaultTerminalTools()),
-        load(config, logger, "break.chunkLoader", 16.0, defaultTerminalTools()),
-        load(config, logger, "break.wire", 2.0, defaultWireTools()));
+        load(config, numbers, logger, "break.storage", 20.0, defaultStorageTools()),
+        load(config, numbers, logger, "break.terminal", 12.0, defaultTerminalTools()),
+        load(config, numbers, logger, "break.monitor", 12.0, defaultTerminalTools()),
+        load(config, numbers, logger, "break.bus", 14.0, defaultTerminalTools()),
+        load(config, numbers, logger, "break.relay", 16.0, defaultTerminalTools()),
+        load(config, numbers, logger, "break.transmitter", 16.0, defaultTerminalTools()),
+        load(config, numbers, logger, "break.chunkLoader", 16.0, defaultTerminalTools()),
+        load(config, numbers, logger, "break.wire", 2.0, defaultWireTools()));
   }
 
   private static BreakSettings load(
       FileConfiguration config,
+      ConfigNumbers numbers,
       Logger logger,
       String path,
       double defaultHardness,
       Set<Material> defaults) {
-    double hardness = config.getDouble(path + ".hardness", defaultHardness);
+    double hardness = numbers.decimal(path + ".hardness", defaultHardness, 0.0D, Double.MAX_VALUE);
     List<String> toolNames = config.getStringList(path + ".tools");
     Set<Material> tools = new HashSet<>();
     if (toolNames == null || toolNames.isEmpty()) {

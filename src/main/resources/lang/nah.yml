@@ -185,6 +185,8 @@ message:
     handoff: "Temaktiliztli ika temakani: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST tlakakini: {0}; URL teixpan: {1}; san kech tekitl ipan se kauitl: {2}"
+    self_host_requests: "Tlatlanilistli SELFHOST: tekitik {0}/{1}, uejkapan {2}, oselilok {3}, otlamik {4}, amo oselilok {5}, amo huel omochij {6}"
     note: "Tlanextilli: {0}"
     provider_note: "Temaktiliztli tlapacholli tlatekiutiloni yektok ipampa {0}; temakani kitlalia ipan peualistli oso chihchihualiztli tlapacholli. Tla {0} yeka otlapok, xikpeualti okseppa oso xikmamali temakani ika momaj."
     error: "Tlaijyouilistli: {0}"

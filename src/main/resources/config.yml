@@ -22,6 +22,7 @@ resourcePack:
   # AUTO | CONFIGURATION | JOIN | MANUAL
   delivery: AUTO
   # Seconds to wait for a CONFIGURATION-stage pack response before allowing the player to join.
+  # Values outside 1..300 are clamped with a warning.
   configurationTimeoutSeconds: 30
   # If true, Exort sends a newly ready direct-delivery pack to players who are already online.
   sendOnlineOnReady: false
@@ -32,7 +33,7 @@ resourcePack:
     publicUrl: ""
     # HTTP bind host for SELFHOST mode.
     bindHost: "0.0.0.0"
-    # 0 lets the OS pick a free port.
+    # 0 lets the OS pick a free port; values outside 0..65535 are clamped with a warning.
     port: 0
   lobfile:
     # API key for LOBFILE hosting. Keep empty unless hosting is set to LOBFILE.
@@ -70,13 +71,15 @@ performance:
   worldEditBulk: true
   storage:
     # Seconds between periodic dirty-cache flushes to the database. Set 0 to disable the periodic flush.
-    # Negative and scheduler-overflowing values are clamped to a safe range.
+    # Values outside 0..86400 are clamped with a warning.
     flushIntervalSeconds: 10
     # Seconds before an idle storage cache can be unloaded from memory. Set 0 to disable idle unloads.
+    # Values outside 0..86400 are clamped with a warning.
     idleUnloadSeconds: 300
     # Seconds between idle-cache checks.
+    # Values outside 0..86400 are clamped with a warning.
     idleCheckSeconds: 60
-  # Ticks between physical terminal/bus GUI distance checks.
+  # Ticks between physical terminal/bus GUI distance checks. Values outside 1..1200 are clamped.
   sessionDeviceCheckIntervalTicks: 5
   bus:
     # Global bus operation budget per tick. Values above 4096 are clamped.
@@ -116,11 +119,11 @@ bus:
     export: WHITELIST
   # Allow buses to interact with Exort storages directly.
   allowStorageTargets: true
-  # Ticks between bus runs after a successful item move.
+  # Ticks between bus runs after a successful item move. Values outside 1..72000 are clamped.
   activeIntervalTicks: 5
-  # Ticks between bus runs while idle.
+  # Ticks between bus runs while idle. Values outside 1..72000 are clamped.
   idleIntervalTicks: 40
-  # Max items moved per bus operation.
+  # Max items moved per bus operation. Values outside 1..64 are clamped.
   itemsPerOperation: 1
 
 # Wire traversal limits.
@@ -193,8 +196,8 @@ wireless:
   # Values outside 0..32768 are clamped by Exort.
   rangeBlocks: 48
   boosters:
-    # Final range multipliers relative to rangeBlocks. Exactly -1 makes a loaded transmitter
-    # global inside its current world without loading its chunk.
+    # Final finite non-negative range multipliers relative to rangeBlocks. Exactly -1 makes a
+    # loaded transmitter global inside its current world without loading its chunk.
     rangeMultipliers:
       rare: 1.5
       mythical: 2.0
@@ -202,8 +205,9 @@ wireless:
       immortal: -1.0
 
 # Custom breaking for Exort carrier blocks.
-# Hardness controls break speed; higher is slower.
-# Blast resistance controls Exort-side explosion destruction; vanilla carrier resistance is ignored.
+# Hardness controls break speed; higher is slower. Values must be finite and non-negative.
+# Blast resistance controls Exort-side explosion destruction; values must be finite and non-negative.
+# Vanilla carrier resistance is ignored.
 # Tools only speed breaking up, they do not restrict who can break the block.
 break:
   storage:

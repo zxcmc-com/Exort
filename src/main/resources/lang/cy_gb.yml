@@ -185,6 +185,8 @@ message:
     handoff: "Trosglwyddo i'r provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Gwrandäwr SELFHOST: {0}; URL cyhoeddus: {1}; terfyn cydredeg: {2}"
+    self_host_requests: "Ceisiadau SELFHOST: gweithredol {0}/{1}, uchafbwynt {2}, derbyniwyd {3}, cwblhawyd {4}, gwrthodwyd {5}, methodd {6}"
     note: "Nodyn: {0}"
     provider_note: "Mae trosglwyddo y pecyn adnoddau yn barod ar gyfer {0}; mae'r darparwr yn ei gynnwys yn ystod cychwyn/cynhyrchu pecyn. Os oedd {0} eisoes wedi'i alluogi, ailgychwyn neu ail-lwytho'r darparwr hwnnw â llaw."
     error: "Gwall: {0}"

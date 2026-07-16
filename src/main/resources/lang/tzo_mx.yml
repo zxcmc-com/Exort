@@ -185,6 +185,8 @@ message:
     handoff: "Ak'el ta j-ak'vanej: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "J-aʼyvanej SELFHOST: {0}; URL ta komon: {1}; sfinil abtel ta jun ora: {2}"
+    self_host_requests: "Skʼanel SELFHOST: yakal {0}/{1}, más toyol {2}, ikʼbil ta mukʼ {3}, laj ta pasel {4}, ma ikʼbil ta mukʼ {5}, ma xkʼot ta pasel {6}"
     note: "Nota: {0}"
     provider_note: "Ak'el paquete recursos chapal yu'un {0}; j-ak'vanej ya xchi' ta sjakel o ta spasel paquete. Mi {0} sjakbil xa, sjach'be ach' o skuch yan vuelta j-ak'vanej ta sk'ob."
     error: "Smul: {0}"

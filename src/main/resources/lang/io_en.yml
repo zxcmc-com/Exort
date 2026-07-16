@@ -185,6 +185,8 @@ message:
     handoff: "provizero handoffo: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST askultilo: {0}; publika URL: {1}; limito di samtempa demandi: {2}"
+    self_host_requests: "SELFHOST demandi: aktiva {0}/{1}, maximo {2}, aceptita {3}, kompletigita {4}, rifuzita {5}, faliinta {6}"
     note: "Noto: {0}"
     provider_note: "Transdono di la resurso-paketo esas pronta por {0}; la provizero inkluzas ol dum starto o genereso di paketo. Se {0} ja esis aktiva, manuale restartez o richarjez ta provizero."
     error: "Eroro: {0}"

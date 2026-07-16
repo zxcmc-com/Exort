@@ -185,6 +185,8 @@ message:
     handoff: "Dorëzimi te furnizuesi: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adresa e dëgjimit SELFHOST: {0}; URL publik: {1}; kufiri i kërkesave të njëkohshme: {2}"
+    self_host_requests: "Kërkesat SELFHOST: aktive {0}/{1}, kulmi {2}, pranuar {3}, përfunduar {4}, refuzuar {5}, dështuar {6}"
     note: "Shënim: {0}"
     provider_note: "Dorëzimi i paketës së burimeve është gati për {0}; furnizuesi e përfshin gjatë nisjes ose krijimit të paketës. Nëse {0} ishte tashmë aktiv, rinise ose ringarkoje manualisht atë furnizues."
     error: "Gabim: {0}"

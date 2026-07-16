@@ -185,6 +185,8 @@ message:
     handoff: "Euverdrach aan provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-luisteraar: {0}; openbare URL: {1}; geliektiedigheidslimiet: {2}"
+    self_host_requests: "SELFHOST-verzeuke: actief {0}/{1}, piek {2}, aanvaard {3}, aafgerónd {4}, aafgeweze {5}, mislök {6}"
     note: "Notitie: {0}"
     provider_note: "De euverdrach van 't resourcepack is klaor veur {0}; de provider nump 't mit bie 't opstarte of make van 't pack. Es {0} al actief waor, herstart of herlaad die provider handmatig."
     error: "Fout: {0}"

@@ -185,6 +185,8 @@ message:
     handoff: "Entrega al proveedor: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Puntu d'escucha SELFHOST: {0}; URL pública: {1}; llímite de concurrencia: {2}"
+    self_host_requests: "Solicitúes SELFHOST: actives {0}/{1}, picu {2}, aceptaes {3}, completaes {4}, refugaes {5}, fallíes {6}"
     note: "Nota: {0}"
     provider_note: "La entrega del paquete de recursos ta preparada pa {0}; el fornidor inclúyelu nel arranque o na xeneración del paquete. Si {0} yá taba activáu, reanicia o recarga manualmente esi fornidor."
     error: "Error: {0}"

@@ -185,6 +185,8 @@ message:
     handoff: "Trasferiment lill-fornitur: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Punt tas-smigħ SELFHOST: {0}; URL pubbliku: {1}; limitu tal-konkorenza: {2}"
+    self_host_requests: "Talbiet SELFHOST: attivi {0}/{1}, quċċata {2}, aċċettati {3}, kompluti {4}, miċħuda {5}, falluti {6}"
     note: "Nota: {0}"
     provider_note: "It-trasferiment tal-pakk tar-riżorsi għal {0} huwa lest; il-fornitur jinkludih meta jibda jew meta joħloq il-pakk. Jekk {0} kien diġà attivat, erġa' ibda jew tella' mill-ġdid lil dak il-fornitur manwalment."
     error: "Żball: {0}"

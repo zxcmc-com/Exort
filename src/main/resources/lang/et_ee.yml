@@ -185,6 +185,8 @@ message:
     handoff: "Providerile üleandmine: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-kuulaja: {0}; avalik URL: {1}; samaaegsuspiirang: {2}"
+    self_host_requests: "SELFHOST-päringud: aktiivseid {0}/{1}, tipp {2}, vastu võetud {3}, lõpetatud {4}, tagasi lükatud {5}, nurjunud {6}"
     note: "Märkus: {0}"
     provider_note: "Ressursipaki üleandmine on valmis pakkujale {0}; pakkuja lisab selle käivitus/paki loomine ajal. Kui {0} oli juba lubatud, taaskäivita või laadi see pakkuja käsitsi uuesti."
     error: "Viga: {0}"

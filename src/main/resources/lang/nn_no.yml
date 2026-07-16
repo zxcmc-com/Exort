@@ -185,6 +185,8 @@ message:
     handoff: "Overføring til leverandør: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-lyttar: {0}; offentleg URL: {1}; grense for samtidige førespurnader: {2}"
+    self_host_requests: "SELFHOST-førespurnader: aktive {0}/{1}, topp {2}, godtekne {3}, fullførte {4}, avviste {5}, mislukka {6}"
     note: "Merknad: {0}"
     provider_note: "Resourcepack-overleveringa er klar for {0}; provideren tek det med under oppstart eller pack-generering. Viss {0} alt var aktiv, start eller last provideren manuelt på nytt."
     error: "Feil: {0}"

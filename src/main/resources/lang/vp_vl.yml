@@ -185,6 +185,8 @@ message:
     handoff: "provider handoffa: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-lyssnare: {0}; publika URL: {1}; gränsa for samtidig begäran: {2}"
+    self_host_requests: "SELFHOST-begärans: aktiv {0}/{1}, topp {2}, accepterad {3}, klar {4}, avvisad {5}, felad {6}"
     note: "Nota: {0}"
     provider_note: "Resurspaketets överlämning ar klar for {0}; provider tar med den vid start eller paketgenerering. Om {0} redan var på, starta om eller ladda om den provider manuellt."
     error: "Fel: {0}"

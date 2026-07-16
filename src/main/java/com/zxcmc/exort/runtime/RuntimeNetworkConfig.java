@@ -1,6 +1,8 @@
 package com.zxcmc.exort.runtime;
 
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import java.util.Objects;
+import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record RuntimeNetworkConfig(
@@ -17,18 +19,30 @@ public record RuntimeNetworkConfig(
   static final int MAX_RELAY_RANGE_CHUNKS = 1_024;
 
   public static RuntimeNetworkConfig fromConfig(ConfigurationSection config) {
+    return fromConfig(config, (Logger) null);
+  }
+
+  public static RuntimeNetworkConfig fromConfig(ConfigurationSection config, Logger logger) {
     Objects.requireNonNull(config, "config");
+    return fromNumbers(config, new ConfigNumbers(config, logger));
+  }
+
+  public static RuntimeNetworkConfig fromNumbers(
+      ConfigurationSection config, ConfigNumbers numbers) {
+    Objects.requireNonNull(config, "config");
+    Objects.requireNonNull(numbers, "numbers");
 
     long storagePeekTicks = 6 * TICKS_PER_SECOND;
     long wirePeekTicks = 6 * TICKS_PER_SECOND;
 
-    int wireLimitRaw = config.getInt("wire.limit", 32);
-    int wireLimit = clamp(wireLimitRaw, 1, MAX_WIRE_LIMIT);
-    int hardCapRaw = config.getInt("wire.hardCap", Math.min(MAX_WIRE_HARD_CAP, wireLimit * 2));
-    boolean hardCapAdjusted = hardCapRaw < wireLimit;
-    int wireHardCap = Math.max(wireLimit, clamp(hardCapRaw, 1, MAX_WIRE_HARD_CAP));
+    int wireLimit = numbers.integer("wire.limit", 32, 1, MAX_WIRE_LIMIT);
+    int hardCapFallback = Math.min(MAX_WIRE_HARD_CAP, wireLimit * 2);
+    int configuredHardCap = config.getInt("wire.hardCap", hardCapFallback);
+    int hardCapRaw = numbers.integer("wire.hardCap", hardCapFallback, 1, MAX_WIRE_HARD_CAP);
+    boolean hardCapAdjusted = configuredHardCap < wireLimit;
+    int wireHardCap = Math.max(wireLimit, hardCapRaw);
     boolean relayEnabled = config.getBoolean("relay.enabled", true);
-    int relayRangeChunks = clamp(config.getInt("relay.rangeChunks", 3), 0, MAX_RELAY_RANGE_CHUNKS);
+    int relayRangeChunks = numbers.integer("relay.rangeChunks", 3, 0, MAX_RELAY_RANGE_CHUNKS);
 
     return new RuntimeNetworkConfig(
         storagePeekTicks,
@@ -38,9 +52,5 @@ public record RuntimeNetworkConfig(
         relayEnabled,
         relayRangeChunks,
         hardCapAdjusted);
-  }
-
-  private static int clamp(int value, int minimum, int maximum) {
-    return Math.max(minimum, Math.min(maximum, value));
   }
 }

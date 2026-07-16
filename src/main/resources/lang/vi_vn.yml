@@ -185,6 +185,8 @@ message:
     handoff: "Bàn giao cho trình cung cấp: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Trình lắng nghe SELFHOST: {0}; URL công khai: {1}; giới hạn đồng thời: {2}"
+    self_host_requests: "Yêu cầu SELFHOST: đang hoạt động {0}/{1}, đỉnh {2}, đã chấp nhận {3}, đã hoàn tất {4}, bị từ chối {5}, thất bại {6}"
     note: "Ghi chú: {0}"
     provider_note: "việc bàn giao gói tài nguyên đã sẵn sàng cho {0}; trình cung cấp sẽ đưa nó vào khi khởi động/tạo gói. Nếu {0} đã được bật, hãy khởi động lại hoặc tải lại trình cung cấp đó thủ công."
     error: "Lỗi: {0}"

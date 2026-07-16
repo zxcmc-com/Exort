@@ -185,6 +185,8 @@ message:
     handoff: "Overdragelse til udbyder: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-lytter: {0}; offentlig URL: {1}; samtidighedsgrænse: {2}"
+    self_host_requests: "SELFHOST-anmodninger: aktive {0}/{1}, maksimum {2}, accepteret {3}, fuldført {4}, afvist {5}, mislykket {6}"
     note: "Bemærkning: {0}"
     provider_note: "Resourcepack-overdragelsen er klar til {0}; provideren medtager den under opstart eller pakkeopbygning. Hvis {0} allerede var aktiveret, skal provideren genstartes eller genindlæses manuelt."
     error: "Fejl: {0}"

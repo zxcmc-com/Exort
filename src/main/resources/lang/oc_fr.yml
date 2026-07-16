@@ -185,6 +185,8 @@ message:
     handoff: "Passage au fournisseur: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Punt d’escota SELFHOST: {0}; URL publica: {1}; limit de concurréncia: {2}"
+    self_host_requests: "Requèstas SELFHOST: activas {0}/{1}, pic {2}, acceptadas {3}, acabadas {4}, regetadas {5}, fracassadas {6}"
     note: "Nòta: {0}"
     provider_note: "Lo transferiment del paquet de ressorsas es prèst per {0}; lo provesidor l’inclutz a l’aviada o a la generacion del paquet. Se {0} èra ja activat, tornatz aviar o recargar aquel provesidor manualament."
     error: "Erreur: {0}"

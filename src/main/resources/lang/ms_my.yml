@@ -185,6 +185,8 @@ message:
     handoff: "Penyerahan kepada penyedia: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Pendengar SELFHOST: {0}; URL awam: {1}; had konkurensi: {2}"
+    self_host_requests: "Permintaan SELFHOST: aktif {0}/{1}, puncak {2}, diterima {3}, selesai {4}, ditolak {5}, gagal {6}"
     note: "Nota: {0}"
     provider_note: "Penyerahan pek sumber sedia untuk {0}; penyedia memasukkannya semasa permulaan/penjanaan pek. Jika {0} sudah didayakan, mulakan semula atau muat semula penyedia itu secara secara manual."
     error: "Ralat: {0}"

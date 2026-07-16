@@ -116,7 +116,9 @@ public final class RuntimeListenerRegistrar {
                 deps.transmitterPlacedRecorder(),
                 () -> deps.breakSoundConfig(),
                 () -> deps.busRuntimeConfig())));
-    register(deps, new ExortExplosionListener(deps.plugin(), materials, deps.breakHandler()));
+    register(
+        deps,
+        new ExortExplosionListener(deps.plugin(), deps.config(), materials, deps.breakHandler()));
   }
 
   private static void registerGuiListeners(RuntimeListenerDependencies deps) {

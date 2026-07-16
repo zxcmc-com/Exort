@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.6 — 2026-07-16
+- Built-in SELFHOST resource-pack delivery now keeps stalled and flooded downloads within its concurrency limit, reports listener and request saturation in `/exort resourcepack status`, and localizes those diagnostics across all bundled languages.
+- Invalid extreme numeric settings are now clamped to documented safe ranges with actionable warnings, while malformed audit paths and unavailable runtime directories fail or degrade without corrupting existing files.
+
 ## 0.19.5 — 2026-07-15
 - Blast-resistant walls now shield Exort blocks from custom explosion destruction when the wall absorbs the blast.
 

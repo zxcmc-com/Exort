@@ -185,6 +185,8 @@ message:
     handoff: "Nnyefe nye onye na-eweta: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Onye na-ege ntị SELFHOST: {0}; URL ọha: {1}; oke arịrịọ n'otu oge: {2}"
+    self_host_requests: "Arịrịọ SELFHOST: na-arụ {0}/{1}, ọnụ ọgụgụ kacha elu {2}, anabatara {3}, emechara {4}, ajụrụ {5}, dara {6}"
     note: "Mara: {0}"
     provider_note: "nyefee ngwugwu akụ dị njikere maka {0}; onye na-eweta na-etinye ya n'oge mbido/mmebe ngwugwu. Ọ bụrụ na {0} agbanyelarị, malitegharịa ma ọ bụ budata ọzọ onye na-eweta ahụ n'aka."
     error: "Njehie: {0}"

@@ -3,6 +3,7 @@ package com.zxcmc.exort.chunkloader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -62,10 +63,16 @@ public final class RotatingChunkLoaderAuditFileWriter implements ChunkLoaderAudi
   static Path resolveSafePath(Path dataFolder, String rawPath, Logger logger) {
     Path base = dataFolder == null ? Path.of(".") : dataFolder;
     Path absoluteBase = base.toAbsolutePath().normalize();
-    Path requested =
-        rawPath == null || rawPath.isBlank()
-            ? Path.of(ChunkLoaderAuditFileConfig.DEFAULT_PATH)
-            : Path.of(rawPath.trim());
+    Path requested;
+    try {
+      requested =
+          rawPath == null || rawPath.isBlank()
+              ? Path.of(ChunkLoaderAuditFileConfig.DEFAULT_PATH)
+              : Path.of(rawPath.trim());
+    } catch (InvalidPathException invalidPath) {
+      warnUnsafePath(logger, rawPath);
+      return absoluteBase.resolve(ChunkLoaderAuditFileConfig.DEFAULT_PATH).normalize();
+    }
     if (requested.isAbsolute()) {
       warnUnsafePath(logger, rawPath);
       return absoluteBase.resolve(ChunkLoaderAuditFileConfig.DEFAULT_PATH).normalize();

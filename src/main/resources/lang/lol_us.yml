@@ -185,6 +185,8 @@ message:
     handoff: "provydr handoffz: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST listenr: {0}; public URL: {1}; same-time limitz: {2}"
+    self_host_requests: "SELFHOST requestz: activez {0}/{1}, biggestz {2}, acceptd {3}, donez {4}, rejectd {5}, failz {6}"
     note: "Notez: {0}"
     provider_note: "Texture snak handoffz readyz for {0}; provydr includez it durin startupz/pack generation. if {0} wuz already onz, restart or reload provydr manualz."
     error: "OH NOEZ: {0}"

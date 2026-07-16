@@ -185,6 +185,8 @@ message:
     handoff: "Entrega ao fornecedor: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Ponto de escuta SELFHOST: {0}; URL público: {1}; limite de concorrência: {2}"
+    self_host_requests: "Pedidos SELFHOST: ativos {0}/{1}, pico {2}, aceites {3}, concluídos {4}, rejeitados {5}, falhados {6}"
     note: "Nota: {0}"
     provider_note: "A entrega do resource pack está pronta para {0}; o fornecedor inclui-o durante o arranque ou geração do pack. Se {0} já estava ativo, reinicia ou recarrega esse fornecedor manualmente."
     error: "Erro: {0}"

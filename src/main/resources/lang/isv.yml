@@ -185,6 +185,8 @@ message:
     handoff: "Predanje provajderu: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adresa posluhača SELFHOST: {0}; publičny URL: {1}; limit odnovrěmennosti: {2}"
+    self_host_requests: "Zapytanja SELFHOST: aktivne {0}/{1}, vrh {2}, prijete {3}, završene {4}, odklonjene {5}, neuspešne {6}"
     note: "Poznamka: {0}"
     provider_note: "Predanje resource packa gotovo za {0}; provajder vključaje jego pri startu ili generaciji packa. Ako {0} uže byl vključeny, restartujte ili ponovno učitajte tutogo provajdera ručno."
     error: "Chyba: {0}"

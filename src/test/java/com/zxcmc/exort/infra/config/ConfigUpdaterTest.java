@@ -54,6 +54,18 @@ class ConfigUpdaterTest {
   }
 
   @Test
+  void atomicWriteRejectsRegularFileParentWithoutChangingIt() throws Exception {
+    Path occupiedParent = tempDir.resolve("occupied");
+    Files.writeString(occupiedParent, "keep-me", StandardCharsets.UTF_8);
+
+    assertThrows(
+        java.io.IOException.class,
+        () -> ConfigUpdater.writeAtomically(occupiedParent.resolve("config.yml"), "new: true\n"));
+
+    assertEquals("keep-me", Files.readString(occupiedParent, StandardCharsets.UTF_8));
+  }
+
+  @Test
   void mergeResourcePreservesExistingValuesAndAddsDefaults() throws Exception {
     Path config = tempDir.resolve("config.yml");
     Files.writeString(config, "enabled: false\n");

@@ -185,6 +185,8 @@ message:
     handoff: "Luovutus providerille: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-kuuntelija: {0}; julkinen URL: {1}; samanaikaisuusraja: {2}"
+    self_host_requests: "SELFHOST-pyynnöt: aktiivisia {0}/{1}, huippu {2}, hyväksyttyjä {3}, suoritettuja {4}, hylättyjä {5}, epäonnistuneita {6}"
     note: "Huomio: {0}"
     provider_note: "Resurssipaketin luovutus on valmis providerille {0}; provider sisällyttää sen käynnistyksessä tai paketin luonnissa. Jos {0} oli jo käytössä, käynnistä tai lataa kyseinen provider käsin uudelleen."
     error: "Virhe: {0}"

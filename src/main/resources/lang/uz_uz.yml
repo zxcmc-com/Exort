@@ -185,6 +185,8 @@ message:
     handoff: "Providerga topshirish: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST tinglovchisi: {0}; ommaviy URL: {1}; parallellik cheklovi: {2}"
+    self_host_requests: "SELFHOST so‘rovlari: faol {0}/{1}, eng yuqori {2}, qabul qilingan {3}, yakunlangan {4}, rad etilgan {5}, muvaffaqiyatsiz {6}"
     note: "Izoh: {0}"
     provider_note: "{0} uchun resurs to‘plamini uzatish tayyor; ta’minotchi uni ishga tushish/to‘plam yaratish vaqtida qo'shadi. Agar {0} allaqachon yoqilgan bo'lsa, o'sha ta’minotchi uchun qo'lda qayta ishga tushirish yoki qayta yuklash qiling."
     error: "Xato: {0}"

@@ -185,6 +185,8 @@ message:
     handoff: "Provideri üleandminõ: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-kuulaja: {0}; avalik URL: {1}; üteaigsuspiir: {2}"
+    self_host_requests: "SELFHOST-pärimised: aktiivsõq {0}/{1}, tipp {2}, vastavõet {3}, lõpõtõt {4}, tagasi lükät {5}, luhta lännüq {6}"
     note: "Märkus: {0}"
     provider_note: "Ressursipaki üleandminõ om valmis {0} jaos; pakkuja panõ taa mano käivitüs/paki loomine ajal. Ku {0} oll jo sees, käivitä või laadi pakkuja käsitsi vahtsõst."
     error: "Viga: {0}"

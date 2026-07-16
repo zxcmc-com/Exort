@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bukkit.Material;
@@ -27,6 +29,27 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ItemNameServiceTest {
   @TempDir Path tempDir;
+
+  @Test
+  void unavailableDictionaryDirectoryCompletesReloadWithActionableFailure() throws Exception {
+    Path occupiedDataFolder = tempDir.resolve("occupied-data-folder");
+    Files.writeString(occupiedDataFolder, "keep-me");
+    ItemNameService service =
+        new ItemNameService(
+            null,
+            occupiedDataFolder.toFile(),
+            Runnable::run,
+            Runnable::run,
+            () -> true,
+            () -> "1.21.11");
+
+    CompletionException failure =
+        assertThrows(CompletionException.class, () -> service.reload("en_us").join());
+
+    assertTrue(failure.getCause() instanceof IllegalStateException);
+    assertTrue(failure.getCause().getMessage().contains("item dictionary directory"));
+    assertEquals("keep-me", Files.readString(occupiedDataFolder));
+  }
 
   @Test
   void dictionaryEntriesReadNestedYamlKeysAsFlatTranslationKeys() {

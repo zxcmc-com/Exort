@@ -185,6 +185,8 @@ message:
     handoff: "Pieradača pravajdaru: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adras słuchača SELFHOST: {0}; publicny URL: {1}; limit adnačasovaści: {2}"
+    self_host_requests: "Zapyty SELFHOST: aktyŭnyja {0}/{1}, pik {2}, pryniatyja {3}, zavieršanyja {4}, adchilienyja {5}, niaŭdalyja {6}"
     note: "Zaŭvaha: {0}"
     provider_note: "Pieradača resurs-paka hatovy dlia {0}; postaŭščyk uklučyć jaho padčas zapusk/stvarennie paka. Kali {0} užo byŭ uklučany, uručnuju zrabić pierazapusk albo pierazahruzka hetaha postaŭščyk."
     error: "Pamyłka: {0}"

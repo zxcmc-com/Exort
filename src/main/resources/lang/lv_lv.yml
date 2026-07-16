@@ -185,6 +185,8 @@ message:
     handoff: "Nodošana providerim: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST klausītājs: {0}; publiskais URL: {1}; paralēlisma limits: {2}"
+    self_host_requests: "SELFHOST pieprasījumi: aktīvi {0}/{1}, maksimums {2}, pieņemti {3}, pabeigti {4}, noraidīti {5}, neizdevušies {6}"
     note: "Piezīme: {0}"
     provider_note: "Resursu pakas nodošana ir gatava priekš {0}; provideris to iekļaus startēšanas vai pakas ģenerēšanas laikā. Ja {0} jau bija ieslēgts, restartē vai manuāli pārlādē šo provideri."
     error: "Kļūda: {0}"

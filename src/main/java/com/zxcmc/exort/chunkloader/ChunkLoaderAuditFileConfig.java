@@ -1,5 +1,6 @@
 package com.zxcmc.exort.chunkloader;
 
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -28,41 +29,23 @@ public record ChunkLoaderAuditFileConfig(
   }
 
   public static ChunkLoaderAuditFileConfig fromConfig(ConfigurationSection config) {
-    return fromConfig(config, null);
+    return fromConfig(config, (Logger) null);
   }
 
   public static ChunkLoaderAuditFileConfig fromConfig(ConfigurationSection config, Logger logger) {
     if (config == null) {
       return defaults();
     }
-    long rawMaxSize = config.getLong("chunkLoader.audit.file.maxSizeBytes", DEFAULT_MAX_SIZE_BYTES);
-    int rawMaxFiles = config.getInt("chunkLoader.audit.file.maxFiles", DEFAULT_MAX_FILES);
-    ChunkLoaderAuditFileConfig result =
-        new ChunkLoaderAuditFileConfig(
-            config.getBoolean("chunkLoader.audit.file.enabled", true),
-            config.getString("chunkLoader.audit.file.path", DEFAULT_PATH),
-            rawMaxSize,
-            rawMaxFiles);
-    if (logger != null && rawMaxSize != result.maxSizeBytes()) {
-      logger.warning(
-          "chunkLoader.audit.file.maxSizeBytes="
-              + rawMaxSize
-              + " is outside 1.."
-              + MAX_SIZE_BYTES
-              + "; using "
-              + result.maxSizeBytes()
-              + ".");
-    }
-    if (logger != null && rawMaxFiles != result.maxFiles()) {
-      logger.warning(
-          "chunkLoader.audit.file.maxFiles="
-              + rawMaxFiles
-              + " is outside 1.."
-              + MAX_FILES
-              + "; using "
-              + result.maxFiles()
-              + ".");
-    }
-    return result;
+    return fromNumbers(config, new ConfigNumbers(config, logger));
+  }
+
+  public static ChunkLoaderAuditFileConfig fromNumbers(
+      ConfigurationSection config, ConfigNumbers numbers) {
+    return new ChunkLoaderAuditFileConfig(
+        config.getBoolean("chunkLoader.audit.file.enabled", true),
+        config.getString("chunkLoader.audit.file.path", DEFAULT_PATH),
+        numbers.longInteger(
+            "chunkLoader.audit.file.maxSizeBytes", DEFAULT_MAX_SIZE_BYTES, 1, MAX_SIZE_BYTES),
+        numbers.integer("chunkLoader.audit.file.maxFiles", DEFAULT_MAX_FILES, 1, MAX_FILES));
   }
 }

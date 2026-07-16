@@ -40,6 +40,8 @@ class LangTest {
             "message.pack_status.handoff",
             "message.pack_status.sha1",
             "message.pack_status.url",
+            "message.pack_status.self_host_listener",
+            "message.pack_status.self_host_requests",
             "message.pack_status.note",
             "message.pack_status.provider_note",
             "message.pack_status.error",

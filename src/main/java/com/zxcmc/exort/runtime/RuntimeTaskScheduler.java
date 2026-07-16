@@ -54,14 +54,14 @@ public final class RuntimeTaskScheduler {
     long idleSeconds = config.cacheIdleUnloadSeconds();
     long checkSeconds = config.cacheIdleCheckSeconds();
     if (idleSeconds <= 0 || checkSeconds <= 0) return;
-    long idleMs = idleSeconds * 1000L;
+    long idleMs = config.cacheIdleUnloadMillis();
     cacheEvictTaskId =
         Bukkit.getScheduler()
             .scheduleSyncRepeatingTask(
                 plugin,
                 () -> manager.evictIdleCaches(idleMs),
-                checkSeconds * 20L,
-                checkSeconds * 20L);
+                config.cacheIdleCheckTicks(),
+                config.cacheIdleCheckTicks());
   }
 
   private void scheduleFlushTask(StorageRuntimeConfig config) {
@@ -76,6 +76,9 @@ public final class RuntimeTaskScheduler {
     flushTaskId =
         Bukkit.getScheduler()
             .scheduleSyncRepeatingTask(
-                plugin, manager::flushDirtyCaches, flushSeconds * 20L, flushSeconds * 20L);
+                plugin,
+                manager::flushDirtyCaches,
+                config.flushIntervalTicks(),
+                config.flushIntervalTicks());
   }
 }

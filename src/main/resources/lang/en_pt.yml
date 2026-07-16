@@ -185,6 +185,8 @@ message:
     handoff: "Provider handoff, arr: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST listenin' post: {0}; public URL: {1}; concurrent request limit: {2}"
+    self_host_requests: "SELFHOST requests: afloat {0}/{1}, high-water mark {2}, taken aboard {3}, completed {4}, turned away {5}, wrecked {6}"
     note: "Ship note: {0}"
     provider_note: "Sails pack handoff ready for {0}; the provider takes it aboard during startup/pack generation. If {0} was already enabled, restart or reload the provider by hand, matey."
     error: "Mishap: {0}"

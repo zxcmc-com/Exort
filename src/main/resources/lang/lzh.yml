@@ -185,6 +185,8 @@ message:
     handoff: "交予提供者：{0}"
     sha1: "SHA-1：{0}"
     url: "URL：{0}"
+    self_host_listener: "SELFHOST 監聽：{0}；公開 URL：{1}；並行之限：{2}"
+    self_host_requests: "SELFHOST 請求：現行 {0}/{1}，峰值 {2}，已受 {3}，已成 {4}，已拒 {5}，已敗 {6}"
     note: "註：{0}"
     provider_note: "資源包交付 已為 {0} 備；供應者 於 啟動/包生成 納之。若 {0} 已啟，請手動重啟或重載彼 供應者。"
     error: "錯誤：{0}"

@@ -185,6 +185,8 @@ message:
     handoff: " :ɟɟopuɐɥ ɹǝpᴉʌoɹԀ{0}"
     sha1: " :Ɩ-∀HS{0}"
     url: " :⅂ᴚ∩{0}"
+    self_host_listener: "SELFHOST ɹǝuǝʇsᴉl: {0}; ɔᴉlqnd URL: {1}; ʎɔuǝɹɹnɔuoɔ ʇᴉɯᴉl: {2}"
+    self_host_requests: "SELFHOST sʇsǝnbǝɹ: ǝʌᴉʇɔɐ {0}/{1}, ʞɐǝd {2}, pǝʇdǝɔɔɐ {3}, pǝʇǝldɯoɔ {4}, pǝʇɔǝɾǝɹ {5}, pǝlᴉɐɟ {6}"
     note: " :ǝʇoN{0}"
     provider_note: " ɹoɟ ʎpɐǝɹ sᴉ ɟɟopuɐɥ ʞɔɐd-ǝɔɹnosǝᴚ{0} ɟI ˙uoᴉʇɐɹǝuǝƃ ʞɔɐd/dnʇɹɐʇs ƃuᴉɹnp ʇᴉ sǝpnlɔuᴉ ɹǝpᴉʌoɹd ǝɥʇ ؛{0}˙ʎllɐnuɐɯ ɹǝpᴉʌoɹd ʇɐɥʇ pɐolǝɹ ɹo ʇɹɐʇsǝɹ ‚pǝlqɐuǝ ʎpɐǝɹlɐ sɐʍ "
     error: " :ɹoɹɹƎ{0}"

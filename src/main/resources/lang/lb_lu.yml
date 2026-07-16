@@ -185,6 +185,8 @@ message:
     handoff: "Iwwergab un den Ubidder: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-Listener: {0}; ëffentlech URL: {1}; Gläichzäitegkeetslimit: {2}"
+    self_host_requests: "SELFHOST-Ufroen: aktiv {0}/{1}, Spëtzewäert {2}, ugeholl {3}, ofgeschloss {4}, refuséiert {5}, feelgeschloen {6}"
     note: "Notiz: {0}"
     provider_note: "D'Ressource-Pack-Iwwergab ass fir {0} prett; de Provider hëlt et beim Start oder Erstelle vum Pack mat. Wann {0} scho war, start oder luet de Provider manuell nei."
     error: "Feeler: {0}"

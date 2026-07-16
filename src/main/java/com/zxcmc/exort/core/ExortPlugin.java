@@ -579,6 +579,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   private CompletableFuture<ItemNameService.Status> registerRuntime(
       boolean refreshItemDictionaries, FileConfiguration config) {
+    RuntimeModeState mode = evaluateModePolicy(config);
+    ExortRuntimeFactory.preflight(
+        this, config, mode.resourceMode(), mode.resourceWireUsesBarrier());
     FileConfiguration previousConfig = activeRuntimeConfig;
     RuntimeHandle<ExortRuntimeServices> candidate =
         ExortRuntimeFactory.create(

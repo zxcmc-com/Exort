@@ -185,6 +185,8 @@ message:
     handoff: "Predare către furnizor: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Punct de ascultare SELFHOST: {0}; URL public: {1}; limită de concurență: {2}"
+    self_host_requests: "Cereri SELFHOST: active {0}/{1}, vârf {2}, acceptate {3}, finalizate {4}, respinse {5}, eșuate {6}"
     note: "Notă: {0}"
     provider_note: "Predarea pachetului de resurse este pregătită pentru {0}; furnizorul îl include la pornire sau la generarea pachetului. Dacă {0} era deja activat, repornește sau reîncarcă manual furnizorul."
     error: "Eroare: {0}"

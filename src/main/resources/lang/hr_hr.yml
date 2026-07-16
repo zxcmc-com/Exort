@@ -185,6 +185,8 @@ message:
     handoff: "Predaja provideru: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adresa SELFHOST osluškivača: {0}; javni URL: {1}; ograničenje istodobnih zahtjeva: {2}"
+    self_host_requests: "SELFHOST zahtjevi: aktivni {0}/{1}, vrhunac {2}, prihvaćeni {3}, dovršeni {4}, odbijeni {5}, neuspješni {6}"
     note: "Napomena: {0}"
     provider_note: "Predaja paketa resursa spremna je za {0}; pružatelj ga uključuje tijekom pokretanja ili generiranja paketa. Ako je {0} već bio omogućen, ručno ponovno pokrenite ili učitajte tog pružatelja."
     error: "Greška: {0}"

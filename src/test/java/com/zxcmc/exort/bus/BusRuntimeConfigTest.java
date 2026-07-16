@@ -68,4 +68,18 @@ class BusRuntimeConfigTest {
     assertEquals(BusRuntimeConfig.MAX_OPERATIONS_PER_TICK, config.maxOperationsPerTick());
     assertEquals(BusRuntimeConfig.MAX_OPERATIONS_PER_TICK, config.maxOperationsPerChunk());
   }
+
+  @Test
+  void capsIntervalsAndItemsAtOperationalLimits() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("bus.activeIntervalTicks", Integer.MAX_VALUE);
+    yaml.set("bus.idleIntervalTicks", Long.MAX_VALUE);
+    yaml.set("bus.itemsPerOperation", Integer.MAX_VALUE);
+
+    BusRuntimeConfig config = BusRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(BusRuntimeConfig.MAX_INTERVAL_TICKS, config.activeIntervalTicks());
+    assertEquals(BusRuntimeConfig.MAX_INTERVAL_TICKS, config.idleIntervalTicks());
+    assertEquals(BusRuntimeConfig.MAX_ITEMS_PER_OPERATION, config.itemsPerOperation());
+  }
 }

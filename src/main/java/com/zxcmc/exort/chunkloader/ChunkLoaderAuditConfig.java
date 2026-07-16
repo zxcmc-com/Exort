@@ -1,5 +1,6 @@
 package com.zxcmc.exort.chunkloader;
 
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.logging.Logger;
@@ -32,10 +33,18 @@ public record ChunkLoaderAuditConfig(
   }
 
   public static ChunkLoaderAuditConfig fromConfig(ConfigurationSection config) {
-    return fromConfig(config, null);
+    return fromConfig(config, (Logger) null);
   }
 
   public static ChunkLoaderAuditConfig fromConfig(ConfigurationSection config, Logger logger) {
+    if (config == null) {
+      return fromNumbers(null, null);
+    }
+    return fromNumbers(config, new ConfigNumbers(config, logger));
+  }
+
+  public static ChunkLoaderAuditConfig fromNumbers(
+      ConfigurationSection config, ConfigNumbers numbers) {
     boolean enabled = config == null || config.getBoolean("chunkLoader.audit.enabled", true);
     EnumSet<ChunkLoaderAuditEvent> events = EnumSet.noneOf(ChunkLoaderAuditEvent.class);
     for (ChunkLoaderAuditEvent event : ChunkLoaderAuditEvent.values()) {
@@ -46,7 +55,11 @@ public record ChunkLoaderAuditConfig(
       }
     }
     return new ChunkLoaderAuditConfig(
-        enabled, events, ChunkLoaderAuditFileConfig.fromConfig(config, logger));
+        enabled,
+        events,
+        config == null
+            ? ChunkLoaderAuditFileConfig.defaults()
+            : ChunkLoaderAuditFileConfig.fromNumbers(config, numbers));
   }
 
   public boolean shouldLog(ChunkLoaderAuditEvent event) {

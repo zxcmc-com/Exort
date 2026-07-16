@@ -185,6 +185,8 @@ message:
     handoff: "Odovzdanie providerovi: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Adresa počúvania SELFHOST: {0}; verejná URL: {1}; limit súbežných požiadaviek: {2}"
+    self_host_requests: "Požiadavky SELFHOST: aktívne {0}/{1}, maximum {2}, prijaté {3}, dokončené {4}, odmietnuté {5}, neúspešné {6}"
     note: "Poznámka: {0}"
     provider_note: "Odovzdanie balíka zdrojov je pripravené pre {0}; poskytovateľ ho zahrnie pri spustení alebo generovaní balíka. Ak už bol {0} zapnutý, ručne reštartujte alebo znovu načítajte tohto poskytovateľa."
     error: "Chyba: {0}"

@@ -386,7 +386,13 @@ public class ItemNameService {
               (loadedStatus, error) -> {
                 if (error != null) {
                   log(Level.WARNING, "Failed to reload item dictionaries", error);
-                  loadedStatus = status();
+                  Throwable failure =
+                      error instanceof java.util.concurrent.CompletionException
+                              && error.getCause() != null
+                          ? error.getCause()
+                          : error;
+                  result.completeExceptionally(failure);
+                  return;
                 }
                 completeStatusSync(result, loadedStatus);
               });

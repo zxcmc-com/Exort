@@ -24,6 +24,18 @@ class BreakConfigTest {
         () -> assertHardness(bundled, "wire", fallback.wire()));
   }
 
+  @Test
+  void invalidHardnessIsFiniteAndNonNegative() {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("break.storage.hardness", -5.0D);
+    config.set("break.wire.hardness", Double.NaN);
+
+    BreakConfig result = BreakConfig.fromConfig(config, null);
+
+    assertEquals(0.0D, result.storage().hardness());
+    assertEquals(2.0D, result.wire().hardness());
+  }
+
   private static void assertHardness(
       YamlConfiguration bundled, String blockType, BreakSettings settings) {
     assertEquals(bundled.getDouble("break." + blockType + ".hardness"), settings.hardness());

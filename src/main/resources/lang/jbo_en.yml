@@ -185,6 +185,8 @@ message:
     handoff: "lo dargu nu benji lo sabji: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "lo SELFHOST tirna: {0}; lo gubni URL: {1}; lo jimte be lo gunka be fi lo cabna: {2}"
+    self_host_requests: "lo SELFHOST cpedu: ca'o gunka {0}/{1}, traji {2}, se zanru {3}, mulno {4}, se tolcru {5}, fliba {6}"
     note: "notci: {0}"
     provider_note: "Lo benji be lo velcki bakfu cu bredi fi {0}; lo sabji cu vasru ri ca lo nu cfari ja zbasu lo bakfu. Ganai {0} pu cando gi ko lagypoi di'a cfari ja di'a cargau lo sabji."
     error: "fliba: {0}"

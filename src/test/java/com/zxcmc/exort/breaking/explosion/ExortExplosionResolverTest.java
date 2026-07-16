@@ -76,6 +76,41 @@ class ExortExplosionResolverTest {
   }
 
   @Test
+  void listenerUsesCandidateBlastResistanceInsteadOfPluginConfig() {
+    BukkitTestDoubles.TestWorld world = world("candidate-resistance", 30);
+    Block wire = world.block(0, 64, 0, Material.CHORUS_PLANT);
+    WireMarker.setWire(plugin, wire);
+    YamlConfiguration weakCandidate = new YamlConfiguration();
+    weakCandidate.set("break.wire.blastResistance", 0.0D);
+    YamlConfiguration strongCandidate = new YamlConfiguration();
+    strongCandidate.set("break.wire.blastResistance", 1200.0D);
+    List<Block> weakBroken = new ArrayList<>();
+    List<Block> strongBroken = new ArrayList<>();
+
+    new ExortExplosionListener(
+            plugin,
+            weakCandidate,
+            materials(Material.CHORUS_PLANT),
+            block -> {
+              weakBroken.add(block);
+              return BlockBreakHandler.BreakResult.BROKEN;
+            })
+        .handleExplosion(center(world, 0, 64, 0), TNT_RADIUS, new ArrayList<>());
+    new ExortExplosionListener(
+            plugin,
+            strongCandidate,
+            materials(Material.CHORUS_PLANT),
+            block -> {
+              strongBroken.add(block);
+              return BlockBreakHandler.BreakResult.BROKEN;
+            })
+        .handleExplosion(center(world, 0, 64, 0), TNT_RADIUS, new ArrayList<>());
+
+    assertEquals(List.of(wire), weakBroken);
+    assertTrue(strongBroken.isEmpty());
+  }
+
+  @Test
   void exortBlocksAreRemovedFromVanillaExplosionListButVanillaBlocksRemain() {
     BukkitTestDoubles.TestWorld world = world("explosion-list", 1);
     Block wire = world.block(0, 64, 0, Material.CHORUS_PLANT);

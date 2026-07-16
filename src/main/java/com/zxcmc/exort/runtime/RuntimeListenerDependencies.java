@@ -42,10 +42,12 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public record RuntimeListenerDependencies(
     JavaPlugin plugin,
+    FileConfiguration config,
     Database database,
     StorageManager storageManager,
     StorageClaimRegistry storageClaimRegistry,
@@ -98,6 +100,7 @@ public record RuntimeListenerDependencies(
     Predicate<Block> transmitterRecentlyPlaced) {
   public RuntimeListenerDependencies {
     Objects.requireNonNull(plugin, "plugin");
+    Objects.requireNonNull(config, "config");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(storageClaimRegistry, "storageClaimRegistry");

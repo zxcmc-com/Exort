@@ -185,6 +185,8 @@ message:
     handoff: "Předání provideru: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Naslouchací adresa SELFHOST: {0}; veřejná URL: {1}; limit souběžnosti: {2}"
+    self_host_requests: "Požadavky SELFHOST: aktivní {0}/{1}, maximum {2}, přijaté {3}, dokončené {4}, odmítnuté {5}, neúspěšné {6}"
     note: "Poznámka: {0}"
     provider_note: "Předání balíčku zdrojů je připraveno pro {0}; poskytovatel jej zahrne při spuštění nebo generování balíčku. Pokud už byl {0} zapnutý, ručně tohoto poskytovatele restartujte nebo znovu načtěte."
     error: "Chyba: {0}"

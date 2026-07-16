@@ -74,6 +74,7 @@ public final class LoadTestService {
   private static final int DEFAULT_GUARDS_PER_PLAYER = 2;
   private static final int DEFAULT_GUARD_ROW_LENGTH = 12;
   private static final int MAX_GUARD_ARMOR_STANDS = 4096;
+  static final int MAX_SYNTHETIC_CPU_ITERATIONS_PER_TICK = 5_000_000;
   private static final double GUARD_ARMOR_STAND_SCALE = 0.0625;
   private static final DecimalFormat ONE_DECIMAL =
       new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
@@ -724,7 +725,7 @@ public final class LoadTestService {
   }
 
   private void simulateCpu(int ops) {
-    int iterations = Math.max(1, ops * itemsPerOperation * cpuIterationsPerOp);
+    int iterations = boundedSyntheticIterations(ops, itemsPerOperation, cpuIterationsPerOp);
     long acc = 1;
     for (int i = 0; i < iterations; i++) {
       acc = acc * 31 + i;
@@ -732,6 +733,19 @@ public final class LoadTestService {
     if (acc == 42) {
       Bukkit.getLogger().fine("stress");
     }
+  }
+
+  static int boundedSyntheticIterations(int operations, int items, int iterationsPerOperation) {
+    long safeOperations = Math.max(0L, operations);
+    long safeItems = Math.max(0L, items);
+    long safeIterations = Math.max(0L, iterationsPerOperation);
+    long product;
+    try {
+      product = Math.multiplyExact(Math.multiplyExact(safeOperations, safeItems), safeIterations);
+    } catch (ArithmeticException overflow) {
+      product = Long.MAX_VALUE;
+    }
+    return (int) Math.max(1L, Math.min(MAX_SYNTHETIC_CPU_ITERATIONS_PER_TICK, product));
   }
 
   private void simulateDb(int ops) {
@@ -1410,11 +1424,13 @@ public final class LoadTestService {
     monitorIntervalTicks = DEFAULT_MONITOR_INTERVAL_TICKS;
     StorageRuntimeConfig storageConfig = StorageRuntimeConfig.fromConfig(plugin.getConfig());
     int flushSeconds = Math.max(0, storageConfig.flushIntervalSeconds());
-    flushIntervalTicks = flushSeconds > 0 ? flushSeconds * 20 : 0;
+    flushIntervalTicks = flushSeconds > 0 ? (int) storageConfig.flushIntervalTicks() : 0;
     int idleUnloadSeconds = Math.max(0, (int) storageConfig.cacheIdleUnloadSeconds());
-    idleUnloadTicks = idleUnloadSeconds > 0 ? idleUnloadSeconds * 20 : 0;
+    idleUnloadTicks =
+        idleUnloadSeconds > 0 ? (int) StorageRuntimeConfig.secondsToTicks(idleUnloadSeconds) : 0;
     int idleCheckSeconds = Math.max(0, (int) storageConfig.cacheIdleCheckSeconds());
-    idleCheckTicks = idleCheckSeconds > 0 ? idleCheckSeconds * 20 : 0;
+    idleCheckTicks =
+        idleCheckSeconds > 0 ? (int) StorageRuntimeConfig.secondsToTicks(idleCheckSeconds) : 0;
     WirelessRuntimeConfig wirelessConfig = WirelessRuntimeConfig.fromConfig(plugin.getConfig());
     wirelessEnabled = wirelessConfig.enabled();
     wirelessRangeBlocks = wirelessConfig.rangeBlocks();

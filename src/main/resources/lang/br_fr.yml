@@ -185,6 +185,8 @@ message:
     handoff: "Treuzkas d'ar provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Selaouer SELFHOST: {0}; URL foran: {1}; bevenn ar c'hevelebiezh: {2}"
+    self_host_requests: "Goulennoù SELFHOST: oberiant {0}/{1}, uc'hek {2}, degemeret {3}, echuet {4}, nac'het {5}, c'hwitet {6}"
     note: "Notenn: {0}"
     provider_note: "Prest eo treuzkas ar pakad danvezioù evit {0}; ouzhpennañ a ra ar pourvezer anezhañ pa loc'h pe pa grou ar pakad. Ma oa gweredekaet {0} dija, adloc'h pe adkarg ar pourvezer-se gant an dorn."
     error: "Fazi: {0}"

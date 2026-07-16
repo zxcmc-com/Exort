@@ -185,6 +185,8 @@ message:
     handoff: "Predaja providerju: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Naslov poslušanja SELFHOST: {0}; javni URL: {1}; omejitev sočasnih zahtev: {2}"
+    self_host_requests: "Zahteve SELFHOST: aktivne {0}/{1}, vrh {2}, sprejete {3}, dokončane {4}, zavrnjene {5}, neuspešne {6}"
     note: "Opomba: {0}"
     provider_note: "Predaja paketa virov je pripravljena za {0}; ponudnik ga vključi med zagonom ali ustvarjanjem paketa. Če je bil {0} že omogočen, ročno ponovno zaženite ali naložite tega ponudnika."
     error: "Napaka: {0}"

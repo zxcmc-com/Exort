@@ -185,6 +185,8 @@ message:
     handoff: "Övergav an'n Anbeder: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-Listener: {0}; apenbare URL: {1}; Grenz för gliektiedige Anfragen: {2}"
+    self_host_requests: "SELFHOST-Anfragen: aktiv {0}/{1}, Hööchststand {2}, annahmen {3}, afslaten {4}, aflehnt {5}, fehlslaan {6}"
     note: "Notiz: {0}"
     provider_note: "De Övergav vun't Ressourcenpaket an {0} is fardig; de Anbeder nimmt dat bi'n Start oder bi't Opstellen vun't Paket mit. Wenn {0} al an weer, start oder laad den Anbeder vun Hand nieg."
     error: "Fehler: {0}"

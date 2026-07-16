@@ -1,10 +1,12 @@
 package com.zxcmc.exort.wireless;
 
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record WirelessRuntimeConfig(
@@ -25,15 +27,26 @@ public record WirelessRuntimeConfig(
   }
 
   public static WirelessRuntimeConfig fromConfig(ConfigurationSection config) {
+    return fromConfig(config, (Logger) null);
+  }
+
+  public static WirelessRuntimeConfig fromConfig(ConfigurationSection config, Logger logger) {
     Objects.requireNonNull(config, "config");
+    return fromNumbers(config, new ConfigNumbers(config, logger));
+  }
+
+  public static WirelessRuntimeConfig fromNumbers(
+      ConfigurationSection config, ConfigNumbers numbers) {
+    Objects.requireNonNull(config, "config");
+    Objects.requireNonNull(numbers, "numbers");
     EnumMap<WirelessBoosterTier, Double> multipliers = new EnumMap<>(WirelessBoosterTier.class);
     for (WirelessBoosterTier tier : WirelessBoosterTier.values()) {
       String path = "wireless.boosters.rangeMultipliers." + tier.id();
-      multipliers.put(tier, readMultiplier(config, path, tier.defaultRangeMultiplier()));
+      multipliers.put(tier, readMultiplier(config, numbers, path, tier.defaultRangeMultiplier()));
     }
     return new WirelessRuntimeConfig(
         config.getBoolean("wireless.enabled", true),
-        clamp(config.getInt("wireless.rangeBlocks", DEFAULT_RANGE_BLOCKS), 0, MAX_RANGE_BLOCKS),
+        numbers.integer("wireless.rangeBlocks", DEFAULT_RANGE_BLOCKS, 0, MAX_RANGE_BLOCKS),
         multipliers);
   }
 
@@ -72,22 +85,18 @@ public record WirelessRuntimeConfig(
     return maximum;
   }
 
-  private static double readMultiplier(ConfigurationSection config, String path, double fallback) {
+  private static double readMultiplier(
+      ConfigurationSection config, ConfigNumbers numbers, String path, double fallback) {
     Object raw = config.get(path);
     if (raw == null) {
       return fallback;
     }
-    double value;
-    if (raw instanceof Number number) {
-      value = number.doubleValue();
-    } else {
-      try {
-        value = Double.parseDouble(String.valueOf(raw).trim());
-      } catch (NumberFormatException ignored) {
-        return fallback;
-      }
+    if (raw instanceof Number number
+        && Double.isFinite(number.doubleValue())
+        && Double.compare(number.doubleValue(), -1.0D) == 0) {
+      return -1.0D;
     }
-    return sanitizeMultiplier(value, fallback);
+    return numbers.decimal(path, fallback, 0.0D, Double.MAX_VALUE);
   }
 
   private static double sanitizeMultiplier(double value, double fallback) {
@@ -98,9 +107,5 @@ public record WirelessRuntimeConfig(
       return -1.0D;
     }
     return Math.max(0.0D, value);
-  }
-
-  private static int clamp(int value, int minimum, int maximum) {
-    return Math.max(minimum, Math.min(maximum, value));
   }
 }

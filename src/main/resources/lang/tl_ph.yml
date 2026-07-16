@@ -185,6 +185,8 @@ message:
     handoff: "Paglilipat sa tagapagbigay: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Listener ng SELFHOST: {0}; pampublikong URL: {1}; limitasyon ng sabayang kahilingan: {2}"
+    self_host_requests: "Mga kahilingan sa SELFHOST: aktibo {0}/{1}, pinakamataas {2}, tinanggap {3}, nakumpleto {4}, tinanggihan {5}, nabigo {6}"
     note: "Tala: {0}"
     provider_note: "Handa na ang paglilipat ng resource pack para sa {0}; isasama ito ng tagapagbigay sa pagsisimula/pagbuo ng pack. Kung naka-enable na ang {0}, i-muling pagsisimula o i-muling i-load nang mano-mano ang tagapagbigay na iyon."
     error: "Pagkakamali: {0}"

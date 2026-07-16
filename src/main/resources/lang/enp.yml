@@ -185,6 +185,8 @@ message:
     handoff: "Furnisher handover: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST hearkener: {0}; open URL: {1}; same-time bound: {2}"
+    self_host_requests: "SELFHOST requests: awake {0}/{1}, highest {2}, taken {3}, fulfilled {4}, turned away {5}, miscarried {6}"
     note: "Word: {0}"
     provider_note: "Texture bundle handover ready for {0}; the furnisher takes it in during startup/bundle making. If {0} was already awake, restart or reload the furnisher by hand."
     error: "Fault: {0}"

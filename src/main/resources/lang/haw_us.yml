@@ -185,6 +185,8 @@ message:
     handoff: "Hāʻawi provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Mea hoʻolohe SELFHOST: {0}; URL lehulehu: {1}; palena o nā noi i ka manawa like: {2}"
+    self_host_requests: "Nā noi SELFHOST: hana {0}/{1}, kiʻekiʻe loa {2}, ʻae ʻia {3}, hoʻopau ʻia {4}, hōʻole ʻia {5}, hāʻule {6}"
     note: "Nānā: {0}"
     provider_note: "Ua mākaukau ka hāʻawi resource pack no {0}; hoʻokomo ka mea hoʻolako iā ia i ka wā hoʻomaka a hana pack. Inā ua hoʻā ʻia {0}, e hoʻomaka hou a hoʻouka hou lima i kēlā mea hoʻolako."
     error: "Hewa: {0}"

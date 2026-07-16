@@ -94,6 +94,8 @@ public final class ResourcePackService implements Listener {
   }
 
   private State initialState() {
+    ResourcePackNumericConfig numericConfig =
+        ResourcePackNumericConfig.fromConfig(plugin.getConfig(), plugin.getLogger());
     ResourcePackHosting configured =
         ResourcePackHosting.fromConfig(
             plugin.getConfig().getString("resourcePack.hosting", "AUTO"));
@@ -106,7 +108,7 @@ public final class ResourcePackService implements Listener {
     if (!resourceMode.getAsBoolean()) {
       return State.disabled("Effective mode is VANILLA", configured, configuredDelivery);
     }
-    DeliverySettings settings = readDeliverySettings(configuredDelivery);
+    DeliverySettings settings = readDeliverySettings(configuredDelivery, numericConfig);
     ResourcePackHosting effective = resolveHosting(configured);
     if (configurationGateEnabled(
         effective, settings.configuredDelivery(), settings.serverResourcePackConfigured())) {
@@ -133,6 +135,8 @@ public final class ResourcePackService implements Listener {
     onlineSendScheduledGeneration.set(NO_GENERATION);
     selfHost.stop();
     nexoIntegration.clearApiHandoff();
+    ResourcePackNumericConfig numericConfig =
+        ResourcePackNumericConfig.fromConfig(plugin.getConfig(), plugin.getLogger());
 
     ResourcePackHosting configured =
         ResourcePackHosting.fromConfig(
@@ -140,7 +144,7 @@ public final class ResourcePackService implements Listener {
     ResourcePackDelivery configuredDelivery =
         ResourcePackDelivery.fromConfig(
             plugin.getConfig().getString("resourcePack.delivery", "AUTO"));
-    DeliverySettings deliverySettings = readDeliverySettings(configuredDelivery);
+    DeliverySettings deliverySettings = readDeliverySettings(configuredDelivery, numericConfig);
 
     if (configured == ResourcePackHosting.DISABLED) {
       ResourcePackProviderBridge.removeAll(plugin);
@@ -230,8 +234,16 @@ public final class ResourcePackService implements Listener {
             selfHost.start(
                 pack.outputFile(),
                 plugin.getConfig().getString("resourcePack.selfHost.bindHost", "0.0.0.0"),
-                plugin.getConfig().getInt("resourcePack.selfHost.port", 0),
+                numericConfig.selfHostPort(),
                 plugin.getConfig().getString("resourcePack.selfHost.publicUrl", ""));
+        SelfHostPackServer.Snapshot selfHostSnapshot = selfHost.snapshot();
+        ExortLog.info(
+            "Resource-pack SELFHOST listening on "
+                + selfHostSnapshot.bindAddress()
+                + "; public URL "
+                + selfHostSnapshot.publicUrl()
+                + "; concurrency limit "
+                + selfHostSnapshot.limit());
         setReady(configured, effective, deliverySettings, pack, null, url, pack.outputSha1(), null);
       } catch (IOException e) {
         setState(
@@ -436,13 +448,14 @@ public final class ResourcePackService implements Listener {
     };
   }
 
-  private DeliverySettings readDeliverySettings(ResourcePackDelivery configuredDelivery) {
+  private DeliverySettings readDeliverySettings(
+      ResourcePackDelivery configuredDelivery, ResourcePackNumericConfig numericConfig) {
     return new DeliverySettings(
         configuredDelivery,
         serverResourcePackConfigured(),
         true,
         prompt(),
-        Math.max(1, plugin.getConfig().getInt("resourcePack.configurationTimeoutSeconds", 30)),
+        numericConfig.configurationTimeoutSeconds(),
         plugin.getConfig().getBoolean("resourcePack.sendOnlineOnReady", false));
   }
 
@@ -771,6 +784,27 @@ public final class ResourcePackService implements Listener {
     }
     if (current.url() != null) {
       lines.add(translator.tr(sender, "message.pack_status.url", current.url()));
+    }
+    SelfHostPackServer.Snapshot selfHostSnapshot = selfHost.snapshot();
+    if (selfHostSnapshot.running()) {
+      lines.add(
+          translator.tr(
+              sender,
+              "message.pack_status.self_host_listener",
+              selfHostSnapshot.bindAddress(),
+              selfHostSnapshot.publicUrl(),
+              selfHostSnapshot.limit()));
+      lines.add(
+          translator.tr(
+              sender,
+              "message.pack_status.self_host_requests",
+              selfHostSnapshot.active(),
+              selfHostSnapshot.limit(),
+              selfHostSnapshot.peak(),
+              selfHostSnapshot.accepted(),
+              selfHostSnapshot.completed(),
+              selfHostSnapshot.rejected(),
+              selfHostSnapshot.failed()));
     }
     String note = displayNote(sender, current);
     if (note != null && !note.isBlank()) {

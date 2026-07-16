@@ -1,6 +1,7 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.breaking.BreakAnimationSender;
+import com.zxcmc.exort.breaking.BreakConfig;
 import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.chunkloader.ChunkLoaderAuditFileWriter;
@@ -10,7 +11,9 @@ import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.chunkloader.RotatingChunkLoaderAuditFileWriter;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.gui.CreativeTabOrder;
+import com.zxcmc.exort.gui.GuiRuntimeConfig;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.auth.AuthenticationGate;
 import com.zxcmc.exort.integration.auth.KnownAuthenticationGate;
@@ -56,10 +59,14 @@ public final class ExortRuntimeFactory {
       throw new IllegalArgumentException("plugin and config are required");
     }
     RuntimeItemModelConfig.forMode(resourceMode, resourceWireUsesBarrier);
-    RuntimeNetworkConfig.fromConfig(config);
-    WirelessRuntimeConfig.fromConfig(config);
-    BusRuntimeConfig.fromConfig(config);
-    ChunkLoaderConfig.fromConfig(config, plugin.getLogger());
+    ConfigNumbers numbers = new ConfigNumbers(config, plugin.getLogger());
+    RuntimeNetworkConfig.fromNumbers(config, numbers);
+    WirelessRuntimeConfig.fromNumbers(config, numbers);
+    BusRuntimeConfig.fromNumbers(config, numbers);
+    StorageRuntimeConfig.fromNumbers(config, numbers);
+    GuiRuntimeConfig.fromConfig(numbers);
+    ChunkLoaderConfig.fromNumbers(config, numbers);
+    BreakConfig.fromConfig(config, plugin.getLogger());
     PlacementGuardConfig.fromConfig(config);
     WorldEditBulkConfig.fromConfig(config);
 
@@ -162,7 +169,7 @@ public final class ExortRuntimeFactory {
       scope.own("packet enhancements", packetEnhancements::unregister);
     }
     ChunkLoaderConfig chunkLoaderConfig =
-        ChunkLoaderConfig.fromConfig(deps.config(), deps.plugin().getLogger());
+        ChunkLoaderConfig.fromConfig(deps.config(), (java.util.logging.Logger) null);
     ChunkLoaderAuditFileWriter chunkLoaderAuditFileWriter =
         chunkLoaderConfig.audit().shouldWriteFile()
             ? RotatingChunkLoaderAuditFileWriter.create(
@@ -295,6 +302,7 @@ public final class ExortRuntimeFactory {
         RuntimeListenerRegistrar.register(
             new RuntimeListenerDependencies(
                 deps.plugin(),
+                deps.config(),
                 deps.database(),
                 deps.storageManager(),
                 storageClaimRegistry,

@@ -185,6 +185,8 @@ message:
     handoff: "Transdono al provizanto: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-a aŭskultilo: {0}; publika URL: {1}; limo de samtempaj petoj: {2}"
+    self_host_requests: "SELFHOST-petoj: aktivaj {0}/{1}, maksimumo {2}, akceptitaj {3}, kompletigitaj {4}, malakceptitaj {5}, malsukcesintaj {6}"
     note: "Noto: {0}"
     provider_note: "Transdono de la rimeda pako estas preta por {0}; la provizanto inkluzivas ĝin dum ekfunkciigo aŭ generado de la pako. Se {0} jam estis ŝaltita, permane restartigu aŭ reŝargu tiun provizanton."
     error: "Eraro: {0}"

@@ -185,6 +185,8 @@ message:
     handoff: "Passaggio al provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Punto de scolto SELFHOST: {0}; URL publica: {1}; limite de concorensa: {2}"
+    self_host_requests: "Richieste SELFHOST: ative {0}/{1}, picco {2}, acetàe {3}, completàe {4}, refudàe {5}, falìe {6}"
     note: "Nota: {0}"
     provider_note: "Il passaggio del resource pack è pronto per {0}; il provider lo include all’avvio o durante la generazione del pack. Se {0} era già abilitato, riavvia o ricarica manualmente il provider."
     error: "Errore: {0}"

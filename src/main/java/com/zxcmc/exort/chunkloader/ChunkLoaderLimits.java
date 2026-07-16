@@ -1,6 +1,6 @@
 package com.zxcmc.exort.chunkloader;
 
-import java.util.function.IntUnaryOperator;
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -30,37 +30,39 @@ public record ChunkLoaderLimits(
   }
 
   static ChunkLoaderLimits fromConfig(ConfigurationSection config, Logger logger) {
+    if (config == null) {
+      return defaults();
+    }
+    return fromConfig(new ConfigNumbers(config, logger));
+  }
+
+  static ChunkLoaderLimits fromConfig(ConfigNumbers numbers) {
     return new ChunkLoaderLimits(
-        readBounded(
-            config,
-            logger,
+        numbers.integer(
             "chunkLoader.limits.maxActiveLoaders",
             DEFAULT_MAX_ACTIVE_LOADERS,
-            ChunkLoaderLimits::clampActiveLoaders),
-        readBounded(
-            config,
-            logger,
+            MIN_ACTIVE_LOADERS,
+            MAX_ACTIVE_LOADERS),
+        numbers.integer(
             "chunkLoader.limits.maxActiveLoadersPerWorld",
             DEFAULT_MAX_ACTIVE_LOADERS_PER_WORLD,
-            ChunkLoaderLimits::clampActiveLoaders),
-        readBounded(
-            config,
-            logger,
+            MIN_ACTIVE_LOADERS,
+            MAX_ACTIVE_LOADERS),
+        numbers.integer(
             "chunkLoader.limits.maxActiveLoadersPerPlayer",
             DEFAULT_MAX_ACTIVE_LOADERS_PER_PLAYER,
-            ChunkLoaderLimits::clampActiveLoaders),
-        readBounded(
-            config,
-            logger,
+            MIN_ACTIVE_LOADERS,
+            MAX_ACTIVE_LOADERS),
+        numbers.integer(
             "chunkLoader.limits.maxUniqueChunks",
             DEFAULT_MAX_UNIQUE_CHUNKS,
-            ChunkLoaderLimits::clampUniqueChunks),
-        readBounded(
-            config,
-            logger,
+            MIN_UNIQUE_CHUNKS,
+            MAX_UNIQUE_CHUNKS),
+        numbers.integer(
             "chunkLoader.limits.maxUniqueChunksPerWorld",
             DEFAULT_MAX_UNIQUE_CHUNKS_PER_WORLD,
-            ChunkLoaderLimits::clampUniqueChunks));
+            MIN_UNIQUE_CHUNKS,
+            MAX_UNIQUE_CHUNKS));
   }
 
   public static ChunkLoaderLimits defaults() {
@@ -70,20 +72,6 @@ public record ChunkLoaderLimits(
         DEFAULT_MAX_ACTIVE_LOADERS_PER_PLAYER,
         DEFAULT_MAX_UNIQUE_CHUNKS,
         DEFAULT_MAX_UNIQUE_CHUNKS_PER_WORLD);
-  }
-
-  private static int readBounded(
-      ConfigurationSection config,
-      Logger logger,
-      String path,
-      int fallback,
-      IntUnaryOperator limiter) {
-    int raw = config == null ? fallback : config.getInt(path, fallback);
-    int bounded = limiter.applyAsInt(raw);
-    if (raw != bounded && logger != null) {
-      logger.warning(path + "=" + raw + " is outside its safe range; using " + bounded + ".");
-    }
-    return bounded;
   }
 
   private static int clampActiveLoaders(int value) {

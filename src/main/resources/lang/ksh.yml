@@ -185,6 +185,8 @@ message:
     handoff: "Övverjabe aan dä Aanbieter: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-Listener: {0}; öffentliche URL: {1}; Limit för jlischzick Anfroore: {2}"
+    self_host_requests: "SELFHOST-Anfroore: aktiv {0}/{1}, Hühschstand {2}, aanjenumme {3}, avjeschlosse {4}, afjelehnt {5}, nit jeloofe {6}"
     note: "Notiz: {0}"
     provider_note: "Dä Övverjabe vum Ressourcepak aan {0} es fädich; dä Aanbieter deit et beim Start oder beim Maache vum Pak dobei. Wann {0} ald aan wor, donn dä Aanbieter vun Hand neu starte oder lade."
     error: "Fähler: {0}"

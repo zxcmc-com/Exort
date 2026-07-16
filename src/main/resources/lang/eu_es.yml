@@ -185,6 +185,8 @@ message:
     handoff: "Hornitzaileari ematea: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST entzute-puntua: {0}; URL publikoa: {1}; aldiberekotasun-muga: {2}"
+    self_host_requests: "SELFHOST eskaerak: aktibo {0}/{1}, gailurra {2}, onartuak {3}, osatuak {4}, baztertuak {5}, huts eginak {6}"
     note: "Oharra: {0}"
     provider_note: "Baliabide-paketea hornitzaileari ematea prest dago {0}(r)entzat; hornitzailea-ak abioa/pakete-sorkuntza garaian sartzen du. {0} jada gaituta bazegoen, berrabiarazi edo berriro kargatu hornitzailea hori eskuz."
     error: "Errorea: {0}"

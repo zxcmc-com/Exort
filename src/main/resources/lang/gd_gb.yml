@@ -185,6 +185,8 @@ message:
     handoff: "Tar-chur don t-solaraiche: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Èistear SELFHOST: {0}; URL poblach: {1}; crìoch co-shìnteachd: {2}"
+    self_host_requests: "Iarrtasan SELFHOST: gnìomhach {0}/{1}, àirde {2}, air gabhail riutha {3}, crìochnaichte {4}, air an diùltadh {5}, air fàiligeadh {6}"
     note: "Nota: {0}"
     provider_note: "Tha tar-chur a’ phacaid ghoireasan deiseil airson {0}; cuiridh an solaraiche a-steach i nuair a thòisicheas e no nuair a chruthaicheas e a’ phacaid. Ma bha {0} an comas mu thràth, ath-thòisich no ath-luchdaich an solaraiche sin le làimh."
     error: "Mearachd: {0}"

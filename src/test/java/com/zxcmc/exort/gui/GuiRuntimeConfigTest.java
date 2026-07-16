@@ -25,4 +25,16 @@ class GuiRuntimeConfigTest {
 
     assertEquals(1L, config.sessionDeviceCheckIntervalTicks());
   }
+
+  @Test
+  void capsExcessiveSessionCheckInterval() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("performance.sessionDeviceCheckIntervalTicks", Long.MAX_VALUE);
+
+    GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(
+        GuiRuntimeConfig.MAX_SESSION_DEVICE_CHECK_INTERVAL_TICKS,
+        config.sessionDeviceCheckIntervalTicks());
+  }
 }

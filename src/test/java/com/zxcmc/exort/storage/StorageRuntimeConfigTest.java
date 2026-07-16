@@ -46,5 +46,11 @@ class StorageRuntimeConfigTest {
     assertEquals(
         StorageRuntimeConfig.MAX_SCHEDULER_INTERVAL_SECONDS, config.cacheIdleUnloadSeconds());
     assertEquals(0L, config.cacheIdleCheckSeconds());
+    assertEquals(
+        StorageRuntimeConfig.MAX_SCHEDULER_INTERVAL_SECONDS * 20L, config.flushIntervalTicks());
+    assertEquals(
+        StorageRuntimeConfig.MAX_SCHEDULER_INTERVAL_SECONDS * 1_000L,
+        config.cacheIdleUnloadMillis());
+    assertEquals(0L, config.cacheIdleCheckTicks());
   }
 }

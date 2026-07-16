@@ -1,5 +1,6 @@
 package com.zxcmc.exort.chunkloader;
 
+import com.zxcmc.exort.infra.config.ConfigNumbers;
 import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -17,29 +18,26 @@ public record ChunkLoaderConfig(
   }
 
   public static ChunkLoaderConfig fromConfig(ConfigurationSection config, Logger logger) {
+    if (config == null) {
+      return new ChunkLoaderConfig(
+          DEFAULT_ENABLED,
+          DEFAULT_RADIUS,
+          ChunkLoaderLimits.defaults(),
+          ChunkLoaderAuditConfig.fromConfig(null));
+    }
+    return fromNumbers(config, new ConfigNumbers(config, logger));
+  }
+
+  public static ChunkLoaderConfig fromNumbers(ConfigurationSection config, ConfigNumbers numbers) {
     boolean enabled =
         config == null
             ? DEFAULT_ENABLED
             : config.getBoolean("chunkLoader.enabled", DEFAULT_ENABLED);
-    int raw = config == null ? DEFAULT_RADIUS : config.getInt("chunkLoader.radius", DEFAULT_RADIUS);
-    int radius = clampRadius(raw);
-    if (raw != radius && logger != null) {
-      logger.warning(
-          "chunkLoader.radius="
-              + raw
-              + " is outside "
-              + MIN_RADIUS
-              + ".."
-              + MAX_RADIUS
-              + "; using "
-              + radius
-              + ".");
-    }
     return new ChunkLoaderConfig(
         enabled,
-        radius,
-        ChunkLoaderLimits.fromConfig(config, logger),
-        ChunkLoaderAuditConfig.fromConfig(config, logger));
+        numbers.integer("chunkLoader.radius", DEFAULT_RADIUS, MIN_RADIUS, MAX_RADIUS),
+        ChunkLoaderLimits.fromConfig(numbers),
+        ChunkLoaderAuditConfig.fromNumbers(config, numbers));
   }
 
   static int clampRadius(int raw) {

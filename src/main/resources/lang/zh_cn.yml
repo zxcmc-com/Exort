@@ -185,6 +185,8 @@ message:
     handoff: "提供方交接：{0}"
     sha1: "SHA-1：{0}"
     url: "URL：{0}"
+    self_host_listener: "SELFHOST 监听器：{0}；公共 URL：{1}；并发限制：{2}"
+    self_host_requests: "SELFHOST 请求：活动 {0}/{1}，峰值 {2}，已接受 {3}，已完成 {4}，已拒绝 {5}，失败 {6}"
     note: "备注：{0}"
     provider_note: "资源包交接已为 {0} 就绪；该提供方会在启动或生成资源包时包含它。如果 {0} 已经启用，请手动重启或重载该提供方。"
     error: "错误：{0}"

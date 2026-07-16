@@ -185,6 +185,8 @@ message:
     handoff: "Provider təhvili: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST dinləyicisi: {0}; açıq URL: {1}; paralellik limiti: {2}"
+    self_host_requests: "SELFHOST sorğuları: aktiv {0}/{1}, pik {2}, qəbul edilən {3}, tamamlanan {4}, rədd edilən {5}, uğursuz {6}"
     note: "Qeyd: {0}"
     provider_note: "Resurs paketinin ötürülməsi {0} üçün hazırdır; təminatçı onu işəsalma/paket yaratma zamanı daxil edir. {0} artıq aktiv idisə, həmin təminatçı-i əl ilə yenidən başladın və ya yenidən yükləyin edin."
     error: "Xəta: {0}"

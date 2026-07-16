@@ -185,6 +185,8 @@ message:
     handoff: "Overdracht aan provider: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-listener: {0}; openbare URL: {1}; gelijktijdigheidslimiet: {2}"
+    self_host_requests: "SELFHOST-verzoeken: actief {0}/{1}, piek {2}, aanvaard {3}, voltooid {4}, geweigerd {5}, mislukt {6}"
     note: "Opmerking: {0}"
     provider_note: "De resourcepackoverdracht is klaar voor {0}; de provider neemt die mee tijdens het opstarten of genereren van het pack. Als {0} al aan stond, herstart of herlaad die provider handmatig."
     error: "Fout: {0}"

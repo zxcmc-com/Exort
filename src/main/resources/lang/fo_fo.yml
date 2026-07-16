@@ -185,6 +185,8 @@ message:
     handoff: "Latin veitaranum: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "SELFHOST-lurtari: {0}; almenn URL: {1}; mark fyri samstundis umbønir: {2}"
+    self_host_requests: "SELFHOST-umbønir: virknar {0}/{1}, hægst {2}, góðkendar {3}, lidnar {4}, avvístar {5}, miseydnaðar {6}"
     note: "Viðmerking: {0}"
     provider_note: "Resource-pack avhendingin er klár fyri {0}; providerin tekur hana við undir uppstarti ella pack-gerð. Um {0} longu var virkið, endurræs ella les providerin av nýggjum handliga."
     error: "Villa: {0}"

@@ -166,5 +166,8 @@ class ChunkLoaderConfigTest {
     assertEquals(
         dataFolder.resolve(ChunkLoaderAuditFileConfig.DEFAULT_PATH),
         RotatingChunkLoaderAuditFileWriter.resolveSafePath(dataFolder, "/tmp/server.log", null));
+    assertEquals(
+        dataFolder.resolve(ChunkLoaderAuditFileConfig.DEFAULT_PATH),
+        RotatingChunkLoaderAuditFileWriter.resolveSafePath(dataFolder, "bad\0path", null));
   }
 }

@@ -185,6 +185,8 @@ message:
     handoff: "Wareejinta bixiyaha: {0}"
     sha1: "SHA-1: {0}"
     url: "URL: {0}"
+    self_host_listener: "Dhageystaha SELFHOST: {0}; URL dadweyne: {1}; xadka codsiyada isku mar: {2}"
+    self_host_requests: "Codsiyada SELFHOST: firfircoon {0}/{1}, ugu sarreeya {2}, la aqbalay {3}, la dhammaystiray {4}, la diiday {5}, fashilmay {6}"
     note: "Ogeysiis: {0}"
     provider_note: "wareejinta xirmada kheyraadka waa u diyaar {0}; bixiye ayaa ku dara marka bilowga/samaynta xirmada. Haddii {0} hore loo shiday, dib u bilow ama dib u rar bixiye-kaas gacanta."
     error: "Khalad: {0}"
