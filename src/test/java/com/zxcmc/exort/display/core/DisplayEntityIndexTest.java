@@ -2,11 +2,14 @@ package com.zxcmc.exort.display.core;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -17,9 +20,77 @@ import java.util.concurrent.Future;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
+import org.bukkit.event.entity.EntityRemoveEvent;
 import org.junit.jupiter.api.Test;
 
 class DisplayEntityIndexTest {
+  @Test
+  void entityRemovalListenerDropsDisplayFromEveryIndex() {
+    UUID worldId = UUID.randomUUID();
+    World world = world(worldId);
+    UUID entityId = UUID.randomUUID();
+    Display display = display(entityId, 41, new Location(world, 0.0, 64.0, 0.0));
+    DisplayEntityIndex index = new DisplayEntityIndex();
+    index.register(display);
+
+    new DisplayEntityIndexCleanupListener(index)
+        .onEntityRemove(new EntityRemoveEvent(display, EntityRemoveEvent.Cause.PLUGIN));
+
+    assertTrue(index.query(new Location(world, 0.0, 64.0, 0.0), 8.0).isEmpty());
+    assertNull(index.findByNetworkId(41));
+  }
+
+  @Test
+  void resumableQueryCountsSectionsAndEntitiesWithoutExceedingBudget() {
+    UUID worldId = UUID.randomUUID();
+    World world = world(worldId);
+    DisplayEntityIndex index = new DisplayEntityIndex();
+    Set<UUID> expected = new HashSet<>();
+    for (int value = 0; value < 5_000; value++) {
+      UUID entityId = new UUID(1L, value + 1L);
+      expected.add(entityId);
+      index.register(display(entityId, value + 1, new Location(world, value % 8, 64, value % 8)));
+    }
+
+    DisplayEntityIndex.QueryCursor cursor =
+        index.openQuery(new Location(world, 0.0, 64.0, 0.0), 32.0);
+    Set<UUID> actual = new HashSet<>();
+    int steps = 0;
+    while (!cursor.complete()) {
+      DisplayEntityIndex.QueryStep step =
+          cursor.advance(127, entry -> actual.add(entry.entityUuid()));
+      assertTrue(step.examined() <= 127);
+      assertTrue(step.examined() > 0);
+      steps++;
+    }
+
+    assertTrue(steps > 1);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  void resumableQueryToleratesRemovalWhileTraversingBucket() {
+    UUID worldId = UUID.randomUUID();
+    World world = world(worldId);
+    DisplayEntityIndex index = new DisplayEntityIndex();
+    UUID first = new UUID(2L, 1L);
+    UUID second = new UUID(2L, 2L);
+    index.register(display(first, 1, new Location(world, 0, 64, 0)));
+    index.register(display(second, 2, new Location(world, 1, 64, 0)));
+    DisplayEntityIndex.QueryCursor cursor =
+        index.openQuery(new Location(world, 0.0, 64.0, 0.0), 8.0);
+    Set<UUID> actual = new HashSet<>();
+
+    cursor.advance(1, entry -> actual.add(entry.entityUuid()));
+    index.unregister(first);
+    while (!cursor.complete()) {
+      assertDoesNotThrow(() -> cursor.advance(1, entry -> actual.add(entry.entityUuid())));
+    }
+
+    assertFalse(actual.contains(first));
+    assertTrue(actual.contains(second));
+  }
+
   @Test
   void queryIntoReusesAndClearsCallerList() {
     UUID worldId = UUID.randomUUID();

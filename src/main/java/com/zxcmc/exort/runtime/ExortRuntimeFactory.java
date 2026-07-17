@@ -443,6 +443,7 @@ public final class ExortRuntimeFactory {
   }
 
   private static void stopDisplayServices(RuntimeDisplayServices services) {
+    services.displayRefreshService().shutdown();
     services.blockProxyService().stop();
     services.displayCullingService().stop();
     services.hologramManager().stop();

@@ -1,15 +1,16 @@
 package com.zxcmc.exort.wireless.transmitter;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 /** Sparse chunk buckets for bounded transmitter coverage lookups. */
 final class TransmitterSpatialIndex {
   record Position(UUID worldId, int x, int y, int z) {}
+
+  record VisitResult(int examined, boolean matched) {}
 
   private record ChunkKey(UUID worldId, int x, int z) {}
 
@@ -56,29 +57,36 @@ final class TransmitterSpatialIndex {
     }
   }
 
-  List<Position> candidates(UUID worldId, int blockX, int blockZ, int rangeBlocks) {
-    if (worldId == null || positions.isEmpty()) return List.of();
+  VisitResult visitCandidates(
+      UUID worldId, int blockX, int blockZ, int rangeBlocks, Predicate<Position> visitor) {
+    if (worldId == null || positions.isEmpty()) return new VisitResult(0, false);
     int radiusChunks = (int) ((Math.max(0L, (long) rangeBlocks) + 15L) >> 4);
     int centerX = blockX >> 4;
     int centerZ = blockZ >> 4;
     long width = (long) radiusChunks * 2L + 1L;
     long bucketLookups = width * width;
     if (bucketLookups > positions.size()) {
-      return positions.stream().filter(pos -> worldId.equals(pos.worldId())).toList();
+      return visitSet(positions, worldId, visitor);
     }
-    List<Position> result = new ArrayList<>();
+    int examined = 0;
     for (int chunkX = centerX - radiusChunks; chunkX <= centerX + radiusChunks; chunkX++) {
       for (int chunkZ = centerZ - radiusChunks; chunkZ <= centerZ + radiusChunks; chunkZ++) {
         Set<Position> bucket = byChunk.get(new ChunkKey(worldId, chunkX, chunkZ));
-        if (bucket != null) result.addAll(bucket);
+        if (bucket == null) continue;
+        for (Position position : bucket) {
+          examined++;
+          if (visitor.test(position)) {
+            return new VisitResult(examined, true);
+          }
+        }
       }
     }
-    return List.copyOf(result);
+    return new VisitResult(examined, false);
   }
 
-  List<Position> globalCandidates(UUID worldId) {
-    Set<Position> positions = globalByWorld.get(worldId);
-    return positions == null ? List.of() : List.copyOf(positions);
+  VisitResult visitGlobal(UUID worldId, Predicate<Position> visitor) {
+    Set<Position> global = globalByWorld.get(worldId);
+    return global == null ? new VisitResult(0, false) : visitSet(global, worldId, visitor);
   }
 
   void clear() {
@@ -89,6 +97,19 @@ final class TransmitterSpatialIndex {
 
   int size() {
     return positions.size();
+  }
+
+  private static VisitResult visitSet(
+      Set<Position> source, UUID worldId, Predicate<Position> visitor) {
+    int examined = 0;
+    for (Position position : source) {
+      if (!worldId.equals(position.worldId())) continue;
+      examined++;
+      if (visitor.test(position)) {
+        return new VisitResult(examined, true);
+      }
+    }
+    return new VisitResult(examined, false);
   }
 
   private static ChunkKey chunkKey(Position position) {

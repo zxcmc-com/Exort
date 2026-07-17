@@ -8,25 +8,31 @@ import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
 
+/**
+ * Main-thread-confined Bus state registry.
+ *
+ * <p>Database completions must hand state changes back to the Bukkit server thread before accessing
+ * this registry.
+ */
 public final class BusRegistry {
   private static final int FILTER_SLOTS = 10;
 
   private final Plugin plugin;
   private final Database database;
-  private final Map<BusPos, BusState> states = new ConcurrentHashMap<>();
-  private volatile List<BusState> stateList = List.of();
-  private volatile boolean stateListDirty;
-  private volatile long version;
+  private final Map<BusPos, BusState> states = new HashMap<>();
+  private List<BusState> stateList = List.of();
+  private boolean stateListDirty;
+  private long version;
 
   public BusRegistry(Plugin plugin, Database database) {
     this.plugin = plugin;

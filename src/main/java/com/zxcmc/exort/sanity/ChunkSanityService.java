@@ -58,22 +58,20 @@ public final class ChunkSanityService {
     if (debug == null || !debug.isFull()) {
       return;
     }
-    if (cleanup == null || !cleanup.hasAnyRoot()) {
+    if (!cleanup.hasAnyRoot()) {
       return;
     }
-    MarkerSanityService.CleanupResult result =
-        cleanup == null ? MarkerSanityService.CleanupResult.empty() : cleanup;
     debug.recordEvent(
         "sanity chunk="
             + chunk.getX()
             + ","
             + chunk.getZ()
             + " roots accepted="
-            + result.acceptedRoots()
+            + cleanup.acceptedRoots()
             + " skipped="
-            + result.skippedRoots()
+            + cleanup.skippedRoots()
             + " cleared="
-            + result.clearedRoots(),
+            + cleanup.clearedRoots(),
         NamedTextColor.BLUE);
   }
 }

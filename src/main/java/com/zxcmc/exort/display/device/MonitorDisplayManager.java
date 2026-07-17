@@ -21,6 +21,7 @@ import com.zxcmc.exort.text.ExortText;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -53,6 +54,8 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private static final String TAG_TEXT = DisplayTags.MONITOR_TEXT_TAG;
   private static final int MONITOR_REFRESH_BUDGET_PER_TICK = 64;
   private static final int MONITOR_SANITY_BUDGET_PER_TICK = 16;
+  private static final int MAX_TRACKED_LOAD_ATTEMPTS = 4096;
+  private static final long LOAD_COOLDOWN_NANOS = TimeUnit.SECONDS.toNanos(1L);
   private static final DecimalFormat COMPACT_DECIMAL =
       new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.US));
   private static final NamespacedKey NEXO_FURNITURE = NamespacedKey.fromString("nexo:furniture");
@@ -92,16 +95,16 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private final ScreenConfig textEmptyConfig;
   private final int textBackgroundAlpha;
   private final Map<MonitorPos, MonitorState> monitors = new HashMap<>();
+  private final RoundRobinIndex<MonitorPos> monitorSanityOrder = new RoundRobinIndex<>();
   private final Map<String, Set<MonitorPos>> monitorsByStorage = new HashMap<>();
   private final Set<MonitorPos> queuedMonitorRefreshes = new LinkedHashSet<>();
-  private final Map<String, Long> loadAttempts = new HashMap<>();
+  private final MonitorLoadAttemptTracker loadAttempts =
+      new MonitorLoadAttemptTracker(MAX_TRACKED_LOAD_ATTEMPTS, LOAD_COOLDOWN_NANOS);
   private final StoredItemCodec itemCodec = new StoredItemCodec();
   private int taskId = -1;
   private int refreshTaskId = -1;
-  private int sanityCursor = 0;
   private final ThreadLocal<TerminalLinkFinder.StorageSearchResult> currentLink =
       new ThreadLocal<>();
-  private static final long LOAD_COOLDOWN_MS = 1000L;
 
   public MonitorDisplayManager(
       Plugin plugin,
@@ -207,7 +210,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     monitorsByStorage.clear();
     queuedMonitorRefreshes.clear();
     loadAttempts.clear();
-    sanityCursor = 0;
+    monitorSanityOrder.clear();
     PerfStats.setGauge("monitor.queueDepth", 0L);
   }
 
@@ -262,14 +265,12 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private void tickMeasured() {
     drainQueuedRefreshes(MONITOR_REFRESH_BUDGET_PER_TICK);
     if (monitors.isEmpty()) {
-      sanityCursor = 0;
       return;
     }
-    List<MonitorPos> positions = new ArrayList<>(monitors.keySet());
-    int limit = Math.min(MONITOR_SANITY_BUDGET_PER_TICK, positions.size());
-    sanityCursor = Math.floorMod(sanityCursor, positions.size());
-    for (int i = 0; i < limit; i++) {
-      MonitorPos pos = positions.get((sanityCursor + i) % positions.size());
+    List<MonitorPos> positions = monitorSanityOrder.nextBatch(MONITOR_SANITY_BUDGET_PER_TICK);
+    PerfStats.setGauge("monitor.sanityExamined", positions.size());
+    PerfStats.addCounter("monitor.sanityExaminedTotal", positions.size());
+    for (MonitorPos pos : positions) {
       MonitorState state = monitors.get(pos);
       if (state == null) continue;
       World world = Bukkit.getWorld(pos.world());
@@ -290,7 +291,6 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         refreshMeasured(block);
       }
     }
-    sanityCursor = (sanityCursor + limit) % Math.max(1, positions.size());
   }
 
   @Override
@@ -835,16 +835,18 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     if (storageId == null || storageId.isBlank()) return;
     if (storageManager.peekLoadedCache(storageId).isPresent()) return;
     if (storageManager.isLoading(storageId)) return;
-    long now = System.currentTimeMillis();
-    long lastAttempt = loadAttempts.getOrDefault(storageId, 0L);
-    if (now - lastAttempt < LOAD_COOLDOWN_MS) return;
-    loadAttempts.put(storageId, now);
+    if (!loadAttempts.tryStart(storageId, System.nanoTime())) return;
     storageManager
         .getOrLoad(storageId)
         .whenComplete(
             (cache, err) -> {
               if (err != null) return;
-              PluginTasks.runSyncIfEnabled(plugin, () -> refreshStorageMonitors(storageId));
+              PluginTasks.runSyncIfEnabled(
+                  plugin,
+                  () -> {
+                    loadAttempts.complete(storageId);
+                    refreshStorageMonitors(storageId);
+                  });
             });
   }
 
@@ -901,6 +903,9 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private void putMonitorState(MonitorPos pos, MonitorState state) {
     if (pos == null) return;
     MonitorState previous = monitors.put(pos, state);
+    if (previous == null) {
+      monitorSanityOrder.add(pos);
+    }
     updateStorageIndex(
         pos,
         previous == null ? null : previous.storageId(),
@@ -910,6 +915,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private void removeMonitorState(MonitorPos pos) {
     if (pos == null) return;
     MonitorState previous = monitors.remove(pos);
+    monitorSanityOrder.remove(pos);
     updateStorageIndex(pos, previous == null ? null : previous.storageId(), null);
     queuedMonitorRefreshes.remove(pos);
     updateMonitorQueueGauge();
@@ -925,6 +931,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         previous.remove(pos);
         if (previous.isEmpty()) {
           monitorsByStorage.remove(previousStorageId);
+          loadAttempts.forget(previousStorageId);
         }
       }
     }

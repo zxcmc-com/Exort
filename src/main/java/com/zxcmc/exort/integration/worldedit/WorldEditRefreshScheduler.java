@@ -21,16 +21,21 @@ import org.bukkit.scheduler.BukkitTask;
 
 final class WorldEditRefreshScheduler {
   private static final long[] DEFERRED_REFRESH_DELAYS_TICKS = {2L, 10L};
+  private static final int GRAPH_INVALIDATE_CHUNKS_PER_TICK = 64;
+  private static final long NETWORK_BATCH_QUIET_TICKS = 2L;
 
   private final WorldEditBridgeDependencies deps;
+  private final Runnable queueGaugeUpdater;
   private final Set<ChunkKey> queuedGraphChunks = new LinkedHashSet<>();
   private final Set<ChunkKey> queuedDisplayChunks = new LinkedHashSet<>();
   private final Set<ChunkKey> queuedBusChunks = new LinkedHashSet<>();
-  private final Set<BlockRef> queuedNetworkStarts = new LinkedHashSet<>();
   private BukkitTask drainTask;
+  private BukkitTask networkSealTask;
+  private long activeNetworkBatchId = -1L;
 
-  WorldEditRefreshScheduler(WorldEditBridgeDependencies deps) {
+  WorldEditRefreshScheduler(WorldEditBridgeDependencies deps, Runnable queueGaugeUpdater) {
     this.deps = deps;
+    this.queueGaugeUpdater = queueGaugeUpdater == null ? () -> {} : queueGaugeUpdater;
   }
 
   void refreshAffectedChunks(
@@ -56,9 +61,7 @@ final class WorldEditRefreshScheduler {
     }
     queuedDisplayChunks.addAll(chunkKeys);
     queuedBusChunks.addAll(chunkKeys);
-    if (networkRefreshStarts != null) {
-      queuedNetworkStarts.addAll(networkRefreshStarts);
-    }
+    accumulateNetworkStarts(networkRefreshStarts);
     updatePostQueueGauge();
     scheduleDrain();
 
@@ -75,15 +78,11 @@ final class WorldEditRefreshScheduler {
     }
   }
 
-  void scheduleDeferredRefresh(Set<ChunkKey> chunkKeys, Set<BlockRef> networkRefreshStarts) {
+  void scheduleDeferredRefresh(Set<ChunkKey> chunkKeys) {
     if (chunkKeys == null || chunkKeys.isEmpty()) {
       return;
     }
     Set<ChunkKey> chunks = Set.copyOf(chunkKeys);
-    Set<BlockRef> starts =
-        networkRefreshStarts == null || networkRefreshStarts.isEmpty()
-            ? Set.of()
-            : Set.copyOf(networkRefreshStarts);
     for (long delay : DEFERRED_REFRESH_DELAYS_TICKS) {
       try {
         Bukkit.getScheduler()
@@ -93,7 +92,7 @@ final class WorldEditRefreshScheduler {
                   if (!deps.plugin().isEnabled()) {
                     return;
                   }
-                  refreshAffectedChunks(chunks, starts, "deferred_" + delay + "t", false);
+                  refreshAffectedChunks(chunks, Set.of(), "deferred_" + delay + "t", false);
                 },
                 delay);
       } catch (RuntimeException ignored) {
@@ -107,18 +106,85 @@ final class WorldEditRefreshScheduler {
       drainTask.cancel();
       drainTask = null;
     }
+    if (networkSealTask != null) {
+      networkSealTask.cancel();
+      networkSealTask = null;
+    }
+    cancelActiveNetworkBatch();
     queuedGraphChunks.clear();
     queuedDisplayChunks.clear();
     queuedBusChunks.clear();
-    queuedNetworkStarts.clear();
     updatePostQueueGauge();
   }
 
+  void finishNetworkBatch() {
+    sealActiveNetworkBatch();
+  }
+
   int queuedTaskCount() {
-    return queuedGraphChunks.size()
-        + queuedDisplayChunks.size()
-        + queuedBusChunks.size()
-        + queuedNetworkStarts.size();
+    return queuedGraphChunks.size() + queuedDisplayChunks.size() + queuedBusChunks.size();
+  }
+
+  private void accumulateNetworkStarts(Set<BlockRef> starts) {
+    DisplayRefreshService refreshService = deps.displayRefreshService();
+    if (refreshService == null || starts == null || starts.isEmpty()) {
+      return;
+    }
+    if (activeNetworkBatchId == -1L) {
+      activeNetworkBatchId = refreshService.beginBulkNetworkRefresh();
+    }
+    for (BlockRef start : starts) {
+      refreshService.addBulkNetworkRefreshStart(
+          activeNetworkBatchId, start.worldId(), start.x(), start.y(), start.z());
+    }
+    PerfStats.addCounter("worldedit.networkRefresh.starts", starts.size());
+    scheduleQuietNetworkSeal();
+  }
+
+  private void scheduleQuietNetworkSeal() {
+    if (networkSealTask != null) {
+      networkSealTask.cancel();
+      networkSealTask = null;
+    }
+    try {
+      networkSealTask =
+          Bukkit.getScheduler()
+              .runTaskLater(
+                  deps.plugin(),
+                  () -> {
+                    networkSealTask = null;
+                    sealActiveNetworkBatch();
+                  },
+                  NETWORK_BATCH_QUIET_TICKS);
+    } catch (RuntimeException ignored) {
+      networkSealTask = null;
+    }
+  }
+
+  private void sealActiveNetworkBatch() {
+    if (networkSealTask != null) {
+      networkSealTask.cancel();
+      networkSealTask = null;
+    }
+    if (activeNetworkBatchId == -1L) {
+      return;
+    }
+    DisplayRefreshService refreshService = deps.displayRefreshService();
+    if (refreshService != null) {
+      refreshService.sealBulkNetworkRefresh(activeNetworkBatchId);
+    }
+    activeNetworkBatchId = -1L;
+  }
+
+  private void cancelActiveNetworkBatch() {
+    if (activeNetworkBatchId == -1L) {
+      return;
+    }
+    DisplayRefreshService refreshService = deps.displayRefreshService();
+    if (refreshService != null) {
+      refreshService.cancelBulkNetworkRefresh(activeNetworkBatchId);
+    }
+    activeNetworkBatchId = -1L;
   }
 
   private void scheduleDrain() {
@@ -142,7 +208,6 @@ final class WorldEditRefreshScheduler {
     drainGraphInvalidations();
     drainDisplayRefreshes(config.refreshChunksPerTick());
     drainBusScans(config.busScanChunksPerTick());
-    drainNetworkRefreshes(config.networkStartsPerTick());
     updatePostQueueGauge();
     if (queuedTaskCount() > 0) {
       PerfStats.incrementCounter("worldedit.budgetOverrun");
@@ -154,7 +219,7 @@ final class WorldEditRefreshScheduler {
     if (queuedGraphChunks.isEmpty()) {
       return;
     }
-    Set<ChunkKey> chunks = takeAll(queuedGraphChunks);
+    Set<ChunkKey> chunks = takeChunkBatch(queuedGraphChunks, GRAPH_INVALIDATE_CHUNKS_PER_TICK);
     PerfStats.measure("worldedit.graphInvalidate", () -> invalidateGraphChunks(chunks));
   }
 
@@ -208,31 +273,6 @@ final class WorldEditRefreshScheduler {
             scanned++;
           }
           PerfStats.addCounter("worldedit.busScan.chunks", scanned);
-        });
-  }
-
-  private void drainNetworkRefreshes(int budget) {
-    if (queuedNetworkStarts.isEmpty()) {
-      return;
-    }
-    Set<BlockRef> starts = takeBlockBatch(queuedNetworkStarts, budget);
-    PerfStats.measure(
-        "worldedit.networkRefresh",
-        () -> {
-          DisplayRefreshService refreshService = deps.displayRefreshService();
-          if (refreshService == null) {
-            return;
-          }
-          int refreshed = 0;
-          for (BlockRef ref : starts) {
-            Block block = ref.block();
-            if (block == null) {
-              continue;
-            }
-            refreshService.refreshNetworkFrom(block);
-            refreshed++;
-          }
-          PerfStats.addCounter("worldedit.networkRefresh.starts", refreshed);
         });
   }
 
@@ -343,6 +383,7 @@ final class WorldEditRefreshScheduler {
 
   private void updatePostQueueGauge() {
     PerfStats.setGauge("worldedit.postQueueDepth", queuedTaskCount());
+    queueGaugeUpdater.run();
   }
 
   private static Set<ChunkKey> takeChunkBatch(Set<ChunkKey> source, int budget) {
@@ -352,22 +393,6 @@ final class WorldEditRefreshScheduler {
       batch.add(iterator.next());
       iterator.remove();
     }
-    return batch;
-  }
-
-  private static Set<BlockRef> takeBlockBatch(Set<BlockRef> source, int budget) {
-    Set<BlockRef> batch = new LinkedHashSet<>();
-    Iterator<BlockRef> iterator = source.iterator();
-    while (iterator.hasNext() && batch.size() < budget) {
-      batch.add(iterator.next());
-      iterator.remove();
-    }
-    return batch;
-  }
-
-  private static Set<ChunkKey> takeAll(Set<ChunkKey> source) {
-    Set<ChunkKey> batch = new LinkedHashSet<>(source);
-    source.clear();
     return batch;
   }
 }

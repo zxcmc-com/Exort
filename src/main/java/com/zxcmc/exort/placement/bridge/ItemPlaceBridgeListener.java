@@ -148,9 +148,10 @@ public class ItemPlaceBridgeListener implements Listener {
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
   public void onInteract(PlayerInteractEvent event) {
-    if (event.getHand() == null) return;
+    EquipmentSlot hand = event.getHand();
+    if (hand == null) return;
     if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-    if (event.getHand() == EquipmentSlot.OFF_HAND && !shouldUseOffhand(event)) return;
+    if (hand == EquipmentSlot.OFF_HAND && !shouldUseOffhand(event, hand)) return;
     ItemStack stack = event.getItem();
     if (stack == null || !stack.hasItemMeta()) return;
     Block clicked = event.getClickedBlock();
@@ -182,10 +183,10 @@ public class ItemPlaceBridgeListener implements Listener {
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), wireMaterial)) return;
       if (!wirePlacementLimitGuard.canPlace(event.getPlayer(), target)) return;
       Material replacedType = target.getType();
-      if (authorizePlacement(event, target, wireMaterial) == null) return;
+      if (authorizePlacement(event, hand, target, wireMaterial) == null) return;
       placeWire(target);
       WireWaterFlowRefresh.refreshAfterWirePlacement(target, replacedType);
-      finishPlacement(event, target, BreakType.WIRE);
+      finishPlacement(event, hand, target, BreakType.WIRE);
       refreshWirePlacement(target);
       return;
     }
@@ -196,7 +197,8 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), storageCarrier))
         return;
-      BridgePlacementEvents.Approval approval = authorizePlacement(event, target, storageCarrier);
+      BridgePlacementEvents.Approval approval =
+          authorizePlacement(event, hand, target, storageCarrier);
       if (approval == null) return;
       ItemStack placedItem = stack.clone();
       placedItem.setAmount(1);
@@ -213,7 +215,7 @@ public class ItemPlaceBridgeListener implements Listener {
       }
       boolean shouldRefund = shouldRefundPlacementItem(event.getPlayer(), placedItem);
       placeStorage(event, target, tier, storageId, displayName);
-      finishPlacement(event, target, BreakType.STORAGE);
+      finishPlacement(event, hand, target, BreakType.STORAGE);
       persistStorageTier(
           event.getPlayer(),
           target,
@@ -233,9 +235,9 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), storageCarrier))
         return;
-      if (authorizePlacement(event, target, storageCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, storageCarrier) == null) return;
       placeStorageCore(target);
-      finishPlacement(event, target, BreakType.STORAGE);
+      finishPlacement(event, hand, target, BreakType.STORAGE);
       refreshStorageCorePlacement(target);
       return;
     }
@@ -245,9 +247,9 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), terminalCarrier))
         return;
-      if (authorizePlacement(event, target, terminalCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, terminalCarrier) == null) return;
       placeTerminal(event, target, TerminalKind.TERMINAL);
-      finishPlacement(event, target, BreakType.TERMINAL);
+      finishPlacement(event, hand, target, BreakType.TERMINAL);
       refreshTerminalPlacement(target);
       return;
     }
@@ -257,9 +259,9 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), terminalCarrier))
         return;
-      if (authorizePlacement(event, target, terminalCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, terminalCarrier) == null) return;
       placeTerminal(event, target, TerminalKind.CRAFTING);
-      finishPlacement(event, target, BreakType.TERMINAL);
+      finishPlacement(event, hand, target, BreakType.TERMINAL);
       refreshTerminalPlacement(target);
       return;
     }
@@ -269,9 +271,9 @@ public class ItemPlaceBridgeListener implements Listener {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), monitorCarrier))
         return;
-      if (authorizePlacement(event, target, monitorCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, monitorCarrier) == null) return;
       placeMonitor(event, target);
-      finishPlacement(event, target, BreakType.MONITOR);
+      finishPlacement(event, hand, target, BreakType.MONITOR);
       monitorPlacedRecorder.accept(target);
       refreshMonitorPlacement(target);
       return;
@@ -281,9 +283,9 @@ public class ItemPlaceBridgeListener implements Listener {
     if (customItems.isImportBus(stack) || customItems.isExportBus(stack)) {
       event.setCancelled(true);
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), busCarrier)) return;
-      if (authorizePlacement(event, target, busCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, busCarrier) == null) return;
       placeBus(event, target, customItems.isExportBus(stack));
-      finishPlacement(event, target, BreakType.BUS);
+      finishPlacement(event, hand, target, BreakType.BUS);
       refreshBusPlacement(target);
       return;
     }
@@ -296,9 +298,9 @@ public class ItemPlaceBridgeListener implements Listener {
         return;
       }
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), relayCarrier)) return;
-      if (authorizePlacement(event, target, relayCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, relayCarrier) == null) return;
       placeRelay(target);
-      finishPlacement(event, target, BreakType.RELAY);
+      finishPlacement(event, hand, target, BreakType.RELAY);
       refreshRelayPlacement(target);
       return;
     }
@@ -312,9 +314,9 @@ public class ItemPlaceBridgeListener implements Listener {
       }
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), transmitterCarrier))
         return;
-      if (authorizePlacement(event, target, transmitterCarrier) == null) return;
+      if (authorizePlacement(event, hand, target, transmitterCarrier) == null) return;
       placeTransmitter(target);
-      finishPlacement(event, target, BreakType.TRANSMITTER);
+      finishPlacement(event, hand, target, BreakType.TRANSMITTER);
       transmitterPlacedRecorder.accept(target);
       refreshTransmitterPlacement(target);
       return;
@@ -330,7 +332,7 @@ public class ItemPlaceBridgeListener implements Listener {
       if (!regionProtection.canBuild(event.getPlayer(), target.getLocation(), chunkLoaderCarrier))
         return;
       BridgePlacementEvents.Approval approval =
-          authorizePlacement(event, target, chunkLoaderCarrier);
+          authorizePlacement(event, hand, target, chunkLoaderCarrier);
       if (approval == null) return;
       UUID loaderId = customItems.chunkLoaderId(stack).orElse(UUID.randomUUID());
       ChunkLoaderType type = customItems.chunkLoaderType(stack);
@@ -359,7 +361,7 @@ public class ItemPlaceBridgeListener implements Listener {
         playerFeedback.warn(event.getPlayer(), "message.chunk_loader_initializing");
         return;
       }
-      finishPlacement(event, target, BreakType.CHUNK_LOADER);
+      finishPlacement(event, hand, target, BreakType.CHUNK_LOADER);
       refreshChunkLoaderPlacement(target);
     }
   }
@@ -581,9 +583,10 @@ public class ItemPlaceBridgeListener implements Listener {
         soundConfig.pitch());
   }
 
-  private void finishPlacement(PlayerInteractEvent event, Block target, BreakType type) {
-    consume(event);
-    event.getPlayer().swingHand(event.getHand());
+  private void finishPlacement(
+      PlayerInteractEvent event, EquipmentSlot hand, Block target, BreakType type) {
+    consume(event, hand);
+    event.getPlayer().swingHand(hand);
     playPlaceSound(target, type);
   }
 
@@ -622,13 +625,13 @@ public class ItemPlaceBridgeListener implements Listener {
     return clicked.getRelative(face);
   }
 
-  private boolean shouldUseOffhand(PlayerInteractEvent event) {
+  private boolean shouldUseOffhand(PlayerInteractEvent event, EquipmentSlot hand) {
     ItemStack main = event.getPlayer().getInventory().getItemInMainHand();
     boolean empty = main == null || main.getType() == Material.AIR;
     boolean custom = !empty && main.hasItemMeta() && customItems.isCustomItem(main);
     Material type = empty ? Material.AIR : main.getType();
     return BridgePlacementPolicy.shouldUseOffhand(
-        event.getHand(),
+        hand,
         empty,
         custom,
         !empty && type.isBlock(),
@@ -677,11 +680,10 @@ public class ItemPlaceBridgeListener implements Listener {
   }
 
   private BridgePlacementEvents.Approval authorizePlacement(
-      PlayerInteractEvent event, Block target, Material carrier) {
-    EquipmentSlot hand = event.getHand();
+      PlayerInteractEvent event, EquipmentSlot hand, Block target, Material carrier) {
     ItemStack item = event.getItem();
     Block clicked = event.getClickedBlock();
-    if (hand == null || item == null || clicked == null) return null;
+    if (item == null || clicked == null) return null;
     return BridgePlacementEvents.authorize(event.getPlayer(), hand, item, target, clicked, carrier);
   }
 
@@ -718,13 +720,13 @@ public class ItemPlaceBridgeListener implements Listener {
         || pdc.has(keys.chunkLoaderId(), PersistentDataType.STRING);
   }
 
-  private void consume(PlayerInteractEvent event) {
-    ItemStack hand = event.getPlayer().getInventory().getItem(event.getHand());
+  private void consume(PlayerInteractEvent event, EquipmentSlot slot) {
+    ItemStack hand = event.getPlayer().getInventory().getItem(slot);
     if (hand == null) return;
     boolean initialized = hand.hasItemMeta() && hasPersistentItemId(hand);
     if (event.getPlayer().getGameMode() == GameMode.CREATIVE && !initialized) return;
     hand.setAmount(hand.getAmount() - 1);
-    event.getPlayer().getInventory().setItem(event.getHand(), hand.getAmount() > 0 ? hand : null);
+    event.getPlayer().getInventory().setItem(slot, hand.getAmount() > 0 ? hand : null);
     event.getPlayer().updateInventory();
   }
 

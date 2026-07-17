@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.regions.CuboidRegion;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,6 +22,31 @@ import org.enginehub.linbus.tree.LinTagType;
 import org.junit.jupiter.api.Test;
 
 class WorldEditHistoryCarrierTest {
+  @Test
+  void movePatchFindsSourceAndDestinationRegionsFromItsChunkIndex() {
+    BlockVector3 source = BlockVector3.at(-17, 64, 31);
+    BlockVector3 destination = BlockVector3.at(32, 64, -33);
+    MarkerSnapshot wire = new MarkerSnapshot(null, null, null, null, null, true, false);
+    PendingMovePatch patch =
+        new PendingMovePatch(
+            Map.of(WorldEditMarkerMath.blockKey(source.x(), source.y(), source.z()), wire),
+            Map.of(
+                WorldEditMarkerMath.blockKey(destination.x(), destination.y(), destination.z()),
+                wire),
+            destination.subtract(source),
+            System.currentTimeMillis(),
+            3);
+
+    assertTrue(patch.hasMarkerIn(new CuboidRegion(source, source.add(1, 0, 0))));
+    assertTrue(patch.hasMarkerIn(new CuboidRegion(destination.subtract(1, 0, 0), destination)));
+    assertTrue(patch.hasMarkerAt(source));
+    assertTrue(patch.hasMarkerAt(destination));
+    assertFalse(patch.hasMarkerAt(BlockVector3.at(0, 64, 0)));
+    assertFalse(
+        patch.hasMarkerIn(
+            new CuboidRegion(BlockVector3.at(160, 0, 160), BlockVector3.at(175, 255, 175))));
+  }
+
   @Test
   void transmitterSnapshotRoundTripPreservesModeAndStoredTerminalForHistory() {
     byte[] terminalBlob = {1, 2, 3, 4};
@@ -433,6 +459,35 @@ class WorldEditHistoryCarrierTest {
     assertNotNull(consumed);
     assertNotNull(consumed.transmitterData());
     assertArrayEquals(new byte[] {4, 5, 6}, consumed.transmitterData().terminalBlob());
+  }
+
+  @Test
+  void moveSourceHistoryPreseedsOnlySourceCoordinatesThatBecomeEmpty() {
+    WorldEditMarkerHistory history = new WorldEditMarkerHistory();
+    UUID actorId = new UUID(125L, 126L);
+    UUID worldId = new UUID(127L, 128L);
+    MarkerSnapshot wire =
+        new MarkerSnapshot(null, null, null, null, null, false, null, null, true, false);
+    long sourceOnly = WorldEditMarkerMath.blockKey(10, 70, 20);
+    long overlap = WorldEditMarkerMath.blockKey(11, 70, 20);
+    long destinationOnly = WorldEditMarkerMath.blockKey(12, 70, 20);
+    PendingMovePatch movePatch =
+        new PendingMovePatch(
+            Map.of(sourceOnly, wire, overlap, wire),
+            Map.of(overlap, wire, destinationOnly, wire),
+            BlockVector3.at(1, 0, 0),
+            System.currentTimeMillis(),
+            3);
+    HashSet<Long> remembered = new HashSet<>();
+    WorldEditMarkerHistory.Frame frame = history.beginNormalOperation(actorId, worldId, 2L);
+
+    WorldEditBridge.seedMoveSourceHistory(history, remembered, actorId, worldId, movePatch, frame);
+
+    assertEquals(Set.of(sourceOnly), remembered);
+    assertEquals(wire, history.peek(frame, HistoryAction.UNDO, 10, 70, 20));
+    assertTrue(history.peekState(frame, HistoryAction.REDO, 10, 70, 20).clear());
+    assertNull(history.peekState(frame, HistoryAction.UNDO, 11, 70, 20));
+    assertNull(history.peekState(frame, HistoryAction.REDO, 11, 70, 20));
   }
 
   @Test

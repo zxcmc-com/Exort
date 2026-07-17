@@ -1,6 +1,7 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.display.core.DisplayEntityIndex;
+import com.zxcmc.exort.display.core.DisplayEntityIndexCleanupListener;
 import com.zxcmc.exort.display.core.DisplayMetadataService;
 import com.zxcmc.exort.display.culling.DisplayCullingConfig;
 import com.zxcmc.exort.display.culling.DisplayCullingService;
@@ -37,6 +38,8 @@ public final class RuntimeDisplayServicesFactory {
         RuntimeDisplayModelConfig.forMode(deps.resourceMode(), itemModels.displayNamespace());
     DisplayCullingConfig displayCullingConfig = DisplayCullingConfig.fromConfig(deps.config());
     DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
+    Bukkit.getPluginManager()
+        .registerEvents(new DisplayEntityIndexCleanupListener(displayEntityIndex), deps.plugin());
     DisplayMetadataService metadataService =
         new DisplayMetadataService(displayEntityIndex, displayCullingConfig);
     boolean fullPacketLocalization = registerPacketLocalization(deps, displayEntityIndex);

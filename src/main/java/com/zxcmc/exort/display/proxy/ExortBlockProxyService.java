@@ -429,7 +429,7 @@ public final class ExortBlockProxyService implements Listener {
     int budget = config.maxBlockChangesPerTick();
     List<PreparedChange> changes = new ArrayList<>(Math.min(256, budget));
     budget = drainQueue(restoreQueue, budget, changes);
-    budget = drainQueue(proxyQueue, budget, changes);
+    drainQueue(proxyQueue, budget, changes);
     int sent = sendPreparedChanges(changes);
     int restored = 0;
     for (PreparedChange change : changes) {

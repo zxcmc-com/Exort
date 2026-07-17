@@ -21,12 +21,11 @@ import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.relay.RelaySetupTracker;
-import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
@@ -36,7 +35,9 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.plugin.Plugin;
 
 public final class DisplayRefreshService {
-  private static final int REFRESH_BUDGET_PER_TICK = 64;
+  private static final int BLOCK_REFRESH_BUDGET_PER_TICK = 512;
+  private static final int CHUNK_REFRESH_BUDGET_PER_TICK = 2;
+  private static final int NETWORK_WORK_BUDGET_PER_TICK = 2048;
   private static final BlockFace[] FACES =
       new BlockFace[] {
         BlockFace.UP,
@@ -71,7 +72,10 @@ public final class DisplayRefreshService {
   private final RelaySetupTracker relaySetupTracker;
   private final Set<BlockKey> queuedBlocks = new HashSet<>();
   private final Set<ChunkKey> queuedChunks = new HashSet<>();
-  private final Set<BlockKey> queuedNetworkStarts = new HashSet<>();
+  private final NetworkRefreshWorkQueue<BlockKey> networkRefreshWork =
+      new NetworkRefreshWorkQueue<>();
+  private final NetworkTopology networkTopology = new NetworkTopology();
+  private long implicitNetworkBatchId = -1L;
   private int refreshTaskId = -1;
 
   public DisplayRefreshService(
@@ -223,10 +227,52 @@ public final class DisplayRefreshService {
 
   public void refreshNetworkFrom(Block block) {
     if (block == null || block.getWorld() == null) return;
-    queuedNetworkStarts.add(
-        new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()));
+    if (implicitNetworkBatchId == -1L) {
+      implicitNetworkBatchId = networkRefreshWork.openBatch();
+    }
+    networkRefreshWork.addStart(implicitNetworkBatchId, BlockKey.from(block));
     updateQueueGauge();
     scheduleRefreshDrain();
+  }
+
+  public long beginBulkNetworkRefresh() {
+    return networkRefreshWork.openBatch();
+  }
+
+  public void addBulkNetworkRefreshStart(long batchId, UUID worldId, int x, int y, int z) {
+    if (worldId == null) return;
+    networkRefreshWork.addStart(batchId, new BlockKey(worldId, x, y, z));
+    updateQueueGauge();
+  }
+
+  public void sealBulkNetworkRefresh(long batchId) {
+    if (networkRefreshWork.seal(batchId)) {
+      updateQueueGauge();
+      scheduleRefreshDrain();
+    }
+  }
+
+  public void cancelBulkNetworkRefresh(long batchId) {
+    networkRefreshWork.cancel(batchId);
+    updateQueueGauge();
+  }
+
+  public void shutdown() {
+    if (refreshTaskId != -1) {
+      Bukkit.getScheduler().cancelTask(refreshTaskId);
+      refreshTaskId = -1;
+    }
+    queuedBlocks.clear();
+    queuedChunks.clear();
+    networkRefreshWork.clear();
+    implicitNetworkBatchId = -1L;
+    updateQueueGauge();
+    PerfStats.setGauge("display.blockRefreshWorkThisTick", 0L);
+    PerfStats.setGauge("display.chunkRefreshWorkThisTick", 0L);
+    PerfStats.setGauge("wire.networkRefreshWorkThisTick", 0L);
+    PerfStats.setGauge("wire.networkRefreshPendingStarts", 0L);
+    PerfStats.setGauge("wire.networkRefreshPending", 0L);
+    PerfStats.setGauge("wire.networkRefreshActive", 0L);
   }
 
   private void refreshBlockNow(Block block) {
@@ -265,34 +311,6 @@ public final class DisplayRefreshService {
     }
   }
 
-  private Set<BlockKey> refreshNetworkFromNow(Block block) {
-    if (block == null || block.getWorld() == null) return Set.of();
-    if (wireMaterial == null) return Set.of();
-    int hardCap = Math.max(0, wireHardCap);
-    if (hardCap == 0) return Set.of();
-    boolean isWire =
-        Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
-    boolean isRelay =
-        Carriers.matchesCarrier(block, relayTraversalCarrier) && RelayMarker.isRelay(plugin, block);
-    if (isWire || isRelay) {
-      return refreshFromNetworkNode(block, hardCap, wireMaterial);
-    }
-    Set<BlockKey> refreshedNodes = new HashSet<>();
-    for (var face : FACES) {
-      Block neighbor = block.getRelative(face);
-      if (!isChunkLoaded(neighbor)) continue;
-      BlockKey neighborKey = BlockKey.from(neighbor);
-      if (refreshedNodes.contains(neighborKey)) continue;
-      if (Carriers.matchesCarrier(neighbor, wireMaterial) && WireMarker.isWire(plugin, neighbor)) {
-        refreshedNodes.addAll(refreshFromNetworkNode(neighbor, hardCap, wireMaterial));
-      } else if (Carriers.matchesCarrier(neighbor, relayTraversalCarrier)
-          && RelayMarker.isRelay(plugin, neighbor)) {
-        refreshedNodes.addAll(refreshFromNetworkNode(neighbor, hardCap, wireMaterial));
-      }
-    }
-    return Set.copyOf(refreshedNodes);
-  }
-
   private void scheduleRefreshDrain() {
     if (refreshTaskId != -1) return;
     try {
@@ -309,8 +327,14 @@ public final class DisplayRefreshService {
   }
 
   private void drainRefreshQueuesMeasured() {
-    int budget = REFRESH_BUDGET_PER_TICK;
-    while (budget > 0 && !queuedBlocks.isEmpty()) {
+    sealImplicitNetworkBatch();
+    NetworkRefreshWorkQueue.DrainResult networkResult =
+        networkRefreshWork.drain(NETWORK_WORK_BUDGET_PER_TICK, wireHardCap, networkTopology);
+    recordNetworkRefreshMetrics(networkResult);
+
+    int blockBudget = BLOCK_REFRESH_BUDGET_PER_TICK;
+    int blocksRefreshed = 0;
+    while (blockBudget > 0 && !queuedBlocks.isEmpty()) {
       Iterator<BlockKey> iterator = queuedBlocks.iterator();
       BlockKey key = iterator.next();
       iterator.remove();
@@ -318,9 +342,12 @@ public final class DisplayRefreshService {
       if (block != null) {
         refreshBlockNow(block);
       }
-      budget--;
+      blockBudget--;
+      blocksRefreshed++;
     }
-    while (budget > 0 && !queuedChunks.isEmpty()) {
+    int chunkBudget = CHUNK_REFRESH_BUDGET_PER_TICK;
+    int chunksRefreshed = 0;
+    while (chunkBudget > 0 && !queuedChunks.isEmpty()) {
       Iterator<ChunkKey> iterator = queuedChunks.iterator();
       ChunkKey key = iterator.next();
       iterator.remove();
@@ -328,29 +355,42 @@ public final class DisplayRefreshService {
       if (chunk != null) {
         refreshChunkNow(chunk);
       }
-      budget--;
+      chunkBudget--;
+      chunksRefreshed++;
     }
-    while (budget > 0 && !queuedNetworkStarts.isEmpty()) {
-      Iterator<BlockKey> iterator = queuedNetworkStarts.iterator();
-      BlockKey key = iterator.next();
-      iterator.remove();
-      Block block = loadedBlock(key);
-      if (block != null) {
-        queuedNetworkStarts.removeAll(refreshNetworkFromNow(block));
-      }
-      budget--;
-    }
+    PerfStats.setGauge("display.blockRefreshWorkThisTick", blocksRefreshed);
+    PerfStats.setGauge("display.chunkRefreshWorkThisTick", chunksRefreshed);
     updateQueueGauge();
-    if (!queuedBlocks.isEmpty() || !queuedChunks.isEmpty() || !queuedNetworkStarts.isEmpty()) {
+    if (!queuedBlocks.isEmpty() || !queuedChunks.isEmpty() || networkRefreshWork.hasSealedWork()) {
       PerfStats.incrementCounter("display.budgetOverrun");
       scheduleRefreshDrain();
     }
   }
 
+  private void sealImplicitNetworkBatch() {
+    if (implicitNetworkBatchId == -1L) {
+      return;
+    }
+    networkRefreshWork.seal(implicitNetworkBatchId);
+    implicitNetworkBatchId = -1L;
+  }
+
+  private void recordNetworkRefreshMetrics(NetworkRefreshWorkQueue.DrainResult result) {
+    PerfStats.addCounter("wire.networkRefreshVisited", result.refreshes());
+    PerfStats.addCounter("wire.networkRefreshComponentsStarted", result.componentsStarted());
+    PerfStats.addCounter("wire.networkRefreshComponentsCompleted", result.componentsCompleted());
+    PerfStats.addCounter("wire.networkRefreshSkipped", result.skippedStarts());
+    PerfStats.addCounter("wire.networkRefreshHardCapOverflow", result.overflowedBatches());
+    PerfStats.setGauge("wire.networkRefreshWorkThisTick", result.examined());
+    PerfStats.setGauge("wire.networkRefreshPendingStarts", result.pendingStarts());
+    PerfStats.setGauge("wire.networkRefreshPending", result.pendingWork());
+    PerfStats.setGauge("wire.networkRefreshActive", networkRefreshWork.hasSealedWork() ? 1L : 0L);
+  }
+
   private void updateQueueGauge() {
     PerfStats.setGauge(
         "display.queueDepth",
-        (long) queuedBlocks.size() + queuedChunks.size() + queuedNetworkStarts.size());
+        (long) queuedBlocks.size() + queuedChunks.size() + networkRefreshWork.pendingWork());
   }
 
   private Chunk loadedChunk(ChunkKey key) {
@@ -373,110 +413,63 @@ public final class DisplayRefreshService {
     }
   }
 
-  private Set<BlockKey> refreshFromNetworkNode(Block start, int hardCap, Material wireMaterial) {
-    Queue<Block> queue = new ArrayDeque<>();
-    Set<Block> visited = new HashSet<>();
-    Set<Block> terminals = new HashSet<>();
-    Set<Block> monitors = new HashSet<>();
-    Set<Block> buses = new HashSet<>();
-    Set<Block> relays = new HashSet<>();
-    Set<Block> transmitters = new HashSet<>();
-    NetworkRefreshBudget budget = new NetworkRefreshBudget(hardCap);
-    queue.add(start);
-    visited.add(start);
-    if (Carriers.matchesCarrier(start, wireMaterial) && WireMarker.isWire(plugin, start)) {
-      budget.recordStartNode();
-    } else if (Carriers.matchesCarrier(start, relayTraversalCarrier)
-        && RelayMarker.isRelay(plugin, start)) {
-      relays.add(start);
+  private final class NetworkTopology implements NetworkRefreshWorkQueue.Topology<BlockKey> {
+    @Override
+    public boolean isNode(BlockKey key) {
+      return isNetworkNode(loadedBlock(key));
     }
-    while (!queue.isEmpty()) {
-      Block current = queue.poll();
-      if (Carriers.matchesCarrier(current, relayTraversalCarrier)
-          && RelayMarker.isRelay(plugin, current)) {
-        Block peer = validRelayPeer(current);
-        if (peer != null && !visited.contains(peer)) {
-          if (!budget.tryVisitNextNode()) {
-            continue;
-          }
-          visited.add(peer);
-          relays.add(peer);
-          queue.add(peer);
+
+    @Override
+    public void forEachConnectedNode(BlockKey key, Consumer<BlockKey> consumer) {
+      Block block = loadedBlock(key);
+      if (block == null) {
+        return;
+      }
+      boolean currentIsNode = isNetworkNode(block);
+      if (currentIsNode
+          && Carriers.matchesCarrier(block, relayTraversalCarrier)
+          && RelayMarker.isRelay(plugin, block)) {
+        Block peer = validRelayPeer(block);
+        if (peer != null) {
+          consumer.accept(BlockKey.from(peer));
         }
       }
-      for (var face : FACES) {
-        Block next = current.getRelative(face);
-        if (visited.contains(next)) continue;
-        if (!isChunkLoaded(next)) continue;
-        if (Carriers.matchesCarrier(next, wireMaterial) && WireMarker.isWire(plugin, next)) {
-          if (!budget.tryVisitNextNode()) {
-            continue;
-          }
-          visited.add(next);
-          queue.add(next);
+      for (BlockFace face : FACES) {
+        Block neighbor = block.getRelative(face);
+        if (!isChunkLoaded(neighbor)) {
           continue;
         }
-        if (Carriers.matchesCarrier(next, relayTraversalCarrier)
-            && RelayMarker.isRelay(plugin, next)) {
-          if (!budget.tryVisitNextNode()) {
-            continue;
-          }
-          visited.add(next);
-          relays.add(next);
-          queue.add(next);
-          continue;
-        }
-        if (Carriers.matchesCarrier(next, terminalCarrier)
-            && TerminalMarker.isTerminal(plugin, next)) {
-          terminals.add(next);
-        } else if (Carriers.matchesCarrier(next, monitorCarrier)
-            && MonitorMarker.isMonitor(plugin, next)) {
-          monitors.add(next);
-        } else if (Carriers.matchesCarrier(next, busCarrier) && BusMarker.isBus(plugin, next)) {
-          buses.add(next);
-        } else if (Carriers.matchesCarrier(next, transmitterCarrier)
-            && TransmitterMarker.isTransmitter(plugin, next)) {
-          transmitters.add(next);
-        } else if (Carriers.matchesCarrier(next, storageCarrier)
-            && StorageMarker.get(plugin, next).isPresent()) {
-          if (storageDisplayManager != null) {
-            storageDisplayManager.refresh(next);
-          }
+        if (isNetworkNode(neighbor)) {
+          consumer.accept(BlockKey.from(neighbor));
+        } else if (currentIsNode && isNetworkEndpoint(neighbor)) {
+          queuedBlocks.add(BlockKey.from(neighbor));
         }
       }
     }
-    if (wireDisplayManager != null) {
-      for (Block wire : visited) {
-        if (Carriers.matchesCarrier(wire, wireMaterial) && WireMarker.isWire(plugin, wire)) {
-          wireDisplayManager.updateWireAndNeighbors(wire);
-        }
-      }
+
+    @Override
+    public void enqueueRefresh(BlockKey node) {
+      queuedBlocks.add(node);
     }
-    for (Block relay : relays) {
-      refreshRelay(relay);
-    }
-    PerfStats.addCounter("wire.networkRefreshVisited", visited.size());
-    if (budget.skipped() > 0) {
-      PerfStats.addCounter("wire.networkRefreshSkipped", budget.skipped());
-      PerfStats.incrementCounter("wire.networkRefreshHardCapOverflow");
-    }
-    for (Block terminal : terminals) {
-      refreshTerminal(terminal);
-    }
-    for (Block monitor : monitors) {
-      refreshMonitor(monitor);
-    }
-    for (Block bus : buses) {
-      refreshBus(bus);
-    }
-    for (Block transmitter : transmitters) {
-      refreshTransmitter(transmitter);
-    }
-    Set<BlockKey> refreshedNodes = new HashSet<>();
-    for (Block node : visited) {
-      refreshedNodes.add(BlockKey.from(node));
-    }
-    return Set.copyOf(refreshedNodes);
+  }
+
+  private boolean isNetworkNode(Block block) {
+    return block != null
+        && ((Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block))
+            || (Carriers.matchesCarrier(block, relayTraversalCarrier)
+                && RelayMarker.isRelay(plugin, block)));
+  }
+
+  private boolean isNetworkEndpoint(Block block) {
+    return (Carriers.matchesCarrier(block, terminalCarrier)
+            && TerminalMarker.isTerminal(plugin, block))
+        || (Carriers.matchesCarrier(block, monitorCarrier)
+            && MonitorMarker.isMonitor(plugin, block))
+        || (Carriers.matchesCarrier(block, busCarrier) && BusMarker.isBus(plugin, block))
+        || (Carriers.matchesCarrier(block, transmitterCarrier)
+            && TransmitterMarker.isTransmitter(plugin, block))
+        || (Carriers.matchesCarrier(block, storageCarrier)
+            && StorageMarker.get(plugin, block).isPresent());
   }
 
   private boolean isChunkLoaded(Block block) {

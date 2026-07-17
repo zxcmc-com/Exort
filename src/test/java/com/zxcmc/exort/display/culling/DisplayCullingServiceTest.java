@@ -3,6 +3,7 @@ package com.zxcmc.exort.display.culling;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.display.core.DisplayRole;
@@ -158,5 +159,36 @@ class DisplayCullingServiceTest {
         DisplayCullingService.canInstallPersistentClientCullingStates(true, 3L, 4L, 7L, 7L));
     assertFalse(
         DisplayCullingService.canInstallPersistentClientCullingStates(true, 4L, 4L, 6L, 7L));
+  }
+
+  @Test
+  void visibilityMutationGuardSuppressesReentrantEventsAndAlwaysClears() {
+    DisplayCullingService.VisibilityMutationGuard guard =
+        new DisplayCullingService.VisibilityMutationGuard();
+    UUID playerId = UUID.randomUUID();
+    UUID displayId = UUID.randomUUID();
+
+    assertTrue(
+        guard.run(
+            playerId,
+            displayId,
+            () -> {
+              assertTrue(guard.contains(playerId, displayId));
+              assertFalse(guard.run(playerId, displayId, () -> true));
+              return true;
+            }));
+    assertFalse(guard.contains(playerId, displayId));
+
+    assertThrows(
+        AssertionError.class,
+        () ->
+            guard.run(
+                playerId,
+                displayId,
+                () -> {
+                  throw new AssertionError("boom");
+                }));
+    assertFalse(guard.contains(playerId, displayId));
+    assertTrue(guard.run(playerId, displayId, () -> true));
   }
 }

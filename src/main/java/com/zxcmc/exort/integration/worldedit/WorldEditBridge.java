@@ -86,6 +86,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -211,7 +213,7 @@ public final class WorldEditBridge implements Listener {
   private WorldEditBridge(WorldEditBridgeDependencies deps) {
     this.deps = Objects.requireNonNull(deps, "deps");
     this.plugin = deps.plugin();
-    this.refreshScheduler = new WorldEditRefreshScheduler(deps);
+    this.refreshScheduler = new WorldEditRefreshScheduler(deps, this::updateQueueDepthGauge);
     this.clipboardPatcher =
         new WorldEditClipboardPatcher(plugin, this::buildMarkerBlock, deps::debugService);
   }
@@ -1140,7 +1142,7 @@ public final class WorldEditBridge implements Listener {
               plugin,
               () -> {
                 refreshScheduler.refreshAffectedChunks(affected, Set.of(), reason);
-                refreshScheduler.scheduleDeferredRefresh(affected, Set.of());
+                refreshScheduler.scheduleDeferredRefresh(affected);
               },
               1L);
     } catch (RuntimeException ignored) {
@@ -1280,6 +1282,18 @@ public final class WorldEditBridge implements Listener {
       BlockVector3 source,
       PendingMovePatch movePatch,
       WorldEditMarkerHistory.Frame normalHistoryFrame) {
+    return rememberMoveSourceHistory(
+        markerHistory, null, actorId, worldId, source, movePatch, normalHistoryFrame);
+  }
+
+  private static MarkerSnapshot rememberMoveSourceHistory(
+      WorldEditMarkerHistory markerHistory,
+      Set<Long> rememberedHistory,
+      UUID actorId,
+      UUID worldId,
+      BlockVector3 source,
+      PendingMovePatch movePatch,
+      WorldEditMarkerHistory.Frame normalHistoryFrame) {
     if (markerHistory == null
         || actorId == null
         || worldId == null
@@ -1291,9 +1305,47 @@ public final class WorldEditBridge implements Listener {
     if (moved == null) {
       return null;
     }
+    long key = WorldEditMarkerMath.blockKey(source.x(), source.y(), source.z());
+    if (rememberedHistory != null && !rememberedHistory.add(key)) {
+      return moved;
+    }
     markerHistory.remember(
         actorId, null, worldId, source.x(), source.y(), source.z(), moved, normalHistoryFrame);
     return moved;
+  }
+
+  static void seedMoveSourceHistory(
+      WorldEditMarkerHistory markerHistory,
+      Set<Long> rememberedHistory,
+      UUID actorId,
+      UUID worldId,
+      PendingMovePatch movePatch,
+      WorldEditMarkerHistory.Frame normalHistoryFrame) {
+    if (markerHistory == null
+        || rememberedHistory == null
+        || actorId == null
+        || worldId == null
+        || movePatch == null
+        || normalHistoryFrame == null) {
+      return;
+    }
+    for (Map.Entry<Long, MarkerSnapshot> entry : movePatch.sourceMarkers().entrySet()) {
+      long key = entry.getKey();
+      if (movePatch.destinationMarkers().containsKey(key) || !rememberedHistory.add(key)) {
+        continue;
+      }
+      int x = WorldEditMarkerMath.blockX(key);
+      int y = WorldEditMarkerMath.blockY(key);
+      int z = WorldEditMarkerMath.blockZ(key);
+      markerHistory.remember(actorId, null, worldId, x, y, z, entry.getValue(), normalHistoryFrame);
+      if (normalHistoryFrame.overflowed()) {
+        return;
+      }
+      markerHistory.rememberRedoClear(actorId, worldId, normalHistoryFrame, x, y, z);
+      if (normalHistoryFrame.overflowed()) {
+        return;
+      }
+    }
   }
 
   static boolean rememberHistorySnapshotOnce(
@@ -1392,6 +1444,34 @@ public final class WorldEditBridge implements Listener {
     WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
       debug.incUpdatesQueued();
+    }
+  }
+
+  private void enqueueMoveSourceCleanup(
+      long operationId, UUID worldId, PendingMovePatch movePatch, Set<Long> observedSourceClears) {
+    if (worldId == null || movePatch == null) {
+      return;
+    }
+    for (Map.Entry<Long, MarkerSnapshot> entry : movePatch.sourceMarkers().entrySet()) {
+      long key = entry.getKey();
+      if (movePatch.destinationMarkers().containsKey(key)
+          || observedSourceClears != null && observedSourceClears.contains(key)) {
+        continue;
+      }
+      MarkerSnapshot snapshot = entry.getValue();
+      String removedStorageId =
+          snapshot != null && snapshot.storage() != null ? snapshot.storage().storageId() : null;
+      enqueue(
+          new MarkerUpdate(
+              operationId,
+              worldId,
+              WorldEditMarkerMath.blockX(key),
+              WorldEditMarkerMath.blockY(key),
+              WorldEditMarkerMath.blockZ(key),
+              null,
+              removedStorageId,
+              false,
+              true));
     }
   }
 
@@ -1564,7 +1644,10 @@ public final class WorldEditBridge implements Listener {
     }
     if (!changedChunks.isEmpty()) {
       refreshScheduler.refreshAffectedChunks(changedChunks, networkRefreshStarts, "immediate");
-      refreshScheduler.scheduleDeferredRefresh(changedChunks, networkRefreshStarts);
+      refreshScheduler.scheduleDeferredRefresh(changedChunks);
+    }
+    if (updates.isEmpty()) {
+      refreshScheduler.finishNetworkBatch();
     }
     updateQueueDepthGauge();
   }
@@ -2188,7 +2271,7 @@ public final class WorldEditBridge implements Listener {
     }
     Set<ChunkKey> chunks = Set.of(key);
     refreshScheduler.refreshAffectedChunks(chunks, Set.of(), reason);
-    refreshScheduler.scheduleDeferredRefresh(chunks, Set.of());
+    refreshScheduler.scheduleDeferredRefresh(chunks);
     updateQueueDepthGauge();
   }
 
@@ -2815,6 +2898,10 @@ public final class WorldEditBridge implements Listener {
     private final boolean moveOperation;
     private final Map<ChunkKey, ChunkSnapshot> snapshots = new ConcurrentHashMap<>();
     private final Set<Long> rememberedHistory = ConcurrentHashMap.newKeySet();
+    private final Set<Long> observedMoveSourceClears = ConcurrentHashMap.newKeySet();
+    private final Set<Long> appliedMoveDestinations = ConcurrentHashMap.newKeySet();
+    private final AtomicInteger appliedMoveDestinationCount = new AtomicInteger();
+    private final AtomicBoolean moveSourceCleanupQueued = new AtomicBoolean();
     private final Map<BaseBlock, MarkerSnapshot> carried =
         Collections.synchronizedMap(new IdentityHashMap<>());
 
@@ -2848,6 +2935,15 @@ public final class WorldEditBridge implements Listener {
       this.operationSnapshot = operationSnapshot;
       this.moveOperation =
           movePatch != null || pastePatch != null && pastePatch.preserveStorageIdentity();
+      if (stage == EditSession.Stage.BEFORE_HISTORY && historyAction == null) {
+        WorldEditBridge.seedMoveSourceHistory(
+            bridge.markerHistory,
+            rememberedHistory,
+            actorId,
+            world == null ? null : world.getUID(),
+            movePatch,
+            normalHistoryFrame);
+      }
       Transform transform = resolveTransform(extent);
       this.facingTransform =
           clipboardTransform != null
@@ -2971,12 +3067,14 @@ public final class WorldEditBridge implements Listener {
         moveSourceHistory =
             WorldEditBridge.rememberMoveSourceHistory(
                 bridge.markerHistory,
+                rememberedHistory,
                 actorId,
                 world.getUID(),
                 resolved,
                 movePatch,
                 normalHistoryFrame);
         if (moveSourceHistory != null) {
+          observedMoveSourceClears.add(key);
           markerSource = "move_source_history";
         }
       }
@@ -3073,6 +3171,7 @@ public final class WorldEditBridge implements Listener {
                 moveDestinationExistingSnapshot,
                 pasteUndoSnapshot,
                 cutSourceHistory);
+        undoSnapshot = richerTransmitterSnapshot(undoSnapshot, moveSourceHistory);
         if (normalHistoryFrame != null && parsed != null && undoSnapshot == null) {
           bridge.markerHistory.rememberUndoClear(
               actorId,
@@ -3115,6 +3214,7 @@ public final class WorldEditBridge implements Listener {
               moveDestinationExistingSnapshot,
               pasteUndoSnapshot,
               cutSourceHistory);
+      undoSnapshot = richerTransmitterSnapshot(undoSnapshot, moveSourceHistory);
       rememberHistorySnapshotOnce(
           bridge.markerHistory,
           rememberedHistory,
@@ -3182,7 +3282,11 @@ public final class WorldEditBridge implements Listener {
                 + (movePatch == null ? "none" : movePatch.offsetText()),
             NamedTextColor.YELLOW);
       }
-      if (parsed == null && !markerPresent && !historyHit) {
+      if (parsed == null
+          && !markerPresent
+          && !historyHit
+          && moveSourceHistory == null
+          && cutSourceHistory == null) {
         if (historyClearBlock != null) {
           return super.setBlock(position, historyClearBlock);
         }
@@ -3211,7 +3315,12 @@ public final class WorldEditBridge implements Listener {
       }
       boolean result =
           toSet != null ? super.setBlock(position, toSet) : super.setBlock(position, block);
-      boolean markerCleanupRequested = parsed == null && (markerPresent || historyHit);
+      boolean markerCleanupRequested =
+          parsed == null
+              && (markerPresent
+                  || historyHit
+                  || moveSourceHistory != null
+                  || cutSourceHistory != null);
       if (debug != null && debug.isEnabled()) {
         boolean hasMarker = parsed != null;
         boolean cleared = !hasMarker && markerPresent;
@@ -3243,6 +3352,16 @@ public final class WorldEditBridge implements Listener {
                 removedStorageId,
                 storageCloneRequired,
                 moveOperation));
+        if (stage == EditSession.Stage.BEFORE_HISTORY
+            && moveHit
+            && movePatch != null
+            && appliedMoveDestinations.add(key)
+            && appliedMoveDestinationCount.incrementAndGet()
+                == movePatch.destinationMarkers().size()
+            && moveSourceCleanupQueued.compareAndSet(false, true)) {
+          bridge.enqueueMoveSourceCleanup(
+              operationId, world.getUID(), movePatch, observedMoveSourceClears);
+        }
       }
       return result || markerCleanupRequested;
     }
@@ -3452,6 +3571,9 @@ public final class WorldEditBridge implements Listener {
       }
       for (BlockVector3 pos : positions) {
         BlockVector3 resolved = resolvePosition(pos);
+        if (movePatch != null && movePatch.hasMarkerAt(resolved)) {
+          return true;
+        }
         ChunkSnapshot snapshot = snapshot(resolved.x() >> 4, resolved.z() >> 4);
         if (snapshot.get(blockKey(resolved.x(), resolved.y(), resolved.z())) != null) {
           return true;
@@ -3465,6 +3587,9 @@ public final class WorldEditBridge implements Listener {
 
     private boolean regionHasMarkers(Region region) {
       if (region == null) return false;
+      if (movePatch != null && movePatch.hasMarkerIn(region)) {
+        return true;
+      }
       if (operationSnapshot != null && operationSnapshot.hasMarkerIn(world.getUID(), region)) {
         return true;
       }

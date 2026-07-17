@@ -1,6 +1,7 @@
 package com.zxcmc.exort.wireless.transmitter;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -238,6 +239,11 @@ public final class WirelessTransmitterService implements Listener {
   }
 
   public boolean hasCoverage(String storageId, Location playerLocation) {
+    return PerfStats.measure(
+        "wireless.coverage", () -> hasCoverageMeasured(storageId, playerLocation));
+  }
+
+  private boolean hasCoverageMeasured(String storageId, Location playerLocation) {
     if (!enabled
         || storageId == null
         || storageId.isBlank()
@@ -246,44 +252,57 @@ public final class WirelessTransmitterService implements Listener {
       return false;
     }
     UUID worldId = playerLocation.getWorld().getUID();
-    for (TransmitterSpatialIndex.Position pos : transmitters.globalCandidates(worldId)) {
-      Block block = blockAtLoaded(pos);
-      if (block == null) {
-        unregister(pos);
-        continue;
-      }
-      if (effectiveRangeBlocks(block) >= 0) {
-        refreshRegistration(block);
-        continue;
-      }
-      Status status = status(block);
-      if (status.active() && storageId.equals(status.storage().storageId())) {
-        return true;
-      }
+    TransmitterSpatialIndex.VisitResult global =
+        transmitters.visitGlobal(worldId, pos -> matchesGlobalCandidate(pos, storageId));
+    recordCoverageCandidates(global.examined());
+    if (global.matched()) {
+      return true;
     }
-    for (TransmitterSpatialIndex.Position pos :
-        transmitters.candidates(
+    TransmitterSpatialIndex.VisitResult finite =
+        transmitters.visitCandidates(
             worldId,
             playerLocation.getBlockX(),
             playerLocation.getBlockZ(),
-            wirelessConfig.maxFiniteRangeBlocks())) {
-      Block block = blockAtLoaded(pos);
-      if (block == null) {
-        unregister(pos);
-        continue;
-      }
-      int effectiveRange = effectiveRangeBlocks(block);
-      if (effectiveRange < 0
-          || !withinHorizontalRange(
-              pos.worldId(), pos.x(), pos.z(), playerLocation, effectiveRange)) {
-        continue;
-      }
-      Status status = status(block);
-      if (status.active() && storageId.equals(status.storage().storageId())) {
-        return true;
-      }
+            wirelessConfig.maxFiniteRangeBlocks(),
+            pos -> matchesFiniteCandidate(pos, storageId, playerLocation));
+    recordCoverageCandidates(finite.examined());
+    return finite.matched();
+  }
+
+  private boolean matchesGlobalCandidate(TransmitterSpatialIndex.Position pos, String storageId) {
+    Block block = blockAtLoaded(pos);
+    if (block == null) {
+      unregister(pos);
+      return false;
     }
-    return false;
+    if (effectiveRangeBlocks(block) >= 0) {
+      refreshRegistration(block);
+      return false;
+    }
+    Status status = status(block);
+    return status.active() && storageId.equals(status.storage().storageId());
+  }
+
+  private boolean matchesFiniteCandidate(
+      TransmitterSpatialIndex.Position pos, String storageId, Location playerLocation) {
+    Block block = blockAtLoaded(pos);
+    if (block == null) {
+      unregister(pos);
+      return false;
+    }
+    int effectiveRange = effectiveRangeBlocks(block);
+    if (effectiveRange < 0
+        || !withinHorizontalRange(
+            pos.worldId(), pos.x(), pos.z(), playerLocation, effectiveRange)) {
+      return false;
+    }
+    Status status = status(block);
+    return status.active() && storageId.equals(status.storage().storageId());
+  }
+
+  private void recordCoverageCandidates(int examined) {
+    PerfStats.addCounter("wireless.coverageCandidates", examined);
+    PerfStats.setGauge("wireless.coverageCandidatesLast", examined);
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)

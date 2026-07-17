@@ -1143,7 +1143,7 @@ public class StorageCache {
               + ")",
           e);
     }
-    if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+    if (blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
       logInvalidDbItem(new DbItem(item.key(), blob, item.amount()), "serialized blob size invalid");
       throw new IllegalStateException(
           "Storage "
@@ -1154,7 +1154,7 @@ public class StorageCache {
               + ", amount="
               + item.amount()
               + ", blobLength="
-              + (blob == null ? 0 : blob.length)
+              + blob.length
               + ")");
     }
     item.setBlob(blob);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.7 — 2026-07-17
+- Dense display scenes now use fair, resumable culling with fixed global and per-player work budgets, and Exort's own visibility updates no longer trigger recursive Paper tracking loops or stack overflows.
+- WorldEdit and FAWE edits now coalesce affected network components into bounded incremental refreshes and traverse each component at most once per batch instead of building duplicate refresh queues.
+- Large monitor and Wireless Transmitter populations now avoid repeated temporary list allocations during maintenance and coverage checks; monitor-triggered Storage load retries also release bounded tracking state after success or when no monitor references that Storage.
+- When spark is available, `/exort debug benchmark` now adds one-minute MSPT mean/P95/max, process CPU, and per-run GC deltas to its measured profile; benchmark completion and verdicts remain unchanged when spark is disabled or unavailable.
+
 ## 0.19.6 — 2026-07-16
 - Built-in SELFHOST resource-pack delivery now keeps stalled and flooded downloads within its concurrency limit, reports listener and request saturation in `/exort resourcepack status`, and localizes those diagnostics across all bundled languages.
 - Invalid extreme numeric settings are now clamped to documented safe ranges with actionable warnings, while malformed audit paths and unavailable runtime directories fail or degrade without corrupting existing files.

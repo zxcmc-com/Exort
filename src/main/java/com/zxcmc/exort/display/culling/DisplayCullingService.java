@@ -15,13 +15,16 @@ import io.papermc.paper.event.player.PlayerUntrackEntityEvent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -49,6 +52,10 @@ public final class DisplayCullingService implements Listener {
   private static final double MOTION_FORWARD_BACK_BUFFER_BLOCKS = 4.0;
   private static final long DEBUG_NORMAL_SUMMARY_INTERVAL_TICKS = 40L;
   private static final long DEBUG_COMPACT_SUMMARY_INTERVAL_TICKS = 200L;
+  private static final int GLOBAL_SCAN_WORK_PER_TICK = 4096;
+  private static final int PLAYER_SCAN_WORK_PER_SLICE = 512;
+  private static final int PLAYER_SLICES_PER_TICK =
+      GLOBAL_SCAN_WORK_PER_TICK / PLAYER_SCAN_WORK_PER_SLICE;
 
   private final JavaPlugin plugin;
   private final DisplayCullingConfig config;
@@ -70,13 +77,14 @@ public final class DisplayCullingService implements Listener {
   private final Set<UUID> debugViewers = ConcurrentHashMap.newKeySet();
   private final DebugSummary debugSummary = new DebugSummary();
   private final Object debugSummaryLock = new Object();
-  private final EnumMap<DisplayRole, Integer> tickRolesScratch = new EnumMap<>(DisplayRole.class);
-  private final Set<UUID> onlinePlayersScratch = new HashSet<>();
-  private final List<UUID> stalePlayersScratch = new ArrayList<>();
-  private final List<DisplayEntityIndex.Entry> nearbyScratch = new ArrayList<>();
-  private final List<CullingCandidate> candidatesScratch = new ArrayList<>();
-  private final EnumMap<DisplayRole, Integer> playerRolesScratch = new EnumMap<>(DisplayRole.class);
-  private final Set<UUID> seenDisplaysScratch = new HashSet<>();
+  private final Map<UUID, PlayerScan> playerScans = new HashMap<>();
+  private final Map<UUID, PlayerCullingStats> playerStats = new HashMap<>();
+  private final RoundRobinWorkQueue<UUID> scanQueue = new RoundRobinWorkQueue<>();
+  private final RoundRobinWorkQueue<UUID> bypassQueue = new RoundRobinWorkQueue<>();
+  private final Set<UUID> onlinePlayers = new HashSet<>();
+  private final Set<UUID> onlineBypassPlayers = new HashSet<>();
+  private final VisibilityMutationGuard visibilityMutationGuard = new VisibilityMutationGuard();
+  private final CullingTotals totals = new CullingTotals();
   private final ClientCullingTranslationProbe translationProbe;
   private DisplayCullingBackend backend;
   private int taskId = -1;
@@ -87,7 +95,7 @@ public final class DisplayCullingService implements Listener {
   private volatile boolean running;
   private volatile boolean debugConsoleExplicit;
   private volatile DebugMode debugMode = DebugMode.NORMAL;
-  private long tickSequence;
+  private long serverTickSequence;
   private int visibilityChangesThisTick;
   private int rangeChangesThisTick;
   private int paperHiddenThisTick;
@@ -130,11 +138,9 @@ public final class DisplayCullingService implements Listener {
     translationProbe.start();
     for (Player player : Bukkit.getOnlinePlayers()) {
       translationProbe.schedule(player);
+      registerOnlinePlayer(player);
     }
-    taskId =
-        Bukkit.getScheduler()
-            .scheduleSyncRepeatingTask(
-                plugin, this::tick, config.intervalTicks(), config.intervalTicks());
+    taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::tick, 1L, 1L);
     ExortLog.info("[Display] Density culling enabled using " + backend.name() + " backend.");
   }
 
@@ -151,10 +157,18 @@ public final class DisplayCullingService implements Listener {
     translationProbe.stop();
     HandlerList.unregisterAll(this);
     restoreAll();
+    visibilityMutationGuard.clear();
     clearDebug();
     trackedByPlayer.clear();
     adaptiveStates.clear();
     motionStates.clear();
+    playerScans.clear();
+    playerStats.clear();
+    scanQueue.clear();
+    bypassQueue.clear();
+    onlinePlayers.clear();
+    onlineBypassPlayers.clear();
+    totals.clear();
     autoClientCullingBypass.clear();
     clientCullingAutoSuppressed.clear();
     clientCullingProbeStatuses.clear();
@@ -162,6 +176,8 @@ public final class DisplayCullingService implements Listener {
       index.clear();
     }
     PerfStats.setGauge("display.entities", 0L);
+    PerfStats.setGauge("display.culling.scanWork", 0L);
+    PerfStats.setGauge("display.culling.pendingPlayers", 0L);
   }
 
   public DebugMode getDebugMode() {
@@ -205,7 +221,7 @@ public final class DisplayCullingService implements Listener {
       clientCullingAutoSuppressed.add(playerId);
       Player player = Bukkit.getPlayer(playerId);
       if (player != null) {
-        processPlayer(player);
+        leaveClientBypass(player);
       }
     }
     persistClientCullingManualBypass(playerId, enabled);
@@ -237,6 +253,7 @@ public final class DisplayCullingService implements Listener {
   public void onJoin(PlayerJoinEvent event) {
     if (event != null && event.getPlayer() != null) {
       translationProbe.schedule(event.getPlayer());
+      registerOnlinePlayer(event.getPlayer());
     }
   }
 
@@ -246,6 +263,11 @@ public final class DisplayCullingService implements Listener {
       return;
     }
     Entity entity = event.getEntity();
+    if (entity != null
+        && visibilityMutationGuard.contains(
+            event.getPlayer().getUniqueId(), entity.getUniqueId())) {
+      return;
+    }
     if (entity instanceof Display display && isCullableDisplay(display)) {
       metadataService.normalize(display);
       if (!isClientCullingBypassed(event.getPlayer().getUniqueId())) {
@@ -261,6 +283,11 @@ public final class DisplayCullingService implements Listener {
       return;
     }
     Entity entity = event.getEntity();
+    if (entity != null
+        && visibilityMutationGuard.contains(
+            event.getPlayer().getUniqueId(), entity.getUniqueId())) {
+      return;
+    }
     if (entity instanceof Display display) {
       untrack(event.getPlayer(), display.getUniqueId());
     }
@@ -279,6 +306,7 @@ public final class DisplayCullingService implements Listener {
       clientCullingAutoSuppressed.remove(playerId);
       clientCullingProbeStatuses.remove(playerId);
       debugViewers.remove(playerId);
+      unregisterOnlinePlayer(playerId);
       updateDebugSummaryTask();
     }
   }
@@ -431,7 +459,7 @@ public final class DisplayCullingService implements Listener {
     if (status.state().terminal()
         && autoClientCullingBypass.remove(playerId)
         && !clientCullingBypass.contains(playerId)) {
-      processPlayer(player);
+      leaveClientBypass(player);
     }
   }
 
@@ -489,11 +517,67 @@ public final class DisplayCullingService implements Listener {
     if (player == null) {
       return;
     }
-    restorePlayer(player);
     UUID playerId = player.getUniqueId();
+    adaptiveStates.remove(playerId);
+    motionStates.remove(playerId);
+    removePlayerStats(playerId);
+    if (onlinePlayers.contains(playerId)) {
+      onlineBypassPlayers.add(playerId);
+      bypassQueue.add(playerId);
+    }
+    Map<UUID, TrackedDisplay> states = trackedByPlayer.get(playerId);
+    if (states == null || states.isEmpty()) {
+      trackedByPlayer.remove(playerId);
+      playerScans.remove(playerId);
+      scanQueue.remove(playerId);
+      return;
+    }
+    PlayerScan scan = playerScans.computeIfAbsent(playerId, ignored -> new PlayerScan());
+    scan.beginRestore(states);
+    scanQueue.add(playerId);
+  }
+
+  private void leaveClientBypass(Player player) {
+    if (player == null) {
+      return;
+    }
+    UUID playerId = player.getUniqueId();
+    onlineBypassPlayers.remove(playerId);
+    bypassQueue.remove(playerId);
+    playerScans.computeIfAbsent(playerId, ignored -> new PlayerScan()).nextDueTick = 0L;
+    scanQueue.add(playerId);
+  }
+
+  private void registerOnlinePlayer(Player player) {
+    if (player == null) {
+      return;
+    }
+    UUID playerId = player.getUniqueId();
+    onlinePlayers.add(playerId);
+    scanQueue.add(playerId);
+    if (isClientCullingBypassed(playerId)) {
+      onlineBypassPlayers.add(playerId);
+      activateClientCullingBypass(player);
+    } else {
+      onlineBypassPlayers.remove(playerId);
+      bypassQueue.remove(playerId);
+      playerScans.computeIfAbsent(playerId, ignored -> new PlayerScan()).nextDueTick = 0L;
+    }
+  }
+
+  private void unregisterOnlinePlayer(UUID playerId) {
+    if (playerId == null) {
+      return;
+    }
+    onlinePlayers.remove(playerId);
+    onlineBypassPlayers.remove(playerId);
+    scanQueue.remove(playerId);
+    bypassQueue.remove(playerId);
+    playerScans.remove(playerId);
     trackedByPlayer.remove(playerId);
     adaptiveStates.remove(playerId);
     motionStates.remove(playerId);
+    removePlayerStats(playerId);
   }
 
   private void tick() {
@@ -501,164 +585,310 @@ public final class DisplayCullingService implements Listener {
   }
 
   private void tickMeasured() {
-    tickSequence++;
+    serverTickSequence++;
     visibilityChangesThisTick = 0;
     rangeChangesThisTick = 0;
     paperHiddenThisTick = 0;
     adaptiveSkipsThisTick = 0;
     directionalKeepsThisTick = 0;
-    int trackedDisplays = 0;
-    int hiddenDisplays = 0;
-    int dirtyDisplays = 0;
-    int nearbyDisplays = 0;
     int staleRestored = 0;
-    int clientBypassPlayers = 0;
-    int maxAdaptiveLevel = 0;
-    EnumMap<DisplayRole, Integer> roles = tickRolesScratch;
-    Set<UUID> onlinePlayers = onlinePlayersScratch;
-    List<UUID> stalePlayers = stalePlayersScratch;
-    roles.clear();
-    onlinePlayers.clear();
-    stalePlayers.clear();
-
-    for (Player player : Bukkit.getOnlinePlayers()) {
-      UUID playerId = player.getUniqueId();
-      onlinePlayers.add(playerId);
-      if (isClientCullingBypassed(playerId)) {
-        clientBypassPlayers++;
-        restorePlayer(player);
-        processBlockProxies(player, 1.0);
-        trackedByPlayer.remove(playerId);
-        adaptiveStates.remove(playerId);
-        motionStates.remove(playerId);
+    int scanWork = 0;
+    int completedScans = 0;
+    int resetScans = 0;
+    processClientBypassPlayers();
+    int slices = Math.min(PLAYER_SLICES_PER_TICK, scanQueue.size());
+    for (int slice = 0; slice < slices && scanWork < GLOBAL_SCAN_WORK_PER_TICK; slice++) {
+      UUID playerId = scanQueue.next();
+      Player player = playerId == null ? null : Bukkit.getPlayer(playerId);
+      if (player == null || !player.isOnline() || !onlinePlayers.contains(playerId)) {
+        unregisterOnlinePlayer(playerId);
         continue;
       }
-      PlayerCullingStats stats = processPlayer(player);
-      trackedDisplays += stats.tracked();
-      hiddenDisplays += stats.hidden();
-      dirtyDisplays += stats.dirty();
-      nearbyDisplays += stats.nearby();
-      staleRestored += stats.staleRestored();
-      maxAdaptiveLevel = Math.max(maxAdaptiveLevel, stats.adaptiveLevel());
-      for (var roleEntry : stats.roles().entrySet()) {
-        incrementRole(roles, roleEntry.getKey(), roleEntry.getValue());
+      if (isClientCullingBypassed(playerId)) {
+        if (onlineBypassPlayers.add(playerId)) {
+          activateClientCullingBypass(player);
+        }
+        PlayerScan scan = playerScans.get(playerId);
+        if (scan != null && scan.stage == ScanStage.RESTORE) {
+          RestoreSliceResult restoreResult =
+              processPlayerRestoreSlice(
+                  player,
+                  scan,
+                  Math.min(PLAYER_SCAN_WORK_PER_SLICE, GLOBAL_SCAN_WORK_PER_TICK - scanWork));
+          scanWork += restoreResult.work();
+          staleRestored += restoreResult.restored();
+          if (restoreResult.complete()) {
+            finishClientBypassRestore(playerId);
+          }
+        } else {
+          scanQueue.remove(playerId);
+        }
+        continue;
       }
-    }
-    stalePlayers.addAll(trackedByPlayer.keySet());
-    for (UUID playerId : stalePlayers) {
-      if (!onlinePlayers.contains(playerId)) {
-        trackedByPlayer.remove(playerId);
-        motionStates.remove(playerId);
+      onlineBypassPlayers.remove(playerId);
+      bypassQueue.remove(playerId);
+      PlayerScan scan = playerScans.computeIfAbsent(playerId, ignored -> new PlayerScan());
+      if (scan.stage == ScanStage.IDLE && serverTickSequence < scan.nextDueTick) {
+        continue;
       }
+      ScanSliceResult result =
+          processPlayerSlice(
+              player,
+              scan,
+              Math.min(PLAYER_SCAN_WORK_PER_SLICE, GLOBAL_SCAN_WORK_PER_TICK - scanWork));
+      scanWork += result.work();
+      staleRestored += result.staleRestored();
+      completedScans += result.completedScans();
+      resetScans += result.resetScans();
     }
-    PerfStats.setGauge("display.entities", trackedDisplays);
-    PerfStats.setGauge("display.culling.nearby", nearbyDisplays);
-    PerfStats.setGauge("display.culling.hiddenActive", hiddenDisplays);
+
+    PerfStats.addCounter("display.culling.scanExamined", scanWork);
+    PerfStats.addCounter("display.culling.scanCompleted", completedScans);
+    PerfStats.addCounter("display.culling.scanReset", resetScans);
+    PerfStats.setGauge("display.culling.scanWork", scanWork);
+    PerfStats.setGauge("display.culling.pendingPlayers", scanQueue.size());
+    PerfStats.setGauge("display.entities", totals.tracked);
+    PerfStats.setGauge("display.culling.nearby", totals.nearby);
+    PerfStats.setGauge("display.culling.hiddenActive", totals.hidden);
     PerfStats.setGauge("display.culling.visibilityChanges", visibilityChangesThisTick);
     PerfStats.setGauge("display.culling.rangeChanges", rangeChangesThisTick);
     PerfStats.setGauge("display.culling.paperHidden", paperHiddenThisTick);
     PerfStats.setGauge("display.culling.adaptiveSkips", adaptiveSkipsThisTick);
     PerfStats.setGauge("display.culling.directionalKeeps", directionalKeepsThisTick);
-    PerfStats.setGauge("display.culling.adaptiveLevel", maxAdaptiveLevel);
-    PerfStats.setGauge("display.culling.clientBypassPlayers", clientBypassPlayers);
+    PerfStats.setGauge("display.culling.adaptiveLevel", totals.maxAdaptiveLevel());
+    PerfStats.setGauge("display.culling.clientBypassPlayers", onlineBypassPlayers.size());
     recordDebugTick(
         new TickCullingStats(
             onlinePlayers.size(),
-            clientBypassPlayers,
-            nearbyDisplays,
-            trackedDisplays,
-            hiddenDisplays,
-            dirtyDisplays,
+            onlineBypassPlayers.size(),
+            totals.nearby,
+            totals.tracked,
+            totals.hidden,
+            totals.dirty,
             staleRestored,
             visibilityChangesThisTick,
             rangeChangesThisTick,
             paperHiddenThisTick,
             adaptiveSkipsThisTick,
             directionalKeepsThisTick,
-            maxAdaptiveLevel,
-            Map.copyOf(roles)));
-    roles.clear();
-    onlinePlayers.clear();
-    stalePlayers.clear();
+            totals.maxAdaptiveLevel(),
+            totals.roleSnapshot()));
   }
 
-  private PlayerCullingStats processPlayer(Player player) {
-    Map<UUID, TrackedDisplay> states =
-        trackedByPlayer.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>());
-    List<DisplayEntityIndex.Entry> nearby = nearbyScratch;
-    List<CullingCandidate> candidates = candidatesScratch;
-    EnumMap<DisplayRole, Integer> roles = playerRolesScratch;
-    Set<UUID> seen = seenDisplaysScratch;
-    index.queryInto(player.getLocation(), config.maxDistance(), nearby);
-    candidates.clear();
-    roles.clear();
-    seen.clear();
-    for (DisplayEntityIndex.Entry entry : nearby) {
-      Display display = index.resolve(entry.entityUuid());
-      if (display == null || !isCullableDisplay(display)) {
-        index.unregister(entry.entityUuid());
+  private void processClientBypassPlayers() {
+    int slices = Math.min(PLAYER_SLICES_PER_TICK, bypassQueue.size());
+    for (int slice = 0; slice < slices; slice++) {
+      UUID playerId = bypassQueue.next();
+      Player player = playerId == null ? null : Bukkit.getPlayer(playerId);
+      if (player == null
+          || !player.isOnline()
+          || !onlinePlayers.contains(playerId)
+          || !isClientCullingBypassed(playerId)) {
+        bypassQueue.remove(playerId);
+        onlineBypassPlayers.remove(playerId);
         continue;
       }
-      seen.add(entry.entityUuid());
-      incrementRole(roles, entry.role(), 1);
-      candidates.add(new CullingCandidate(entry, display));
+      processBlockProxies(player, 1.0);
     }
+  }
 
+  private ScanSliceResult processPlayerSlice(Player player, PlayerScan scan, int budget) {
+    if (budget <= 0) {
+      return ScanSliceResult.EMPTY;
+    }
+    Map<UUID, TrackedDisplay> states =
+        trackedByPlayer.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>());
+    int work = 0;
+    int staleRestored = 0;
+    int completedScans = 0;
+    int resetScans = 0;
+    while (work < budget) {
+      if (scan.stage == ScanStage.IDLE) {
+        startPlayerScan(player, scan);
+      }
+      if ((scan.stage == ScanStage.QUERY || scan.stage == ScanStage.STALE)
+          && scan.movedSection(player)) {
+        scan.beginRestore(states);
+        removePlayerStats(player.getUniqueId());
+        resetScans++;
+      }
+      if (scan.stage == ScanStage.QUERY) {
+        int remaining = budget - work;
+        DisplayEntityIndex.QueryStep step =
+            scan.cursor.advance(remaining, entry -> processCandidate(player, states, scan, entry));
+        work += step.examined();
+        if (!step.complete()) {
+          break;
+        }
+        finishQuery(player, states, scan);
+        continue;
+      }
+      if (scan.stage == ScanStage.STALE || scan.stage == ScanStage.RESTORE) {
+        if (scan.stateIterator.hasNext()) {
+          Map.Entry<UUID, TrackedDisplay> entry = scan.stateIterator.next();
+          work++;
+          if (scan.stage == ScanStage.RESTORE) {
+            Display display = index.resolve(entry.getKey());
+            if (display != null) {
+              forceShow(player, display, entry.getValue());
+            }
+            states.remove(entry.getKey(), entry.getValue());
+            staleRestored++;
+          } else {
+            staleRestored += processTrackedState(player, states, scan, entry);
+          }
+          continue;
+        }
+        if (scan.stage == ScanStage.RESTORE) {
+          scan.stage = ScanStage.IDLE;
+          scan.nextDueTick = 0L;
+          continue;
+        }
+        completePlayerScan(player.getUniqueId(), states, scan);
+        completedScans++;
+        break;
+      }
+    }
+    return new ScanSliceResult(work, staleRestored, completedScans, resetScans);
+  }
+
+  private RestoreSliceResult processPlayerRestoreSlice(Player player, PlayerScan scan, int budget) {
+    if (budget <= 0) {
+      return RestoreSliceResult.EMPTY;
+    }
+    Map<UUID, TrackedDisplay> states = trackedByPlayer.get(player.getUniqueId());
+    if (states == null || states.isEmpty()) {
+      return new RestoreSliceResult(0, 0, true);
+    }
+    if (scan.stage != ScanStage.RESTORE || scan.stateIterator == null) {
+      scan.beginRestore(states);
+    }
+    int work = 0;
+    int restored = 0;
+    while (work < budget && scan.stateIterator.hasNext()) {
+      Map.Entry<UUID, TrackedDisplay> entry = scan.stateIterator.next();
+      work++;
+      Display display = index.resolve(entry.getKey());
+      if (display != null) {
+        forceShow(player, display, entry.getValue());
+      }
+      states.remove(entry.getKey(), entry.getValue());
+      restored++;
+    }
+    return new RestoreSliceResult(work, restored, !scan.stateIterator.hasNext());
+  }
+
+  private void finishClientBypassRestore(UUID playerId) {
+    trackedByPlayer.remove(playerId);
+    playerScans.remove(playerId);
+    scanQueue.remove(playerId);
+    PerfStats.incrementCounter("display.culling.clientBypassRestores");
+  }
+
+  private void startPlayerScan(Player player, PlayerScan scan) {
+    Location origin = player.getLocation();
     AdaptiveViewRangeState adaptiveState =
         adaptiveStates.computeIfAbsent(
             player.getUniqueId(),
             ignored -> new AdaptiveViewRangeState(config.adaptiveViewRange()));
-    boolean adaptiveChanged =
-        adaptiveState.update(candidates.size(), tickSequence, config.intervalTicks());
-    if (adaptiveChanged) {
-      states.values().forEach(TrackedDisplay::markDirty);
-      PerfStats.incrementCounter("display.culling.adaptiveLevelChanged");
-    }
     int rangeLevel = effectiveRangeLevel(adaptiveState);
-    processBlockProxies(player, blockProxyRangeMultiplier(rangeLevel));
     MotionSnapshot motion =
         motionStates
             .computeIfAbsent(player.getUniqueId(), ignored -> new PlayerMotionState())
-            .sample(player.getLocation());
+            .sample(origin);
+    scan.beginQuery(origin, index.openQuery(origin, config.maxDistance()), rangeLevel, motion);
+    processBlockProxies(player, blockProxyRangeMultiplier(rangeLevel));
+  }
 
-    int hiddenCount = 0;
-    int dirtyCount = 0;
-    Location origin = player.getLocation();
-    for (CullingCandidate candidate : candidates) {
-      DisplayEntityIndex.Entry entry = candidate.entry();
-      Display display = candidate.display();
-      TrackedDisplay tracked =
-          states.computeIfAbsent(
-              entry.entityUuid(), ignored -> new TrackedDisplay(entry.role(), true));
-      tracked.role = entry.role();
-      applyDensityDecision(player, origin, display, tracked, rangeLevel, motion);
-      if (tracked.hidden) {
-        hiddenCount++;
-      }
-      if (tracked.dirty) {
-        dirtyCount++;
+  private void processCandidate(
+      Player player,
+      Map<UUID, TrackedDisplay> states,
+      PlayerScan scan,
+      DisplayEntityIndex.Entry entry) {
+    Display display = index.resolve(entry.entityUuid());
+    if (display == null || !isCullableDisplay(display)) {
+      index.unregister(entry.entityUuid());
+      return;
+    }
+    TrackedDisplay tracked =
+        states.computeIfAbsent(
+            entry.entityUuid(), ignored -> new TrackedDisplay(entry.role(), true));
+    if (tracked.lastSeenGeneration == scan.generation) {
+      return;
+    }
+    tracked.lastSeenGeneration = scan.generation;
+    tracked.role = entry.role();
+    scan.nearby++;
+    incrementRole(scan.roles, entry.role(), 1);
+    applyDensityDecision(
+        player, scan.origin, display, tracked, scan.rangeLevel, scan.motionSnapshot);
+  }
+
+  private void finishQuery(Player player, Map<UUID, TrackedDisplay> states, PlayerScan scan) {
+    AdaptiveViewRangeState adaptiveState =
+        adaptiveStates.computeIfAbsent(
+            player.getUniqueId(),
+            ignored -> new AdaptiveViewRangeState(config.adaptiveViewRange()));
+    scan.markAllDirty =
+        adaptiveState.update(scan.nearby, ++scan.completedCycles, config.intervalTicks());
+    if (scan.markAllDirty) {
+      PerfStats.incrementCounter("display.culling.adaptiveLevelChanged");
+    }
+    scan.beginStale(states);
+  }
+
+  private int processTrackedState(
+      Player player,
+      Map<UUID, TrackedDisplay> states,
+      PlayerScan scan,
+      Map.Entry<UUID, TrackedDisplay> entry) {
+    TrackedDisplay tracked = entry.getValue();
+    if (scan.markAllDirty) {
+      tracked.markDirty();
+    }
+    if (tracked.lastSeenGeneration != scan.generation) {
+      Display display = index.resolve(entry.getKey());
+      if (display == null || !shouldKeepManagedOutsideScan(player, display, tracked)) {
+        if (display != null) {
+          forceShow(player, display, tracked);
+        }
+        states.remove(entry.getKey(), tracked);
+        scan.staleRestored++;
+        return 1;
       }
     }
-
-    int staleRestored = restoreStale(player, states, seen);
-    if (states.isEmpty()) {
-      trackedByPlayer.remove(player.getUniqueId());
+    scan.tracked++;
+    if (tracked.hidden) {
+      scan.hidden++;
     }
-    Map<DisplayRole, Integer> roleSnapshot = roles.isEmpty() ? Map.of() : Map.copyOf(roles);
+    if (tracked.dirty) {
+      scan.dirty++;
+    }
+    return 0;
+  }
+
+  private void completePlayerScan(
+      UUID playerId, Map<UUID, TrackedDisplay> states, PlayerScan scan) {
     PlayerCullingStats stats =
         new PlayerCullingStats(
-            candidates.size(),
-            states.size(),
-            hiddenCount,
-            dirtyCount,
-            staleRestored,
-            rangeLevel,
-            roleSnapshot);
-    nearby.clear();
-    candidates.clear();
-    roles.clear();
-    seen.clear();
-    return stats;
+            scan.nearby,
+            scan.tracked,
+            scan.hidden,
+            scan.dirty,
+            scan.staleRestored,
+            scan.rangeLevel,
+            scan.roles.isEmpty() ? Map.of() : Map.copyOf(scan.roles));
+    PlayerCullingStats previous = playerStats.put(playerId, stats);
+    totals.replace(previous, stats);
+    if (states.isEmpty()) {
+      trackedByPlayer.remove(playerId, states);
+    }
+    scan.complete(serverTickSequence + config.intervalTicks());
+  }
+
+  private void removePlayerStats(UUID playerId) {
+    PlayerCullingStats previous = playerStats.remove(playerId);
+    totals.replace(previous, null);
   }
 
   private void applyDensityDecision(
@@ -723,28 +953,6 @@ public final class DisplayCullingService implements Listener {
         motionState == null ? MotionSnapshot.inactive() : motionState.snapshot());
   }
 
-  private int restoreStale(
-      Player player, Map<UUID, TrackedDisplay> states, Set<UUID> seenDisplayIds) {
-    int restored = 0;
-    for (var iterator = states.entrySet().iterator(); iterator.hasNext(); ) {
-      var entry = iterator.next();
-      if (seenDisplayIds.contains(entry.getKey())) {
-        continue;
-      }
-      TrackedDisplay tracked = entry.getValue();
-      Display display = index.resolve(entry.getKey());
-      if (display != null && shouldKeepManagedOutsideScan(player, display, tracked)) {
-        continue;
-      }
-      if (display != null) {
-        forceShow(player, display, tracked);
-      }
-      iterator.remove();
-      restored++;
-    }
-    return restored;
-  }
-
   private boolean shouldKeepManagedOutsideScan(
       Player player, Display display, TrackedDisplay tracked) {
     if (player == null || display == null || tracked == null) {
@@ -769,16 +977,21 @@ public final class DisplayCullingService implements Listener {
     }
     Map<UUID, TrackedDisplay> states =
         trackedByPlayer.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>());
+    PlayerScan scan = playerScans.get(player.getUniqueId());
+    long currentGeneration =
+        scan == null || scan.stage == ScanStage.IDLE ? Long.MIN_VALUE : scan.generation;
     states.compute(
         display.getUniqueId(),
         (ignored, current) -> {
           if (current == null) {
             TrackedDisplay tracked = new TrackedDisplay(role, true);
             tracked.clientTracked = true;
+            tracked.lastSeenGeneration = currentGeneration;
             return tracked;
           }
           current.role = role;
           current.clientTracked = true;
+          current.lastSeenGeneration = currentGeneration;
           if (dirtyExisting) {
             current.markDirty();
           }
@@ -822,9 +1035,13 @@ public final class DisplayCullingService implements Listener {
       return;
     }
     boolean ok =
-        hide
-            ? backend.hide(player, display, effectiveViewRange)
-            : backend.show(player, display, effectiveViewRange);
+        visibilityMutationGuard.run(
+            player.getUniqueId(),
+            display.getUniqueId(),
+            () ->
+                hide
+                    ? backend.hide(player, display, effectiveViewRange)
+                    : backend.show(player, display, effectiveViewRange));
     if (!ok) {
       return;
     }
@@ -856,7 +1073,14 @@ public final class DisplayCullingService implements Listener {
         || tracked.dirty
         || tracked.sentViewRange == null
         || Math.abs(tracked.sentViewRange - viewRange) > 0.001f) {
-      backend.show(player, display, viewRange);
+      boolean shown =
+          visibilityMutationGuard.run(
+              player.getUniqueId(),
+              display.getUniqueId(),
+              () -> backend.show(player, display, viewRange));
+      if (!shown) {
+        return;
+      }
       if (!backend.supportsPerPlayerViewRange()) {
         metadataService.resync(display);
       }
@@ -885,22 +1109,6 @@ public final class DisplayCullingService implements Listener {
       }
     }
     normalizeAndIndexLoadedDisplays();
-  }
-
-  private void restorePlayer(Player player) {
-    if (backend == null || player == null || !player.isOnline()) {
-      return;
-    }
-    Map<UUID, TrackedDisplay> states = trackedByPlayer.get(player.getUniqueId());
-    if (states != null) {
-      for (var displayEntry : states.entrySet()) {
-        Display display = Bukkit.getEntity(displayEntry.getKey()) instanceof Display d ? d : null;
-        if (display != null) {
-          forceShow(player, display, displayEntry.getValue());
-        }
-      }
-    }
-    PerfStats.incrementCounter("display.culling.clientBypassRestores");
   }
 
   private static boolean isLowPriority(DisplayRole role) {
@@ -1357,7 +1565,151 @@ public final class DisplayCullingService implements Listener {
       int adaptiveLevel,
       Map<DisplayRole, Integer> roles) {}
 
-  private record CullingCandidate(DisplayEntityIndex.Entry entry, Display display) {}
+  private enum ScanStage {
+    IDLE,
+    QUERY,
+    STALE,
+    RESTORE
+  }
+
+  private record ScanSliceResult(int work, int staleRestored, int completedScans, int resetScans) {
+    private static final ScanSliceResult EMPTY = new ScanSliceResult(0, 0, 0, 0);
+  }
+
+  private record RestoreSliceResult(int work, int restored, boolean complete) {
+    private static final RestoreSliceResult EMPTY = new RestoreSliceResult(0, 0, false);
+  }
+
+  private static final class PlayerScan {
+    private ScanStage stage = ScanStage.IDLE;
+    private long nextDueTick;
+    private long generation;
+    private long completedCycles;
+    private UUID worldId;
+    private int sectionX;
+    private int sectionY;
+    private int sectionZ;
+    private Location origin;
+    private DisplayEntityIndex.QueryCursor cursor;
+    private Iterator<Map.Entry<UUID, TrackedDisplay>> stateIterator;
+    private MotionSnapshot motionSnapshot = MotionSnapshot.inactive();
+    private int rangeLevel;
+    private int nearby;
+    private int tracked;
+    private int hidden;
+    private int dirty;
+    private int staleRestored;
+    private boolean markAllDirty;
+    private final EnumMap<DisplayRole, Integer> roles = new EnumMap<>(DisplayRole.class);
+
+    private void beginQuery(
+        Location origin,
+        DisplayEntityIndex.QueryCursor cursor,
+        int rangeLevel,
+        MotionSnapshot motionSnapshot) {
+      stage = ScanStage.QUERY;
+      generation++;
+      this.origin = origin.clone();
+      worldId = origin.getWorld().getUID();
+      sectionX = origin.getBlockX() >> 4;
+      sectionY = origin.getBlockY() >> 4;
+      sectionZ = origin.getBlockZ() >> 4;
+      this.cursor = cursor;
+      this.rangeLevel = rangeLevel;
+      this.motionSnapshot = motionSnapshot;
+      stateIterator = null;
+      nearby = 0;
+      tracked = 0;
+      hidden = 0;
+      dirty = 0;
+      staleRestored = 0;
+      markAllDirty = false;
+      roles.clear();
+    }
+
+    private boolean movedSection(Player player) {
+      Location current = player.getLocation();
+      return current.getWorld() == null
+          || !worldId.equals(current.getWorld().getUID())
+          || sectionX != (current.getBlockX() >> 4)
+          || sectionY != (current.getBlockY() >> 4)
+          || sectionZ != (current.getBlockZ() >> 4);
+    }
+
+    private void beginStale(Map<UUID, TrackedDisplay> states) {
+      stage = ScanStage.STALE;
+      stateIterator = states.entrySet().iterator();
+      cursor = null;
+    }
+
+    private void beginRestore(Map<UUID, TrackedDisplay> states) {
+      stage = ScanStage.RESTORE;
+      stateIterator = states.entrySet().iterator();
+      cursor = null;
+    }
+
+    private void complete(long nextDueTick) {
+      stage = ScanStage.IDLE;
+      this.nextDueTick = nextDueTick;
+      origin = null;
+      cursor = null;
+      stateIterator = null;
+      motionSnapshot = MotionSnapshot.inactive();
+    }
+  }
+
+  private static final class CullingTotals {
+    private int nearby;
+    private int tracked;
+    private int hidden;
+    private int dirty;
+    private final EnumMap<DisplayRole, Integer> roles = new EnumMap<>(DisplayRole.class);
+    private final java.util.TreeMap<Integer, Integer> adaptiveLevels = new java.util.TreeMap<>();
+
+    private void replace(PlayerCullingStats previous, PlayerCullingStats next) {
+      add(previous, -1);
+      add(next, 1);
+    }
+
+    private void add(PlayerCullingStats stats, int direction) {
+      if (stats == null) {
+        return;
+      }
+      nearby += direction * stats.nearby();
+      tracked += direction * stats.tracked();
+      hidden += direction * stats.hidden();
+      dirty += direction * stats.dirty();
+      for (var entry : stats.roles().entrySet()) {
+        roles.merge(entry.getKey(), direction * entry.getValue(), Integer::sum);
+        if (roles.get(entry.getKey()) == 0) {
+          roles.remove(entry.getKey());
+        }
+      }
+      adaptiveLevels.compute(
+          stats.adaptiveLevel(),
+          (ignored, count) -> {
+            int updated = (count == null ? 0 : count) + direction;
+            return updated <= 0 ? null : updated;
+          });
+    }
+
+    private int maxAdaptiveLevel() {
+      return adaptiveLevels.isEmpty() ? 0 : adaptiveLevels.lastKey();
+    }
+
+    private Map<DisplayRole, Integer> roleSnapshot() {
+      return roles.isEmpty() ? Map.of() : Map.copyOf(roles);
+    }
+
+    private void clear() {
+      nearby = 0;
+      tracked = 0;
+      hidden = 0;
+      dirty = 0;
+      roles.clear();
+      adaptiveLevels.clear();
+    }
+  }
 
   public enum ClientCullingProbeState {
     DISABLED(false),
@@ -1612,6 +1964,7 @@ public final class DisplayCullingService implements Listener {
     private int appliedRoleLevel = -1;
     private long retainedMotionSegment = Long.MIN_VALUE;
     private int retainedRoleLevel = -1;
+    private long lastSeenGeneration = Long.MIN_VALUE;
 
     TrackedDisplay(DisplayRole role, boolean dirty) {
       this.role = role;
@@ -1740,6 +2093,32 @@ public final class DisplayCullingService implements Listener {
       pendingDistance = 0.0;
     }
   }
+
+  static final class VisibilityMutationGuard {
+    private final Set<VisibilityMutation> active = new HashSet<>();
+
+    boolean contains(UUID playerId, UUID displayId) {
+      return active.contains(new VisibilityMutation(playerId, displayId));
+    }
+
+    boolean run(UUID playerId, UUID displayId, BooleanSupplier mutation) {
+      VisibilityMutation key = new VisibilityMutation(playerId, displayId);
+      if (!active.add(key)) {
+        return false;
+      }
+      try {
+        return mutation.getAsBoolean();
+      } finally {
+        active.remove(key);
+      }
+    }
+
+    void clear() {
+      active.clear();
+    }
+  }
+
+  private record VisibilityMutation(UUID playerId, UUID displayId) {}
 
   static boolean isWithinForwardRetention(
       double directionX, double directionZ, double relativeX, double relativeZ) {

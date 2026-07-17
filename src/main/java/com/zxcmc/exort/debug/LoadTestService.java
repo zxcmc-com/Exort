@@ -87,6 +87,7 @@ public final class LoadTestService {
   private final Database database;
   private final BossBarManager bossBarManager;
   private final Lang lang;
+  private final BenchmarkHealthSession benchmarkHealth;
 
   private int taskId = -1;
   private UUID ownerId;
@@ -156,10 +157,26 @@ public final class LoadTestService {
 
   public LoadTestService(
       JavaPlugin plugin, Database database, BossBarManager bossBarManager, Lang lang) {
+    this(
+        plugin,
+        database,
+        bossBarManager,
+        lang,
+        new BenchmarkHealthSession(
+            new SparkBenchmarkHealthSource(), message -> plugin.getLogger().warning(message)));
+  }
+
+  LoadTestService(
+      JavaPlugin plugin,
+      Database database,
+      BossBarManager bossBarManager,
+      Lang lang,
+      BenchmarkHealthSession benchmarkHealth) {
     this.plugin = plugin;
     this.database = database;
     this.bossBarManager = bossBarManager;
     this.lang = lang;
+    this.benchmarkHealth = Objects.requireNonNull(benchmarkHealth, "benchmarkHealth");
   }
 
   public boolean isRunning() {
@@ -195,6 +212,7 @@ public final class LoadTestService {
     this.lastTickNs = 0L;
     this.sampleIndex = 0;
     this.measurementStarted = false;
+    benchmarkHealth.reset();
     this.tickMs = new double[Math.max(1, durationTicks - warmupTicks)];
     this.msptSamples = new double[tickMs.length];
     this.jitterRandom = new Random(System.nanoTime());
@@ -236,6 +254,7 @@ public final class LoadTestService {
     cleanupTaggedBenchmarkEntitiesAll();
     cleanupChunks();
     PerfStats.disable();
+    benchmarkHealth.reset();
     if (ownerId != null) {
       Player player = Bukkit.getPlayer(ownerId);
       if (player != null && player.isOnline()) {
@@ -308,6 +327,7 @@ public final class LoadTestService {
     Arrays.fill(tickMs, 0.0);
     Arrays.fill(msptSamples, 0.0);
     PerfStats.resetAndEnable();
+    benchmarkHealth.begin();
     lastTickNs = System.nanoTime();
     String started = trLanguage(ownerLanguage(), "message.debug_load_measurement_started");
     if (owner != null) {
@@ -323,6 +343,8 @@ public final class LoadTestService {
 
   private void finishForced(String forcedGradeKey) {
     LoadTestVerdictCalculator.Result result = verdictResult(forcedGradeKey);
+    PerfStats.Snapshot measuredSnapshot = PerfStats.snapshot();
+    BenchmarkHealthSession.Report healthReport = benchmarkHealth.finish();
     sendBenchmarkResultLine(language -> formatVerdictComponent(result, language));
     String sustainableGradeKey = sustainableMsptGrade(result.msptAvg(), result.msptP95());
     sendBenchmarkResultLine(
@@ -333,8 +355,9 @@ public final class LoadTestService {
     if (profileHintsData() != null) {
       sendBenchmarkResultLine(this::profileHintsComponent);
     }
-    if (PerfStats.snapshot().hasSamples()) {
-      sendBenchmarkResultLine(this::measuredProfileComponent);
+    if (measuredSnapshot.hasSamples() || measurementStarted) {
+      sendBenchmarkResultLine(
+          language -> measuredProfileComponent(language, measuredSnapshot, healthReport));
     }
     sendBenchmarkResultLine(this::metadataComponent);
     boolean hasRecentRuns = rememberRun(result);
@@ -456,11 +479,8 @@ public final class LoadTestService {
     return line.finish();
   }
 
-  private Component measuredProfileComponent(String language) {
-    PerfStats.Snapshot snapshot = PerfStats.snapshot();
-    if (!snapshot.hasSamples()) {
-      return null;
-    }
+  private Component measuredProfileComponent(
+      String language, PerfStats.Snapshot snapshot, BenchmarkHealthSession.Report healthReport) {
     List<String> parts = new ArrayList<>();
     HighlightedLineTokens tokens = new HighlightedLineTokens();
     for (PerfStats.MetricStats metric : snapshot.metrics()) {
@@ -499,6 +519,7 @@ public final class LoadTestService {
       }
     }
     appendMeasuredQueueStats(snapshot, parts, tokens);
+    appendBenchmarkHealth(healthReport, parts, tokens);
     if (parts.isEmpty()) {
       return null;
     }
@@ -509,6 +530,50 @@ public final class LoadTestService {
     return line.finish();
   }
 
+  private void appendBenchmarkHealth(
+      BenchmarkHealthSession.Report report, List<String> parts, HighlightedLineTokens tokens) {
+    if (report == null || !report.available()) {
+      parts.add("spark n/a");
+      tokens.add("spark", NamedTextColor.GRAY);
+      tokens.add("n/a", NamedTextColor.DARK_GRAY);
+      return;
+    }
+
+    List<String> values = new ArrayList<>();
+    tokens.add("spark", NamedTextColor.AQUA);
+    if (report.msptMean().isPresent()
+        && report.msptP95().isPresent()
+        && report.msptMax().isPresent()) {
+      String mean = ONE_DECIMAL.format(report.msptMean().getAsDouble());
+      String p95 = ONE_DECIMAL.format(report.msptP95().getAsDouble());
+      String max = ONE_DECIMAL.format(report.msptMax().getAsDouble());
+      values.add("mspt-1m " + mean + "/" + p95 + "/" + max + "ms mean/p95/max");
+      tokens.add(mean, msptColor(report.msptMean().getAsDouble()));
+      tokens.add(p95, msptColor(report.msptP95().getAsDouble()));
+      tokens.add(max + "ms", msptColor(report.msptMax().getAsDouble()));
+    }
+    if (report.processCpu().isPresent()) {
+      double processCpuPercent = report.processCpu().getAsDouble() * 100.0;
+      String cpu = ONE_DECIMAL.format(processCpuPercent) + "%";
+      values.add("cpu-process-1m " + cpu);
+      tokens.add(cpu, percentageColor((int) Math.round(processCpuPercent)));
+    }
+    if (report.gcCollections().isPresent() && report.gcTimeMillis().isPresent()) {
+      String collections = "+" + report.gcCollections().getAsLong();
+      String time = "+" + report.gcTimeMillis().getAsLong() + "ms";
+      values.add("gc " + collections + "/" + time);
+      tokens.add(collections, NamedTextColor.AQUA);
+      tokens.add(time, NamedTextColor.YELLOW);
+    }
+
+    if (values.isEmpty()) {
+      parts.add("spark available");
+      tokens.add("available", NamedTextColor.GREEN);
+      return;
+    }
+    parts.add("spark " + String.join(" ", values));
+  }
+
   private void appendMeasuredQueueStats(
       PerfStats.Snapshot snapshot, List<String> parts, HighlightedLineTokens tokens) {
     List<MeasuredQueueStat> queues = new ArrayList<>();
@@ -516,6 +581,28 @@ public final class LoadTestService {
     long displayQueue = snapshot.gauges().getOrDefault("display.queueDepth", -1L);
     long monitorQueue = snapshot.gauges().getOrDefault("monitor.queueDepth", -1L);
     long busDue = snapshot.gauges().getOrDefault("bus.dueDepth", -1L);
+    long cullingWork = snapshot.gauges().getOrDefault("display.culling.scanWork", -1L);
+    long cullingPending = snapshot.gauges().getOrDefault("display.culling.pendingPlayers", -1L);
+    long monitorExamined = snapshot.gauges().getOrDefault("monitor.sanityExamined", -1L);
+    long transmitterCandidates =
+        snapshot.gauges().getOrDefault("wireless.coverageCandidatesLast", -1L);
+    long networkWork = snapshot.gauges().getOrDefault("wire.networkRefreshWorkThisTick", -1L);
+    long networkPendingStarts =
+        snapshot.gauges().getOrDefault("wire.networkRefreshPendingStarts", -1L);
+    long networkPending = snapshot.gauges().getOrDefault("wire.networkRefreshPending", -1L);
+    long worldEditQueue = snapshot.gauges().getOrDefault("worldedit.postQueueDepth", -1L);
+    long cullingExamined = snapshot.counters().getOrDefault("display.culling.scanExamined", -1L);
+    long cullingCompleted = snapshot.counters().getOrDefault("display.culling.scanCompleted", -1L);
+    long cullingReset = snapshot.counters().getOrDefault("display.culling.scanReset", -1L);
+    long monitorExaminedTotal =
+        snapshot.counters().getOrDefault("monitor.sanityExaminedTotal", -1L);
+    long transmitterCandidatesTotal =
+        snapshot.counters().getOrDefault("wireless.coverageCandidates", -1L);
+    long networkStarts = snapshot.counters().getOrDefault("worldedit.networkRefresh.starts", -1L);
+    long componentsStarted =
+        snapshot.counters().getOrDefault("wire.networkRefreshComponentsStarted", -1L);
+    long componentsCompleted =
+        snapshot.counters().getOrDefault("wire.networkRefreshComponentsCompleted", -1L);
     long displayOverruns = snapshot.counters().getOrDefault("display.budgetOverrun", 0L);
     long monitorOverruns = snapshot.counters().getOrDefault("monitor.budgetOverrun", 0L);
     long busOverruns = snapshot.counters().getOrDefault("bus.budgetOverrun", 0L);
@@ -523,6 +610,51 @@ public final class LoadTestService {
     if (displayQueue >= 0L) queues.add(new MeasuredQueueStat("displayQ", displayQueue, false));
     if (monitorQueue >= 0L) queues.add(new MeasuredQueueStat("monitorQ", monitorQueue, false));
     if (busDue >= 0L) queues.add(new MeasuredQueueStat("busDue", busDue, false));
+    if (cullingWork >= 0L) queues.add(new MeasuredQueueStat("cullingWork", cullingWork, false));
+    if (cullingPending >= 0L) {
+      queues.add(new MeasuredQueueStat("cullingPlayers", cullingPending, false));
+    }
+    if (cullingExamined >= 0L) {
+      queues.add(new MeasuredQueueStat("cullingExamined", cullingExamined, false));
+    }
+    if (cullingCompleted >= 0L) {
+      queues.add(new MeasuredQueueStat("cullingCompleted", cullingCompleted, false));
+    }
+    if (cullingReset >= 0L) {
+      queues.add(new MeasuredQueueStat("cullingReset", cullingReset, false));
+    }
+    if (monitorExamined >= 0L) {
+      queues.add(new MeasuredQueueStat("monitorExamined", monitorExamined, false));
+    }
+    if (monitorExaminedTotal >= 0L) {
+      queues.add(new MeasuredQueueStat("monitorExaminedTotal", monitorExaminedTotal, false));
+    }
+    if (transmitterCandidates >= 0L) {
+      queues.add(new MeasuredQueueStat("transmitterCandidates", transmitterCandidates, false));
+    }
+    if (transmitterCandidatesTotal >= 0L) {
+      queues.add(
+          new MeasuredQueueStat("transmitterCandidatesTotal", transmitterCandidatesTotal, false));
+    }
+    if (networkWork >= 0L) queues.add(new MeasuredQueueStat("networkWork", networkWork, false));
+    if (networkPendingStarts >= 0L) {
+      queues.add(new MeasuredQueueStat("networkStartsPending", networkPendingStarts, false));
+    }
+    if (networkPending >= 0L) {
+      queues.add(new MeasuredQueueStat("networkPending", networkPending, false));
+    }
+    if (networkStarts >= 0L) {
+      queues.add(new MeasuredQueueStat("networkStarts", networkStarts, false));
+    }
+    if (componentsStarted >= 0L) {
+      queues.add(new MeasuredQueueStat("componentsStarted", componentsStarted, false));
+    }
+    if (componentsCompleted >= 0L) {
+      queues.add(new MeasuredQueueStat("componentsCompleted", componentsCompleted, false));
+    }
+    if (worldEditQueue >= 0L) {
+      queues.add(new MeasuredQueueStat("worldEditQ", worldEditQueue, false));
+    }
     if (displayOverruns > 0L) {
       queues.add(new MeasuredQueueStat("displayOverruns", displayOverruns, true));
     }

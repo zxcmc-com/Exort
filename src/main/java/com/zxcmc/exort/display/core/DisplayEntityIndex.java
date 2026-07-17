@@ -2,11 +2,14 @@ package com.zxcmc.exort.display.core;
 
 import com.zxcmc.exort.debug.PerfStats;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
@@ -107,34 +110,38 @@ public final class DisplayEntityIndex {
     if (origin == null || origin.getWorld() == null) {
       return;
     }
-    double safeRange = Math.max(0.0, range);
-    double rangeSquared = safeRange * safeRange;
-    int minX = floorSection(origin.getBlockX() - (int) Math.ceil(safeRange));
-    int maxX = floorSection(origin.getBlockX() + (int) Math.ceil(safeRange));
-    int minY = floorSection(origin.getBlockY() - (int) Math.ceil(safeRange));
-    int maxY = floorSection(origin.getBlockY() + (int) Math.ceil(safeRange));
-    int minZ = floorSection(origin.getBlockZ() - (int) Math.ceil(safeRange));
-    int maxZ = floorSection(origin.getBlockZ() + (int) Math.ceil(safeRange));
-    UUID worldId = origin.getWorld().getUID();
-    for (int sectionX = minX; sectionX <= maxX; sectionX++) {
-      for (int sectionY = minY; sectionY <= maxY; sectionY++) {
-        for (int sectionZ = minZ; sectionZ <= maxZ; sectionZ++) {
-          Set<UUID> ids = bySection.get(new SectionKey(worldId, sectionX, sectionY, sectionZ));
-          if (ids == null || ids.isEmpty()) {
-            continue;
-          }
-          for (UUID id : ids) {
-            Entry entry = byEntityId.get(id);
-            if (entry == null || !worldId.equals(entry.worldId())) {
-              continue;
-            }
-            if (entry.distanceSquared(origin) <= rangeSquared) {
-              out.add(entry);
-            }
-          }
-        }
-      }
+    QueryCursor cursor = openQuery(origin, range);
+    while (!cursor.complete()) {
+      cursor.advance(4096, out::add);
     }
+  }
+
+  /** Opens a main-thread-confined, resumable query over the concurrent spatial index. */
+  public QueryCursor openQuery(Location origin, double range) {
+    if (origin == null || origin.getWorld() == null) {
+      return QueryCursor.empty(this);
+    }
+    double safeRange = Math.max(0.0, range);
+    int roundedRange = (int) Math.min(Integer.MAX_VALUE, Math.ceil(safeRange));
+    int minX = floorSection(saturatingAdd(origin.getBlockX(), -roundedRange));
+    int maxX = floorSection(saturatingAdd(origin.getBlockX(), roundedRange));
+    int minY = floorSection(saturatingAdd(origin.getBlockY(), -roundedRange));
+    int maxY = floorSection(saturatingAdd(origin.getBlockY(), roundedRange));
+    int minZ = floorSection(saturatingAdd(origin.getBlockZ(), -roundedRange));
+    int maxZ = floorSection(saturatingAdd(origin.getBlockZ(), roundedRange));
+    return new QueryCursor(
+        this,
+        origin.getWorld().getUID(),
+        origin.getX(),
+        origin.getY(),
+        origin.getZ(),
+        safeRange * safeRange,
+        minX,
+        maxX,
+        minY,
+        maxY,
+        minZ,
+        maxZ);
   }
 
   public Display resolve(UUID entityUuid) {
@@ -164,6 +171,129 @@ public final class DisplayEntityIndex {
     return blockCoord >> 4;
   }
 
+  private static int saturatingAdd(int value, int delta) {
+    long result = (long) value + delta;
+    return (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, result));
+  }
+
+  public record QueryStep(int examined, int matched, boolean complete) {}
+
+  /**
+   * Main-thread-confined state for one bounded query. Concurrent index updates are tolerated
+   * through weakly consistent iterators; callers must not share one cursor between threads.
+   */
+  public static final class QueryCursor {
+    private final DisplayEntityIndex index;
+    private final UUID worldId;
+    private final double originX;
+    private final double originY;
+    private final double originZ;
+    private final double rangeSquared;
+    private final int maxX;
+    private final int minY;
+    private final int maxY;
+    private final int minZ;
+    private final int maxZ;
+    private int sectionX;
+    private int sectionY;
+    private int sectionZ;
+    private Iterator<UUID> currentIds = Collections.emptyIterator();
+    private boolean sectionPending;
+    private boolean complete;
+
+    private QueryCursor(
+        DisplayEntityIndex index,
+        UUID worldId,
+        double originX,
+        double originY,
+        double originZ,
+        double rangeSquared,
+        int minX,
+        int maxX,
+        int minY,
+        int maxY,
+        int minZ,
+        int maxZ) {
+      this.index = index;
+      this.worldId = worldId;
+      this.originX = originX;
+      this.originY = originY;
+      this.originZ = originZ;
+      this.rangeSquared = rangeSquared;
+      this.maxX = maxX;
+      this.minY = minY;
+      this.maxY = maxY;
+      this.minZ = minZ;
+      this.maxZ = maxZ;
+      sectionX = minX;
+      sectionY = minY;
+      sectionZ = minZ;
+      sectionPending = true;
+    }
+
+    private static QueryCursor empty(DisplayEntityIndex index) {
+      QueryCursor cursor = new QueryCursor(index, null, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0);
+      cursor.complete = true;
+      cursor.sectionPending = false;
+      return cursor;
+    }
+
+    public QueryStep advance(int maxWork, Consumer<Entry> consumer) {
+      if (complete || maxWork <= 0) {
+        return new QueryStep(0, 0, complete);
+      }
+      int examined = 0;
+      int matched = 0;
+      while (!complete && examined < maxWork) {
+        if (currentIds.hasNext()) {
+          UUID id = currentIds.next();
+          examined++;
+          Entry entry = index.byEntityId.get(id);
+          if (entry != null
+              && worldId.equals(entry.worldId())
+              && entry.distanceSquared(originX, originY, originZ) <= rangeSquared) {
+            consumer.accept(entry);
+            matched++;
+          }
+          continue;
+        }
+        if (!sectionPending) {
+          advanceSection();
+          continue;
+        }
+        examined++;
+        Set<UUID> ids = index.bySection.get(new SectionKey(worldId, sectionX, sectionY, sectionZ));
+        currentIds = ids == null ? Collections.emptyIterator() : ids.iterator();
+        sectionPending = false;
+      }
+      if (!complete && !currentIds.hasNext() && !sectionPending) {
+        advanceSection();
+      }
+      return new QueryStep(examined, matched, complete);
+    }
+
+    public boolean complete() {
+      return complete;
+    }
+
+    private void advanceSection() {
+      if (sectionZ < maxZ) {
+        sectionZ++;
+      } else if (sectionY < maxY) {
+        sectionY++;
+        sectionZ = minZ;
+      } else if (sectionX < maxX) {
+        sectionX++;
+        sectionY = minY;
+        sectionZ = minZ;
+      } else {
+        complete = true;
+        return;
+      }
+      sectionPending = true;
+    }
+  }
+
   public record SectionKey(UUID worldId, int x, int y, int z) {
     static SectionKey of(Location location) {
       return new SectionKey(
@@ -184,10 +314,10 @@ public final class DisplayEntityIndex {
       DisplayRole role,
       String localizationKey,
       SectionKey section) {
-    private double distanceSquared(Location origin) {
-      double dx = (x + 0.5) - origin.getX();
-      double dy = (y + 0.5) - origin.getY();
-      double dz = (z + 0.5) - origin.getZ();
+    private double distanceSquared(double originX, double originY, double originZ) {
+      double dx = (x + 0.5) - originX;
+      double dy = (y + 0.5) - originY;
+      double dz = (z + 0.5) - originZ;
       return dx * dx + dy * dy + dz * dz;
     }
   }
