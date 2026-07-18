@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -30,16 +31,20 @@ final class WorldEditClipboardPatcher {
   private final Plugin plugin;
   private final Function<LinCompoundTag, BaseBlock> markerBlockBuilder;
   private final Supplier<WorldEditDebugService> debugService;
+  private final BiConsumer<UUID, PatchResult> resultConsumer;
   private final Map<UUID, BukkitTask> tasks = new ConcurrentHashMap<>();
+  private final Map<UUID, Request> requests = new ConcurrentHashMap<>();
   private final GenerationTracker generations = new GenerationTracker();
 
   WorldEditClipboardPatcher(
       Plugin plugin,
       Function<LinCompoundTag, BaseBlock> markerBlockBuilder,
-      Supplier<WorldEditDebugService> debugService) {
+      Supplier<WorldEditDebugService> debugService,
+      BiConsumer<UUID, PatchResult> resultConsumer) {
     this.plugin = plugin;
     this.markerBlockBuilder = markerBlockBuilder;
     this.debugService = debugService;
+    this.resultConsumer = resultConsumer;
   }
 
   void schedule(com.sk89q.worldedit.extension.platform.Actor actor, PendingClipboardPatch patch) {
@@ -52,6 +57,7 @@ final class WorldEditClipboardPatcher {
     UUID actorId = actor.getUniqueId();
     Clipboard baseline = currentClipboard(actor);
     long generation = generations.next(actorId);
+    requests.put(actorId, new Request(patch, baseline, generation));
     BukkitTask previous = tasks.remove(actorId);
     if (previous != null) {
       previous.cancel();
@@ -67,20 +73,25 @@ final class WorldEditClipboardPatcher {
               return;
             }
             attempts++;
-            boolean applied = apply(actor, patch, baseline);
-            if (!applied && attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
+            Clipboard applied = apply(actor, patch, baseline);
+            if (applied == null && attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
               plugin
                   .getLogger()
                   .warning(
                       "[WorldEdit] Exort clipboard patch did not apply after "
                           + attempts
                           + " attempts; paste may leave carrier placeholders.");
+              notifyResult(actorId, new PatchResult(null, patch, false));
             }
-            if (applied || attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
+            if (applied != null) {
+              notifyResult(actorId, new PatchResult(applied, patch, true));
+            }
+            if (applied != null || attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
               tasks.computeIfPresent(
                   actorId,
                   (ignored, current) -> current.getTaskId() == this.getTaskId() ? null : current);
               generations.complete(actorId, generation);
+              requests.remove(actorId, new Request(patch, baseline, generation));
               cancel();
             }
           }
@@ -94,6 +105,7 @@ final class WorldEditClipboardPatcher {
       task.cancel();
     }
     tasks.clear();
+    requests.clear();
     generations.clearAll();
   }
 
@@ -102,17 +114,33 @@ final class WorldEditClipboardPatcher {
       return;
     }
     generations.clear(actorId);
+    requests.remove(actorId);
     BukkitTask task = tasks.remove(actorId);
     if (task != null) {
       task.cancel();
     }
   }
 
-  private boolean apply(
+  boolean tryApplyNow(com.sk89q.worldedit.extension.platform.Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return false;
+    UUID actorId = actor.getUniqueId();
+    Request request = requests.get(actorId);
+    if (request == null || !generations.isCurrent(actorId, request.generation())) return false;
+    Clipboard applied = apply(actor, request.patch(), request.baseline());
+    if (applied == null) return false;
+    BukkitTask task = tasks.remove(actorId);
+    if (task != null) task.cancel();
+    requests.remove(actorId, request);
+    generations.complete(actorId, request.generation());
+    notifyResult(actorId, new PatchResult(applied, request.patch(), true));
+    return true;
+  }
+
+  private Clipboard apply(
       com.sk89q.worldedit.extension.platform.Actor actor,
       PendingClipboardPatch patch,
       Clipboard baseline) {
-    if (actor == null || patch == null || patch.markers().isEmpty()) return true;
+    if (actor == null || patch == null || patch.markers().isEmpty()) return null;
     LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
     ClipboardHolder holder;
     Clipboard clipboard;
@@ -120,10 +148,25 @@ final class WorldEditClipboardPatcher {
       holder = session.getClipboard();
       clipboard = holder.getClipboard();
     } catch (EmptyClipboardException e) {
-      return false;
+      return null;
     }
-    if (clipboard == null) return false;
-    if (clipboard == baseline) return false;
+    if (clipboard == null || clipboard == baseline) return null;
+    if (!patch.matches(clipboard)) {
+      WorldEditDebugService debug = debugService.get();
+      if (debug != null && debug.isFull()) {
+        debug.recordEvent(
+            "we clipboard correlation expected="
+                + patch.expectedBounds()
+                + "/"
+                + patch.expectedOrigin()
+                + " actual="
+                + WorldEditBounds.from(clipboard.getRegion())
+                + "/"
+                + clipboard.getOrigin(),
+            NamedTextColor.YELLOW);
+      }
+      return null;
+    }
     Region clipboardRegion = clipboard.getRegion();
     BlockArrayClipboard patched = new BlockArrayClipboard(clipboardRegion);
     patched.setOrigin(clipboard.getOrigin());
@@ -154,7 +197,16 @@ final class WorldEditClipboardPatcher {
       }
     }
     if (applied <= 0) {
-      return false;
+      WorldEditDebugService debug = debugService.get();
+      if (debug != null && debug.isFull()) {
+        debug.recordEvent(
+            "we clipboard patch matched but applied=0 markers="
+                + patch.markers().size()
+                + " region="
+                + WorldEditBounds.from(clipboardRegion),
+            NamedTextColor.YELLOW);
+      }
+      return null;
     }
     ClipboardHolder patchedHolder = new ClipboardHolder(patched);
     patchedHolder.setTransform(holder.getTransform());
@@ -163,7 +215,13 @@ final class WorldEditClipboardPatcher {
     if (debug != null && debug.isEnabled()) {
       debug.recordEvent("we clipboard patch markers=" + applied, NamedTextColor.DARK_GREEN);
     }
-    return true;
+    return patched;
+  }
+
+  private void notifyResult(UUID actorId, PatchResult result) {
+    if (resultConsumer != null) {
+      resultConsumer.accept(actorId, result);
+    }
   }
 
   private Clipboard currentClipboard(com.sk89q.worldedit.extension.platform.Actor actor) {
@@ -200,4 +258,8 @@ final class WorldEditClipboardPatcher {
       generations.clear();
     }
   }
+
+  record PatchResult(Clipboard clipboard, PendingClipboardPatch patch, boolean applied) {}
+
+  private record Request(PendingClipboardPatch patch, Clipboard baseline, long generation) {}
 }

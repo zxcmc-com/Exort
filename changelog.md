@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.8 — 2026-07-18
+- WorldEdit and FAWE operations now correlate Exort state through bounded command contexts and trusted local clipboards; untrusted schematic markers and direct API edits cannot replace Exort-managed blocks, while ordinary schematic blocks continue to paste normally.
+- WorldEdit marker capture is now limited to loaded chunks inside the affected command region, avoiding world-wide marker scans and forced chunk loads for local edits.
+
 ## 0.19.7 — 2026-07-17
 - Dense display scenes now use fair, resumable culling with fixed global and per-player work budgets, and Exort's own visibility updates no longer trigger recursive Paper tracking loops or stack overflows.
 - WorldEdit and FAWE edits now coalesce affected network components into bounded incremental refreshes and traverse each component at most once per batch instead of building duplicate refresh queues.

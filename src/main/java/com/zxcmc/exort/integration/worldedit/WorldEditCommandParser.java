@@ -65,6 +65,19 @@ final class WorldEditCommandParser {
     return "clearclipboard".equals(command) || "clearclipboard".equals(command.replace("-", ""));
   }
 
+  static boolean invalidatesClipboardTrust(String arguments) {
+    return isClipboardCopyCommand(arguments)
+        || isClipboardClearCommand(arguments)
+        || isSchematicLoadCommand(arguments);
+  }
+
+  static boolean isSchematicLoadCommand(String arguments) {
+    String command = commandName(arguments);
+    if (!"schematic".equals(command) && !"schem".equals(command)) return false;
+    String[] tokens = nonFlagTokens(commandRemainder(arguments));
+    return tokens.length > 0 && "load".equalsIgnoreCase(tokens[0]);
+  }
+
   static HistoryAction parseHistoryAction(String arguments) {
     ParsedHistoryCommand command = parseHistoryCommand(arguments);
     return command == null ? null : command.action();
@@ -119,6 +132,46 @@ final class WorldEditCommandParser {
 
   static boolean isBroadOperationSnapshotCommand(String arguments) {
     return BROAD_OPERATION_SNAPSHOT_COMMANDS.contains(commandName(arguments));
+  }
+
+  static WorldEditBounds affectedBounds(
+      String arguments,
+      WorldEditBounds selection,
+      BlockVector3 placement,
+      BlockVector3 stackDirection) {
+    String command = commandName(arguments);
+    if (!BROAD_OPERATION_SNAPSHOT_COMMANDS.contains(command)) {
+      return selection;
+    }
+    String[] tokens = nonFlagTokens(commandRemainder(arguments));
+    return switch (command) {
+      case "replacenear", "fixlava", "fixwater", "drain" -> {
+        Integer radius = firstPositiveInteger(tokens, 0);
+        yield radius == null || placement == null
+            ? null
+            : WorldEditBounds.around(placement, radius, radius);
+      }
+      case "fill", "fillr" -> {
+        Integer radius = firstPositiveInteger(tokens, 1);
+        Integer depth = firstPositiveInteger(tokens, 2);
+        yield radius == null || placement == null
+            ? null
+            : WorldEditBounds.around(placement, radius, depth == null ? radius : depth);
+      }
+      case "stack" -> stackBounds(selection, tokens, stackDirection);
+      default -> selection;
+    };
+  }
+
+  static BlockVector3 parseStackDirection(String arguments, Player player) {
+    String[] tokens = nonFlagTokens(commandRemainder(arguments));
+    for (int index = 0; index < tokens.length; index++) {
+      if (index == 0 && parsePositiveInteger(tokens[index]) != null) continue;
+      BlockFace direction = directionToken(tokens[index], player);
+      if (direction != null) return vectorFor(direction, 1);
+    }
+    BlockFace direction = directionFromPlayer(player);
+    return direction == null ? null : vectorFor(direction, 1);
   }
 
   static String commandSignature(String arguments) {
@@ -182,6 +235,47 @@ final class WorldEditCommandParser {
       direction = directionFromPlayer(player);
     }
     return vectorFor(direction, distance);
+  }
+
+  private static WorldEditBounds stackBounds(
+      WorldEditBounds selection, String[] tokens, BlockVector3 direction) {
+    if (selection == null || direction == null) return null;
+    Integer parsedCount = firstPositiveInteger(tokens, 0);
+    if (parsedCount == null && tokens.length > 0 && tokens[0].matches("[+-]?\\d+")) {
+      return null;
+    }
+    int count = parsedCount == null ? 1 : parsedCount;
+    int dx = WorldEditBounds.saturatedMultiply(selection.sizeX(), direction.x());
+    int dy = WorldEditBounds.saturatedMultiply(selection.sizeY(), direction.y());
+    int dz = WorldEditBounds.saturatedMultiply(selection.sizeZ(), direction.z());
+    BlockVector3 offset =
+        BlockVector3.at(
+            WorldEditBounds.saturatedMultiply(dx, count),
+            WorldEditBounds.saturatedMultiply(dy, count),
+            WorldEditBounds.saturatedMultiply(dz, count));
+    return selection.union(selection.translate(offset));
+  }
+
+  private static String[] nonFlagTokens(String remainder) {
+    if (remainder == null || remainder.isBlank()) return new String[0];
+    return java.util.Arrays.stream(remainder.split("\\s+"))
+        .filter(token -> !token.isBlank() && !token.startsWith("-"))
+        .toArray(String[]::new);
+  }
+
+  private static Integer firstPositiveInteger(String[] tokens, int index) {
+    return tokens == null || index < 0 || index >= tokens.length
+        ? null
+        : parsePositiveInteger(tokens[index]);
+  }
+
+  private static Integer parsePositiveInteger(String token) {
+    try {
+      long value = Long.parseLong(token);
+      return value <= 0L || value > Integer.MAX_VALUE ? null : (int) value;
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
   }
 
   private static String commandName(String arguments) {

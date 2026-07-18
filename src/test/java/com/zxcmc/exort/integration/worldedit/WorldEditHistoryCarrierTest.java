@@ -136,8 +136,7 @@ class WorldEditHistoryCarrierTest {
             worldId,
             Map.of(WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()), full),
             Set.of(),
-            System.currentTimeMillis(),
-            1,
+            null,
             "test");
 
     assertEquals(full, WorldEditBridge.chooseUndoSnapshot(modeOnly, null, full, null));
@@ -757,8 +756,7 @@ class WorldEditHistoryCarrierTest {
             Map.of(
                 WorldEditMarkerMath.blockKey(position.x(), position.y(), position.z()), terminal),
             Set.of(new ChunkKey(worldId, position.x() >> 4, position.z() >> 4)),
-            System.currentTimeMillis(),
-            3,
+            null,
             "worldedit_regen");
 
     assertEquals(

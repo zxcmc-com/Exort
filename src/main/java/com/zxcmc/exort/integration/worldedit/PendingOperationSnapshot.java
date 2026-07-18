@@ -10,23 +10,12 @@ record PendingOperationSnapshot(
     UUID worldId,
     Map<Long, MarkerSnapshot> markers,
     Set<ChunkKey> chunks,
-    long timestampMs,
-    int usesRemaining,
+    WorldEditBounds bounds,
     String reason) {
   PendingOperationSnapshot {
     markers = markers == null ? Map.of() : Map.copyOf(markers);
     chunks = chunks == null ? Set.of() : Set.copyOf(chunks);
-    usesRemaining = Math.max(1, usesRemaining);
     reason = reason == null ? "worldedit_operation" : reason;
-  }
-
-  PendingOperationSnapshot consume() {
-    return new PendingOperationSnapshot(
-        worldId, markers, chunks, timestampMs, usesRemaining - 1, reason);
-  }
-
-  boolean expired(long now, long ttlMs) {
-    return now - timestampMs > ttlMs;
   }
 
   boolean isEmpty() {
