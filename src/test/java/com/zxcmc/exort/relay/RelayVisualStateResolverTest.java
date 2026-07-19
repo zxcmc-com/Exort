@@ -133,7 +133,17 @@ class RelayVisualStateResolverTest {
 
   private RelayVisualStateResolver resolver(Material relayTraversalCarrier) {
     return new RelayVisualStateResolver(
-        plugin, keys, setupTracker, 0, 16, 4, WIRE, CARRIER, CARRIER, relayTraversalCarrier);
+        plugin,
+        keys,
+        setupTracker,
+        0,
+        16,
+        4,
+        WIRE,
+        CARRIER,
+        CARRIER,
+        relayTraversalCarrier,
+        () -> null);
   }
 
   private Block relay(BukkitTestDoubles.TestWorld world, int x, int y, int z) {

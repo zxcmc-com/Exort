@@ -11,12 +11,14 @@ import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -47,6 +49,7 @@ public class TerminalListener implements Listener {
   private final Material storageCarrier;
   private final Material relayCarrier;
   private final Material terminalCarrier;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
 
   public TerminalListener(
       JavaPlugin plugin,
@@ -64,7 +67,8 @@ public class TerminalListener implements Listener {
       Material wireMaterial,
       Material storageCarrier,
       Material relayCarrier,
-      Material terminalCarrier) {
+      Material terminalCarrier,
+      Supplier<NetworkGraphCache> networkGraphCache) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
     this.worldEditWandGuard = worldEditWandGuard;
@@ -81,6 +85,7 @@ public class TerminalListener implements Listener {
     this.storageCarrier = storageCarrier;
     this.relayCarrier = relayCarrier;
     this.terminalCarrier = terminalCarrier;
+    this.networkGraphCache = networkGraphCache;
   }
 
   @EventHandler(ignoreCancelled = true)
@@ -109,6 +114,7 @@ public class TerminalListener implements Listener {
             block,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,
@@ -172,6 +178,7 @@ public class TerminalListener implements Listener {
             block,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,

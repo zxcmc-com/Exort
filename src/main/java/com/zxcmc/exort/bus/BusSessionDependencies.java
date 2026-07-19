@@ -5,6 +5,7 @@ import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.gui.GuiRuntimeConfig;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -23,6 +24,7 @@ public record BusSessionDependencies(
     Material wireMaterial,
     Material storageCarrier,
     Material relayCarrier,
+    Supplier<NetworkGraphCache> networkGraphCache,
     Supplier<GuiRuntimeConfig> runtimeConfig,
     Supplier<GuiOverlayConfig> overlayConfig,
     ItemNameService itemNameService) {
@@ -32,6 +34,7 @@ public record BusSessionDependencies(
     Objects.requireNonNull(bossBarManager, "bossBarManager");
     Objects.requireNonNull(resourceMode, "resourceMode");
     Objects.requireNonNull(busCarrier, "busCarrier");
+    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(overlayConfig, "overlayConfig");
     Objects.requireNonNull(itemNameService, "itemNameService");

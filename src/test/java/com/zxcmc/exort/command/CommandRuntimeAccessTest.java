@@ -3,7 +3,9 @@ package com.zxcmc.exort.command;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.zxcmc.exort.items.CustomItemModelConfig;
 import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,8 @@ class CommandRuntimeAccessTest {
     WirelessTerminalService vanillaWireless = wirelessService(vanillaItems);
     AtomicReference<CustomItems> items = new AtomicReference<>(resourceItems);
     AtomicReference<WirelessTerminalService> wireless = new AtomicReference<>(resourceWireless);
-    CommandRuntimeAccess access = new CommandRuntimeAccess(items::get, wireless::get, () -> null);
+    CommandRuntimeAccess access =
+        new CommandRuntimeAccess(items::get, wireless::get, () -> null, () -> null);
 
     assertSame(resourceItems, access.customItems());
     assertSame(resourceWireless, access.wirelessService());
@@ -31,7 +34,8 @@ class CommandRuntimeAccessTest {
 
   @Test
   void rejectsMissingRuntimeServiceAtUseSite() {
-    CommandRuntimeAccess access = new CommandRuntimeAccess(() -> null, () -> null, () -> null);
+    CommandRuntimeAccess access =
+        new CommandRuntimeAccess(() -> null, () -> null, () -> null, () -> null);
 
     assertThrows(NullPointerException.class, access::customItems);
     assertThrows(NullPointerException.class, access::wirelessService);
@@ -40,25 +44,7 @@ class CommandRuntimeAccessTest {
 
   private static CustomItems customItems() {
     return new CustomItems(
-        null,
-        null,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        java.util.Map.of(),
-        false);
+        null, null, CustomItemModelConfig.empty(), WirelessRuntimeConfig.defaults(), false);
   }
 
   private static WirelessTerminalService wirelessService(CustomItems customItems) {

@@ -11,7 +11,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.DisplayMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
-import com.zxcmc.exort.network.NetworkGraphCacheProvider;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
@@ -83,6 +83,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material relayCarrier;
+  private final java.util.function.Supplier<NetworkGraphCache> networkGraphCache;
   private final Component monitorName;
   private final String enabledModel;
   private final String disabledModel;
@@ -126,6 +127,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
       Material wireMaterial,
       Material storageCarrier,
       Material relayCarrier,
+      java.util.function.Supplier<NetworkGraphCache> networkGraphCache,
       ScreenConfig itemConfig,
       ScreenConfig blockConfig,
       ScreenConfig thinBlockConfig,
@@ -153,6 +155,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
     this.relayCarrier = relayCarrier;
+    this.networkGraphCache = Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     this.monitorName = monitorName;
     this.enabledModel = enabledModel == null ? "" : enabledModel;
     this.disabledModel = disabledModel == null ? this.enabledModel : disabledModel;
@@ -376,6 +379,7 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
         block,
         keys,
         plugin,
+        networkGraphCache.get(),
         wireLimit,
         wireHardCap,
         wireMaterial,
@@ -956,11 +960,8 @@ public class MonitorDisplayManager extends BaseCarrierDisplayManager {
   }
 
   private long topologyVersion() {
-    if (plugin instanceof NetworkGraphCacheProvider provider
-        && provider.getNetworkGraphCache() != null) {
-      return provider.getNetworkGraphCache().currentVersion();
-    }
-    return 0L;
+    NetworkGraphCache cache = networkGraphCache.get();
+    return cache == null ? 0L : cache.currentVersion();
   }
 
   private record MonitorPos(UUID world, int x, int y, int z) {

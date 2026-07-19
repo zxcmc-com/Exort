@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.List;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;

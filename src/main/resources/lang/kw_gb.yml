@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Henfordhow: {0}, {1}"
   wire:
     hard_cap: "Chayn wire yw re vras: {0}/{1}."
+    item_not_placeable: "Nyns yw possybyl settya an tra ma yn erbyn wire."
+  placement:
+    blocked: "Settyans yw lettys omma."
   bus:
     no_storage: "Nyns eus gwithva kevrenys dhe'n bus ma."
     multiple_storages: "Meur a wwithva kevrenys. Gwith unn hepken."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Le an kreheans yn Danvonell Heb Wire yw leun."
     transmitter_booster_only: "Kreheans Arwodh Heb Wire hepken a yll bos gorres y'n le ma."
 debug:
+  value:
+    enabled: "Galosegys"
+    disabled: "Dialosegys"
+    none: "Nyns eus"
+    unknown: "Anaswonnys"
   mode:
     read: "redya hepken"
     write: "skriva"

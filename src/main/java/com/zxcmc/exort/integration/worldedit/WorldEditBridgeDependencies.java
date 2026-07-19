@@ -1,6 +1,7 @@
 package com.zxcmc.exort.integration.worldedit;
 
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
@@ -29,7 +30,7 @@ public record WorldEditBridgeDependencies(
     Supplier<WirelessTransmitterService> wirelessTransmitterServiceSource,
     Supplier<TransmitterSessionManager> transmitterSessionManagerSource,
     Supplier<ItemHologramManager> hologramManagerSource,
-    WorldEditBridgeMaterials materials,
+    CarrierMaterials materials,
     WorldEditBulkConfig bulkConfig,
     boolean autoConfigureFawe) {
   public WorldEditBridgeDependencies {

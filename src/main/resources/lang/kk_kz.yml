@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Жолдар: {0}, {1}"
   wire:
     hard_cap: "Сым тізбегі тым үлкен: {0}/{1}."
+    item_not_placeable: "Бұл затты сымға жанастырып орналастыру мүмкін емес."
+  placement:
+    blocked: "Бұл жерде орналастыру бұғатталған."
   bus:
     no_storage: "Бұл шинаға қойма қосылмаған."
     multiple_storages: "Бірнеше қойма қосылған. Тек біреуін қалдырыңыз."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Сымсыз таратқыштың күшейткіш ұясы бос емес."
     transmitter_booster_only: "Бұл ұяға тек сымсыз сигнал күшейткішін салуға болады."
 debug:
+  value:
+    enabled: "Қосулы"
+    disabled: "Өшірілген"
+    none: "Жоқ"
+    unknown: "Белгісіз"
   mode:
     read: "тек оқу"
     write: "жазу"

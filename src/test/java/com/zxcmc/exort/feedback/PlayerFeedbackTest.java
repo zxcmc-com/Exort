@@ -64,6 +64,25 @@ class PlayerFeedbackTest {
     assertEquals(0, target.chatMessages().get());
   }
 
+  @Test
+  void transmitterInputDenialIsThrottledButOperationFailureRemainsVisibleInChat() {
+    FeedbackTarget target = target();
+    PlayerFeedback feedback = new PlayerFeedback(new Lang(null));
+
+    feedback.respond(
+        target.player(),
+        FeedbackReason.TRANSMITTER_INPUT,
+        "message.wireless.transmitter_slot_occupied");
+    feedback.respond(
+        target.player(),
+        FeedbackReason.TRANSMITTER_INPUT,
+        "message.wireless.transmitter_slot_occupied");
+    feedback.respond(target.player(), FeedbackReason.OPERATION_FAILURE, "message.operation_failed");
+
+    assertEquals(1, target.actionBars().get());
+    assertEquals(1, target.chatMessages().get());
+  }
+
   private static FeedbackTarget target() {
     UUID playerId = UUID.randomUUID();
     AtomicInteger actionBars = new AtomicInteger();

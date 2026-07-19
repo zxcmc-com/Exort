@@ -51,15 +51,20 @@ public final class NetworkGraphCache {
 
   public record ChunkPosition(UUID worldId, int chunkX, int chunkZ) {}
 
+  /** Loaded-chunk-only traversal result shared by terminal linking and wire diagnostics. */
+  public record Inspection(TerminalLinkFinder.StorageSearchResult storage, int wires, int nodes) {
+    public Inspection {
+      storage = storage == null ? TerminalLinkFinder.StorageSearchResult.none() : storage;
+      wires = Math.max(0, wires);
+      nodes = Math.max(0, nodes);
+    }
+  }
+
   private record CacheEntry(
-      TerminalLinkFinder.StorageSearchResult result,
-      Set<BlockKey> touchedBlocks,
-      Set<ChunkKey> touchedChunks) {}
+      Inspection inspection, Set<BlockKey> touchedBlocks, Set<ChunkKey> touchedChunks) {}
 
   private record ScanTraceResult(
-      TerminalLinkFinder.StorageSearchResult result,
-      Set<BlockKey> touchedBlocks,
-      Set<ChunkKey> touchedChunks) {}
+      Inspection inspection, Set<BlockKey> touchedBlocks, Set<ChunkKey> touchedChunks) {}
 
   private final Plugin owner;
   private final AtomicLong version = new AtomicLong();
@@ -135,8 +140,31 @@ public final class NetworkGraphCache {
       Material storageCarrier,
       Material relayCarrier,
       int relayRangeChunks) {
+    return inspect(
+            terminal,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            relayCarrier,
+            relayRangeChunks)
+        .storage();
+  }
+
+  public Inspection inspect(
+      Block terminal,
+      StorageKeys keys,
+      Plugin plugin,
+      int wireLimit,
+      int wireHardCap,
+      Material wireMaterial,
+      Material storageCarrier,
+      Material relayCarrier,
+      int relayRangeChunks) {
     if (terminal == null) {
-      return TerminalLinkFinder.StorageSearchResult.none();
+      return new Inspection(TerminalLinkFinder.StorageSearchResult.none(), 0, 0);
     }
     CacheKey key =
         new CacheKey(
@@ -152,9 +180,9 @@ public final class NetworkGraphCache {
             relayRangeChunks);
     CacheEntry entry = cache.get(key);
     if (entry != null) {
-      if (isValid(entry.result, storageCarrier)) {
+      if (isValid(entry.inspection().storage(), storageCarrier)) {
         PerfStats.incrementCounter("network.cacheHit");
-        return entry.result;
+        return entry.inspection();
       }
       cache.remove(key);
     }
@@ -176,10 +204,10 @@ public final class NetworkGraphCache {
     cache.put(
         key,
         new CacheEntry(
-            result.result(),
+            result.inspection(),
             Set.copyOf(result.touchedBlocks()),
             Set.copyOf(result.touchedChunks())));
-    return result.result();
+    return result.inspection();
   }
 
   private static boolean intersects(
@@ -234,7 +262,31 @@ public final class NetworkGraphCache {
             storageCarrier,
             relayCarrier,
             relayRangeChunks)
-        .result();
+        .inspection()
+        .storage();
+  }
+
+  public static Inspection inspectLoaded(
+      Block start,
+      StorageKeys keys,
+      Plugin plugin,
+      int wireLimit,
+      int wireHardCap,
+      Material wireMaterial,
+      Material storageCarrier,
+      Material relayCarrier,
+      int relayRangeChunks) {
+    return scanWithTrace(
+            start,
+            keys,
+            plugin,
+            wireLimit,
+            wireHardCap,
+            wireMaterial,
+            storageCarrier,
+            relayCarrier,
+            relayRangeChunks)
+        .inspection();
   }
 
   private static ScanTraceResult scanWithTrace(
@@ -251,7 +303,9 @@ public final class NetworkGraphCache {
     Set<ChunkKey> touchedChunks = new HashSet<>();
     if (terminal == null) {
       return new ScanTraceResult(
-          TerminalLinkFinder.StorageSearchResult.none(), touchedBlocks, touchedChunks);
+          new Inspection(TerminalLinkFinder.StorageSearchResult.none(), 0, 0),
+          touchedBlocks,
+          touchedChunks);
     }
     touch(terminal, touchedBlocks, touchedChunks);
     int found = 0;
@@ -277,7 +331,7 @@ public final class NetworkGraphCache {
           data = info.get();
           if (found > 1) {
             return new ScanTraceResult(
-                TerminalLinkFinder.StorageSearchResult.multiple(found, data),
+                new Inspection(TerminalLinkFinder.StorageSearchResult.multiple(found, data), 0, 0),
                 touchedBlocks,
                 touchedChunks);
           }
@@ -288,7 +342,9 @@ public final class NetworkGraphCache {
       }
       if (found > 0) {
         return new ScanTraceResult(
-            TerminalLinkFinder.StorageSearchResult.connected(data), touchedBlocks, touchedChunks);
+            new Inspection(TerminalLinkFinder.StorageSearchResult.connected(data), 0, 0),
+            touchedBlocks,
+            touchedChunks);
       }
     }
     int wiresUsed = countWires(visited, keys, plugin, wireMaterial);
@@ -305,7 +361,10 @@ public final class NetworkGraphCache {
           nodesUsed++;
           if (nodesUsed > wireHardCap) {
             return new ScanTraceResult(
-                TerminalLinkFinder.StorageSearchResult.hardCap(), touchedBlocks, touchedChunks);
+                new Inspection(
+                    TerminalLinkFinder.StorageSearchResult.hardCap(), wiresUsed, nodesUsed),
+                touchedBlocks,
+                touchedChunks);
           }
         }
       }
@@ -321,7 +380,10 @@ public final class NetworkGraphCache {
           data = info.get();
           if (found > 1) {
             return new ScanTraceResult(
-                TerminalLinkFinder.StorageSearchResult.multiple(found, data),
+                new Inspection(
+                    TerminalLinkFinder.StorageSearchResult.multiple(found, data),
+                    wiresUsed,
+                    nodesUsed),
                 touchedBlocks,
                 touchedChunks);
           }
@@ -334,7 +396,10 @@ public final class NetworkGraphCache {
           }
           if (nodesUsed > wireHardCap) {
             return new ScanTraceResult(
-                TerminalLinkFinder.StorageSearchResult.hardCap(), touchedBlocks, touchedChunks);
+                new Inspection(
+                    TerminalLinkFinder.StorageSearchResult.hardCap(), wiresUsed, nodesUsed),
+                touchedBlocks,
+                touchedChunks);
           }
         }
       }
@@ -342,17 +407,25 @@ public final class NetworkGraphCache {
     if (!queue.isEmpty()) {
       if (nodesUsed > wireHardCap) {
         return new ScanTraceResult(
-            TerminalLinkFinder.StorageSearchResult.hardCap(), touchedBlocks, touchedChunks);
+            new Inspection(TerminalLinkFinder.StorageSearchResult.hardCap(), wiresUsed, nodesUsed),
+            touchedBlocks,
+            touchedChunks);
       }
       if (wiresUsed > wireLimit) {
         return new ScanTraceResult(
-            TerminalLinkFinder.StorageSearchResult.wireLimit(), touchedBlocks, touchedChunks);
+            new Inspection(
+                TerminalLinkFinder.StorageSearchResult.wireLimit(), wiresUsed, nodesUsed),
+            touchedBlocks,
+            touchedChunks);
       }
     }
     return new ScanTraceResult(
-        found == 1
-            ? TerminalLinkFinder.StorageSearchResult.connected(data)
-            : TerminalLinkFinder.StorageSearchResult.none(),
+        new Inspection(
+            found == 1
+                ? TerminalLinkFinder.StorageSearchResult.connected(data)
+                : TerminalLinkFinder.StorageSearchResult.none(),
+            wiresUsed,
+            nodesUsed),
         touchedBlocks,
         touchedChunks);
   }

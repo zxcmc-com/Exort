@@ -2,6 +2,8 @@ package com.zxcmc.exort.bus.listener;
 
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.feedback.FeedbackReason;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.marker.BusMarker;
@@ -20,6 +22,7 @@ public class BusListener implements Listener {
   private final Plugin plugin;
   private final RegionProtection regionProtection;
   private final WorldEditWandGuard worldEditWandGuard;
+  private final PlayerFeedback playerFeedback;
   private final Consumer<Block> busDisplayRefresh;
   private final BusSessionManager busSessionManager;
   private final Material busCarrier;
@@ -28,12 +31,14 @@ public class BusListener implements Listener {
       Plugin plugin,
       RegionProtection regionProtection,
       WorldEditWandGuard worldEditWandGuard,
+      PlayerFeedback playerFeedback,
       Consumer<Block> busDisplayRefresh,
       BusSessionManager busSessionManager,
       Material busCarrier) {
     this.plugin = plugin;
     this.regionProtection = regionProtection;
     this.worldEditWandGuard = worldEditWandGuard;
+    this.playerFeedback = playerFeedback;
     this.busDisplayRefresh = busDisplayRefresh;
     this.busSessionManager = busSessionManager;
     this.busCarrier = busCarrier;
@@ -52,13 +57,18 @@ public class BusListener implements Listener {
     }
     if (!regionProtection.canUse(event.getPlayer(), block)) {
       event.setCancelled(true);
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.no_permission");
       return;
     }
     busDisplayRefresh.accept(block);
     event.setUseInteractedBlock(Result.DENY);
     event.setUseItemInHand(Result.DENY);
     event.setCancelled(true);
-    busSessionManager.openSession(event.getPlayer(), block);
+    if (!busSessionManager.openSession(event.getPlayer(), block)) {
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.OPERATION_FAILURE, "message.operation_failed");
+    }
   }
 
   private boolean isBus(Block block) {

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "பாதைகள்: {0}, {1}"
   wire:
     hard_cap: "கம்பி சங்கிலி மிக பெரியது: {0}/{1}."
+    item_not_placeable: "இந்தப் பொருளை கம்பிக்கு அருகில் வைக்க முடியாது."
+  placement:
+    blocked: "இங்கு வைப்பது தடுக்கப்பட்டுள்ளது."
   bus:
     no_storage: "இந்த bus க்கு சேமிப்பு இணைக்கப்படவில்லை."
     multiple_storages: "பல சேமிப்புகள் இணைக்கப்பட்டுள்ளன. ஒன்றை மட்டும் விடுங்கள்."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "வயர்லெஸ் டிரான்ஸ்மிட்டரின் பூஸ்டர் இடம் நிரம்பியுள்ளது."
     transmitter_booster_only: "இந்த இடத்தில் வயர்லெஸ் சிக்னல் பூஸ்டரை மட்டுமே வைக்க முடியும்."
 debug:
+  value:
+    enabled: "செயலில்"
+    disabled: "முடக்கப்பட்டது"
+    none: "எதுவுமில்லை"
+    unknown: "தெரியாது"
   mode:
     read: "வாசிப்பு மட்டும்"
     write: "எழுது"

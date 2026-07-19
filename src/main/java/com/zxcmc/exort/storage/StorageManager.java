@@ -1,10 +1,10 @@
 package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.debug.CacheDebugService;
-import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.db.DbItem;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;

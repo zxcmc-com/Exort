@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Path: {0}, {1}"
   wire:
     hard_cap: "Rantai wire terlalu besar: {0}/{1}."
+    item_not_placeable: "Item ini tidak dapat ditempatkan pada kabel."
+  placement:
+    blocked: "Penempatan diblokir di sini."
   bus:
     no_storage: "Tidak ada penyimpanan yang terhubung ke bus ini."
     multiple_storages: "Beberapa penyimpanan terhubung. Sisakan satu saja."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Slot penguat Pemancar Nirkabel telah terisi."
     transmitter_booster_only: "Hanya Penguat Sinyal Nirkabel yang dapat ditempatkan di slot ini."
 debug:
+  value:
+    enabled: "Diaktifkan"
+    disabled: "Dinonaktifkan"
+    none: "Tidak ada"
+    unknown: "Tidak diketahui"
   mode:
     read: "hanya baca"
     write: "tulis"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "נתיבים: {0}, {1}"
   wire:
     hard_cap: "שרשרת החוטים גדולה מדי: {0}/{1}."
+    item_not_placeable: "אי אפשר להציב את הפריט הזה בצמוד לחוט."
+  placement:
+    blocked: "ההצבה חסומה כאן."
   bus:
     no_storage: "אין אחסון מחובר ל-bus הזה."
     multiple_storages: "מחוברים כמה אחסונים. השאר רק אחד."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "חריץ המגביר של המשדר האלחוטי תפוס."
     transmitter_booster_only: "אפשר להניח בחריץ זה רק מגביר אות אלחוטי."
 debug:
+  value:
+    enabled: "מופעל"
+    disabled: "מושבת"
+    none: "ללא"
+    unknown: "לא ידוע"
   mode:
     read: "קריאה בלבד"
     write: "כתיבה"

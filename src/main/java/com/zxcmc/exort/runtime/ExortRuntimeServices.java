@@ -5,6 +5,7 @@ import com.zxcmc.exort.breaking.BreakSoundConfig;
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.culling.DisplayCullingService;
 import com.zxcmc.exort.display.device.BusDisplayManager;
@@ -38,7 +39,7 @@ public record ExortRuntimeServices(
     ChunkLoaderService chunkLoaderService,
     StorageClaimRegistry storageClaimRegistry,
     RelaySetupTracker relaySetupTracker,
-    RuntimeMaterials materials,
+    CarrierMaterials materials,
     Material relayTraversalCarrier,
     int wireLimit,
     int wireHardCap,

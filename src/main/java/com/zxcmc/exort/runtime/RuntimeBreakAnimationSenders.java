@@ -7,6 +7,7 @@ import com.zxcmc.exort.breaking.BreakVisualConfig;
 import com.zxcmc.exort.breaking.CompositeBreakAnimationSender;
 import com.zxcmc.exort.breaking.overlay.BreakingOverlayModelResolver;
 import com.zxcmc.exort.breaking.overlay.DisplayBreakAnimationSender;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.carrier.ChorusPlantVisualState;
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ public final class RuntimeBreakAnimationSenders {
   private RuntimeBreakAnimationSenders() {}
 
   public static BreakAnimationSender create(
-      Plugin plugin, boolean resourceMode, String resourceNamespace, RuntimeMaterials materials) {
+      Plugin plugin, boolean resourceMode, String resourceNamespace, CarrierMaterials materials) {
     BreakVisualConfig visualConfig = BreakVisualConfig.defaults();
     DisplayBreakAnimationSender.clearStaleOverlays();
     if (resourceMode) {

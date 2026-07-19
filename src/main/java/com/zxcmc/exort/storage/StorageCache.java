@@ -1,11 +1,11 @@
 package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.debug.CacheDebugService;
-import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.infra.db.DbItem;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.*;
 import java.util.function.Supplier;
@@ -474,7 +474,7 @@ public class StorageCache {
   }
 
   public synchronized void setDisplayName(String displayName) {
-    String normalized = StorageDisplayName.normalize(displayName);
+    String normalized = StorageNameNormalizer.normalize(displayName);
     if (Objects.equals(this.displayName, normalized)) {
       touch();
       return;
@@ -958,7 +958,11 @@ public class StorageCache {
     return snap;
   }
 
-  public record Snapshot(long version, List<DbItem> items) {}
+  public record Snapshot(long version, List<DbItem> items) {
+    public Snapshot {
+      items = items == null ? List.of() : List.copyOf(items);
+    }
+  }
 
   public synchronized Snapshot snapshotWithVersion() {
     return new Snapshot(version, snapshotItems());
@@ -1252,5 +1256,10 @@ public class StorageCache {
     removedKeys.add(key);
   }
 
-  public record DeltaSnapshot(long version, List<DbItem> upserts, Set<String> removals) {}
+  public record DeltaSnapshot(long version, List<DbItem> upserts, Set<String> removals) {
+    public DeltaSnapshot {
+      upserts = upserts == null ? List.of() : List.copyOf(upserts);
+      removals = removals == null ? Set.of() : Set.copyOf(removals);
+    }
+  }
 }

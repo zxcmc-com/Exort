@@ -203,6 +203,9 @@ message:
   lang_status_paths: "ბილიკები: {0}, {1}"
   wire:
     hard_cap: "კაბელის ჯაჭვი ძალიან დიდია: {0}/{1}."
+    item_not_placeable: "ამ ნივთის მავთულთან განთავსება შეუძლებელია."
+  placement:
+    blocked: "აქ განთავსება დაბლოკილია."
   bus:
     no_storage: "ამ bus-ს საცავი არ უკავშირდება."
     multiple_storages: "რამდენიმე საცავია მიერთებული. დატოვეთ მხოლოდ ერთი."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "უსადენო გადამცემის გამაძლიერებლის სლოტი დაკავებულია."
     transmitter_booster_only: "ამ სლოტში მხოლოდ უსადენო სიგნალის გამაძლიერებლის მოთავსება შეიძლება."
 debug:
+  value:
+    enabled: "ჩართული"
+    disabled: "გამორთული"
+    none: "არცერთი"
+    unknown: "უცნობი"
   mode:
     read: "მხოლოდ წაკითხვა"
     write: "ჩაწერა"

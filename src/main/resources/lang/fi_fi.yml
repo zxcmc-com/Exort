@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Polut: {0}, {1}"
   wire:
     hard_cap: "Kaapeliketju on liian suuri: {0}/{1}."
+    item_not_placeable: "Tätä esinettä ei voi asettaa kaapelia vasten."
+  placement:
+    blocked: "Sijoittaminen on estetty tässä."
   bus:
     no_storage: "Tähän väylään ei ole yhdistetty varastoa."
     multiple_storages: "Useita varastoja yhdistetty. Jätä vain yksi."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Langattoman lähettimen vahvistinpaikka on varattu."
     transmitter_booster_only: "Tähän paikkaan voi asettaa vain langattoman signaalin vahvistimen."
 debug:
+  value:
+    enabled: "Käytössä"
+    disabled: "Pois käytöstä"
+    none: "Ei mitään"
+    unknown: "Tuntematon"
   mode:
     read: "vain luku"
     write: "kirjoitus"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ways: {0}, {1}"
   wire:
     hard_cap: "Cord chain too large: {0}/{1}."
+    item_not_placeable: "This ware may not be laid against a cord."
+  placement:
+    blocked: "Laying is barred here."
   bus:
     no_storage: "No storehouse joined to this coach."
     multiple_storages: "Many storehouses joined. Leave only one."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "The Unseen Beacon's strengthener place is filled."
     transmitter_booster_only: "Only an Unseen Signal Strengthener may be set within this place."
 debug:
+  value:
+    enabled: "Awake"
+    disabled: "Dormant"
+    none: "Naught"
+    unknown: "Unkenned"
   mode:
     read: "read alone"
     write: "scribe"

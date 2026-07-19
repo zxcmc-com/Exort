@@ -7,7 +7,9 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
+import com.zxcmc.exort.wireless.WirelessUnbindPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -832,34 +834,20 @@ public class CraftingSession extends AbstractStorageSession {
     // Custom unbind recipe for wireless terminal inside crafting terminal.
     var ws = manager.wirelessService();
     if (ws != null) {
-      int wirelessCount = 0;
-      ItemStack wirelessItem = null;
-      boolean hasOther = false;
-      for (ItemStack stack : grid) {
-        if (stack == null || stack.getType() == Material.AIR) continue;
-        if (ws.isWireless(stack)) {
-          wirelessCount++;
-          wirelessItem = stack;
-        } else {
-          hasOther = true;
-          break;
+      var unbind = new WirelessUnbindPolicy(ws).plan(grid).orElse(null);
+      if (unbind != null) {
+        ItemStack wirelessItem = unbind.input();
+        if (!cache.hasMatchingWireless(ws, wirelessItem)) {
+          return null;
         }
-      }
-      if (!hasOther && wirelessCount == 1 && wirelessItem != null) {
-        if (ws.currentCharge(wirelessItem) >= 100) { // allow unbind when fully charged
-          if (!cache.hasMatchingWireless(ws, wirelessItem)) {
-            return null;
-          }
-          ItemStack result = ws.resetLinkViaCraft(wirelessItem);
-          ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(wirelessItem);
-          Map<String, Ingredient> ingredients = new HashMap<>();
-          ingredients.put(data.key(), new Ingredient(data.key(), data.sample(), 1));
-          int perCraft = Math.max(1, result.getAmount());
-          ItemStack resultSample = result.clone();
-          resultSample.setAmount(1);
-          return new CraftPlan(
-              resultSample, perCraft, ingredients, Map.of(), 1, ItemKeyUtil.keyFor(result), true);
-        }
+        ItemStack result = unbind.result();
+        ItemKeyUtil.SampleData data = ItemKeyUtil.sampleData(wirelessItem);
+        Map<String, Ingredient> ingredients = new HashMap<>();
+        ingredients.put(data.key(), new Ingredient(data.key(), data.sample(), 1));
+        ItemStack resultSample = result.clone();
+        resultSample.setAmount(1);
+        return new CraftPlan(
+            resultSample, 1, ingredients, Map.of(), 1, ItemKeyUtil.keyFor(result), true);
       }
     }
     Recipe recipe = Bukkit.getCraftingRecipe(matrix, viewer.getWorld());

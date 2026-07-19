@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Rajad: {0}, {1}"
   wire:
     hard_cap: "Kaablikett on liiga suur: {0}/{1}."
+    item_not_placeable: "Seda eset ei saa paigutada kaabli kõrvale."
+  placement:
+    blocked: "Paigutamine on siin blokeeritud."
   bus:
     no_storage: "Selle siiniga pole hoidlat ühendatud."
     multiple_storages: "Ühendatud on mitu hoidlat. Jäta ainult üks."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Juhtmevaba saatja võimendipesa on hõivatud."
     transmitter_booster_only: "Sellesse pessa saab asetada ainult juhtmevaba signaali võimendi."
 debug:
+  value:
+    enabled: "Lubatud"
+    disabled: "Keelatud"
+    none: "Puudub"
+    unknown: "Teadmata"
   mode:
     read: "ainult lugemine"
     write: "kirjutamine"

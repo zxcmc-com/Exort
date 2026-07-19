@@ -3,7 +3,7 @@ package com.zxcmc.exort.wireless.transmitter;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.items.CustomItemClassifier;
-import com.zxcmc.exort.items.CustomItemRegistry;
+import com.zxcmc.exort.items.FixedItemCatalog;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.TransmitterMarker;
@@ -321,6 +321,7 @@ public final class WirelessTransmitterService implements Listener {
             block,
             keys,
             plugin,
+            graphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,
@@ -375,7 +376,7 @@ public final class WirelessTransmitterService implements Listener {
 
   private java.util.Optional<WirelessBoosterTier> wirelessBoosterTier(
       org.bukkit.inventory.ItemStack stack) {
-    if (!CustomItemClassifier.isType(keys, stack, CustomItemRegistry.WIRELESS_BOOSTER.id())) {
+    if (!CustomItemClassifier.isType(keys, stack, FixedItemCatalog.WIRELESS_BOOSTER.id())) {
       return java.util.Optional.empty();
     }
     String raw =

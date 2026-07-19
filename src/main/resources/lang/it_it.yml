@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Percorsi: {0}, {1}"
   wire:
     hard_cap: "La catena di cavi è troppo grande: {0}/{1}."
+    item_not_placeable: "Questo oggetto non può essere posizionato contro un cavo."
+  placement:
+    blocked: "Il posizionamento è bloccato qui."
   bus:
     no_storage: "Nessuno stoccaggio collegato a questo bus."
     multiple_storages: "Sono collegati più stoccaggi. Lasciane solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Lo slot dell'amplificatore del Trasmettitore Wireless è occupato."
     transmitter_booster_only: "In questo slot può essere inserito solo un Amplificatore di Segnale Wireless."
 debug:
+  value:
+    enabled: "Abilitato"
+    disabled: "Disabilitato"
+    none: "Nessuno"
+    unknown: "Sconosciuto"
   mode:
     read: "sola lettura"
     write: "scrittura"

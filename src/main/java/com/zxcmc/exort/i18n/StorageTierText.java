@@ -24,7 +24,7 @@ public final class StorageTierText {
     Component name =
         tier.translationKey()
             .map(key -> lang.itemComponent(clientTranslations, key))
-            .orElseGet(() -> itemText(tier.displayName()));
+            .orElseGet(() -> itemText(tier.fallbackDisplayName()));
     return applyColor(name, tier);
   }
 
@@ -63,7 +63,7 @@ public final class StorageTierText {
   public static String tierNamePlain(Lang lang, String language, StorageTier tier) {
     return tier.translationKey()
         .map(key -> lang.trLanguage(language, key))
-        .orElseGet(tier::displayName);
+        .orElseGet(tier::fallbackDisplayName);
   }
 
   public static String storageLabelWithTier(Lang lang, Player player, StorageTier tier) {

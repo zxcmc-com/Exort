@@ -4,7 +4,9 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageDisplayName;
+import com.zxcmc.exort.storage.StorageNameNormalizer;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.text.ExortText;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -137,7 +139,7 @@ final class StorageGuiControls {
       boolean infoBlocked) {
     List<Component> lore = new ArrayList<>();
     lore.add(StorageTierText.tierLore(lang, lang.pluginTextLanguage(viewer), tier));
-    String displayName = StorageDisplayName.normalize(cache.getDisplayName());
+    String displayName = StorageNameNormalizer.normalize(cache.getDisplayName());
     if (displayName != null) {
       lore.add(text(StorageDisplayName.label(lang, viewer, tier, displayName)));
     }

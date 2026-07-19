@@ -15,6 +15,7 @@ import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -105,7 +106,8 @@ public class SessionManager {
             storageCarrier,
             relayCarrier,
             terminalCarrier,
-            dependencies.regionProtection());
+            dependencies.regionProtection(),
+            dependencies.networkGraphCache());
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();
     this.storageChangeListener = dependencies.storageChangeListener();

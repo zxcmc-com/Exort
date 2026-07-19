@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Pathmey: {0}, {1}"
   wire:
     hard_cap: "Tlhegh tlhegh tInquʼ: {0}/{1}."
+    item_not_placeable: "tlheghDaq Dochvam lanlaHbeʼluʼ."
+  placement:
+    blocked: "naDev lanluʼmeH botluʼ."
   bus:
     no_storage: "lupwIʼvamvaD Dochpol rarluʼbeʼ."
     multiple_storages: "Dochpolmey law' rarlu'. wa' neH yImejQo'moH."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "tlhegh Hutlh labwIʼ HoSwIʼ Daq tebluʼ."
     transmitter_booster_only: "DaqvamDaq tlhegh Hutlh QIn HoSwIʼ neH lanlaHluʼ."
 debug:
+  value:
+    enabled: "chuʼ"
+    disabled: "chuʼHaʼ"
+    none: "pagh"
+    unknown: "Sovbeʼluʼ"
   mode:
     read: "laD neH"
     write: "ghItlh"

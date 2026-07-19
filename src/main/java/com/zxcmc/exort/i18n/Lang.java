@@ -339,6 +339,12 @@ public class Lang {
     Map<String, String> fallback = new LinkedHashMap<>();
     fallback.put("message.no_permission", "No permission.");
     fallback.put("message.operation_failed", "Operation failed. See console.");
+    fallback.put("message.wire.item_not_placeable", "This item cannot be placed against a wire.");
+    fallback.put("message.placement.blocked", "Placement is blocked here.");
+    fallback.put("debug.value.enabled", "Enabled");
+    fallback.put("debug.value.disabled", "Disabled");
+    fallback.put("debug.value.none", "None");
+    fallback.put("debug.value.unknown", "Unknown");
     fallback.put("message.command_click", "Click to insert {0}");
     fallback.put(
         "message.relay_waiting",

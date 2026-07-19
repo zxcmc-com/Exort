@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Юлдар: {0}, {1}"
   wire:
     hard_cap: "Сым сылбыры бик ҙур: {0}/{1}."
+    item_not_placeable: "Был предметты сым янына ҡуйып булмай."
+  placement:
+    blocked: "Был урында ҡуйыу тыйылған."
   bus:
     no_storage: "Был шинаға һаҡлағыс тоташмаған."
     multiple_storages: "Бер нисә һаҡлағыс тоташҡан. Берәү генә ҡалдырығыҙ."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Сымһыҙ тапшырғыстың көсәйткес урыны биләүле."
     transmitter_booster_only: "Был урынға тик сымһыҙ сигнал көсәйткесен ҡуйырға мөмкин."
 debug:
+  value:
+    enabled: "Ҡабынған"
+    disabled: "Һүндерелгән"
+    none: "Юҡ"
+    unknown: "Билдәһеҙ"
   mode:
     read: "тик уҡыу"
     write: "яҙыу"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Жолдор: {0}, {1}"
   wire:
     hard_cap: "Зым чынжыры өтө чоң: {0}/{1}."
+    item_not_placeable: "Бул буюмду зымга жанаша коюуга болбойт."
+  placement:
+    blocked: "Бул жерде жайгаштырууга бөгөт коюлган."
   bus:
     no_storage: "Бул шинага сактагыч туташкан эмес."
     multiple_storages: "Бир нече сактагыч туташкан. Бирөөсүн гана калтырыңыз."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Зымсыз өткөргүчтүн күчөткүч уячасы бош эмес."
     transmitter_booster_only: "Бул уячага зымсыз сигнал күчөткүчүн гана салууга болот."
 debug:
+  value:
+    enabled: "Активдүү"
+    disabled: "Өчүрүлгөн"
+    none: "Жок"
+    unknown: "Белгисиз"
   mode:
     read: "окуу гана"
     write: "жазуу"

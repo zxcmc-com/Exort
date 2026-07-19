@@ -11,12 +11,14 @@ import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.MonitorMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StoredItemCodec;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -48,6 +50,7 @@ public class MonitorListener implements Listener {
   private final IntSupplier wireLimit;
   private final IntSupplier wireHardCap;
   private final IntSupplier relayRangeChunks;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
   private final LongSupplier storagePeekTicks;
   private final Predicate<Block> monitorRecentlyPlaced;
   private final Consumer<Block> monitorDisplayRefresh;
@@ -69,6 +72,7 @@ public class MonitorListener implements Listener {
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
     this.relayRangeChunks = dependencies.relayRangeChunks();
+    this.networkGraphCache = dependencies.networkGraphCache();
     this.storagePeekTicks = dependencies.storagePeekTicks();
     this.monitorRecentlyPlaced = dependencies.monitorRecentlyPlaced();
     this.monitorDisplayRefresh = dependencies.monitorDisplayRefresh();
@@ -86,6 +90,8 @@ public class MonitorListener implements Listener {
 
     if (!regionProtection.canUse(event.getPlayer(), block)) {
       event.setCancelled(true);
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.no_permission");
       return;
     }
 
@@ -110,6 +116,7 @@ public class MonitorListener implements Listener {
               block,
               keys,
               plugin,
+              networkGraphCache.get(),
               wireLimit.getAsInt(),
               wireHardCap.getAsInt(),
               wireMaterial,
@@ -139,6 +146,8 @@ public class MonitorListener implements Listener {
               event.getPlayer(),
               storagePeekTicks.getAsLong());
         }
+      } else {
+        reportLinkFailure(event, link);
       }
       return;
     }
@@ -154,6 +163,7 @@ public class MonitorListener implements Listener {
               block,
               keys,
               plugin,
+              networkGraphCache.get(),
               wireLimit.getAsInt(),
               wireHardCap.getAsInt(),
               wireMaterial,
@@ -167,6 +177,8 @@ public class MonitorListener implements Listener {
             link.data().displayName(),
             event.getPlayer(),
             storagePeekTicks.getAsLong());
+      } else {
+        reportLinkFailure(event, link);
       }
       return;
     }
@@ -199,6 +211,35 @@ public class MonitorListener implements Listener {
 
   private static boolean hasDeniedUse(PlayerInteractEvent event) {
     return event.useInteractedBlock() == Result.DENY || event.useItemInHand() == Result.DENY;
+  }
+
+  private void reportLinkFailure(
+      PlayerInteractEvent event, TerminalLinkFinder.StorageSearchResult result) {
+    switch (result.status()) {
+      case NONE ->
+          playerFeedback.respond(
+              event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.no_storage_adjacent");
+      case MULTIPLE ->
+          playerFeedback.respond(
+              event.getPlayer(),
+              FeedbackReason.INTERACTION_DENIED,
+              "message.multiple_storages_adjacent");
+      case WIRE_LIMIT, HARD_CAP -> {
+        int limit =
+            result.status() == TerminalLinkFinder.StorageSearchStatus.WIRE_LIMIT
+                ? wireLimit.getAsInt()
+                : wireHardCap.getAsInt();
+        playerFeedback.respond(
+            event.getPlayer(),
+            FeedbackReason.NETWORK_TRAVERSAL_LIMIT,
+            "message.wire.hard_cap",
+            limit == Integer.MAX_VALUE ? limit : limit + 1,
+            limit);
+      }
+      case OK -> {
+        // The caller only reports failures.
+      }
+    }
   }
 
   private boolean isMonitor(Block block) {

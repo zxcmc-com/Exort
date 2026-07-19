@@ -203,6 +203,9 @@ message:
   lang_status_paths: "וועגן: {0}, {1}"
   wire:
     hard_cap: "דראָט־קייט איז צו גרויס: {0}/{1}."
+    item_not_placeable: "דעם אייטעם קען מען נישט שטעלן קעגן אַ דראָט."
+  placement:
+    blocked: "פּלאַצירונג איז דאָ געבלאקט."
   bus:
     no_storage: "קיין סטאָרידזש נישט פארבונדן צו דעם בוס."
     multiple_storages: "עטלעכע סטאָרידזשן פארבונדן. לאז נאר איינעם."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "דער פארשטארקער־סלאָט פונעם וויירלאָזן טראַנסמיטער איז פארנומען."
     transmitter_booster_only: "אין דעם סלאָט קען מען לייגן נאר א וויירלאָזן סיגנאַל־פארשטארקער."
 debug:
+  value:
+    enabled: "איינגעשאלטן"
+    disabled: "אויסגעשאלטן"
+    none: "קיינער נישט"
+    unknown: "אומבאקאנט"
   mode:
     read: "נאר לייענען"
     write: "שרייבן"

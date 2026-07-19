@@ -155,25 +155,7 @@ class WirelessTerminalServiceStoredChargeTest {
     RuntimeItemModelConfig itemModels = RuntimeItemModelConfig.forMode(true);
     CustomItems customItems =
         new CustomItems(
-            keys,
-            lang,
-            itemModels.wireItemModel(),
-            itemModels.storageItemModel(),
-            itemModels.terminalItemModel(),
-            itemModels.craftingTerminalItemModel(),
-            itemModels.monitorItemModel(),
-            itemModels.importBusItemModel(),
-            itemModels.exportBusItemModel(),
-            itemModels.relayItemModel(),
-            itemModels.transmitterItemModel(),
-            itemModels.chunkLoaderItemModel(),
-            itemModels.personalChunkLoaderItemModel(),
-            itemModels.dormantChunkLoaderItemModel(),
-            itemModels.wirelessItemModel(),
-            itemModels.wirelessDisabledModel(),
-            "minecraft:target",
-            itemModels.wirelessBoosterItemModels(),
-            true);
+            keys, lang, itemModels.customItemModels(), WirelessRuntimeConfig.defaults(), true);
     return new Harness(keys, new WirelessTerminalService(lang, keys, customItems, true, 48));
   }
 

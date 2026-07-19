@@ -85,6 +85,16 @@ public final class TransmitterSessionManager {
     }
   }
 
+  public void rerender(Player player) {
+    if (player == null) {
+      return;
+    }
+    TransmitterSession session = byPlayer.get(player.getUniqueId());
+    if (session != null) {
+      session.render();
+    }
+  }
+
   Plugin plugin() {
     return plugin;
   }

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Puti: {0}, {1}"
   wire:
     hard_cap: "Cěp provodov jest prěveliky: {0}/{1}."
+    item_not_placeable: "Tuto predmet ne možno položiti pri provodu."
+  placement:
+    blocked: "Razměščenje tuto jest blokovano."
   bus:
     no_storage: "K tutomu busu nije povezany sklad."
     multiple_storages: "Povezano mnogo skladov. Ostavte samo jedin."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Město usilitelja bezdråtovogo prědavnika jest zajęto."
     transmitter_booster_only: "V tuto město možno vložiti jedino usilitelj bezdråtovogo signala."
 debug:
+  value:
+    enabled: "Vključeno"
+    disabled: "Izključeno"
+    none: "Ničto"
+    unknown: "Neznano"
   mode:
     read: "samo čitanje"
     write: "zapis"

@@ -2,8 +2,8 @@ package com.zxcmc.exort.i18n;
 
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItemClassifier;
-import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItemText;
+import com.zxcmc.exort.items.FixedItemCatalog;
 import com.zxcmc.exort.items.StorageItemNameEditor;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -95,7 +95,7 @@ public final class ExortItemLocalizationService {
               localizeWireless(meta, localizedPdc, language, resolveOfflineOwner);
           case "wireless_booster" -> localizeWirelessBooster(meta, localizedPdc, language);
           default ->
-              CustomItemRegistry.fixedItem(type)
+              FixedItemCatalog.fixedItem(type)
                   .map(identity -> localizeName(meta, language, identity.translationKey()))
                   .orElse(false);
         };

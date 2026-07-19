@@ -20,10 +20,10 @@ class StorageDisplayNameTest {
 
   @Test
   void normalizesStorageDisplayNames() {
-    assertEquals("Main Vault", StorageDisplayName.normalize("  Main Vault  "));
-    assertEquals("MainVault", StorageDisplayName.normalize("Main\u0000\u001fVault"));
-    assertNull(StorageDisplayName.normalize(" \n\t "));
-    assertEquals("A".repeat(64), StorageDisplayName.normalize("A".repeat(80)));
+    assertEquals("Main Vault", StorageNameNormalizer.normalize("  Main Vault  "));
+    assertEquals("MainVault", StorageNameNormalizer.normalize("Main\u0000\u001fVault"));
+    assertNull(StorageNameNormalizer.normalize(" \n\t "));
+    assertEquals("A".repeat(64), StorageNameNormalizer.normalize("A".repeat(80)));
   }
 
   @Test
@@ -47,9 +47,10 @@ class StorageDisplayNameTest {
     lang.load("ru_ru");
 
     assertEquals(
-        "Main Vault", StorageDisplayName.normalizeAnvilInput(lang, "Хранилище: Main Vault"));
-    assertEquals("Main Vault", StorageDisplayName.normalizeAnvilInput(lang, "Storage: Main Vault"));
-    assertNull(StorageDisplayName.normalizeAnvilInput(lang, "Хранилище:   "));
+        "Main Vault", StorageNameNormalizer.normalizeAnvilInput(lang, "Хранилище: Main Vault"));
+    assertEquals(
+        "Main Vault", StorageNameNormalizer.normalizeAnvilInput(lang, "Storage: Main Vault"));
+    assertNull(StorageNameNormalizer.normalizeAnvilInput(lang, "Хранилище:   "));
   }
 
   @Test

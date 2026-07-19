@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Poti: {0}, {1}"
   wire:
     hard_cap: "Veriga kablov je prevelika: {0}/{1}."
+    item_not_placeable: "Tega predmeta ni mogoče postaviti ob kabel."
+  placement:
+    blocked: "Postavljanje je tukaj blokirano."
   bus:
     no_storage: "Na to vodilo ni povezana nobena shramba."
     multiple_storages: "Povezanih je več shramb. Pustite samo eno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Reža za ojačevalnik brezžičnega oddajnika je zasedena."
     transmitter_booster_only: "V to režo je mogoče vstaviti samo ojačevalnik brezžičnega signala."
 debug:
+  value:
+    enabled: "Omogočeno"
+    disabled: "Onemogočeno"
+    none: "Brez"
+    unknown: "Neznano"
   mode:
     read: "samo za branje"
     write: "pisanje"

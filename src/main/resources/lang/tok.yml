@@ -203,6 +203,9 @@ message:
   lang_status_paths: "nasin file: {0}, {1}"
   wire:
     hard_cap: "Linja linja li suli mute: {0}/{1}."
+    item_not_placeable: "ijo ni li ken ala lon poka linja."
+  placement:
+    blocked: "ijo li ken ala kama lon ni."
   bus:
     no_storage: "linja tawa ni li jo ala e poki."
     multiple_storages: "poki mute li lon linja tawa ni. o awen e poki wan taso."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "ma pi ilo wawa lon ilo pana pi linja ala li jo e ijo."
     transmitter_booster_only: "ilo pi wawa sin pi toki kon taso li ken lon ma ni."
 debug:
+  value:
+    enabled: "open"
+    disabled: "pini"
+    none: "ala"
+    unknown: "sona ala"
   mode:
     read: "lukin taso"
     write: "sitelen"

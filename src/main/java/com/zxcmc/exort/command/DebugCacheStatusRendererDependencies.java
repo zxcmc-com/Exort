@@ -2,6 +2,7 @@ package com.zxcmc.exort.command;
 
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
 import java.util.function.IntSupplier;
@@ -21,7 +22,8 @@ record DebugCacheStatusRendererDependencies(
     IntSupplier relayRangeChunks,
     Supplier<Material> wireMaterial,
     Supplier<Material> storageCarrier,
-    Supplier<Material> relayCarrier) {
+    Supplier<Material> relayCarrier,
+    Supplier<NetworkGraphCache> networkGraphCache) {
   DebugCacheStatusRendererDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(lang, "lang");
@@ -34,5 +36,6 @@ record DebugCacheStatusRendererDependencies(
     Objects.requireNonNull(wireMaterial, "wireMaterial");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
+    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
   }
 }

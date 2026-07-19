@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Pathoj: {0}, {1}"
   wire:
     hard_cap: "Kablo kedja för stor: {0}/{1}."
+    item_not_placeable: "Denna itemo kan nai läggas mot un kablo."
+  placement:
+    blocked: "Placering är blockad här."
   bus:
     no_storage: "Nai stokado konekta til denna bus."
     multiple_storages: "Mange stokadoj ar konekta. Lata bara un vara."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Förstärkar-plats i Sändare sen Drato ar upptagen."
     transmitter_booster_only: "Solo un Signalförstärkare sen Drato kan läggas i denna plats."
 debug:
+  value:
+    enabled: "Aktiv"
+    disabled: "Off"
+    none: "Nada"
+    unknown: "Nekent"
   mode:
     read: "nur read"
     write: "skriv"

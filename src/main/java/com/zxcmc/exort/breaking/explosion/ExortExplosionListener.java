@@ -1,7 +1,7 @@
 package com.zxcmc.exort.breaking.explosion;
 
 import com.zxcmc.exort.breaking.BlockBreakHandler;
-import com.zxcmc.exort.runtime.RuntimeMaterials;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,14 +37,14 @@ public final class ExortExplosionListener implements Listener {
       };
 
   public ExortExplosionListener(
-      JavaPlugin plugin, RuntimeMaterials materials, BlockBreakHandler breakHandler) {
+      JavaPlugin plugin, CarrierMaterials materials, BlockBreakHandler breakHandler) {
     this(plugin, plugin.getConfig(), materials, breakHandler);
   }
 
   public ExortExplosionListener(
       JavaPlugin plugin,
       FileConfiguration config,
-      RuntimeMaterials materials,
+      CarrierMaterials materials,
       BlockBreakHandler breakHandler) {
     this(plugin, config, materials, block -> breakHandler.handleBreak(null, block, false));
     Objects.requireNonNull(breakHandler, "breakHandler");
@@ -53,7 +53,7 @@ public final class ExortExplosionListener implements Listener {
   ExortExplosionListener(
       Plugin plugin,
       FileConfiguration config,
-      RuntimeMaterials materials,
+      CarrierMaterials materials,
       Function<Block, BlockBreakHandler.BreakResult> breaker) {
     this(
         new ExortExplosionResolver(

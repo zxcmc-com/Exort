@@ -3,7 +3,7 @@ package com.zxcmc.exort.storage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.zxcmc.exort.gui.SortMode;
+import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

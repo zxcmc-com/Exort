@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Weeër: {0}, {1}"
   wire:
     hard_cap: "Kabelkette ass ze grouss: {0}/{1}."
+    item_not_placeable: "Dësen Item kann net un engem Kabel placéiert ginn."
+  placement:
+    blocked: "D'Placéieren ass hei blockéiert."
   bus:
     no_storage: "Kee Späicher mat dësem Bus verbonnen."
     multiple_storages: "Méi Späicher verbonnen. Looss just een."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "D'Verstäerkerplaz vum Funksender ass besat."
     transmitter_booster_only: "Nëmmen e Funksignalverstäerker kann op dës Plaz geluecht ginn."
 debug:
+  value:
+    enabled: "Ugeschalt"
+    disabled: "Ausgeschalt"
+    none: "Keen"
+    unknown: "Onbekannt"
   mode:
     read: "nëmme liesen"
     write: "schreiwen"

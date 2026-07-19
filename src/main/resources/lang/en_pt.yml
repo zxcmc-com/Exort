@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Charts: {0}, {1}"
   wire:
     hard_cap: "Line chain too large: {0}/{1}."
+    item_not_placeable: "This booty can't be set against a line."
+  placement:
+    blocked: "Placin' be barred here."
   bus:
     no_storage: "No cargo hold lashed to this skiff."
     multiple_storages: "Many cargo holds lashed. Leave only one."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "The Wireless Signal Mast's booster berth be occupied."
     transmitter_booster_only: "Only a Wireless Signal Booster may be stowed in this berth."
 debug:
+  value:
+    enabled: "Sails up"
+    disabled: "Dead in water"
+    none: "Naught"
+    unknown: "Strange"
   mode:
     read: "look-only"
     write: "write aboard"

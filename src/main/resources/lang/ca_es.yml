@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Camins: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
+    item_not_placeable: "Aquest objecte no es pot col·locar contra un cable."
+  placement:
+    blocked: "La col·locació està bloquejada aquí."
   bus:
     no_storage: "No hay almacenamiento conectado a este bus."
     multiple_storages: "Hay varios almacenamientos conectados. Deja solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "La ranura de l'amplificador del Transmissor Sense Fil està ocupada."
     transmitter_booster_only: "En aquesta ranura només s'hi pot posar un Amplificador de Senyal Sense Fil."
 debug:
+  value:
+    enabled: "Activat"
+    disabled: "Desactivat"
+    none: "Cap"
+    unknown: "Desconegut"
   mode:
     read: "només lectura"
     write: "escriptura"

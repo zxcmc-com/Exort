@@ -1,9 +1,9 @@
-package com.zxcmc.exort.integration.worldedit;
+package com.zxcmc.exort.carrier;
 
 import java.util.Objects;
 import org.bukkit.Material;
 
-public record WorldEditBridgeMaterials(
+public record CarrierMaterials(
     Material wire,
     Material storageCarrier,
     Material terminalCarrier,
@@ -12,7 +12,7 @@ public record WorldEditBridgeMaterials(
     Material relayCarrier,
     Material transmitterCarrier,
     Material chunkLoaderCarrier) {
-  public WorldEditBridgeMaterials {
+  public CarrierMaterials {
     Objects.requireNonNull(wire, "wire");
     Objects.requireNonNull(storageCarrier, "storageCarrier");
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");

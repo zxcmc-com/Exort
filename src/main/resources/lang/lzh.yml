@@ -203,6 +203,9 @@ message:
   lang_status_paths: "路徑：{0}, {1}"
   wire:
     hard_cap: "線鏈過大：{0}/{1}。"
+    item_not_placeable: "此物不可倚線而置。"
+  placement:
+    blocked: "此處禁置。"
   bus:
     no_storage: "此 bus 未連儲藏。"
     multiple_storages: "多儲藏相連。唯留其一。"
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "無線發射器之增幅槽已滿。"
     transmitter_booster_only: "此槽唯容無線訊號增幅器。"
 debug:
+  value:
+    enabled: "啟用"
+    disabled: "停用"
+    none: "無"
+    unknown: "未知"
   mode:
     read: "唯讀"
     write: "寫入"

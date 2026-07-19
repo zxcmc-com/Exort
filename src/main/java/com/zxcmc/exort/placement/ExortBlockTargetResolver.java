@@ -1,7 +1,7 @@
 package com.zxcmc.exort.placement;
 
 import com.zxcmc.exort.block.ExortBlockClassifier;
-import com.zxcmc.exort.runtime.RuntimeMaterials;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
@@ -22,7 +22,7 @@ public final class ExortBlockTargetResolver {
     this.classifier =
         new ExortBlockClassifier(
             plugin,
-            new RuntimeMaterials(
+            new CarrierMaterials(
                 wireMaterial,
                 storageCarrier,
                 terminalCarrier,

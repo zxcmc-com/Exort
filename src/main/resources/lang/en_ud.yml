@@ -203,6 +203,9 @@ message:
   lang_status_paths: " :sɥʇɐԀ{0} ‚{1}"
   wire:
     hard_cap: " :ǝƃɹɐl ooʇ sᴉ uᴉɐɥɔ ǝɹᴉM{0}/{1}˙"
+    item_not_placeable: "˙ǝɹᴉʍ ɐ ʇsuᴉɐƃɐ pǝɔɐld ǝq ʇouuɐɔ ɯǝʇᴉ sᴉɥ⊥"
+  placement:
+    blocked: "˙ǝɹǝɥ pǝʞɔolq sᴉ ʇuǝɯǝɔɐlԀ"
   bus:
     no_storage: "˙snq sᴉɥʇ oʇ pǝʇɔǝuuoɔ ǝƃɐɹoʇs oN"
     multiple_storages: "˙ǝuo ʎluo ǝʌɐǝ⅂ ˙pǝʇɔǝuuoɔ sǝƃɐɹoʇs ǝldᴉʇlnW"
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "˙pǝᴉdnɔɔo sᴉ ʇols ɹǝʇsooq ɹǝʇʇᴉɯsuɐɹ⊥ ssǝlǝɹᴉM"
     transmitter_booster_only: "˙ʇols sᴉɥʇ uᴉ pǝɔɐld ǝq uɐɔ ɹǝʇsoo𐐒 lɐuƃᴉS ssǝlǝɹᴉM ɐ ʎluO"
 debug:
+  value:
+    enabled: "pǝlqɐuƎ"
+    disabled: "pǝlqɐsᴉ◖"
+    none: "ǝuoN"
+    unknown: "uʍouʞu∩"
   mode:
     read: "ʎluo-pɐǝɹ"
     write: "ǝʇᴉɹʍ"

@@ -5,6 +5,7 @@ import com.zxcmc.exort.breaking.BlockBreakHandlerDependencies;
 import com.zxcmc.exort.breaking.BreakConfig;
 import com.zxcmc.exort.breaking.BreakSoundConfig;
 import com.zxcmc.exort.breaking.CustomBlockBreaker;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 
@@ -12,7 +13,7 @@ public final class RuntimeBreakingServicesFactory {
   private RuntimeBreakingServicesFactory() {}
 
   public static RuntimeBreakingServices create(RuntimeBreakingServicesDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     BlockBreakHandler breakHandler =
         new BlockBreakHandler(
             new BlockBreakHandlerDependencies(

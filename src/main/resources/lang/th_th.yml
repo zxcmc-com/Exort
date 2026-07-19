@@ -203,6 +203,9 @@ message:
   lang_status_paths: "พาธ: {0}, {1}"
   wire:
     hard_cap: "โซ่สายใหญ่เกินไป: {0}/{1}"
+    item_not_placeable: "ไม่สามารถวางไอเทมนี้ชิดกับสายได้"
+  placement:
+    blocked: "บริเวณนี้ถูกห้ามวาง"
   bus:
     no_storage: "ไม่มีคลังเชื่อมต่อกับบัสนี้"
     multiple_storages: "มีคลังหลายอันเชื่อมต่ออยู่ เหลือไว้เพียงอันเดียว"
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "ช่องตัวเพิ่มของเครื่องส่งสัญญาณไร้สายถูกใช้งานอยู่"
     transmitter_booster_only: "ช่องนี้ใส่ได้เฉพาะตัวเพิ่มสัญญาณไร้สายเท่านั้น"
 debug:
+  value:
+    enabled: "เปิดใช้งาน"
+    disabled: "ปิดใช้งาน"
+    none: "ไม่มี"
+    unknown: "ไม่ทราบ"
   mode:
     read: "อ่านอย่างเดียว"
     write: "เขียน"

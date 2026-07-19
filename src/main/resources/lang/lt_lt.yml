@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Keliai: {0}, {1}"
   wire:
     hard_cap: "Kabelių grandinė per didelė: {0}/{1}."
+    item_not_placeable: "Šio daikto negalima padėti prie kabelio."
+  placement:
+    blocked: "Čia statyti negalima."
   bus:
     no_storage: "Prie šios šinos neprijungta saugykla."
     multiple_storages: "Prijungtos kelios saugyklos. Palikite tik vieną."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Belaidžio siųstuvo stiprintuvo lizdas užimtas."
     transmitter_booster_only: "Į šį lizdą galima įdėti tik belaidžio signalo stiprintuvą."
 debug:
+  value:
+    enabled: "Įjungta"
+    disabled: "Išjungta"
+    none: "Nėra"
+    unknown: "Nežinoma"
   mode:
     read: "tik skaitymas"
     write: "rašymas"

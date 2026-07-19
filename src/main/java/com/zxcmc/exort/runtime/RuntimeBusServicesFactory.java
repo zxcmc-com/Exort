@@ -4,13 +4,14 @@ import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionDependencies;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.bus.engine.BusEngineDependencies;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import org.bukkit.Bukkit;
 
 public final class RuntimeBusServicesFactory {
   private RuntimeBusServicesFactory() {}
 
   public static RuntimeBusServices create(RuntimeBusServicesDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     var busDependencies =
         new BusEngineDependencies(
             deps.plugin(),
@@ -21,6 +22,7 @@ public final class RuntimeBusServicesFactory {
             materials.wire(),
             materials.storageCarrier(),
             deps.relayTraversalCarrier(),
+            deps.networkGraphCache(),
             deps.renderStorage());
     BusService busService =
         new BusService(
@@ -46,6 +48,7 @@ public final class RuntimeBusServicesFactory {
             materials.wire(),
             materials.storageCarrier(),
             deps.relayTraversalCarrier(),
+            deps.networkGraphCache(),
             deps.guiRuntimeConfig(),
             deps.guiOverlayConfig(),
             deps.itemNameService());

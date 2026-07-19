@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Stigar: {0}, {1}"
   wire:
     hard_cap: "Leidningskjeda er for stor: {0}/{1}."
+    item_not_placeable: "Denne tingen kan ikkje setjast attmed ei leidning."
+  placement:
+    blocked: "Plassering er sperra her."
   bus:
     no_storage: "Inkje lager kopla til denne bussen."
     multiple_storages: "Fleire lager kopla. Lat berre eitt stå att."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Styrkjarplassen i den trådlause sendaren er oppteken."
     transmitter_booster_only: "Berre ein trådlaus signalstyrkjar kan setjast på denne plassen."
 debug:
+  value:
+    enabled: "På"
+    disabled: "Av"
+    none: "Inkje"
+    unknown: "Ukjent"
   mode:
     read: "berre lesing"
     write: "skriving"

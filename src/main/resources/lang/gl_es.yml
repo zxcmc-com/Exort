@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Rutas: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
+    item_not_placeable: "Este obxecto non se pode colocar contra un cable."
+  placement:
+    blocked: "A colocación está bloqueada aquí."
   bus:
     no_storage: "No hay almacenamiento conectado a este bus."
     multiple_storages: "Hay varios almacenamientos conectados. Deja solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "A rañura do amplificador do Transmisor Sen Fíos está ocupada."
     transmitter_booster_only: "Nesta rañura só se pode colocar un Amplificador de Sinal Sen Fíos."
 debug:
+  value:
+    enabled: "Activado"
+    disabled: "Desactivado"
+    none: "Ningún"
+    unknown: "Descoñecido"
   mode:
     read: "solo lectura"
     write: "escritura"

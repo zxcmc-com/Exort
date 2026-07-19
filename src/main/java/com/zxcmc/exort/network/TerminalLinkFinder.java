@@ -80,6 +80,7 @@ public final class TerminalLinkFinder {
       Block terminal,
       StorageKeys keys,
       Plugin plugin,
+      NetworkGraphCache cache,
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
@@ -93,6 +94,7 @@ public final class TerminalLinkFinder {
                 terminal,
                 keys,
                 plugin,
+                cache,
                 wireLimit,
                 wireHardCap,
                 wireMaterial,
@@ -101,42 +103,28 @@ public final class TerminalLinkFinder {
                 relayRangeChunks));
   }
 
-  public static StorageSearchResult find(
-      Block terminal,
-      StorageKeys keys,
-      Plugin plugin,
-      int wireLimit,
-      int wireHardCap,
-      Material wireMaterial,
-      Material storageCarrier) {
-    return find(
-        terminal, keys, plugin, wireLimit, wireHardCap, wireMaterial, storageCarrier, null, 0);
-  }
-
   private static StorageSearchResult findInternal(
       Block terminal,
       StorageKeys keys,
       Plugin plugin,
+      NetworkGraphCache cache,
       int wireLimit,
       int wireHardCap,
       Material wireMaterial,
       Material storageCarrier,
       Material relayCarrier,
       int relayRangeChunks) {
-    if (plugin instanceof NetworkGraphCacheProvider provider) {
-      var cache = provider.getNetworkGraphCache();
-      if (cache != null) {
-        return cache.find(
-            terminal,
-            keys,
-            plugin,
-            wireLimit,
-            wireHardCap,
-            wireMaterial,
-            storageCarrier,
-            relayCarrier,
-            relayRangeChunks);
-      }
+    if (cache != null) {
+      return cache.find(
+          terminal,
+          keys,
+          plugin,
+          wireLimit,
+          wireHardCap,
+          wireMaterial,
+          storageCarrier,
+          relayCarrier,
+          relayRangeChunks);
     }
     return NetworkGraphCache.scan(
         terminal,

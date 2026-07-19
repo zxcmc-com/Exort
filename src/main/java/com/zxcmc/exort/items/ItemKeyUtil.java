@@ -2,12 +2,28 @@ package com.zxcmc.exort.items;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import org.bukkit.inventory.ItemStack;
 
 public final class ItemKeyUtil {
   private ItemKeyUtil() {}
 
-  public record SampleData(ItemStack sample, byte[] bytes, String key) {}
+  public record SampleData(ItemStack sample, byte[] bytes, String key) {
+    public SampleData {
+      sample = cloneSample(sample);
+      bytes = bytes == null ? null : Arrays.copyOf(bytes, bytes.length);
+    }
+
+    @Override
+    public ItemStack sample() {
+      return cloneSample(sample);
+    }
+
+    @Override
+    public byte[] bytes() {
+      return bytes == null ? null : Arrays.copyOf(bytes, bytes.length);
+    }
+  }
 
   private static final ThreadLocal<MessageDigest> SHA256 =
       ThreadLocal.withInitial(

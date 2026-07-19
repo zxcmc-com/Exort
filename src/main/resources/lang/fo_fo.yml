@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Leiðir: {0}, {1}"
   wire:
     hard_cap: "Leiðingarketan er ov stór: {0}/{1}."
+    item_not_placeable: "Hetta tingið kann ikki setast móti einari leiðing."
+  placement:
+    blocked: "Plasering er forðað her."
   bus:
     no_storage: "Eingin goymsla knýtt at hesum bussi."
     multiple_storages: "Fleiri goymslur knýttar. Lat bert eina vera."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Styrkjaraplássið hjá tráðleysa sendaranum er upptikið."
     transmitter_booster_only: "Bara ein Tráðleysur Signalstyrkjari kann setast í hetta plássið."
 debug:
+  value:
+    enabled: "Virkið"
+    disabled: "Óvirkið"
+    none: "Einki"
+    unknown: "Ókent"
   mode:
     read: "bert lesa"
     write: "skriva"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Pathz: {0}, {1}"
   wire:
     hard_cap: "String chainz too bigz: {0}/{1}."
+    item_not_placeable: "Dis thingy no can placez gainst string."
+  placement:
+    blocked: "Placin blocked heer."
   bus:
     no_storage: "No stash linky to this bus."
     multiple_storages: "Many stashes linky. Leave only one."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "No-Wire Sendr boostr slot iz fullz."
     transmitter_booster_only: "Onlee No-Wire Signal Boostr fitz in dis slot."
 debug:
+  value:
+    enabled: "Onz"
+    disabled: "Offz"
+    none: "Nonez"
+    unknown: "No idea wut"
   mode:
     read: "read-onlyz"
     write: "writez"

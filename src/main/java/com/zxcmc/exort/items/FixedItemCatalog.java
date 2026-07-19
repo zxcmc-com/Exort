@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public final class CustomItemRegistry {
+public final class FixedItemCatalog {
   public static final CustomItemIdentity STORAGE_CORE =
       new CustomItemIdentity("storage_core", "item.storage_core");
   public static final CustomItemIdentity TERMINAL =
@@ -55,7 +55,7 @@ public final class CustomItemRegistry {
       FIXED_ITEMS.stream()
           .collect(Collectors.toUnmodifiableMap(CustomItemIdentity::id, Function.identity()));
 
-  private CustomItemRegistry() {}
+  private FixedItemCatalog() {}
 
   public static List<CustomItemIdentity> fixedItems() {
     return FIXED_ITEMS;

@@ -2,19 +2,18 @@ package com.zxcmc.exort.wire.listener;
 
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.FeedbackReason;
+import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
 import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Queue;
-import java.util.Set;
+import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.network.TerminalLinkFinder;
+import java.util.function.Supplier;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -26,38 +25,37 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class WireListener implements Listener {
-  private static final BlockFace[] FACES =
-      new BlockFace[] {
-        BlockFace.UP,
-        BlockFace.DOWN,
-        BlockFace.NORTH,
-        BlockFace.SOUTH,
-        BlockFace.EAST,
-        BlockFace.WEST
-      };
   private final int wireLimit;
   private final int wireHardCap;
   private final JavaPlugin plugin;
   private final RegionProtection regionProtection;
   private final WorldEditWandGuard worldEditWandGuard;
   private final BossBarManager bossBarManager;
+  private final PlayerFeedback playerFeedback;
   private final StorageKeys keys;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
   private final long peekDurationTicks;
 
   private final Material wireMaterial;
   private final Material storageCarrier;
+  private final Material relayCarrier;
+  private final int relayRangeChunks;
 
   public WireListener(WireListenerDependencies dependencies) {
     this.plugin = dependencies.plugin();
     this.regionProtection = dependencies.regionProtection();
     this.worldEditWandGuard = dependencies.worldEditWandGuard();
     this.bossBarManager = dependencies.bossBarManager();
+    this.playerFeedback = dependencies.playerFeedback();
     this.keys = dependencies.keys();
+    this.networkGraphCache = dependencies.networkGraphCache();
     this.wireLimit = dependencies.wireLimit();
     this.wireHardCap = dependencies.wireHardCap();
     this.wireMaterial = dependencies.wireMaterial();
     this.peekDurationTicks = dependencies.peekDurationTicks();
     this.storageCarrier = dependencies.storageCarrier();
+    this.relayCarrier = dependencies.relayCarrier();
+    this.relayRangeChunks = dependencies.relayRangeChunks();
   }
 
   @EventHandler(ignoreCancelled = true)
@@ -70,24 +68,37 @@ public class WireListener implements Listener {
     if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
     if (!regionProtection.canInteract(event.getPlayer(), block)) {
       event.setCancelled(true);
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.no_permission");
       return;
     }
 
-    NetworkInfo info = exploreNetwork(block);
-    if (info.tooLongHardCap()) return;
+    NetworkGraphCache.Inspection info = inspectNetwork(block);
+    if (info.storage().status() == TerminalLinkFinder.StorageSearchStatus.HARD_CAP) {
+      event.setCancelled(true);
+      playerFeedback.respond(
+          event.getPlayer(),
+          FeedbackReason.NETWORK_TRAVERSAL_LIMIT,
+          "message.wire.hard_cap",
+          info.nodes(),
+          wireHardCap);
+      return;
+    }
 
     boolean tooLong = info.wires() > wireLimit;
     bossBarManager.showWireStatus(
         info.wires(),
         wireLimit,
         tooLong,
-        info.storageConnected(),
+        info.storage().connected(),
         event.getPlayer(),
         peekDurationTicks);
     event.setUseInteractedBlock(Result.DENY);
     event.setUseItemInHand(Result.DENY);
     if (!allowPlacement(event.getItem())) {
       event.setCancelled(true);
+      playerFeedback.respond(
+          event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.wire.item_not_placeable");
     }
   }
 
@@ -101,56 +112,41 @@ public class WireListener implements Listener {
     }
   }
 
-  private NetworkInfo exploreNetwork(Block start) {
-    Queue<Block> queue = new ArrayDeque<>();
-    Set<Block> visited = new HashSet<>();
-    queue.add(start);
-    visited.add(start);
-    boolean storageConnected = false;
-
-    while (!queue.isEmpty()) {
-      Block current = queue.poll();
-      for (var face : FACES) {
-        Block next = current.getRelative(face);
-        if (visited.contains(next)) continue;
-        if (!isChunkLoaded(next)) continue;
-        if (isWire(next)) {
-          visited.add(next);
-          queue.add(next);
-          if (visited.size() > wireHardCap) {
-            return new NetworkInfo(visited.size(), storageConnected, true);
-          }
-        } else if (isStorage(next)) {
-          storageConnected = true;
-        }
-      }
+  private NetworkGraphCache.Inspection inspectNetwork(Block start) {
+    NetworkGraphCache current = networkGraphCache.get();
+    if (current != null) {
+      return current.inspect(
+          start,
+          keys,
+          plugin,
+          wireLimit,
+          wireHardCap,
+          wireMaterial,
+          storageCarrier,
+          relayCarrier,
+          relayRangeChunks);
     }
-    return new NetworkInfo(visited.size(), storageConnected, false);
-  }
-
-  private boolean isWire(Block block) {
-    return Carriers.matchesCarrier(block, wireMaterial) && WireMarker.isWire(plugin, block);
-  }
-
-  private boolean isStorage(Block block) {
-    return Carriers.matchesCarrier(block, storageCarrier)
-        && StorageMarker.get(plugin, block).isPresent();
-  }
-
-  private boolean isChunkLoaded(Block block) {
-    return block != null
-        && block.getWorld() != null
-        && block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4);
+    return NetworkGraphCache.inspectLoaded(
+        start,
+        keys,
+        plugin,
+        wireLimit,
+        wireHardCap,
+        wireMaterial,
+        storageCarrier,
+        relayCarrier,
+        relayRangeChunks);
   }
 
   private boolean allowPlacement(ItemStack item) {
     return CustomItemClassifier.isType(keys, item, "wire")
         || CustomItemClassifier.isType(keys, item, "terminal")
+        || CustomItemClassifier.isType(keys, item, "crafting_terminal")
         || CustomItemClassifier.isType(keys, item, "storage")
         || CustomItemClassifier.isType(keys, item, "monitor")
         || CustomItemClassifier.isType(keys, item, "import_bus")
-        || CustomItemClassifier.isType(keys, item, "export_bus");
+        || CustomItemClassifier.isType(keys, item, "export_bus")
+        || CustomItemClassifier.isType(keys, item, "relay")
+        || CustomItemClassifier.isType(keys, item, "transmitter");
   }
-
-  private record NetworkInfo(int wires, boolean storageConnected, boolean tooLongHardCap) {}
 }

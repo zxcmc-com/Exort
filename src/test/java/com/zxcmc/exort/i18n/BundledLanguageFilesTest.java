@@ -34,6 +34,12 @@ class BundledLanguageFilesTest {
           "message.chunk_loader_limit_reached",
           "message.pack_status.self_host_listener",
           "message.pack_status.self_host_requests",
+          "message.wire.item_not_placeable",
+          "message.placement.blocked",
+          "debug.value.enabled",
+          "debug.value.disabled",
+          "debug.value.none",
+          "debug.value.unknown",
           "message.wireless.transmitter_inactive",
           "message.wireless.no_terminal_in_hand",
           "message.wireless.transmitter_slot_occupied",
@@ -152,6 +158,7 @@ class BundledLanguageFilesTest {
   void allBundledRuntimeLanguageFilesMatchEnglishKeysAndPlaceholders() throws IOException {
     Map<String, String> english = readRuntimeLang("en_us");
     Set<String> expectedKeys = english.keySet();
+    assertEquals(360, expectedKeys.size(), "en_us must contain exactly 360 language keys");
 
     for (String locale : checkedLocales()) {
       Map<String, String> localized = readRuntimeLang(locale);
@@ -161,6 +168,38 @@ class BundledLanguageFilesTest {
             placeholders(english.get(key)),
             placeholders(localized.get(key)),
             locale + " has mismatched placeholders for " + key);
+      }
+    }
+  }
+
+  @Test
+  void bundledRuntimeLanguageFilesDoNotContainDuplicateYamlPaths() throws IOException {
+    for (String locale : checkedLocales()) {
+      Path path = RUNTIME_LANG_DIR.resolve(locale + ".yml");
+      Set<String> paths = new LinkedHashSet<>();
+      List<String> parents = new ArrayList<>();
+      List<Integer> indents = new ArrayList<>();
+      for (String raw : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+        if (raw.isBlank() || raw.stripLeading().startsWith("#")) {
+          continue;
+        }
+        int indent = raw.length() - raw.stripLeading().length();
+        String content = raw.substring(indent);
+        int separator = content.indexOf(':');
+        if (separator <= 0) {
+          continue;
+        }
+        String key = content.substring(0, separator).trim();
+        while (!indents.isEmpty() && indents.get(indents.size() - 1) >= indent) {
+          indents.remove(indents.size() - 1);
+          parents.remove(parents.size() - 1);
+        }
+        String pathKey = String.join(".", parents) + (parents.isEmpty() ? "" : ".") + key;
+        assertTrue(paths.add(pathKey), locale + " contains duplicate YAML path " + pathKey);
+        if (content.substring(separator + 1).isBlank()) {
+          parents.add(key);
+          indents.add(indent);
+        }
       }
     }
   }

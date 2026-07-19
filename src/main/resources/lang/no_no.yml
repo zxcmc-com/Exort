@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Stier: {0}, {1}"
   wire:
     hard_cap: "Kabelkjeden er for stor: {0}/{1}."
+    item_not_placeable: "Denne gjenstanden kan ikke plasseres inntil en kabel."
+  placement:
+    blocked: "Plassering er blokkert her."
   bus:
     no_storage: "Ingen lager koblet til denne bussen."
     multiple_storages: "Flere lagre tilkoblet. La bare ett stå igjen."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Forsterkerplassen til den Trådløse Senderen er opptatt."
     transmitter_booster_only: "Bare en Trådløs Signalforsterker kan plasseres her."
 debug:
+  value:
+    enabled: "Slått på"
+    disabled: "Slått av"
+    none: "Ingen"
+    unknown: "Ukjent"
   mode:
     read: "skrivebeskyttet"
     write: "skrive"

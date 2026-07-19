@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Mogħdijiet: {0}, {1}"
   wire:
     hard_cap: "Il-katina tal-wajer hija kbira wisq: {0}/{1}."
+    item_not_placeable: "Dan l-oġġett ma jistax jitqiegħed maġenb wajer."
+  placement:
+    blocked: "It-tqegħid huwa mblukkat hawn."
   bus:
     no_storage: "M'hemmx ħażna mqabbda ma' dan il-bus."
     multiple_storages: "Hemm diversi ħażniet imqabbda. Ħalli waħda biss."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "L-islott tal-amplifikatur tat-Trażmettitur Bla Wajer huwa okkupat."
     transmitter_booster_only: "Amplifikatur tas-Sinjal Bla Wajer biss jista' jitqiegħed f'dan l-islott."
 debug:
+  value:
+    enabled: "Mixgħul"
+    disabled: "Mitfi"
+    none: "Xejn"
+    unknown: "Mhux magħruf"
   mode:
     read: "qari biss"
     write: "kitba"

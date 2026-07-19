@@ -399,22 +399,8 @@ class PickListenerTest {
       super(
           keys,
           null,
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          java.util.Map.of(),
+          com.zxcmc.exort.items.CustomItemModelConfig.empty(),
+          com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
           false);
       this.keys = keys;
     }

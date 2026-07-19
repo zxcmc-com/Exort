@@ -203,6 +203,9 @@ message:
   lang_status_paths: "لالوان: {0}, {1}"
   wire:
     hard_cap: "رانتاين wire ترلالو بسر: {0}/{1}."
+    item_not_placeable: "بارڠ اين تيدق بوليه دلتقكن برسبلهن دڠن واير."
+  placement:
+    blocked: "ڤنمڤتن دسکت د سيني."
   bus:
     no_storage: "تياد storage ترسامبوڠ ك bus اين."
     multiple_storages: "ببراڤ storage ترسامبوڠ. تيڠڬلكن ساتو سهاج."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "سلوت ڤڠݢالق ڤمنچر تنڤا واير سوداه ترايسي."
     transmitter_booster_only: "هاڽ ڤڠݢالق اسيارت تنڤا واير بوليه دلتقكن دالم سلوت اين."
 debug:
+  value:
+    enabled: "دياکتيفکن"
+    disabled: "دڽهاکتيفکن"
+    none: "تياد"
+    unknown: "تيدق دکتاهوي"
   mode:
     read: "باچ سهاج"
     write: "توليس"

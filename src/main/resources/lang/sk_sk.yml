@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Cesty: {0}, {1}"
   wire:
     hard_cap: "Reťaz káblov je príliš veľká: {0}/{1}."
+    item_not_placeable: "Tento predmet nemožno umiestniť ku káblu."
+  placement:
+    blocked: "Umiestnenie je tu zablokované."
   bus:
     no_storage: "K tejto zbernici nie je pripojené úložisko."
     multiple_storages: "Je pripojených viac úložísk. Nechajte iba jedno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Slot zosilňovača bezdrôtového vysielača je obsadený."
     transmitter_booster_only: "Do tohto slotu možno vložiť iba zosilňovač bezdrôtového signálu."
 debug:
+  value:
+    enabled: "Zapnuté"
+    disabled: "Vypnuté"
+    none: "Žiadne"
+    unknown: "Neznáme"
   mode:
     read: "iba na čítanie"
     write: "zápis"

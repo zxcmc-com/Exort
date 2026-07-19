@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Hentoù: {0}, {1}"
   wire:
     hard_cap: "Re vras eo chadenn an orjal: {0}/{1}."
+    item_not_placeable: "N'haller ket lakaat an dra-mañ ouzh un orjal."
+  placement:
+    blocked: "Stanket eo al lakaat amañ."
   bus:
     no_storage: "N'eus mirva ebet kennasket ouzh ar bus-mañ."
     multiple_storages: "Meur a virva kennasket. Lezit unan hepken."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Ac'hubet eo lec'h ar c'hreñvaer en Treuzkas hep Neudenn."
     transmitter_booster_only: "Ur C'hreñvaer Arouez hep Neudenn hepken a c'haller lakaat el lec'h-mañ."
 debug:
+  value:
+    enabled: "Gweredekaet"
+    disabled: "Diweredekaet"
+    none: "Hini ebet"
+    unknown: "Dianav"
   mode:
     read: "lenn hepken"
     write: "skrivañ"

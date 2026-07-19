@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Căi: {0}, {1}"
   wire:
     hard_cap: "Lanțul de fire este prea mare: {0}/{1}."
+    item_not_placeable: "Acest obiect nu poate fi amplasat lângă un cablu."
+  placement:
+    blocked: "Amplasarea este blocată aici."
   bus:
     no_storage: "Nu este conectată nicio stocare la acest bus."
     multiple_storages: "Sunt conectate mai multe stocări. Lasă doar una."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Slotul de amplificator al Transmițătorului Fără Fir este ocupat."
     transmitter_booster_only: "Doar un Amplificator de Semnal Fără Fir poate fi pus în acest slot."
 debug:
+  value:
+    enabled: "Activat"
+    disabled: "Dezactivat"
+    none: "Niciunul"
+    unknown: "Necunoscut"
   mode:
     read: "doar citire"
     write: "scriere"

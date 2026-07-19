@@ -11,9 +11,11 @@ import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.infra.logging.ExortLog;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.BusMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.platform.PlayerInteractionRange;
 import com.zxcmc.exort.storage.StorageDisplayName;
+import com.zxcmc.exort.storage.StorageNameNormalizer;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
@@ -40,6 +42,7 @@ public class BusSessionManager {
   private final Material wireMaterial;
   private final Material storageCarrier;
   private final Material relayCarrier;
+  private final java.util.function.Supplier<NetworkGraphCache> networkGraphCache;
   private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
   private final Supplier<GuiOverlayConfig> overlayConfigSource;
   private final BusService busService;
@@ -63,6 +66,7 @@ public class BusSessionManager {
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.networkGraphCache = dependencies.networkGraphCache();
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();
     this.busService = busService;
@@ -233,6 +237,7 @@ public class BusSessionManager {
             busBlock,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,
@@ -273,7 +278,7 @@ public class BusSessionManager {
 
   static Component storageValue(
       Lang lang, Player viewer, StorageTier tier, String storageId, String displayName) {
-    String normalizedName = StorageDisplayName.normalize(displayName);
+    String normalizedName = StorageNameNormalizer.normalize(displayName);
     if (normalizedName != null) {
       Component component = ExortText.itemText(normalizedName);
       return tier == null || tier.color() == null ? component : component.color(tier.color());
@@ -283,7 +288,7 @@ public class BusSessionManager {
       if (lang != null) {
         return StorageTierText.tierName(lang, language, tier);
       }
-      Component component = ExortText.itemText(tier.displayName());
+      Component component = ExortText.itemText(tier.fallbackDisplayName());
       return tier.color() == null ? component : component.color(tier.color());
     }
     return ExortText.itemText(storageId == null ? "" : storageId);

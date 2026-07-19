@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Slóðir: {0}, {1}"
   wire:
     hard_cap: "Vírkeðjan er of stór: {0}/{1}."
+    item_not_placeable: "Ekki er hægt að setja þennan hlut upp við vír."
+  placement:
+    blocked: "Ekki er hægt að staðsetja hér."
   bus:
     no_storage: "Engin geymsla tengd þessum bus."
     multiple_storages: "Fleiri geymslur tengdar. Skildu aðeins eina eftir."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Magnararauf þráðlausa sendisins er upptekin."
     transmitter_booster_only: "Aðeins Þráðlaus Merkjamagnari má fara í þessa rauf."
 debug:
+  value:
+    enabled: "Virkt"
+    disabled: "Óvirkt"
+    none: "Ekkert"
+    unknown: "Óþekkt"
   mode:
     read: "aðeins lesa"
     write: "skrifa"

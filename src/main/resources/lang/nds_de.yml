@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Paden: {0}, {1}"
   wire:
     hard_cap: "Kabelkedden is to groot: {0}/{1}."
+    item_not_placeable: "Dit Item kann nich an en Kabel sett warrn."
+  placement:
+    blocked: "Platzeren is hier blockeert."
   bus:
     no_storage: "Keen Spieker an dissen Bus."
     multiple_storages: "Mehr Spiekers verbunnen. Laat blots een över."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "De Verstarkersteed vun den Funk-Sender is besett."
     transmitter_booster_only: "In disse Steed kann blots en Funk-Signaalverstarker leggt warrn."
 debug:
+  value:
+    enabled: "Aktiv"
+    disabled: "Ut"
+    none: "Keen"
+    unknown: "Unbekannt"
   mode:
     read: "blots lesen"
     write: "schrieven"

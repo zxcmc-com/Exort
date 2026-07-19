@@ -10,12 +10,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.infra.db.DbItem;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.items.ItemStackCodec;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
 class StorageCacheTest {
+  @Test
+  void flushSnapshotsFreezeTheirCollections() {
+    List<DbItem> items = new ArrayList<>(List.of(new DbItem("stone", new byte[] {1}, 2L)));
+    Set<String> removals = new HashSet<>(Set.of("dirt"));
+
+    StorageCache.Snapshot snapshot = new StorageCache.Snapshot(1L, items);
+    StorageCache.DeltaSnapshot delta = new StorageCache.DeltaSnapshot(2L, items, removals);
+    items.clear();
+    removals.clear();
+
+    assertEquals(1, snapshot.items().size());
+    assertEquals(1, delta.upserts().size());
+    assertEquals(Set.of("dirt"), delta.removals());
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> snapshot.items().add(new DbItem("new", new byte[] {2}, 1L)));
+    assertThrows(UnsupportedOperationException.class, () -> delta.removals().add("new"));
+  }
+
   @Test
   void decodeFailureKeepsOriginalBlobForQuarantine() {
     byte[] original = new byte[] {7, 8, 9};

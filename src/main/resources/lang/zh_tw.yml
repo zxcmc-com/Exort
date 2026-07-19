@@ -203,6 +203,9 @@ message:
   lang_status_paths: "路徑：{0}, {1}"
   wire:
     hard_cap: "纜線鏈過大：{0}/{1}。"
+    item_not_placeable: "無法將此物品緊貼纜線放置。"
+  placement:
+    blocked: "此處禁止放置。"
   bus:
     no_storage: "沒有儲存連線到此匯流排。"
     multiple_storages: "已連線多個儲存。只保留一個。"
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "無線發射器的增強器欄位已被佔用。"
     transmitter_booster_only: "此欄位只能放置無線訊號增強器。"
 debug:
+  value:
+    enabled: "已啟用"
+    disabled: "已停用"
+    none: "無"
+    unknown: "未知"
   mode:
     read: "唯讀"
     write: "讀寫"

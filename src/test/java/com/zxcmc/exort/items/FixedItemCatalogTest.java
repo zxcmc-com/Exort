@@ -7,15 +7,15 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class CustomItemRegistryTest {
+class FixedItemCatalogTest {
   @Test
   void fixedItemsUseUniqueIdsAndConventionalKeys() {
     Set<String> ids = new HashSet<>();
-    for (CustomItemIdentity item : CustomItemRegistry.fixedItems()) {
+    for (CustomItemIdentity item : FixedItemCatalog.fixedItems()) {
       assertTrue(ids.add(item.id()), "duplicate id " + item.id());
       assertEquals("item." + item.id(), item.translationKey());
       assertEquals("exort:" + item.id(), item.namespacedId());
     }
-    assertTrue(CustomItemRegistry.fixedItem("WIRE").isPresent());
+    assertTrue(FixedItemCatalog.fixedItem("WIRE").isPresent());
   }
 }

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Waddooyin: {0}, {1}"
   wire:
     hard_cap: "Silsiladda fiiladu aad bay u weyn tahay: {0}/{1}."
+    item_not_placeable: "Shaygan laguma dhejin karo fiilo."
+  placement:
+    blocked: "Dhigista halkan waa xanniban tahay."
   bus:
     no_storage: "Kayd kuma xirna bus-kan."
     multiple_storages: "Kaydyo badan baa xiran. Ka tag hal keliya."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Booska xoojiyaha gudbiyaha bilaa fiilo waa mashquul."
     transmitter_booster_only: "Booskan waxaa la gelin karaa Xoojiye Calaamad Bilaa Fiilo oo keliya."
 debug:
+  value:
+    enabled: "La shiday"
+    disabled: "Damsan"
+    none: "Midna"
+    unknown: "Lama yaqaan"
   mode:
     read: "akhris-keliya"
     write: "qor"

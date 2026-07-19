@@ -203,6 +203,9 @@ message:
   lang_status_paths: "pluta: {0}, {1}"
   wire:
     hard_cap: "Skori skori mutce barda: {0}/{1}."
+    item_not_placeable: "ti na se curmi lo nu se punji lo skori."
+  placement:
+    blocked: "lo nu punji vi cu se zunti."
   bus:
     no_storage: "lo tanbo ti na jorne lo sorcu."
     multiple_storages: "so'i sorcu cu jorne. ko stali pa sorcu po'o."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "lo selstu be lo tsali pe lo cladu benji cu se nenri."
     transmitter_booster_only: "po'o lo cladu se benji tsali ka'e se punji ti."
 debug:
+  value:
+    enabled: "cando"
+    disabled: "tolcando"
+    none: "no da"
+    unknown: "na se djuno"
   mode:
     read: "tcidu poonai"
     write: "ciska"

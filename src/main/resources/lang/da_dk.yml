@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Stier: {0}, {1}"
   wire:
     hard_cap: "Kabelkæden er for stor: {0}/{1}."
+    item_not_placeable: "Denne genstand kan ikke placeres op ad et kabel."
+  placement:
+    blocked: "Placering er blokeret her."
   bus:
     no_storage: "Intet lager forbundet til denne bus."
     multiple_storages: "Flere lagre forbundet. Lad kun et være tilbage."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Den trådløse senders forstærkerplads er optaget."
     transmitter_booster_only: "Kun en Trådløs Signalforstærker kan placeres i denne plads."
 debug:
+  value:
+    enabled: "Aktiveret"
+    disabled: "Deaktiveret"
+    none: "Ingen"
+    unknown: "Ukendt"
   mode:
     read: "skrivebeskyttet"
     write: "skriv"

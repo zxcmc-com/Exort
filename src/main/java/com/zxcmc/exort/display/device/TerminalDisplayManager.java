@@ -6,7 +6,9 @@ import com.zxcmc.exort.display.core.DisplayRotation;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
+import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
@@ -34,6 +36,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
   private final String terminalDisabledModel;
   private final String craftingEnabledModel;
   private final String craftingDisabledModel;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
 
   public TerminalDisplayManager(
       Plugin plugin,
@@ -57,6 +60,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
       Material wireMaterial,
       Material storageCarrier,
       Material relayCarrier,
+      Supplier<NetworkGraphCache> networkGraphCache,
       boolean dynamicState) {
     super(
         plugin,
@@ -78,6 +82,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
     this.wireMaterial = wireMaterial;
     this.storageCarrier = storageCarrier;
     this.relayCarrier = relayCarrier;
+    this.networkGraphCache = networkGraphCache;
     this.dynamicState = dynamicState;
     this.terminalEnabledModel = terminalEnabledModel == null ? "" : terminalEnabledModel;
     this.terminalDisabledModel =
@@ -153,6 +158,7 @@ public class TerminalDisplayManager extends BaseCarrierDisplayManager {
             block,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,

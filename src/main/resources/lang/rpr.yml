@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Пути: {0}, {1}"
   wire:
     hard_cap: "Цепь кабеля слишкомъ большая: {0}/{1}."
+    item_not_placeable: "Сію вещь нельзя поставить рядомъ съ проводомъ."
+  placement:
+    blocked: "Размѣщеніе здѣсь запрещено."
   bus:
     no_storage: "Эта шина не подключена къ хранилищу."
     multiple_storages: "Подключено нѣсколько хранилищъ. Оставьте только одно."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Мѣсто усилителя безпроводнаго передатчика занято."
     transmitter_booster_only: "Въ сіе мѣсто можно помѣстить только усилитель безпроводнаго сигнала."
 debug:
+  value:
+    enabled: "Включено"
+    disabled: "Отключено"
+    none: "Нѣтъ"
+    unknown: "Неизвѣстно"
   mode:
     read: "только чтеніе"
     write: "чтеніе/запись"

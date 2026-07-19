@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Bálgát: {0}, {1}"
   wire:
     hard_cap: "Kábelráidu lea menddo stuoris: {0}/{1}."
+    item_not_placeable: "Dán diŋgga ii sáhte bidjat kábelii báldii."
+  placement:
+    blocked: "Bidjan lea dás eastaduvvon."
   bus:
     no_storage: "Dán busii ii leat čatnon vuorkká."
     multiple_storages: "Máŋga vuorkká leat čatnon. Guođe dušše ovtta."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Jođaskeahttes sáddenapparáhta nannejeaddjisajis lea juo diŋga."
     transmitter_booster_only: "Dán sadjái sáhttá bidjat dušše jođaskeahtes signálanan nannejeaddji."
 debug:
+  value:
+    enabled: "Aktiivvalaš"
+    disabled: "Jávkkahuvvon"
+    none: "Ii mihkkege"
+    unknown: "Dovdameahttun"
   mode:
     read: "dušše lohkan"
     write: "čállin"

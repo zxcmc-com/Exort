@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Voyi: {0}, {1}"
   wire:
     hard_cap: "Kablo kateno tro granda: {0}/{1}."
+    item_not_placeable: "Ca objekto ne povas esar pozata kontre kablo."
+  placement:
+    blocked: "Pozado esas blokita hike."
   bus:
     no_storage: "Nula stoko konektita a ca buso."
     multiple_storages: "Plura stokaji konektita. Lasez nur un."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "La fortigilo-fako di la Senfila Transmisilo esas okupata."
     transmitter_booster_only: "Nur Senfila Signalfortigilo povas esar pozita en ca fako."
 debug:
+  value:
+    enabled: "Aktivigita"
+    disabled: "Desaktivigita"
+    none: "Nula"
+    unknown: "Nekonocata"
   mode:
     read: "nur-lekta"
     write: "skriba"

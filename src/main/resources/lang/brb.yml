@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Paden: {0}, {1}"
   wire:
     hard_cap: "Draadketen is te groot: {0}/{1}."
+    item_not_placeable: "Dit item kan nie tegen nen draad geplaatst worden."
+  placement:
+    blocked: "Plaatsing is hier geblokkeerd."
   bus:
     no_storage: "Gin opslag verbonden met deze bus."
     multiple_storages: "Meerdere opslagen verbonden. Laot er mar ene over."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "De versterkersleuf van de Draadloze Zender is bezet."
     transmitter_booster_only: "Alleen ne Draadloze Signaalversterker kan in deze sleuf geplaatst worden."
 debug:
+  value:
+    enabled: "Actief"
+    disabled: "Uitgeschakeld"
+    none: "Gin"
+    unknown: "Onbekend"
   mode:
     read: "alleen lezen"
     write: "schrijven"

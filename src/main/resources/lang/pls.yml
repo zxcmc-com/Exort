@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ścieżki: {0}, {1}"
   wire:
     hard_cap: "Łańcuch kabli jest za duży: {0}/{1}."
+    item_not_placeable: "Tego przedmiotu nie można umieścić przy kablu."
+  placement:
+    blocked: "Umieszczanie jest tutaj zablokowane."
   bus:
     no_storage: "Do tej szyny nie podłączono magazynu."
     multiple_storages: "Podłączono kilka magazynów. Zostaw tylko jeden."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Gniazdo wzmacniacza nadajnika bezprzewodowego jest zajęte."
     transmitter_booster_only: "W tym gnieździe można umieścić tylko wzmacniacz sygnału bezprzewodowego."
 debug:
+  value:
+    enabled: "Włączone"
+    disabled: "Wyłączone"
+    none: "Brak"
+    unknown: "Nieznane"
   mode:
     read: "tylko odczyt"
     write: "zapis"

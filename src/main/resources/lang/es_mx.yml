@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Rutas: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
+    item_not_placeable: "Este objeto no se puede colocar contra un cable."
+  placement:
+    blocked: "No se puede colocar aquí."
   bus:
     no_storage: "No hay almacenamiento conectado a este bus."
     multiple_storages: "Hay varios almacenamientos conectados. Deja solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "La ranura del amplificador del Transmisor Inalámbrico está ocupada."
     transmitter_booster_only: "En esta ranura solo se puede colocar un Amplificador de Señal Inalámbrica."
 debug:
+  value:
+    enabled: "Activado"
+    disabled: "Desactivado"
+    none: "Ninguno"
+    unknown: "Desconocido"
   mode:
     read: "solo lectura"
     write: "escritura"

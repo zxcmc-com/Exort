@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Pfade: {0}, {1}"
   wire:
     hard_cap: "Kabelkettn is z'groß: {0}/{1}."
+    item_not_placeable: "Des Item kann ned an am Kabel platziert werdn."
+  placement:
+    blocked: "Platziern is do blockiert."
   bus:
     no_storage: "Koa Speicha mit dem Bus verbunden."
     multiple_storages: "Mehrere Speicha verbunden. Lass nur oan."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Da Verstärka-Slot vom Funksenda is belegt."
     transmitter_booster_only: "In den Slot ko bloß a Funk-Signalverstärka einiglegt wern."
 debug:
+  value:
+    enabled: "Aktiv"
+    disabled: "Deaktiviert"
+    none: "Koans"
+    unknown: "Unbekannt"
   mode:
     read: "nur lesn"
     write: "schreibn"

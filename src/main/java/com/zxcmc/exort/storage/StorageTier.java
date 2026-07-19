@@ -22,7 +22,7 @@ public final class StorageTier {
   private final String key;
   private final long maxItems;
   private final Material displayMaterial;
-  private final String displayName;
+  private final String fallbackDisplayName;
   private final String translationKey;
   private final TextColor color;
   private final boolean readOnly;
@@ -31,17 +31,17 @@ public final class StorageTier {
       String key,
       long maxItems,
       Material displayMaterial,
-      String displayName,
+      String fallbackDisplayName,
       String translationKey,
       TextColor color) {
-    this(key, maxItems, displayMaterial, displayName, translationKey, color, false);
+    this(key, maxItems, displayMaterial, fallbackDisplayName, translationKey, color, false);
   }
 
   private StorageTier(
       String key,
       long maxItems,
       Material displayMaterial,
-      String displayName,
+      String fallbackDisplayName,
       String translationKey,
       TextColor color,
       boolean readOnly) {
@@ -51,7 +51,7 @@ public final class StorageTier {
     this.key = Objects.requireNonNull(key, "key");
     this.maxItems = maxItems;
     this.displayMaterial = Objects.requireNonNull(displayMaterial, "displayMaterial");
-    this.displayName = Objects.requireNonNull(displayName, "displayName");
+    this.fallbackDisplayName = Objects.requireNonNull(fallbackDisplayName, "fallbackDisplayName");
     this.translationKey = translationKey;
     this.color = color;
     this.readOnly = readOnly;
@@ -69,8 +69,8 @@ public final class StorageTier {
     return displayMaterial;
   }
 
-  public String displayName() {
-    return displayName;
+  public String fallbackDisplayName() {
+    return fallbackDisplayName;
   }
 
   public Optional<String> translationKey() {
@@ -113,7 +113,7 @@ public final class StorageTier {
         source.key,
         source.maxItems,
         source.displayMaterial,
-        source.displayName,
+        source.fallbackDisplayName,
         source.translationKey,
         source.color,
         true);
@@ -121,7 +121,7 @@ public final class StorageTier {
 
   public StorageTierDescriptor descriptor() {
     return new StorageTierDescriptor(
-        key, maxItems, displayMaterial.getKey().toString(), displayName);
+        key, maxItems, displayMaterial.getKey().toString(), fallbackDisplayName);
   }
 
   public static Optional<StorageTier> fromString(String raw) {
@@ -170,7 +170,7 @@ public final class StorageTier {
               key.toUpperCase(Locale.ROOT),
               maxItems,
               mat,
-              name.displayName(),
+              name.fallbackDisplayName(),
               name.translationKey(),
               color);
       String normalizedKey = key.toLowerCase(Locale.ROOT);
@@ -275,7 +275,7 @@ public final class StorageTier {
     return color;
   }
 
-  private record NameData(String displayName, String translationKey) {}
+  private record NameData(String fallbackDisplayName, String translationKey) {}
 
   private static long parseMaxItems(Object raw, Logger logger, String tierKey) {
     long defaultValue = ITEMS_PER_PAGE * 5L;

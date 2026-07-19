@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Percorsi: {0}, {1}"
   wire:
     hard_cap: "La catena di cavi è troppo grande: {0}/{1}."
+    item_not_placeable: "Chest ogjet nol pues jessi plaçât cuintri un cavo."
+  placement:
+    blocked: "Il plaçament al è blocât achì."
   bus:
     no_storage: "Nessuno stoccaggio collegato a questo bus."
     multiple_storages: "Sono collegati più stoccaggi. Lasciane solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Il puest dal amplificadôr dal Trasmetitôr cence Fîl al è ocupât."
     transmitter_booster_only: "Dome un Amplificadôr di Segnâl cence Fîl al pues jessi metût in chest puest."
 debug:
+  value:
+    enabled: "Ativât"
+    disabled: "Disativât"
+    none: "Nissun"
+    unknown: "No cognossût"
   mode:
     read: "sola lettura"
     write: "scrittura"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Rutas: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
+    item_not_placeable: "Esti ojetu nun se puei poner escontra un cable."
+  placement:
+    blocked: "Equí nun se puei poner."
   bus:
     no_storage: "No hay guardado conectado a este bus."
     multiple_storages: "Hay varios guardados conectados. Deja solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "La ranura del amplificador del Tresmisor ensin Cable está ocupada."
     transmitter_booster_only: "En esta ranura solo se puede poner un Amplificador de Señal sin Cable."
 debug:
+  value:
+    enabled: "Activáu"
+    disabled: "Desactiváu"
+    none: "Dengunu"
+    unknown: "Desconocíu"
   mode:
     read: "solo lectura"
     write: "escritura"

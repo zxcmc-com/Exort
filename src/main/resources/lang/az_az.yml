@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Yollar: {0}, {1}"
   wire:
     hard_cap: "Naqil zənciri çox böyükdür: {0}/{1}."
+    item_not_placeable: "Bu əşyanı naqilə bitişik yerləşdirmək olmaz."
+  placement:
+    blocked: "Burada yerləşdirmə bloklanıb."
   bus:
     no_storage: "Bu bus-a saxlama qoşulmayıb."
     multiple_storages: "Bir neçə saxlama qoşulub. Yalnız birini saxlayın."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Simsiz ötürücünün gücləndirici yuvası doludur."
     transmitter_booster_only: "Bu yuvaya yalnız Simsiz Siqnal Gücləndiricisi qoymaq olar."
 debug:
+  value:
+    enabled: "Aktiv"
+    disabled: "Söndürülüb"
+    none: "Yoxdur"
+    unknown: "Naməlum"
   mode:
     read: "yalnız oxuma"
     write: "yazma"

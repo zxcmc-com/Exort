@@ -97,22 +97,8 @@ class CustomItemClassifierTest {
     return new CustomItems(
         keys,
         null,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        java.util.Map.of(),
+        CustomItemModelConfig.empty(),
+        com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
         false);
   }
 

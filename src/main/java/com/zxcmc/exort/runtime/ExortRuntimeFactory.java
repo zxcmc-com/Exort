@@ -4,6 +4,7 @@ import com.zxcmc.exort.breaking.BreakAnimationSender;
 import com.zxcmc.exort.breaking.BreakConfig;
 import com.zxcmc.exort.bus.BusRuntimeConfig;
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.chunkloader.ChunkLoaderAuditFileWriter;
 import com.zxcmc.exort.chunkloader.ChunkLoaderAuditLogger;
 import com.zxcmc.exort.chunkloader.ChunkLoaderConfig;
@@ -20,7 +21,6 @@ import com.zxcmc.exort.integration.auth.KnownAuthenticationGate;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.integration.protocol.PacketEnhancementsFactory;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeDependencies;
-import com.zxcmc.exort.integration.worldedit.WorldEditBridgeMaterials;
 import com.zxcmc.exort.integration.worldedit.WorldEditBulkConfig;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.integration.worldedit.WorldEditRuntimeBootstrap;
@@ -45,8 +45,6 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ExortRuntimeFactory {
-  private static final String VANILLA_NAMESPACE = "minecraft";
-
   private ExortRuntimeFactory() {}
 
   /** Parses the candidate's runtime-owned configuration before the active generation is stopped. */
@@ -108,12 +106,12 @@ public final class ExortRuntimeFactory {
       RuntimeHandle.Scope scope) {
     deps.reloadDefaultSortMode().run();
     RuntimeItemNamesReload itemNamesReload = prepareLanguage(deps, refreshItemDictionaries);
-    CreativeTabOrder.init(deps.plugin());
+    CreativeTabOrder.init(deps.plugin(), deps.keys());
 
     RuntimeItemModelConfig itemModels =
         RuntimeItemModelConfig.forMode(deps.resourceMode(), deps.resourceWireUsesBarrier());
-    RuntimeMaterials materials =
-        new RuntimeMaterials(
+    CarrierMaterials materials =
+        new CarrierMaterials(
             itemModels.wireMaterial(),
             itemModels.storageCarrier(),
             itemModels.terminalCarrier(),
@@ -236,6 +234,7 @@ public final class ExortRuntimeFactory {
                 () -> state.busService,
                 () -> wirelessTransmitterService,
                 () -> transmitterSessionManager,
+                deps.networkGraphCache(),
                 chunk -> {
                   if (deps.networkGraphCache().get() != null) {
                     deps.networkGraphCache().get().invalidateChunk(chunk);
@@ -265,6 +264,7 @@ public final class ExortRuntimeFactory {
                 () -> deps.resourceMode(),
                 deps.guiRuntimeConfig(),
                 deps.guiOverlayConfig(),
+                deps.networkGraphCache(),
                 deps.renderStorage()));
     scope.own("bus sessions", busServices.busSessionManager()::shutdown);
     scope.own("bus service", busServices.busService()::stop);
@@ -301,58 +301,31 @@ public final class ExortRuntimeFactory {
     RuntimeListenerRegistration listenerRegistration =
         RuntimeListenerRegistrar.register(
             new RuntimeListenerDependencies(
-                deps.plugin(),
-                deps.config(),
-                deps.database(),
-                deps.storageManager(),
-                storageClaimRegistry,
-                deps.sessionManager(),
-                deps.keys(),
-                customItems,
-                wirelessService,
-                wirelessTransmitterService,
-                transmitterSessionManager,
-                deps.regionProtection().get(),
-                authenticationGate,
-                worldEditWandGuard,
-                deps.playerFeedback(),
-                deps.bossBarManager(),
-                deps.searchDialogService(),
-                deps.lang(),
-                deps.itemNameService(),
-                deps.inventoryRefreshService(),
+                deps.core(),
+                deps.runtimeConfig(),
                 materials,
-                relaySetupTracker,
-                networkConfig.relayEnabled(),
-                networkConfig.wireLimit(),
-                networkConfig.wireHardCap(),
-                relayTraversalCarrier,
-                networkConfig.relayRangeChunks(),
-                displayServices.hologramManager(),
-                () -> displayServices.hologramManager(),
-                displayServices.wireDisplayManager(),
-                displayServices.terminalDisplayManager(),
-                displayServices.monitorDisplayManager(),
-                displayServices.busDisplayManager(),
-                displayServices.displayRefreshService(),
-                busServices.busService(),
-                busServices.busSessionManager(),
-                breakingServices.customBlockBreaker(),
-                breakingServices.breakHandler(),
-                breakingServices.breakSoundConfig(),
-                chunkLoaderService,
-                packetEnhancements,
-                deps.previousRecipeService(),
-                busRuntime,
-                CraftingRulesConfig.defaults(),
-                networkConfig.storagePeekTicks(),
-                networkConfig.wirePeekTicks(),
-                deps.revalidateSessions(),
-                deps.pickDebugSink(),
-                deps.monitorPlacedRecorder(),
-                deps.monitorRecentlyPlaced(),
-                deps.transmitterPlacedRecorder(),
-                deps.transmitterRecentlyPlaced()),
+                networkConfig,
+                new RuntimeListenerDomainServices(
+                    storageClaimRegistry,
+                    customItems,
+                    wirelessService,
+                    wirelessTransmitterService,
+                    transmitterSessionManager,
+                    chunkLoaderService,
+                    relaySetupTracker),
+                displayServices,
+                busServices,
+                breakingServices,
+                new RuntimeListenerIntegrations(
+                    deps.regionProtection().get(),
+                    authenticationGate,
+                    worldEditWandGuard,
+                    packetEnhancements,
+                    deps.networkGraphCache(),
+                    deps.previousRecipeService()),
+                new RuntimeListenerPolicies(
+                    busRuntime, CraftingRulesConfig.defaults(), relayTraversalCarrier),
+                deps.hooks()),
             PlacementGuardConfig.fromConfig(deps.config()));
     scope.own("Bukkit runtime listeners", () -> HandlerList.unregisterAll(deps.plugin()));
     if (listenerRegistration.placementGuard() != null) {
@@ -384,15 +357,7 @@ public final class ExortRuntimeFactory {
             () -> wirelessTransmitterService,
             () -> transmitterSessionManager,
             displayServices::hologramManager,
-            new WorldEditBridgeMaterials(
-                materials.wire(),
-                materials.storageCarrier(),
-                materials.terminalCarrier(),
-                materials.monitorCarrier(),
-                materials.busCarrier(),
-                materials.relayCarrier(),
-                materials.transmitterCarrier(),
-                materials.chunkLoaderCarrier()),
+            materials,
             WorldEditBulkConfig.fromConfig(deps.config()),
             deps.config().getBoolean("integrations.fawe.autoConfigure", false));
     WorldEditRuntimeBootstrap.Registration worldEditRegistration =
@@ -503,22 +468,7 @@ public final class ExortRuntimeFactory {
     return new CustomItems(
         deps.keys(),
         deps.lang(),
-        itemModels.wireItemModel(),
-        itemModels.storageItemModel(),
-        itemModels.terminalItemModel(),
-        itemModels.craftingTerminalItemModel(),
-        itemModels.monitorItemModel(),
-        itemModels.importBusItemModel(),
-        itemModels.exportBusItemModel(),
-        itemModels.relayItemModel(),
-        itemModels.transmitterItemModel(),
-        itemModels.chunkLoaderItemModel(),
-        itemModels.personalChunkLoaderItemModel(),
-        itemModels.dormantChunkLoaderItemModel(),
-        itemModels.wirelessItemModel(),
-        itemModels.wirelessDisabledModel(),
-        VANILLA_NAMESPACE + ":target",
-        itemModels.wirelessBoosterItemModels(),
+        itemModels.customItemModels(),
         wirelessConfig,
         deps.resourceMode());
   }
@@ -537,7 +487,7 @@ public final class ExortRuntimeFactory {
 
   private static WirelessTransmitterService createWirelessTransmitterService(
       ExortRuntimeFactoryDependencies deps,
-      RuntimeMaterials materials,
+      CarrierMaterials materials,
       RuntimeNetworkConfig networkConfig,
       WirelessRuntimeConfig wirelessConfig) {
     return new WirelessTransmitterService(

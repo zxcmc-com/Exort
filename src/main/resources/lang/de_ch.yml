@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Pfade: {0}, {1}"
   wire:
     hard_cap: "Kabelkette ist zu gross: {0}/{1}."
+    item_not_placeable: "Dieser Gegenstand kann nicht an einem Kabel platziert werden."
+  placement:
+    blocked: "Das Platzieren ist hier blockiert."
   bus:
     no_storage: "Kein Speicher mit diesem Bus verbunden."
     multiple_storages: "Mehrere Speicher verbunden. Lass nur einen uebrig."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Der Verstärkerplatz des Funksenders ist belegt."
     transmitter_booster_only: "In diesen Platz kann nur ein Funksignalverstärker gelegt werden."
 debug:
+  value:
+    enabled: "Aktiviert"
+    disabled: "Deaktiviert"
+    none: "Keiner"
+    unknown: "Unbekannt"
   mode:
     read: "nur Lesen"
     write: "Schreiben"

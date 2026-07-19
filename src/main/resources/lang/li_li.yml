@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Paej: {0}, {1}"
   wire:
     hard_cap: "De kabelketting is te groet: {0}/{1}."
+    item_not_placeable: "Dit veurwerp kin neet taege eine kabel geplaatst waere."
+  placement:
+    blocked: "Plaatsing is hie geblokkeerd."
   bus:
     no_storage: "Gein opslaag aan deze bus gekoppeld."
     multiple_storages: "Meerdere opslagge gekoppeld. Laot allein eine euver."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "'t Versterkervak van de Draodloze Zender is bezat."
     transmitter_booster_only: "Allein eine Draodloze Signaalversterker kin in dit vak gezat waere."
 debug:
+  value:
+    enabled: "Ingesjakeld"
+    disabled: "Oetgesjakeld"
+    none: "Gein"
+    unknown: "Ónbekind"
   mode:
     read: "allein laeze"
     write: "sjrieve"

@@ -3,6 +3,7 @@ package com.zxcmc.exort.runtime;
 import com.zxcmc.exort.breaking.BreakAnimationSender;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.device.MonitorDisplayManager;
@@ -30,7 +31,7 @@ public record RuntimeBreakingServicesDependencies(
     FileConfiguration config,
     Logger logger,
     CustomItems customItems,
-    RuntimeMaterials materials,
+    CarrierMaterials materials,
     ItemHologramManager hologramManager,
     WireDisplayManager wireDisplayManager,
     DisplayRefreshService displayRefreshService,

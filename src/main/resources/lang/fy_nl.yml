@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Paden: {0}, {1}"
   wire:
     hard_cap: "Kabelkeatling is te grut: {0}/{1}."
+    item_not_placeable: "Dit item kin net tsjin in kabel pleatst wurde."
+  placement:
+    blocked: "Pleatsing is hjir blokkearre."
   bus:
     no_storage: "Gjin opslach ferbûn mei dizze bus."
     multiple_storages: "Meardere opslaggen ferbûn. Lit mar ien oer."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "It fersterkerfak fan de Tridleaze Stjoerder is beset."
     transmitter_booster_only: "Allinnich in Tridleaze Sinjaalfersterker kin yn dit fak pleatst wurde."
 debug:
+  value:
+    enabled: "Ynskeakele"
+    disabled: "Utskeakele"
+    none: "Gjin"
+    unknown: "Ûnbekend"
   mode:
     read: "allinnich lêze"
     write: "skriuwe"

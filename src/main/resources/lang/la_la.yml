@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Viae: {0}, {1}"
   wire:
     hard_cap: "Catena fili nimis magna est: {0}/{1}."
+    item_not_placeable: "Haec res contra filum poni non potest."
+  placement:
+    blocked: "Positio hic impedita est."
   bus:
     no_storage: "Nullum repositorium huic canali conexum est."
     multiple_storages: "Plura repositoria conexa sunt. Relinque unum tantum."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Locus amplificatoris Transmissoris Sine Filo occupatus est."
     transmitter_booster_only: "Solum Amplificator Signi Sine Filo in hoc loco poni potest."
 debug:
+  value:
+    enabled: "Activatum"
+    disabled: "Debilitatum"
+    none: "Nullum"
+    unknown: "Ignotum"
   mode:
     read: "lectio tantum"
     write: "scriptio"

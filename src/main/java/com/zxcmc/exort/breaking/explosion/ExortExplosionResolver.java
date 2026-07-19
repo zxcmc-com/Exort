@@ -1,6 +1,7 @@
 package com.zxcmc.exort.breaking.explosion;
 
 import com.zxcmc.exort.breaking.BreakType;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkLoaderMarker;
@@ -12,7 +13,6 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import com.zxcmc.exort.runtime.RuntimeMaterials;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -34,22 +34,22 @@ final class ExortExplosionResolver {
   private static final double SCAN_PADDING_BLOCKS = 1.0D;
 
   private final Plugin plugin;
-  private final RuntimeMaterials materials;
+  private final CarrierMaterials materials;
   private final ExortBlastResistance blastResistance;
   private final ExplosionOcclusion explosionOcclusion;
 
-  ExortExplosionResolver(Plugin plugin, RuntimeMaterials materials) {
+  ExortExplosionResolver(Plugin plugin, CarrierMaterials materials) {
     this(plugin, materials, ExortBlastResistance.defaults());
   }
 
   ExortExplosionResolver(
-      Plugin plugin, RuntimeMaterials materials, ExortBlastResistance blastResistance) {
+      Plugin plugin, CarrierMaterials materials, ExortBlastResistance blastResistance) {
     this(plugin, materials, blastResistance, new ExplosionOcclusion());
   }
 
   ExortExplosionResolver(
       Plugin plugin,
-      RuntimeMaterials materials,
+      CarrierMaterials materials,
       ExortBlastResistance blastResistance,
       ExplosionOcclusion explosionOcclusion) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");

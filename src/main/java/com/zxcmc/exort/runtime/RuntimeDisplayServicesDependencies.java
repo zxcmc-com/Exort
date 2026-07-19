@@ -1,11 +1,13 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.bus.BusService;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.integration.protocol.PacketEnhancements;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
@@ -27,7 +29,7 @@ public record RuntimeDisplayServicesDependencies(
     WirelessRuntimeConfig wirelessConfig,
     StorageManager storageManager,
     Database database,
-    RuntimeMaterials materials,
+    CarrierMaterials materials,
     RuntimeItemModelConfig itemModels,
     RuntimeHologramConfig hologramConfig,
     boolean resourceMode,
@@ -41,6 +43,7 @@ public record RuntimeDisplayServicesDependencies(
     Supplier<BusService> busService,
     Supplier<WirelessTransmitterService> wirelessTransmitterService,
     Supplier<TransmitterSessionManager> transmitterSessionManager,
+    Supplier<NetworkGraphCache> networkGraphCache,
     Consumer<Chunk> invalidateNetworkChunk) {
   public RuntimeDisplayServicesDependencies {
     Objects.requireNonNull(plugin, "plugin");
@@ -58,6 +61,7 @@ public record RuntimeDisplayServicesDependencies(
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
     Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
+    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(invalidateNetworkChunk, "invalidateNetworkChunk");
   }
 }

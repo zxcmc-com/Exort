@@ -4,6 +4,7 @@ import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.platform.PlayerInteractionRange;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -29,6 +30,7 @@ final class GuiSessionValidator {
   private final Supplier<Material> relayCarrier;
   private final Supplier<Material> terminalCarrier;
   private final Supplier<RegionProtection> regionProtection;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
 
   GuiSessionValidator(
       Plugin plugin,
@@ -40,7 +42,8 @@ final class GuiSessionValidator {
       Supplier<Material> storageCarrier,
       Supplier<Material> relayCarrier,
       Supplier<Material> terminalCarrier,
-      Supplier<RegionProtection> regionProtection) {
+      Supplier<RegionProtection> regionProtection,
+      Supplier<NetworkGraphCache> networkGraphCache) {
     this.plugin = plugin;
     this.keys = keys;
     this.wireLimit = wireLimit;
@@ -51,6 +54,7 @@ final class GuiSessionValidator {
     this.relayCarrier = relayCarrier;
     this.terminalCarrier = terminalCarrier;
     this.regionProtection = regionProtection;
+    this.networkGraphCache = networkGraphCache;
   }
 
   boolean isSessionValid(GuiSession session) {
@@ -70,6 +74,7 @@ final class GuiSessionValidator {
             termBlock,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),

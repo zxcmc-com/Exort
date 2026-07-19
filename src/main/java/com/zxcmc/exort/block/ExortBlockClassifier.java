@@ -1,5 +1,6 @@
 package com.zxcmc.exort.block;
 
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkLoaderMarker;
@@ -10,7 +11,6 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import com.zxcmc.exort.runtime.RuntimeMaterials;
 import java.util.Objects;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -18,9 +18,9 @@ import org.bukkit.plugin.Plugin;
 
 public final class ExortBlockClassifier {
   private final Plugin plugin;
-  private final RuntimeMaterials materials;
+  private final CarrierMaterials materials;
 
-  public ExortBlockClassifier(Plugin plugin, RuntimeMaterials materials) {
+  public ExortBlockClassifier(Plugin plugin, CarrierMaterials materials) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.materials = Objects.requireNonNull(materials, "materials");
   }

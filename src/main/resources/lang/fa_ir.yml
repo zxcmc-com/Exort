@@ -203,6 +203,9 @@ message:
   lang_status_paths: "مسیرها: {0}, {1}"
   wire:
     hard_cap: "زنجیره سیم بیش از حد بزرگ است: {0}/{1}."
+    item_not_placeable: "این مورد را نمی‌توان کنار سیم قرار داد."
+  placement:
+    blocked: "قرار دادن در اینجا مسدود است."
   bus:
     no_storage: "هیچ ذخیره‌سازی به این bus وصل نیست."
     multiple_storages: "چند ذخیره‌سازی وصل شده است. فقط یکی را نگه دارید."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "شکاف تقویت‌کنندهٔ فرستندهٔ بی‌سیم اشغال است."
     transmitter_booster_only: "فقط می‌توان تقویت‌کنندهٔ سیگنال بی‌سیم را در این شکاف قرار داد."
 debug:
+  value:
+    enabled: "فعال"
+    disabled: "غیرفعال"
+    none: "هیچ"
+    unknown: "نامشخص"
   mode:
     read: "فقط خواندن"
     write: "نوشتن"

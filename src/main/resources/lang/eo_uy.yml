@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Vojoj: {0}, {1}"
   wire:
     hard_cap: "Kablo ĉeno tro granda: {0}/{1}."
+    item_not_placeable: "Ĉi tiun eron oni ne povas meti kontraŭ kablon."
+  placement:
+    blocked: "Metado estas blokita ĉi tie."
   bus:
     no_storage: "Neniu stokejo konektita al ĉi tiu buso."
     multiple_storages: "Pluraj stokejoj konektitaj. Lasu nur unu."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "La fortigila fendo de la Sendrata Dissendilo estas okupita."
     transmitter_booster_only: "Nur Sendrata Signalfortigilo povas esti metita en ĉi tiun fendon."
 debug:
+  value:
+    enabled: "Ŝaltita"
+    disabled: "Malŝaltita"
+    none: "Neniu"
+    unknown: "Nekonata"
   mode:
     read: "nurlega"
     write: "skriba"

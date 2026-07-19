@@ -5,9 +5,22 @@ import org.bukkit.inventory.ItemStack;
 
 public record BusSettings(BusPos pos, BusType type, BusMode mode, ItemStack[] filters) {
   public BusSettings {
-    if (filters == null) {
-      filters = new ItemStack[0];
+    filters = copyFilters(filters);
+  }
+
+  @Override
+  public ItemStack[] filters() {
+    return copyFilters(filters);
+  }
+
+  private static ItemStack[] copyFilters(ItemStack[] source) {
+    if (source == null || source.length == 0) {
+      return new ItemStack[0];
     }
-    filters = Arrays.copyOf(filters, filters.length);
+    ItemStack[] copy = Arrays.copyOf(source, source.length);
+    for (int index = 0; index < copy.length; index++) {
+      copy[index] = copy[index] == null ? null : copy[index].clone();
+    }
+    return copy;
   }
 }

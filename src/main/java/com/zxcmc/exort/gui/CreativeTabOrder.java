@@ -1,12 +1,13 @@
 package com.zxcmc.exort.gui;
 
+import com.zxcmc.exort.items.CustomItemClassifier;
+import com.zxcmc.exort.keys.StorageKeys;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class CreativeTabOrder {
@@ -16,18 +17,26 @@ public final class CreativeTabOrder {
 
   private final Map<String, List<Position>> positions;
   private final List<String> tabIds;
+  private final Predicate<ItemStack> customItemClassifier;
   private final int customTabIndex;
   private final int unknownTabIndex;
 
-  private CreativeTabOrder(Map<String, List<Position>> positions, List<String> tabIds) {
-    this.positions = positions;
+  private CreativeTabOrder(
+      Map<String, List<Position>> positions,
+      List<String> tabIds,
+      Predicate<ItemStack> customItemClassifier) {
+    Map<String, List<Position>> immutablePositions = new HashMap<>();
+    positions.forEach((key, value) -> immutablePositions.put(key, List.copyOf(value)));
+    this.positions = Map.copyOf(immutablePositions);
     this.tabIds = List.copyOf(tabIds);
+    this.customItemClassifier =
+        customItemClassifier == null ? ignored -> false : customItemClassifier;
     this.customTabIndex = tabIds.size();
     this.unknownTabIndex = tabIds.size() + 1;
   }
 
-  public static void init(JavaPlugin plugin) {
-    instance = load(plugin);
+  public static void init(JavaPlugin plugin, StorageKeys keys) {
+    instance = load(plugin, keys);
   }
 
   public static CreativeTabOrder get() {
@@ -46,7 +55,7 @@ public final class CreativeTabOrder {
     if (stack == null) {
       return List.of(new Position(unknownTabIndex, 0));
     }
-    if (isCustomItem(stack)) {
+    if (customItemClassifier.test(stack)) {
       return List.of(new Position(customTabIndex, 0));
     }
     String id = stack.getType().getKey().getKey();
@@ -55,7 +64,7 @@ public final class CreativeTabOrder {
     }
     List<Position> pos = positions.get(id);
     if (pos != null && !pos.isEmpty()) {
-      return pos;
+      return List.copyOf(pos);
     }
     return List.of(new Position(unknownTabIndex, 0));
   }
@@ -81,20 +90,29 @@ public final class CreativeTabOrder {
     return unknownTabIndex;
   }
 
-  private static CreativeTabOrder load(JavaPlugin plugin) {
+  private static CreativeTabOrder load(JavaPlugin plugin, StorageKeys keys) {
     try {
-      return fromData();
+      return fromData(stack -> CustomItemClassifier.isCustomItem(keys, stack));
     } catch (Exception e) {
       plugin.getLogger().warning("Failed to load creative tab order: " + e.getMessage());
       return null;
     }
   }
 
+  static CreativeTabOrder fromData(Predicate<ItemStack> customItemClassifier) {
+    return fromTabs(CreativeTabData.load(), customItemClassifier);
+  }
+
   static CreativeTabOrder fromData() {
-    return fromTabs(CreativeTabData.load());
+    return fromData(ignored -> false);
   }
 
   static CreativeTabOrder fromTabs(Map<String, List<String>> tabs) {
+    return fromTabs(tabs, ignored -> false);
+  }
+
+  static CreativeTabOrder fromTabs(
+      Map<String, List<String>> tabs, Predicate<ItemStack> customItemClassifier) {
     Map<String, List<Position>> positions = new HashMap<>();
     List<String> tabIds = new ArrayList<>();
     int tabIndex = 0;
@@ -121,19 +139,10 @@ public final class CreativeTabOrder {
       }
       tabIndex++;
     }
-    return new CreativeTabOrder(positions, tabIds);
+    return new CreativeTabOrder(positions, tabIds, customItemClassifier);
   }
 
   private static boolean isIgnoredTab(String tabId) {
     return tabId != null && (tabId.endsWith("search") || tabId.endsWith("hotbar"));
-  }
-
-  private static boolean isCustomItem(ItemStack stack) {
-    ItemMeta meta = stack.getItemMeta();
-    if (meta == null) {
-      return false;
-    }
-    PersistentDataContainer pdc = meta.getPersistentDataContainer();
-    return !pdc.getKeys().isEmpty();
   }
 }

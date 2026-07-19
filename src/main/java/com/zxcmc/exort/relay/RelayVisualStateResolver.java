@@ -6,6 +6,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
@@ -21,6 +22,7 @@ public final class RelayVisualStateResolver {
   private final Material storageCarrier;
   private final Material relayCarrier;
   private final Material relayTraversalCarrier;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
 
   public RelayVisualStateResolver(
       Plugin plugin,
@@ -32,7 +34,8 @@ public final class RelayVisualStateResolver {
       Material wireMaterial,
       Material storageCarrier,
       Material relayCarrier,
-      Material relayTraversalCarrier) {
+      Material relayTraversalCarrier,
+      Supplier<NetworkGraphCache> networkGraphCache) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.keys = Objects.requireNonNull(keys, "keys");
     this.setupTracker = setupTracker;
@@ -43,6 +46,7 @@ public final class RelayVisualStateResolver {
     this.storageCarrier = Objects.requireNonNull(storageCarrier, "storageCarrier");
     this.relayCarrier = Objects.requireNonNull(relayCarrier, "relayCarrier");
     this.relayTraversalCarrier = relayTraversalCarrier;
+    this.networkGraphCache = Objects.requireNonNull(networkGraphCache, "networkGraphCache");
   }
 
   public RelayVisualState resolve(Block relay) {
@@ -85,6 +89,7 @@ public final class RelayVisualStateResolver {
         relay,
         keys,
         plugin,
+        networkGraphCache.get(),
         wireLimit,
         wireHardCap,
         wireMaterial,

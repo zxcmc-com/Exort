@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Đường dẫn: {0}, {1}"
   wire:
     hard_cap: "Chuỗi wire quá lớn: {0}/{1}."
+    item_not_placeable: "Không thể đặt vật phẩm này sát dây dẫn."
+  placement:
+    blocked: "Không thể đặt tại đây."
   bus:
     no_storage: "Không có storage nào kết nối với bus này."
     multiple_storages: "Nhiều storage đang kết nối. Chỉ để lại một."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Ô tăng cường của Bộ phát không dây đã bị chiếm."
     transmitter_booster_only: "Chỉ có thể đặt Bộ tăng cường tín hiệu không dây vào ô này."
 debug:
+  value:
+    enabled: "Đã bật"
+    disabled: "Đã tắt"
+    none: "Không có"
+    unknown: "Không rõ"
   mode:
     read: "chỉ đọc"
     write: "ghi"

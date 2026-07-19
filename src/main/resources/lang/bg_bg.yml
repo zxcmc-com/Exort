@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Пътища: {0}, {1}"
   wire:
     hard_cap: "Веригата от кабели е твърде голяма: {0}/{1}."
+    item_not_placeable: "Този предмет не може да бъде поставен до кабел."
+  placement:
+    blocked: "Поставянето тук е блокирано."
   bus:
     no_storage: "Към тази шина няма свързано хранилище."
     multiple_storages: "Свързани са няколко хранилища. Оставете само едно."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Слотът за усилвател на безжичния предавател е зает."
     transmitter_booster_only: "В този слот може да се постави само усилвател на безжичен сигнал."
 debug:
+  value:
+    enabled: "Включено"
+    disabled: "Изключено"
+    none: "Няма"
+    unknown: "Неизвестно"
   mode:
     read: "само четене"
     write: "запис"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "路径：{0}, {1}"
   wire:
     hard_cap: "线缆链过大：{0}/{1}。"
+    item_not_placeable: "不能将此物品贴着线缆放置。"
+  placement:
+    blocked: "此处禁止放置。"
   bus:
     no_storage: "没有存储连接到此总线。"
     multiple_storages: "已连接多个存储。只保留一个。"
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "无线发射器的增强器槽已被占用。"
     transmitter_booster_only: "此槽位只能放置无线信号增强器。"
 debug:
+  value:
+    enabled: "已启用"
+    disabled: "已禁用"
+    none: "无"
+    unknown: "未知"
   mode:
     read: "只读"
     write: "读写"

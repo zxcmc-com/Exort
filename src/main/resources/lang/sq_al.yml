@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Shtigje: {0}, {1}"
   wire:
     hard_cap: "Zinxhiri i kabllos është shumë i madh: {0}/{1}."
+    item_not_placeable: "Ky send nuk mund të vendoset pranë një kablloje."
+  placement:
+    blocked: "Vendosja është bllokuar këtu."
   bus:
     no_storage: "Nuk ka depo të lidhur me këtë bus."
     multiple_storages: "Janë lidhur disa depo. Lër vetëm një."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Vendi i përforcuesit të transmetuesit pa tel është i zënë."
     transmitter_booster_only: "Në këtë vend mund të vendoset vetëm një përforcues sinjali pa tel."
 debug:
+  value:
+    enabled: "Aktivizuar"
+    disabled: "Çaktivizuar"
+    none: "Asnjë"
+    unknown: "E panjohur"
   mode:
     read: "vetëm lexim"
     write: "shkrim"

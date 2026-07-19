@@ -203,6 +203,9 @@ message:
   lang_status_paths: "المسارات: {0}, {1}"
   wire:
     hard_cap: "سلسلة الأسلاك كبيرة جدا: {0}/{1}."
+    item_not_placeable: "لا يمكن وضع هذا العنصر بجوار سلك."
+  placement:
+    blocked: "الوضع محظور هنا."
   bus:
     no_storage: "لا يوجد تخزين متصل بهذا الناقل."
     multiple_storages: "تم توصيل عدة مخازن. اترك واحدة فقط."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "فتحة المعزز في المرسل اللاسلكي مشغولة."
     transmitter_booster_only: "لا يمكن وضع سوى معزز إشارة لاسلكية في هذه الفتحة."
 debug:
+  value:
+    enabled: "مفعّل"
+    disabled: "معطّل"
+    none: "لا يوجد"
+    unknown: "غير معروف"
   mode:
     read: "قراءة فقط"
     write: "كتابة"

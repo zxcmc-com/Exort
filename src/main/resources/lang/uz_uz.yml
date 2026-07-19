@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Yo'llar: {0}, {1}"
   wire:
     hard_cap: "Sim zanjiri juda katta: {0}/{1}."
+    item_not_placeable: "Bu buyumni simga yonma-yon joylashtirib bo'lmaydi."
+  placement:
+    blocked: "Bu yerda joylashtirish bloklangan."
   bus:
     no_storage: "Bu shinaga ombor ulanmagan."
     multiple_storages: "Bir nechta ombor ulangan. Faqat bittasini qoldiring."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Simsiz uzatgichning kuchaytirgich uyasi band."
     transmitter_booster_only: "Bu uyaga faqat simsiz signal kuchaytirgichini joylashtirish mumkin."
 debug:
+  value:
+    enabled: "Yoqilgan"
+    disabled: "O'chirilgan"
+    none: "Yo'q"
+    unknown: "Noma'lum"
   mode:
     read: "faqat o'qish"
     write: "yozish"

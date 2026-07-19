@@ -1,6 +1,7 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.carrier.Carriers;
+import com.zxcmc.exort.items.CustomItemModelConfig;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.EnumMap;
 import java.util.Locale;
@@ -45,6 +46,26 @@ public record RuntimeItemModelConfig(
     }
     return wirelessBoosterItemModels.getOrDefault(
         tier, normalizeModelId("amethyst_shard", VANILLA_NAMESPACE));
+  }
+
+  public CustomItemModelConfig customItemModels() {
+    return new CustomItemModelConfig(
+        wireItemModel,
+        storageItemModel,
+        terminalItemModel,
+        craftingTerminalItemModel,
+        monitorItemModel,
+        importBusItemModel,
+        exportBusItemModel,
+        relayItemModel,
+        transmitterItemModel,
+        chunkLoaderItemModel,
+        personalChunkLoaderItemModel,
+        dormantChunkLoaderItemModel,
+        wirelessItemModel,
+        wirelessDisabledModel,
+        VANILLA_NAMESPACE + ":target",
+        wirelessBoosterItemModels);
   }
 
   public static RuntimeItemModelConfig forMode(boolean resourceMode) {

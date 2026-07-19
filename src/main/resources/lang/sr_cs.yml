@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Putanje: {0}, {1}"
   wire:
     hard_cap: "Lanac kabla je prevelik: {0}/{1}."
+    item_not_placeable: "Ovaj predmet se ne može postaviti uz kabl."
+  placement:
+    blocked: "Postavljanje je ovde blokirano."
   bus:
     no_storage: "Nijedno skladište nije povezano sa ovom sabirnicom."
     multiple_storages: "Povezano je više skladišta. Ostavite samo jedno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Slot pojačivača bežičnog predajnika je zauzet."
     transmitter_booster_only: "U ovaj slot može se staviti samo pojačivač bežičnog signala."
 debug:
+  value:
+    enabled: "Uključeno"
+    disabled: "Isključeno"
+    none: "Nema"
+    unknown: "Nepoznato"
   mode:
     read: "samo čitanje"
     write: "pisanje"

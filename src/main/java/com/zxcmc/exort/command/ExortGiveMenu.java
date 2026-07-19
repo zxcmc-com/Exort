@@ -2,8 +2,8 @@ package com.zxcmc.exort.command;
 
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.infra.config.FeatureAccessConfig;
-import com.zxcmc.exort.items.CustomItemRegistry;
 import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.items.FixedItemCatalog;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.ArrayList;
@@ -29,7 +29,7 @@ public final class ExortGiveMenu implements InventoryHolder {
   private static final String PERMISSION_ADMIN = "exort.storagenetwork.admin";
   private static final String PERMISSION_GIVE = "exort.storagenetwork.give";
 
-  private static final List<String> FIXED_ITEM_IDS = CustomItemRegistry.fixedItemIds();
+  private static final List<String> FIXED_ITEM_IDS = FixedItemCatalog.fixedItemIds();
 
   private final Inventory inventory;
   private final Supplier<CustomItems> customItems;
@@ -190,7 +190,7 @@ public final class ExortGiveMenu implements InventoryHolder {
       ids.add("storage:" + tier.key().toLowerCase(Locale.ROOT));
     }
     for (String id : FIXED_ITEM_IDS) {
-      if (CustomItemRegistry.WIRELESS_BOOSTER.id().equals(id)) {
+      if (FixedItemCatalog.WIRELESS_BOOSTER.id().equals(id)) {
         if (access.isCatalogVisible(id)) {
           for (WirelessBoosterTier tier : WirelessBoosterTier.values()) {
             ids.add(id + ":" + tier.id());

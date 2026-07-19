@@ -34,11 +34,7 @@ import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.placement.BridgePlacementEvents;
 import com.zxcmc.exort.placement.PlacementCompensation;
-import com.zxcmc.exort.placement.storage.StoragePlacementDependencies;
-import com.zxcmc.exort.placement.storage.StoragePlacementFailureHandler;
-import com.zxcmc.exort.storage.StorageClaimLocation;
 import com.zxcmc.exort.storage.StorageClaimRegistry;
-import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wire.placement.WirePlacementLimitGuard;
 import com.zxcmc.exort.wire.placement.WireWaterFlowRefresh;
@@ -67,10 +63,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class BlockListener implements Listener {
+public class CarrierListener implements Listener {
   private final JavaPlugin plugin;
-  private final StorageManager storageManager;
-  private final StorageClaimRegistry storageClaimRegistry;
+  private final com.zxcmc.exort.placement.storage.StoragePlacementService storagePlacementService;
   private final StorageKeys keys;
   private final CustomItems customItems;
   private final Material wireMaterial;
@@ -89,7 +84,6 @@ public class BlockListener implements Listener {
   private final Material chunkLoaderCarrier;
   private final BlockBreakHandler breakHandler;
   private final ChunkLoaderService chunkLoaderService;
-  private final StoragePlacementFailureHandler placementFailureHandler;
   private final RegionProtection regionProtection;
   private final PlayerFeedback playerFeedback;
   private final Supplier<DisplayRefreshService> displayRefreshService;
@@ -100,10 +94,9 @@ public class BlockListener implements Listener {
   private final Supplier<BreakSoundConfig> breakSoundConfig;
   private final Supplier<BusRuntimeConfig> busRuntimeConfig;
 
-  public BlockListener(BlockListenerDependencies dependencies) {
+  public CarrierListener(CarrierListenerDependencies dependencies) {
     this.plugin = dependencies.plugin();
-    this.storageManager = dependencies.storageManager();
-    this.storageClaimRegistry = dependencies.storageClaimRegistry();
+    this.storagePlacementService = dependencies.storagePlacementService();
     this.keys = dependencies.keys();
     this.customItems = dependencies.customItems();
     this.wireMaterial = dependencies.wireMaterial();
@@ -133,16 +126,6 @@ public class BlockListener implements Listener {
     this.transmitterPlacedRecorder = dependencies.transmitterPlacedRecorder();
     this.breakSoundConfig = dependencies.breakSoundConfig();
     this.busRuntimeConfig = dependencies.busRuntimeConfig();
-    this.placementFailureHandler =
-        new StoragePlacementFailureHandler(
-            new StoragePlacementDependencies(
-                plugin,
-                dependencies.playerFeedback(),
-                storageCarrier,
-                displayRefreshService,
-                dependencies.hologramManagerSource(),
-                dependencies.revalidateSessions(),
-                this::invalidateNetwork));
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -152,7 +135,7 @@ public class BlockListener implements Listener {
     if (customItems.isMonitor(event.getItemInHand())
         && Carriers.matchesCarrier(block, monitorCarrier)) {
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-        event.setCancelled(true);
+        denyPlacement(event);
         return;
       }
       consumeIfInitialized(event);
@@ -184,7 +167,7 @@ public class BlockListener implements Listener {
         // not a bus
       } else {
         if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-          event.setCancelled(true);
+          denyPlacement(event);
           return;
         }
         consumeIfInitialized(event);
@@ -249,7 +232,7 @@ public class BlockListener implements Listener {
       boolean isCrafting = customItems.isCraftingTerminal(event.getItemInHand());
       if (!isTerminal && !isCrafting) return;
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-        event.setCancelled(true);
+        denyPlacement(event);
         return;
       }
       consumeIfInitialized(event);
@@ -302,7 +285,7 @@ public class BlockListener implements Listener {
       String type = itemPdc.get(keys.type(), PersistentDataType.STRING);
       if (!"wire".equalsIgnoreCase(type)) return;
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-        event.setCancelled(true);
+        denyPlacement(event);
         return;
       }
       if (!wirePlacementLimitGuard.canPlace(event.getPlayer(), block)) {
@@ -337,7 +320,7 @@ public class BlockListener implements Listener {
         return;
       }
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-        event.setCancelled(true);
+        denyPlacement(event);
         return;
       }
       RelayMarker.set(plugin, block);
@@ -378,7 +361,7 @@ public class BlockListener implements Listener {
         return;
       }
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-        event.setCancelled(true);
+        denyPlacement(event);
         return;
       }
       TransmitterMarker.set(plugin, block);
@@ -404,7 +387,7 @@ public class BlockListener implements Listener {
         return;
       }
       if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-        event.setCancelled(true);
+        denyPlacement(event);
         return;
       }
       UUID loaderId = customItems.chunkLoaderId(event.getItemInHand()).orElse(UUID.randomUUID());
@@ -450,7 +433,7 @@ public class BlockListener implements Listener {
       if (customItems.isStorageCore(event.getItemInHand())) {
         if (!Carriers.matchesCarrier(block, storageCarrier)) return;
         if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-          event.setCancelled(true);
+          denyPlacement(event);
           return;
         }
         consumeIfInitialized(event);
@@ -467,22 +450,20 @@ public class BlockListener implements Listener {
     StorageTier tier = tierOpt.get();
     if (!Carriers.matchesCarrier(block, storageCarrier)) return;
     if (!event.canBuild()) {
-      event.setCancelled(true);
+      denyPlacement(event);
       return;
     }
     if (!regionProtection.canBuild(event.getPlayer(), block.getLocation(), block.getType())) {
-      event.setCancelled(true);
+      denyPlacement(event);
       return;
     }
 
     String storageId =
         customItems.storageId(event.getItemInHand()).orElse(UUID.randomUUID().toString());
-    StorageClaimLocation claimLocation = StorageClaimLocation.fromBlock(block);
     StorageClaimRegistry.ReservationResult claim =
-        storageClaimRegistry.reserve(storageId, claimLocation);
+        storagePlacementService.reserve(event.getPlayer(), storageId, block);
     if (!claim.allowed()) {
       event.setCancelled(true);
-      warnStorageClaimDenied(event.getPlayer(), storageId, claimLocation, claim.denial());
       return;
     }
     String displayName = customItems.storageDisplayName(event.getItemInHand()).orElse(null);
@@ -499,8 +480,8 @@ public class BlockListener implements Listener {
     }
     BlockFace storageFace = horizontalFacing(event.getPlayer().getFacing().getOppositeFace());
     StorageMarker.set(plugin, block, storageId, tier, storageFace, displayName);
-    preloadStorage(event.getPlayer(), storageId);
-    persistStorageTier(
+    storagePlacementService.preload(event.getPlayer(), storageId);
+    storagePlacementService.persist(
         event.getPlayer(),
         block,
         storageId,
@@ -636,6 +617,12 @@ public class BlockListener implements Listener {
     }
   }
 
+  private void denyPlacement(BlockPlaceEvent event) {
+    event.setCancelled(true);
+    playerFeedback.respond(
+        event.getPlayer(), FeedbackReason.PLACEMENT_DENIED, "message.placement.blocked");
+  }
+
   private BlockFace horizontalFacing(BlockFace face) {
     return switch (face) {
       case NORTH, SOUTH, EAST, WEST -> face;
@@ -658,66 +645,6 @@ public class BlockListener implements Listener {
         soundConfig.range(),
         soundConfig.volume(),
         soundConfig.pitch());
-  }
-
-  private void preloadStorage(Player player, String storageId) {
-    storageManager
-        .getOrLoad(storageId)
-        .whenComplete(
-            (cache, err) -> {
-              if (err != null) {
-                placementFailureHandler.reportStorageFailure(
-                    player, "load placed storage " + storageId, err);
-              }
-            });
-  }
-
-  private void persistStorageTier(
-      Player player,
-      Block block,
-      String storageId,
-      String tierKey,
-      long tierMaxItems,
-      String displayName,
-      ItemStack refund,
-      boolean shouldRefund,
-      BlockState replacedState,
-      StorageClaimRegistry.Reservation reservation) {
-    storageClaimRegistry
-        .persist(reservation, tierKey, tierMaxItems, displayName)
-        .whenComplete(
-            (ignored, err) -> {
-              if (err != null) {
-                placementFailureHandler.rollbackFailedPlacement(
-                    player, block, storageId, refund, shouldRefund, replacedState, err);
-              } else {
-                storageManager.setCachedDisplayName(storageId, displayName);
-              }
-            });
-  }
-
-  private void warnStorageClaimDenied(
-      Player player,
-      String storageId,
-      StorageClaimLocation location,
-      StorageClaimRegistry.Denial denial) {
-    plugin
-        .getLogger()
-        .warning(
-            "Denied storage placement for "
-                + storageId
-                + " at "
-                + location
-                + ": physical claim "
-                + denial);
-    playerFeedback.respond(
-        player,
-        denial == StorageClaimRegistry.Denial.NOT_READY
-            ? FeedbackReason.STORAGE_LOADING
-            : FeedbackReason.STORAGE_CLAIM_CONFLICT,
-        denial == StorageClaimRegistry.Denial.NOT_READY
-            ? "message.storage_loading"
-            : "message.storage_load_failed");
   }
 
   private boolean shouldRefundPlacementItem(Player player, ItemStack item) {

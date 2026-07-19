@@ -64,10 +64,10 @@ class WorldEditHistoryCarrierTest {
             false,
             false);
 
-    LinCompoundTag tag = WorldEditBridge.buildExortTag(transmitter);
+    LinCompoundTag tag = WorldEditMarkerCodec.buildExortTag(transmitter);
     terminalBlob[0] = 9;
     boosterBlob[0] = 9;
-    MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(tag);
+    MarkerSnapshot parsed = WorldEditMarkerCodec.parseSnapshot(tag);
 
     assertNotNull(parsed);
     assertTrue(parsed.transmitter());
@@ -93,7 +93,8 @@ class WorldEditHistoryCarrierTest {
             false);
 
     MarkerSnapshot sanitized = transmitter.withoutTransmitterStoredItems();
-    MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(WorldEditBridge.buildExortTag(sanitized));
+    MarkerSnapshot parsed =
+        WorldEditMarkerCodec.parseSnapshot(WorldEditMarkerCodec.buildExortTag(sanitized));
 
     assertNotNull(parsed);
     assertTrue(parsed.transmitter());
@@ -203,7 +204,8 @@ class WorldEditHistoryCarrierTest {
             id, ChunkLoaderType.CHUNK_LOADER, new UUID(0L, 44L), "Admin", 100L, true, true);
     MarkerSnapshot snapshot = new MarkerSnapshot(null, null, null, null, null, data, false, false);
 
-    MarkerSnapshot parsed = WorldEditBridge.parseSnapshot(WorldEditBridge.buildExortTag(snapshot));
+    MarkerSnapshot parsed =
+        WorldEditMarkerCodec.parseSnapshot(WorldEditMarkerCodec.buildExortTag(snapshot));
 
     assertNotNull(parsed);
     assertNotNull(parsed.chunkLoader());

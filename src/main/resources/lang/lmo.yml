@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Percorsi: {0}, {1}"
   wire:
     hard_cap: "La catena di cavi è troppo grande: {0}/{1}."
+    item_not_placeable: "Quest ogget se pò minga piazzà contra on cavo."
+  placement:
+    blocked: "La posa l'è blocada chì."
   bus:
     no_storage: "Nessuno stoccaggio collegato a questo bus."
     multiple_storages: "Sono collegati più stoccaggi. Lasciane solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "El post de l'amplificator del Trasmetitor Wireless l'è occupaa."
     transmitter_booster_only: "Dumà on Amplificator de Segnàl Wireless el pò vess mettuu in sto post."
 debug:
+  value:
+    enabled: "Abilitaa"
+    disabled: "Disabilitaa"
+    none: "Nissun"
+    unknown: "Sconossuu"
   mode:
     read: "sola lettura"
     write: "scrittura"

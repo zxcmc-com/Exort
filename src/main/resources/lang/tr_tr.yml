@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Yollar: {0}, {1}"
   wire:
     hard_cap: "Kablo zinciri çok büyük: {0}/{1}."
+    item_not_placeable: "Bu eşya kabloya bitişik yerleştirilemez."
+  placement:
+    blocked: "Buraya yerleştirme engellendi."
   bus:
     no_storage: "Bu veri yoluna bağlı depo yok."
     multiple_storages: "Birden fazla depo bağlı. Yalnızca bir tane bırak."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Kablosuz Vericinin güçlendirici yuvası dolu."
     transmitter_booster_only: "Bu yuvaya yalnızca Kablosuz Sinyal Güçlendirici yerleştirilebilir."
 debug:
+  value:
+    enabled: "Etkin"
+    disabled: "Devre dışı"
+    none: "Yok"
+    unknown: "Bilinmiyor"
   mode:
     read: "salt okunur"
     write: "yazma"

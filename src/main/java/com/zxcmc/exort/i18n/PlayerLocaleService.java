@@ -4,6 +4,7 @@ import com.zxcmc.exort.bus.BusSession;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.gui.SessionManager;
+import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
@@ -20,18 +21,22 @@ public final class PlayerLocaleService implements Listener {
   private final ItemNameService itemNames;
   private final Supplier<SessionManager> sessionManager;
   private final Supplier<BusSessionManager> busSessionManager;
+  private final Supplier<TransmitterSessionManager> transmitterSessionManager;
 
   public PlayerLocaleService(
       JavaPlugin plugin,
       Lang lang,
       ItemNameService itemNames,
       Supplier<SessionManager> sessionManager,
-      Supplier<BusSessionManager> busSessionManager) {
+      Supplier<BusSessionManager> busSessionManager,
+      Supplier<TransmitterSessionManager> transmitterSessionManager) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.lang = Objects.requireNonNull(lang, "lang");
     this.itemNames = Objects.requireNonNull(itemNames, "itemNames");
     this.sessionManager = Objects.requireNonNull(sessionManager, "sessionManager");
     this.busSessionManager = Objects.requireNonNull(busSessionManager, "busSessionManager");
+    this.transmitterSessionManager =
+        Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
   }
 
   public String pluginTextLanguage(Player player) {
@@ -101,6 +106,10 @@ public final class PlayerLocaleService implements Listener {
                 if (busSession != null) {
                   busSession.render();
                 }
+              }
+              TransmitterSessionManager transmitterManager = transmitterSessionManager.get();
+              if (transmitterManager != null) {
+                transmitterManager.rerender(player);
               }
             });
   }

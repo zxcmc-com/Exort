@@ -1,4 +1,4 @@
-package com.zxcmc.exort.gui;
+package com.zxcmc.exort.storage.sort;
 
 public enum SortMode {
   AMOUNT,

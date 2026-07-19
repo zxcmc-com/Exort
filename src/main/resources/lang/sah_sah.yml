@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Суоллар: {0}, {1}"
   wire:
     hard_cap: "Кабель цепэ наһаа улахан: {0}/{1}."
+    item_not_placeable: "Бу предмети кабель кытыытыгар туруорор кыах суох."
+  placement:
+    blocked: "Манна туруоруу бобуллар."
   bus:
     no_storage: "Бу шинаҕа харайыы холбоммотоҕо."
     multiple_storages: "Хас да харайыы холбоммут. Биирдэни эрэ хаалларыҥ."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Сымнаах буолбатах биэрээччи күүһүрдүүрүн уяһа толору."
     transmitter_booster_only: "Бу уяҕа сымнаах буолбатах сигнал күүһүрдүүрүн эрэ ууруохха сөп."
 debug:
+  value:
+    enabled: "Холбоммут"
+    disabled: "Араарыллыбыт"
+    none: "Суох"
+    unknown: "Биллибэт"
   mode:
     read: "ааҕыы эрэ"
     write: "суруйуу"

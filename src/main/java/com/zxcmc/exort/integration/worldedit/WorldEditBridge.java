@@ -1,19 +1,17 @@
 package com.zxcmc.exort.integration.worldedit;
 
+import static com.zxcmc.exort.integration.worldedit.WorldEditMarkerCodec.*;
+
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.EmptyClipboardException;
 import com.sk89q.worldedit.IncompleteRegionException;
 import com.sk89q.worldedit.LocalSession;
-import com.sk89q.worldedit.MaxChangedBlocksException;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.event.extent.EditSessionEvent;
 import com.sk89q.worldedit.extension.platform.Actor;
 import com.sk89q.worldedit.extent.AbstractDelegateExtent;
 import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.transform.BlockTransformExtent;
-import com.sk89q.worldedit.function.pattern.BlockPattern;
-import com.sk89q.worldedit.function.pattern.Pattern;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.math.transform.Transform;
@@ -25,7 +23,6 @@ import com.sk89q.worldedit.util.concurrency.LazyReference;
 import com.sk89q.worldedit.util.eventbus.Subscribe;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.block.BlockState;
-import com.sk89q.worldedit.world.block.BlockStateHolder;
 import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.block.BlockTypes;
 import com.zxcmc.exort.bus.BusFilterCodec;
@@ -36,7 +33,6 @@ import com.zxcmc.exort.bus.BusState;
 import com.zxcmc.exort.bus.BusType;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
-import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.debug.WorldEditDebugService;
 import com.zxcmc.exort.display.device.ItemHologramManager;
@@ -63,14 +59,10 @@ import com.zxcmc.exort.wireless.transmitter.TransmitterMode;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.TransmitterStoredBooster;
 import com.zxcmc.exort.wireless.transmitter.TransmitterStoredTerminal;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -86,7 +78,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -107,53 +98,15 @@ import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
-import org.enginehub.linbus.tree.LinByteArrayTag;
-import org.enginehub.linbus.tree.LinByteTag;
 import org.enginehub.linbus.tree.LinCompoundTag;
-import org.enginehub.linbus.tree.LinStringTag;
-import org.enginehub.linbus.tree.LinTagType;
 
 public final class WorldEditBridge implements Listener {
-  private static final String EXORT_TAG = "exort";
-  private static final String SECTION_STORAGE = "storage";
-  private static final String SECTION_TERMINAL = "terminal";
-  private static final String SECTION_BUS = "bus";
-  private static final String SECTION_MONITOR = "monitor";
-  private static final String SECTION_RELAY = "relay";
-  private static final String SECTION_TRANSMITTER = "transmitter";
-  private static final String SECTION_CHUNK_LOADER = "chunk_loader";
-  private static final String SECTION_WIRE = "wire";
-  private static final String SECTION_STORAGE_CORE = "storage_core";
   private static final String ORAXEN_PLUGIN_NAME = "Oraxen";
   private static final String ORAXEN_WORLDEDIT_EXTENT =
       "io.th0rgal.oraxen.compatibilities.provided.worldedit.WorldEditHandlers$1";
   private static final String NEXO_PLUGIN_NAME = "Nexo";
   private static final String NEXO_WORLDEDIT_EXTENT =
       "com.nexomc.nexo.compatibilities.worldedit.NexoWorldEditExtent";
-
-  private static final String FIELD_ID = "id";
-  private static final String FIELD_TIER = "tier";
-  private static final String FIELD_TIER_MAX_ITEMS = "tierMaxItems";
-  private static final String FIELD_TYPE = "type";
-  private static final String FIELD_MODE = "mode";
-  private static final String FIELD_FACING = "facing";
-  private static final String FIELD_NAME = "name";
-  private static final String FIELD_ITEM_KEY = "item_key";
-  private static final String FIELD_ITEM_BLOB = "item_blob";
-  private static final String FIELD_TERMINAL_BLOB = "terminal_blob";
-  private static final String FIELD_BOOSTER_BLOB = "booster_blob";
-  private static final String FIELD_PRESENT = "present";
-  private static final String FIELD_LINK_WORLD = "link_world";
-  private static final String FIELD_LINK_X = "link_x";
-  private static final String FIELD_LINK_Y = "link_y";
-  private static final String FIELD_LINK_Z = "link_z";
-  private static final String FIELD_FILTERS = "filters";
-  private static final String FIELD_NBT_ID = "id";
-  private static final String FIELD_PLACED_BY_UUID = "placed_by_uuid";
-  private static final String FIELD_PLACED_BY_NAME = "placed_by_name";
-  private static final String FIELD_CREATED_AT = "created_at";
-  private static final String FIELD_ENABLED = "enabled";
-  private static final String FIELD_BYPASS_LIMITS = "bypass_limits";
 
   private static final int BUS_FILTER_SLOTS = 10;
 
@@ -168,28 +121,17 @@ public final class WorldEditBridge implements Listener {
   private static final long OPERATION_CONTEXT_TTL_MS = TimeUnit.SECONDS.toMillis(5);
   private static final int HISTORY_STAGE_USES_PER_STEP = 3;
 
-  private static final Map<Class<?>, TranslateAccessor> TRANSLATE_ACCESSORS =
-      new ConcurrentHashMap<>();
-  private static final Set<Class<?>> TRANSLATE_SKIP = ConcurrentHashMap.newKeySet();
-  private static final Map<Class<?>, Method> POSITION_METHODS = new ConcurrentHashMap<>();
-  private static final Set<Class<?>> POSITION_SKIP = ConcurrentHashMap.newKeySet();
-  private static final Map<Class<?>, TransformAccessor> TRANSFORM_ACCESSORS =
-      new ConcurrentHashMap<>();
-  private static final Set<Class<?>> TRANSFORM_SKIP = ConcurrentHashMap.newKeySet();
-  private static final BlockFace[] ROTATABLE_FACES = {
-    BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN
-  };
-
   private final Plugin plugin;
   private final WorldEditBridgeDependencies deps;
+  private final WorldEditCarrierPolicy carrierPolicy;
   private final WorldEditRefreshScheduler refreshScheduler;
   private final WorldEditClipboardPatcher clipboardPatcher;
   private final Queue<PendingUpdate> updates = new ConcurrentLinkedQueue<>();
   private final WorldEditDeferredUpdates deferredUpdates = new WorldEditDeferredUpdates();
   private final Set<ChunkKey> deferredSnapshotChunks = ConcurrentHashMap.newKeySet();
   private final Set<ChunkKey> warnedDeferredUpdateChunks = ConcurrentHashMap.newKeySet();
-  private final Queue<BlockRef> directReconciliationQueue = new ConcurrentLinkedQueue<>();
-  private final Set<BlockRef> directReconciliationKeys = ConcurrentHashMap.newKeySet();
+  private final WorldEditDirectReconciliationQueue directReconciliation =
+      new WorldEditDirectReconciliationQueue(DIRECT_RECONCILIATION_CAP);
   private final AtomicBoolean directReconciliationOverflowWarned = new AtomicBoolean();
   private final AtomicBoolean markerCaptureOverflowWarned = new AtomicBoolean();
   private final Set<WorldEditLoadedMarkerChunkCursor> entityRefreshCursors =
@@ -217,10 +159,60 @@ public final class WorldEditBridge implements Listener {
   private WorldEditBridge(WorldEditBridgeDependencies deps) {
     this.deps = Objects.requireNonNull(deps, "deps");
     this.plugin = deps.plugin();
+    this.carrierPolicy = new WorldEditCarrierPolicy(deps.materials());
     this.refreshScheduler = new WorldEditRefreshScheduler(deps, this::updateQueueDepthGauge);
     this.clipboardPatcher =
         new WorldEditClipboardPatcher(
             plugin, this::buildMarkerBlock, deps::debugService, this::onClipboardPatchResult);
+  }
+
+  WorldEditBridgeDependencies dependencies() {
+    return deps;
+  }
+
+  WorldEditCarrierPolicy carrierPolicy() {
+    return carrierPolicy;
+  }
+
+  WorldEditMarkerHistory markerHistory() {
+    return markerHistory;
+  }
+
+  /** Preserves the externally configured FAWE allowlist class while delegating all extent logic. */
+  private static final class MarkerExtent extends WorldEditMarkerExtent {
+    MarkerExtent(
+        Extent extent,
+        World world,
+        WorldEditBridge bridge,
+        long operationId,
+        UUID actorId,
+        EditSession.Stage stage,
+        HistoryAction historyAction,
+        WorldEditMarkerHistory.Frame normalHistoryFrame,
+        WorldEditMarkerHistory.Frame replayHistoryFrame,
+        FacingTransform clipboardTransform,
+        PendingPastePatch pastePatch,
+        PendingMovePatch movePatch,
+        PendingClipboardPatch cutSourcePatch,
+        PendingOperationSnapshot operationSnapshot,
+        boolean commandContextPresent) {
+      super(
+          extent,
+          world,
+          bridge,
+          operationId,
+          actorId,
+          stage,
+          historyAction,
+          normalHistoryFrame,
+          replayHistoryFrame,
+          clipboardTransform,
+          pastePatch,
+          movePatch,
+          cutSourcePatch,
+          operationSnapshot,
+          commandContextPresent);
+    }
   }
 
   public static WorldEditBridge tryRegister(WorldEditBridgeDependencies deps) {
@@ -323,8 +315,7 @@ public final class WorldEditBridge implements Listener {
     deferredUpdates.clear();
     deferredSnapshotChunks.clear();
     warnedDeferredUpdateChunks.clear();
-    directReconciliationQueue.clear();
-    directReconciliationKeys.clear();
+    directReconciliation.clear();
     for (WorldEditLoadedMarkerChunkCursor cursor : entityRefreshCursors) {
       cursor.cancel();
     }
@@ -417,7 +408,8 @@ public final class WorldEditBridge implements Listener {
                   : operationSnapshot.worldId() + "/" + operationSnapshot.markers().size()),
           NamedTextColor.GRAY);
     }
-    FacingTransform clipboardTransform = pasteCommandPending ? resolveClipboardFacing(actor) : null;
+    FacingTransform clipboardTransform =
+        pasteCommandPending ? WorldEditExtentCapabilities.resolveClipboardFacing(actor) : null;
     event.setExtent(
         new MarkerExtent(
             extent,
@@ -847,7 +839,8 @@ public final class WorldEditBridge implements Listener {
               destinationWorldId,
               destinations,
               snapshots);
-      long destinationKey = blockKey(destination.x(), destination.y(), destination.z());
+      long destinationKey =
+          WorldEditMarkerMath.blockKey(destination.x(), destination.y(), destination.z());
       destinationMarkers.put(destinationKey, snapshot);
       MarkerSnapshot undoSnapshot = captureMarkerSnapshot(destinationWorld, destination);
       if (undoSnapshot == null && Objects.equals(sourceWorldId, destinationWorldId)) {
@@ -958,7 +951,8 @@ public final class WorldEditBridge implements Listener {
     for (Map.Entry<BlockVector3, LinCompoundTag> entry : captured.markers().entrySet()) {
       MarkerSnapshot snapshot = parseSnapshot(entry.getValue());
       if (snapshot == null) continue;
-      LinCompoundTag copyTag = buildExortTag(snapshot.withoutTransmitterStoredItems());
+      LinCompoundTag copyTag =
+          WorldEditMarkerCodec.buildExortTag(snapshot.withoutTransmitterStoredItems());
       if (copyTag != null) copyMarkers.put(entry.getKey(), copyTag);
     }
     PendingClipboardPatch copyPatch =
@@ -996,7 +990,8 @@ public final class WorldEditBridge implements Listener {
         continue;
       }
       sourceMarkers.put(
-          blockKey(entry.getKey().x(), entry.getKey().y(), entry.getKey().z()), snapshot);
+          WorldEditMarkerMath.blockKey(entry.getKey().x(), entry.getKey().y(), entry.getKey().z()),
+          snapshot);
       snapshot =
           RelayLinkRewrite.rewrite(
               snapshot,
@@ -1005,7 +1000,9 @@ public final class WorldEditBridge implements Listener {
               captured.sourceWorldId(),
               destinations,
               snapshots);
-      destinationMarkers.put(blockKey(destination.x(), destination.y(), destination.z()), snapshot);
+      destinationMarkers.put(
+          WorldEditMarkerMath.blockKey(destination.x(), destination.y(), destination.z()),
+          snapshot);
     }
     if (destinationMarkers.isEmpty()) {
       return null;
@@ -1069,7 +1066,7 @@ public final class WorldEditBridge implements Listener {
         continue;
       }
       BlockVector3 pos = entry.getKey();
-      markers.put(blockKey(pos.x(), pos.y(), pos.z()), snapshot);
+      markers.put(WorldEditMarkerMath.blockKey(pos.x(), pos.y(), pos.z()), snapshot);
       chunks.add(new ChunkKey(captured.sourceWorldId(), pos.x() >> 4, pos.z() >> 4));
     }
   }
@@ -1302,7 +1299,7 @@ public final class WorldEditBridge implements Listener {
         markerHistory, null, actorId, worldId, source, movePatch, normalHistoryFrame);
   }
 
-  private static MarkerSnapshot rememberMoveSourceHistory(
+  static MarkerSnapshot rememberMoveSourceHistory(
       WorldEditMarkerHistory markerHistory,
       Set<Long> rememberedHistory,
       UUID actorId,
@@ -1419,7 +1416,7 @@ public final class WorldEditBridge implements Listener {
     return richerTransmitterSnapshot(liveSnapshot, operationSnapshot.get(worldId, position));
   }
 
-  private static MarkerSnapshot richerTransmitterSnapshot(
+  static MarkerSnapshot richerTransmitterSnapshot(
       MarkerSnapshot current, MarkerSnapshot candidate) {
     if (current == null) {
       return candidate;
@@ -1451,7 +1448,7 @@ public final class WorldEditBridge implements Listener {
     return current;
   }
 
-  private void enqueue(MarkerUpdate update) {
+  void enqueue(MarkerUpdate update) {
     if (update == null) return;
     operationTracker.record(update);
     updates.add(new PendingUpdate(update));
@@ -1463,7 +1460,7 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
-  private void enqueueMoveSourceCleanup(
+  void enqueueMoveSourceCleanup(
       long operationId, UUID worldId, PendingMovePatch movePatch, Set<Long> observedSourceClears) {
     if (worldId == null || movePatch == null) {
       return;
@@ -1683,13 +1680,13 @@ public final class WorldEditBridge implements Listener {
       PerfStats.setGauge("worldedit.markerDeferredChunks", deferredUpdates.chunkCount());
       PerfStats.setGauge("worldedit.markerDeferredUpdates", deferredUpdates.updateCount());
       PerfStats.setGauge("worldedit.snapshotDeferredChunks", deferredSnapshotChunks.size());
-      PerfStats.setGauge("worldedit.directReconciliationDepth", directReconciliationKeys.size());
+      PerfStats.setGauge("worldedit.directReconciliationDepth", directReconciliation.size());
       PerfStats.setGauge(
           "worldedit.queueDepth",
           markerDepth
               + deferredUpdates.updateCount()
               + deferredSnapshotChunks.size()
-              + directReconciliationKeys.size()
+              + directReconciliation.size()
               + refreshScheduler.queuedTaskCount());
     }
   }
@@ -1701,7 +1698,7 @@ public final class WorldEditBridge implements Listener {
         continue;
       }
       MarkerUpdate update = pending.update;
-      long key = blockKey(update.x(), update.y(), update.z());
+      long key = WorldEditMarkerMath.blockKey(update.x(), update.y(), update.z());
       latest.remove(key);
       latest.put(key, pending);
     }
@@ -2234,7 +2231,7 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
-  private ChunkSnapshot loadSnapshot(World world, int chunkX, int chunkZ) {
+  ChunkSnapshot loadSnapshot(World world, int chunkX, int chunkZ) {
     if (!Bukkit.isPrimaryThread()) {
       deferSnapshotReconcile(world, chunkX, chunkZ);
       return ChunkSnapshot.empty();
@@ -2253,7 +2250,7 @@ public final class WorldEditBridge implements Listener {
         (block, root) -> {
           LinCompoundTag tag = buildExortTag(block);
           if (tag != null) {
-            data.put(blockKey(block.getX(), block.getY(), block.getZ()), tag);
+            data.put(WorldEditMarkerMath.blockKey(block.getX(), block.getY(), block.getZ()), tag);
           }
         });
     WorldEditDebugService debug = deps.debugService();
@@ -2300,11 +2297,15 @@ public final class WorldEditBridge implements Listener {
     updateQueueDepthGauge();
   }
 
-  private boolean reserveDirectReconciliation(World world, BlockVector3 position) {
+  boolean reserveDirectReconciliation(World world, BlockVector3 position) {
     if (world == null || position == null) return false;
     BlockRef ref = new BlockRef(world.getUID(), position.x(), position.y(), position.z());
-    if (directReconciliationKeys.contains(ref)) return true;
-    if (directReconciliationKeys.size() >= DIRECT_RECONCILIATION_CAP) {
+    WorldEditDirectReconciliationQueue.ReserveResult reserveResult =
+        directReconciliation.reserve(ref);
+    if (reserveResult == WorldEditDirectReconciliationQueue.ReserveResult.ALREADY_PRESENT) {
+      return true;
+    }
+    if (reserveResult == WorldEditDirectReconciliationQueue.ReserveResult.FULL) {
       PerfStats.incrementCounter("worldedit.direct.reconciliationOverflow");
       if (directReconciliationOverflowWarned.compareAndSet(false, true)) {
         plugin
@@ -2314,9 +2315,6 @@ public final class WorldEditBridge implements Listener {
                     + "cap; additional Exort carrier writes are being rejected.");
       }
       return false;
-    }
-    if (directReconciliationKeys.add(ref)) {
-      directReconciliationQueue.add(ref);
     }
     synchronized (flushTaskLock) {
       if (!shuttingDown && directReconciliationTask == null) {
@@ -2339,9 +2337,8 @@ public final class WorldEditBridge implements Listener {
     }
     int examined = 0;
     while (examined < APPLY_PER_TICK) {
-      BlockRef ref = directReconciliationQueue.poll();
+      BlockRef ref = directReconciliation.poll();
       if (ref == null) break;
-      directReconciliationKeys.remove(ref);
       examined++;
       Block block = ref.block();
       if (block == null) continue;
@@ -2365,7 +2362,7 @@ public final class WorldEditBridge implements Listener {
               false));
       PerfStats.incrementCounter("worldedit.direct.restored");
     }
-    if (!directReconciliationQueue.isEmpty()) {
+    if (!directReconciliation.isEmpty()) {
       synchronized (flushTaskLock) {
         if (!shuttingDown && directReconciliationTask == null) {
           directReconciliationTask =
@@ -2469,7 +2466,7 @@ public final class WorldEditBridge implements Listener {
     if (TransmitterMarker.isTransmitter(plugin, block)) {
       LinCompoundTag.Builder transmitterTag = LinCompoundTag.builder();
       transmitterTag.putByte(FIELD_PRESENT, (byte) 1);
-      writeTransmitterData(
+      WorldEditMarkerCodec.writeTransmitterData(
           transmitterTag, captureTransmitterData(block, includeTransmitterTerminal));
       exort.put(SECTION_TRANSMITTER, transmitterTag.build());
       any = true;
@@ -2505,11 +2502,11 @@ public final class WorldEditBridge implements Listener {
     MarkerSnapshot snapshot = parseSnapshot(tag);
     if (snapshot == null || primaryMarkerCount(snapshot) != 1) return null;
     if (!validateCarrier) return tag;
-    if (matchesWorldCarrier(block, snapshot) && primaryMarkerCount(snapshot) == 1) {
+    if (carrierPolicy.matchesWorldCarrier(block, snapshot) && primaryMarkerCount(snapshot) == 1) {
       return tag;
     }
     boolean cleared = false;
-    if (!isCarrierCandidate(block)) {
+    if (!carrierPolicy.isCarrierCandidate(block)) {
       ChunkMarkerStore.clearBlock(plugin, block);
       cleared = true;
     }
@@ -2557,1725 +2554,7 @@ public final class WorldEditBridge implements Listener {
         TransmitterStoredTerminal.mode(plugin, block).id(), terminalBlob, boosterBlob);
   }
 
-  private static void writeTransmitterData(
-      LinCompoundTag.Builder transmitterTag, TransmitterData data) {
-    if (transmitterTag == null || data == null) {
-      return;
-    }
-    if (data.mode() != null) {
-      transmitterTag.putString(FIELD_MODE, data.mode());
-    }
-    byte[] terminalBlob = data.terminalBlob();
-    if (terminalBlob != null && terminalBlob.length > 0) {
-      transmitterTag.putByteArray(FIELD_TERMINAL_BLOB, terminalBlob);
-    }
-    byte[] boosterBlob = data.boosterBlob();
-    if (boosterBlob != null && boosterBlob.length > 0) {
-      transmitterTag.putByteArray(FIELD_BOOSTER_BLOB, boosterBlob);
-    }
-  }
-
-  private boolean matchesWorldCarrier(Block block, MarkerSnapshot snapshot) {
-    if (block == null || snapshot == null) return false;
-    if (snapshot.storage() != null && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
-      return false;
-    }
-    if (snapshot.storageCore() && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
-      return false;
-    }
-    if (snapshot.terminal() != null && !Carriers.matchesCarrier(block, deps.terminalCarrier())) {
-      return false;
-    }
-    if (snapshot.monitor() != null && !Carriers.matchesCarrier(block, deps.monitorCarrier())) {
-      return false;
-    }
-    if (snapshot.bus() != null && !Carriers.matchesCarrier(block, deps.busCarrier())) {
-      return false;
-    }
-    if (snapshot.relay() != null && !Carriers.matchesCarrier(block, deps.relayCarrier())) {
-      return false;
-    }
-    if (snapshot.transmitter() && !Carriers.matchesCarrier(block, deps.transmitterCarrier())) {
-      return false;
-    }
-    if (snapshot.chunkLoader() != null
-        && !Carriers.matchesCarrier(block, deps.chunkLoaderCarrier())) {
-      return false;
-    }
-    return !snapshot.wire() || Carriers.matchesCarrier(block, deps.wireMaterial());
-  }
-
-  private boolean isCarrierCandidate(Block block) {
-    if (block == null) return false;
-    Material type = block.getType();
-    return type == deps.storageCarrier()
-        || type == deps.terminalCarrier()
-        || type == deps.monitorCarrier()
-        || type == deps.busCarrier()
-        || type == deps.relayCarrier()
-        || type == deps.transmitterCarrier()
-        || type == deps.chunkLoaderCarrier()
-        || type == deps.wireMaterial()
-        || type == Carriers.CARRIER_BARRIER
-        || type == Carriers.CHORUS_MATERIAL;
-  }
-
-  private boolean isCarrierCandidate(BaseBlock block) {
-    if (block == null || block.getBlockType() == null) return false;
-    BlockType type = block.getBlockType();
-    return matchesMaterial(type, deps.storageCarrier())
-        || matchesMaterial(type, deps.terminalCarrier())
-        || matchesMaterial(type, deps.monitorCarrier())
-        || matchesMaterial(type, deps.busCarrier())
-        || matchesMaterial(type, deps.relayCarrier())
-        || matchesMaterial(type, deps.transmitterCarrier())
-        || matchesMaterial(type, deps.chunkLoaderCarrier())
-        || matchesMaterial(type, deps.wireMaterial())
-        || matchesMaterial(type, Carriers.CARRIER_BARRIER)
-        || matchesMaterial(type, Carriers.CHORUS_MATERIAL);
-  }
-
-  private static boolean matchesMaterial(BlockType type, Material material) {
-    if (type == null || material == null) return false;
-    BlockType materialType = BlockTypes.get(material.getKey().toString());
-    return type.equals(materialType);
-  }
-
-  static LinCompoundTag buildExortTag(MarkerSnapshot snapshot) {
-    if (snapshot == null) return null;
-    LinCompoundTag.Builder exort = LinCompoundTag.builder();
-    boolean any = false;
-    if (snapshot.storage() != null) {
-      LinCompoundTag.Builder storageTag = LinCompoundTag.builder();
-      storageTag.putString(FIELD_ID, snapshot.storage().storageId());
-      storageTag.putString(FIELD_TIER, snapshot.storage().tier());
-      if (snapshot.storage().tierMaxItems() != null) {
-        storageTag.putString(
-            FIELD_TIER_MAX_ITEMS, Long.toString(snapshot.storage().tierMaxItems()));
-      }
-      if (snapshot.storage().displayName() != null) {
-        storageTag.putString(FIELD_NAME, snapshot.storage().displayName());
-      }
-      if (snapshot.storage().facing() != null) {
-        storageTag.putString(FIELD_FACING, snapshot.storage().facing());
-      }
-      exort.put(SECTION_STORAGE, storageTag.build());
-      any = true;
-    }
-    if (snapshot.storageCore()) {
-      LinCompoundTag.Builder coreTag = LinCompoundTag.builder();
-      coreTag.putByte(FIELD_PRESENT, (byte) 1);
-      exort.put(SECTION_STORAGE_CORE, coreTag.build());
-      any = true;
-    }
-    if (snapshot.terminal() != null) {
-      LinCompoundTag.Builder terminalTag = LinCompoundTag.builder();
-      if (snapshot.terminal().type() != null) {
-        terminalTag.putString(FIELD_TYPE, snapshot.terminal().type());
-      }
-      if (snapshot.terminal().facing() != null) {
-        terminalTag.putString(FIELD_FACING, snapshot.terminal().facing());
-      }
-      exort.put(SECTION_TERMINAL, terminalTag.build());
-      any = true;
-    }
-    if (snapshot.bus() != null) {
-      LinCompoundTag.Builder busTag = LinCompoundTag.builder();
-      if (snapshot.bus().type() != null) {
-        busTag.putString(FIELD_TYPE, snapshot.bus().type());
-      }
-      if (snapshot.bus().mode() != null) {
-        busTag.putString(FIELD_MODE, snapshot.bus().mode());
-      }
-      if (snapshot.bus().facing() != null) {
-        busTag.putString(FIELD_FACING, snapshot.bus().facing());
-      }
-      if (snapshot.bus().filters() != null && snapshot.bus().filters().length > 0) {
-        busTag.putByteArray(FIELD_FILTERS, snapshot.bus().filters());
-      }
-      exort.put(SECTION_BUS, busTag.build());
-      any = true;
-    }
-    if (snapshot.monitor() != null) {
-      LinCompoundTag.Builder monitorTag = LinCompoundTag.builder();
-      if (snapshot.monitor().facing() != null) {
-        monitorTag.putString(FIELD_FACING, snapshot.monitor().facing());
-      }
-      if (snapshot.monitor().itemKey() != null) {
-        monitorTag.putString(FIELD_ITEM_KEY, snapshot.monitor().itemKey());
-      }
-      if (snapshot.monitor().itemBlob() != null) {
-        monitorTag.putByteArray(FIELD_ITEM_BLOB, snapshot.monitor().itemBlob());
-      }
-      exort.put(SECTION_MONITOR, monitorTag.build());
-      any = true;
-    }
-    if (snapshot.relay() != null) {
-      LinCompoundTag.Builder relayTag = LinCompoundTag.builder();
-      relayTag.putByte(FIELD_PRESENT, (byte) 1);
-      RelayLinkData link = snapshot.relay().link();
-      if (link != null) {
-        relayTag.putString(FIELD_LINK_WORLD, link.worldId().toString());
-        relayTag.putString(FIELD_LINK_X, Integer.toString(link.x()));
-        relayTag.putString(FIELD_LINK_Y, Integer.toString(link.y()));
-        relayTag.putString(FIELD_LINK_Z, Integer.toString(link.z()));
-      }
-      exort.put(SECTION_RELAY, relayTag.build());
-      any = true;
-    }
-    if (snapshot.transmitter()) {
-      LinCompoundTag.Builder transmitterTag = LinCompoundTag.builder();
-      transmitterTag.putByte(FIELD_PRESENT, (byte) 1);
-      writeTransmitterData(transmitterTag, snapshot.transmitterData());
-      exort.put(SECTION_TRANSMITTER, transmitterTag.build());
-      any = true;
-    }
-    if (snapshot.chunkLoader() != null) {
-      LinCompoundTag.Builder chunkLoaderTag = LinCompoundTag.builder();
-      chunkLoaderTag.putString(FIELD_ID, snapshot.chunkLoader().id().toString());
-      chunkLoaderTag.putString(FIELD_TYPE, snapshot.chunkLoader().type().id());
-      if (snapshot.chunkLoader().placedByUuid() != null) {
-        chunkLoaderTag.putString(
-            FIELD_PLACED_BY_UUID, snapshot.chunkLoader().placedByUuid().toString());
-      }
-      if (snapshot.chunkLoader().placedByName() != null) {
-        chunkLoaderTag.putString(FIELD_PLACED_BY_NAME, snapshot.chunkLoader().placedByName());
-      }
-      if (snapshot.chunkLoader().createdAt() > 0L) {
-        chunkLoaderTag.putString(
-            FIELD_CREATED_AT, Long.toString(snapshot.chunkLoader().createdAt()));
-      }
-      chunkLoaderTag.putString(FIELD_ENABLED, Boolean.toString(snapshot.chunkLoader().enabled()));
-      chunkLoaderTag.putString(
-          FIELD_BYPASS_LIMITS, Boolean.toString(snapshot.chunkLoader().bypassLimits()));
-      exort.put(SECTION_CHUNK_LOADER, chunkLoaderTag.build());
-      any = true;
-    }
-    if (snapshot.wire()) {
-      LinCompoundTag.Builder wireTag = LinCompoundTag.builder();
-      wireTag.putByte(FIELD_PRESENT, (byte) 1);
-      exort.put(SECTION_WIRE, wireTag.build());
-      any = true;
-    }
-    return any ? exort.build() : null;
-  }
-
-  private static LinCompoundTag removeExort(LinCompoundTag root) {
-    if (root == null) return null;
-    return root.toBuilder().remove(EXORT_TAG).build();
-  }
-
-  private static LinCompoundTag readExort(LinCompoundTag root) {
-    if (root == null) return null;
-    return root.findTag(EXORT_TAG, LinTagType.compoundTag());
-  }
-
-  private static LinCompoundTag getCompound(LinCompoundTag root, String key) {
-    if (root == null) return null;
-    return root.findTag(key, LinTagType.compoundTag());
-  }
-
-  private static String readString(LinCompoundTag root, String key) {
-    if (root == null) return null;
-    LinStringTag tag = root.findTag(key, LinTagType.stringTag());
-    return tag == null ? null : tag.value();
-  }
-
-  private static byte[] readByteArray(LinCompoundTag root, String key) {
-    if (root == null) return null;
-    LinByteArrayTag tag = root.findTag(key, LinTagType.byteArrayTag());
-    return tag == null ? null : tag.value();
-  }
-
-  private static Long readPositiveLongString(LinCompoundTag root, String key) {
-    String raw = readString(root, key);
-    if (raw == null || raw.isBlank()) return null;
-    try {
-      long value = Long.parseLong(raw.trim());
-      return value > 0 ? value : null;
-    } catch (NumberFormatException ignored) {
-      return null;
-    }
-  }
-
-  private static boolean readPresent(LinCompoundTag root, String key) {
-    if (root == null) return false;
-    LinByteTag tag = root.findTag(key, LinTagType.byteTag());
-    return tag != null && tag.valueAsByte() == (byte) 1;
-  }
-
-  private static boolean readEnabled(LinCompoundTag root) {
-    return readBooleanString(root, FIELD_ENABLED, true);
-  }
-
-  private static boolean readBooleanString(LinCompoundTag root, String key, boolean defaultValue) {
-    String raw = readString(root, key);
-    return raw == null || raw.isBlank() ? defaultValue : Boolean.parseBoolean(raw.trim());
-  }
-
-  private static UUID readUuid(LinCompoundTag root, String key) {
-    String raw = readString(root, key);
-    if (raw == null || raw.isBlank()) return null;
-    try {
-      return UUID.fromString(raw.trim());
-    } catch (IllegalArgumentException ignored) {
-      return null;
-    }
-  }
-
-  private static long blockKey(int x, int y, int z) {
-    return WorldEditMarkerMath.blockKey(x, y, z);
-  }
-
-  static MarkerSnapshot parseSnapshot(LinCompoundTag exort) {
-    if (exort == null) return null;
-    StorageData storage = null;
-    TerminalData terminal = null;
-    BusData bus = null;
-    MonitorData monitor = null;
-    RelayData relay = null;
-    TransmitterData transmitterData = null;
-    ChunkLoaderData chunkLoader = null;
-    boolean transmitter = false;
-    boolean wire = false;
-    boolean storageCore = false;
-
-    LinCompoundTag storageTag = getCompound(exort, SECTION_STORAGE);
-    if (storageTag != null) {
-      String id = readString(storageTag, FIELD_ID);
-      String tier = readString(storageTag, FIELD_TIER);
-      Long tierMaxItems = readPositiveLongString(storageTag, FIELD_TIER_MAX_ITEMS);
-      String facing = readString(storageTag, FIELD_FACING);
-      String displayName = readString(storageTag, FIELD_NAME);
-      if (id != null && tier != null) {
-        storage = new StorageData(id, tier, tierMaxItems, facing, displayName);
-      }
-    }
-
-    LinCompoundTag terminalTag = getCompound(exort, SECTION_TERMINAL);
-    if (terminalTag != null) {
-      String type = readString(terminalTag, FIELD_TYPE);
-      String facing = readString(terminalTag, FIELD_FACING);
-      terminal = new TerminalData(type, facing);
-    }
-
-    LinCompoundTag busTag = getCompound(exort, SECTION_BUS);
-    if (busTag != null) {
-      String type = readString(busTag, FIELD_TYPE);
-      String mode = readString(busTag, FIELD_MODE);
-      String facing = readString(busTag, FIELD_FACING);
-      byte[] filters = readByteArray(busTag, FIELD_FILTERS);
-      if (type != null || mode != null || facing != null) {
-        bus = new BusData(type, facing, mode, filters);
-      }
-    }
-
-    LinCompoundTag monitorTag = getCompound(exort, SECTION_MONITOR);
-    if (monitorTag != null) {
-      String facing = readString(monitorTag, FIELD_FACING);
-      String itemKey = readString(monitorTag, FIELD_ITEM_KEY);
-      byte[] itemBlob = readByteArray(monitorTag, FIELD_ITEM_BLOB);
-      monitor = new MonitorData(facing, itemKey, itemBlob);
-    }
-
-    LinCompoundTag relayTag = getCompound(exort, SECTION_RELAY);
-    if (relayTag != null && readPresent(relayTag, FIELD_PRESENT)) {
-      relay = new RelayData(readRelayLink(relayTag));
-    }
-
-    LinCompoundTag transmitterTag = getCompound(exort, SECTION_TRANSMITTER);
-    if (transmitterTag != null) {
-      transmitter = readPresent(transmitterTag, FIELD_PRESENT);
-      if (transmitter) {
-        transmitterData =
-            new TransmitterData(
-                readString(transmitterTag, FIELD_MODE),
-                readByteArray(transmitterTag, FIELD_TERMINAL_BLOB),
-                readByteArray(transmitterTag, FIELD_BOOSTER_BLOB));
-      }
-    }
-
-    LinCompoundTag chunkLoaderTag = getCompound(exort, SECTION_CHUNK_LOADER);
-    if (chunkLoaderTag != null) {
-      UUID id = readUuid(chunkLoaderTag, FIELD_ID);
-      if (id != null) {
-        UUID placedByUuid = readUuid(chunkLoaderTag, FIELD_PLACED_BY_UUID);
-        String placedByName = readString(chunkLoaderTag, FIELD_PLACED_BY_NAME);
-        Long createdAt = readPositiveLongString(chunkLoaderTag, FIELD_CREATED_AT);
-        Optional<ChunkLoaderType> type =
-            ChunkLoaderType.fromNullableId(readString(chunkLoaderTag, FIELD_TYPE));
-        if (type.isPresent()) {
-          chunkLoader =
-              new ChunkLoaderData(
-                  id,
-                  type.orElseThrow(),
-                  placedByUuid,
-                  placedByName,
-                  createdAt == null ? 0L : createdAt,
-                  readEnabled(chunkLoaderTag),
-                  readBooleanString(chunkLoaderTag, FIELD_BYPASS_LIMITS, false));
-        }
-      }
-    }
-
-    LinCompoundTag wireTag = getCompound(exort, SECTION_WIRE);
-    if (wireTag != null) {
-      wire = readPresent(wireTag, FIELD_PRESENT);
-    }
-
-    LinCompoundTag coreTag = getCompound(exort, SECTION_STORAGE_CORE);
-    if (coreTag != null) {
-      storageCore = readPresent(coreTag, FIELD_PRESENT);
-    }
-
-    if (storage == null
-        && terminal == null
-        && bus == null
-        && monitor == null
-        && relay == null
-        && !transmitter
-        && chunkLoader == null
-        && !wire
-        && !storageCore) {
-      return null;
-    }
-    return new MarkerSnapshot(
-        storage,
-        terminal,
-        bus,
-        monitor,
-        relay,
-        transmitter,
-        transmitterData,
-        chunkLoader,
-        wire,
-        storageCore);
-  }
-
-  private static RelayLinkData readRelayLink(LinCompoundTag relayTag) {
-    String worldRaw = readString(relayTag, FIELD_LINK_WORLD);
-    String xRaw = readString(relayTag, FIELD_LINK_X);
-    String yRaw = readString(relayTag, FIELD_LINK_Y);
-    String zRaw = readString(relayTag, FIELD_LINK_Z);
-    if (worldRaw == null || xRaw == null || yRaw == null || zRaw == null) {
-      return null;
-    }
-    try {
-      return new RelayLinkData(
-          UUID.fromString(worldRaw),
-          Integer.parseInt(xRaw),
-          Integer.parseInt(yRaw),
-          Integer.parseInt(zRaw));
-    } catch (IllegalArgumentException ignored) {
-      return null;
-    }
-  }
-
-  private static int primaryMarkerCount(MarkerSnapshot snapshot) {
-    if (snapshot == null) return 0;
-    int count = 0;
-    if (snapshot.storage() != null) count++;
-    if (snapshot.storageCore()) count++;
-    if (snapshot.terminal() != null) count++;
-    if (snapshot.bus() != null) count++;
-    if (snapshot.monitor() != null) count++;
-    if (snapshot.relay() != null) count++;
-    if (snapshot.transmitter()) count++;
-    if (snapshot.chunkLoader() != null) count++;
-    if (snapshot.wire()) count++;
-    return count;
-  }
-
-  private static String snapshotSections(MarkerSnapshot snapshot) {
-    if (snapshot == null) return "none";
-    StringBuilder sections = new StringBuilder();
-    appendSection(sections, snapshot.storage() != null, SECTION_STORAGE);
-    appendSection(sections, snapshot.storageCore(), SECTION_STORAGE_CORE);
-    appendSection(sections, snapshot.terminal() != null, SECTION_TERMINAL);
-    appendSection(sections, snapshot.bus() != null, SECTION_BUS);
-    appendSection(sections, snapshot.monitor() != null, SECTION_MONITOR);
-    appendSection(sections, snapshot.relay() != null, SECTION_RELAY);
-    appendSection(sections, snapshot.transmitter(), SECTION_TRANSMITTER);
-    appendSection(sections, snapshot.chunkLoader() != null, SECTION_CHUNK_LOADER);
-    appendSection(sections, snapshot.wire(), SECTION_WIRE);
-    return sections.isEmpty() ? "none" : sections.toString();
-  }
-
-  private static void appendSection(StringBuilder builder, boolean present, String section) {
-    if (!present) return;
-    if (!builder.isEmpty()) {
-      builder.append(',');
-    }
-    builder.append(section);
-  }
-
-  private static final class MarkerExtent extends AbstractDelegateExtent {
-    private final World world;
-    private final WorldEditBridge bridge;
-    private final long operationId;
-    private final UUID actorId;
-    private final EditSession.Stage stage;
-    private final HistoryAction historyAction;
-    private final WorldEditMarkerHistory.Frame normalHistoryFrame;
-    private final WorldEditMarkerHistory.Frame replayHistoryFrame;
-    private final FacingTransform facingTransform;
-    private final PendingPastePatch pastePatch;
-    private final PendingMovePatch movePatch;
-    private final PendingClipboardPatch cutSourcePatch;
-    private final PendingOperationSnapshot operationSnapshot;
-    private final boolean commandContextPresent;
-    private final boolean moveOperation;
-    private final Map<ChunkKey, ChunkSnapshot> snapshots = new ConcurrentHashMap<>();
-    private final Set<Long> rememberedHistory = ConcurrentHashMap.newKeySet();
-    private final Set<Long> observedMoveSourceClears = ConcurrentHashMap.newKeySet();
-    private final Set<Long> appliedMoveDestinations = ConcurrentHashMap.newKeySet();
-    private final AtomicInteger appliedMoveDestinationCount = new AtomicInteger();
-    private final AtomicBoolean moveSourceCleanupQueued = new AtomicBoolean();
-    private final Map<BaseBlock, MarkerSnapshot> carried =
-        Collections.synchronizedMap(new IdentityHashMap<>());
-
-    private MarkerExtent(
-        Extent extent,
-        World world,
-        WorldEditBridge bridge,
-        long operationId,
-        UUID actorId,
-        EditSession.Stage stage,
-        HistoryAction historyAction,
-        WorldEditMarkerHistory.Frame normalHistoryFrame,
-        WorldEditMarkerHistory.Frame replayHistoryFrame,
-        FacingTransform clipboardTransform,
-        PendingPastePatch pastePatch,
-        PendingMovePatch movePatch,
-        PendingClipboardPatch cutSourcePatch,
-        PendingOperationSnapshot operationSnapshot,
-        boolean commandContextPresent) {
-      super(extent);
-      this.world = world;
-      this.bridge = bridge;
-      this.operationId = operationId;
-      this.actorId = actorId;
-      this.stage = stage;
-      this.historyAction = historyAction;
-      this.normalHistoryFrame = normalHistoryFrame;
-      this.replayHistoryFrame = replayHistoryFrame;
-      this.pastePatch = pastePatch;
-      this.movePatch = movePatch;
-      this.cutSourcePatch = cutSourcePatch;
-      this.operationSnapshot = operationSnapshot;
-      this.commandContextPresent = commandContextPresent;
-      this.moveOperation =
-          movePatch != null || pastePatch != null && pastePatch.preserveStorageIdentity();
-      if (stage == EditSession.Stage.BEFORE_HISTORY && historyAction == null) {
-        WorldEditBridge.seedMoveSourceHistory(
-            bridge.markerHistory,
-            rememberedHistory,
-            actorId,
-            world == null ? null : world.getUID(),
-            movePatch,
-            normalHistoryFrame);
-      }
-      Transform transform = resolveTransform(extent);
-      this.facingTransform =
-          clipboardTransform != null
-              ? clipboardTransform
-              : resolveFacingTransform(extent, transform);
-    }
-
-    public BaseBlock getFullBlock(BlockVector3 position) {
-      BaseBlock block = super.getFullBlock(position);
-      if (block == null || world == null) return block;
-      BlockVector3 resolved = resolvePosition(position);
-      int chunkX = resolved.x() >> 4;
-      int chunkZ = resolved.z() >> 4;
-      ChunkSnapshot snapshot = snapshot(chunkX, chunkZ);
-      LinCompoundTag exort = snapshot.get(blockKey(resolved.x(), resolved.y(), resolved.z()));
-      MarkerSnapshot parsed = parseSnapshot(exort);
-      if (parsed == null && operationSnapshot != null) {
-        parsed = operationSnapshot.get(world.getUID(), resolved);
-        exort = buildExortTag(parsed);
-      }
-      if (parsed == null) return block;
-      BaseBlock withNbt = bridge.buildMarkerBlock(exort);
-      if (withNbt == null) {
-        return block;
-      }
-      WorldEditDebugService debug = bridge.deps.debugService();
-      if (debug != null && debug.isFull()) {
-        debug.recordEvent(
-            "getFullBlock pos="
-                + resolved.x()
-                + ","
-                + resolved.y()
-                + ","
-                + resolved.z()
-                + " marker=yes",
-            NamedTextColor.DARK_GREEN);
-      }
-      carried.put(withNbt, parsed);
-      return withNbt;
-    }
-
-    @Override
-    public <T extends BlockStateHolder<T>> boolean setBlock(BlockVector3 position, T block)
-        throws com.sk89q.worldedit.WorldEditException {
-      if (world == null) {
-        return super.setBlock(position, block);
-      }
-      ensureHistoryCapacity();
-      BlockVector3 resolved = resolvePosition(position);
-      if (!commandContextPresent && !Bukkit.isPrimaryThread()) {
-        BaseBlock current = super.getFullBlock(position);
-        if (bridge.isCarrierCandidate(current)
-            && !bridge.reserveDirectReconciliation(world, resolved)) {
-          PerfStats.incrementCounter("worldedit.direct.rejected");
-          return false;
-        }
-      }
-      int chunkX = resolved.x() >> 4;
-      int chunkZ = resolved.z() >> 4;
-      ChunkSnapshot snapshot = snapshot(chunkX, chunkZ);
-      long key = blockKey(resolved.x(), resolved.y(), resolved.z());
-      LinCompoundTag existingTag = snapshot.get(key);
-      MarkerSnapshot existingSnapshot = parseSnapshot(existingTag);
-      existingSnapshot =
-          chooseExistingSnapshot(existingSnapshot, operationSnapshot, world.getUID(), resolved);
-      if (WorldEditMarkerTrustPolicy.rejectExisting(existingSnapshot, commandContextPresent)) {
-        PerfStats.incrementCounter("worldedit.direct.rejected");
-        return false;
-      }
-      if (existingTag == null && existingSnapshot != null) {
-        existingTag = buildExortTag(existingSnapshot);
-      }
-      BaseBlock base = null;
-      if (block instanceof BaseBlock baseBlock) {
-        base = baseBlock;
-      } else if (block != null) {
-        base = block.toBaseBlock();
-      }
-      LinCompoundTag root = readRootNbt(base);
-      LinCompoundTag exort = readExort(root);
-      MarkerSnapshot parsed = parseSnapshot(exort);
-      MarkerSnapshot carriedSnapshot = base == null ? null : carried.remove(base);
-      boolean trustedIncomingMarker =
-          historyAction != null
-              || carriedSnapshot != null
-              || pastePatch != null && pastePatch.get(resolved) != null
-              || movePatch != null && movePatch.get(resolved) != null;
-      if (WorldEditMarkerTrustPolicy.rejectIncoming(exort, parsed, trustedIncomingMarker)) {
-        PerfStats.incrementCounter("worldedit.schematic.rejectedMarkers");
-        return false;
-      }
-      if (parsed != null && historyAction == null) {
-        MarkerSnapshot sanitized = parsed.withoutTransmitterStoredItems();
-        if (sanitized != parsed) {
-          parsed = sanitized;
-          exort = buildExortTag(parsed);
-        }
-      }
-      boolean fromClipboard = parsed != null;
-      String markerSource = parsed != null ? "nbt" : "none";
-      boolean carriedHit = carriedSnapshot != null;
-      if (parsed == null && carriedSnapshot != null) {
-        parsed = carriedSnapshot;
-        exort = buildExortTag(parsed);
-        fromClipboard = true;
-        markerSource = "carried";
-      } else if (parsed != null && carriedSnapshot != null) {
-        markerSource = "carried_nbt";
-      }
-      boolean sidecarHit = false;
-      MarkerSnapshot pasteUndoSnapshot = null;
-      if (base != null && pastePatch != null) {
-        MarkerSnapshot sidecar = pastePatch.get(resolved);
-        if (sidecar != null && bridge.shouldApplyPasteSidecar(base)) {
-          parsed = sidecar;
-          exort = buildExortTag(parsed);
-          fromClipboard = true;
-          sidecarHit = true;
-          pasteUndoSnapshot = pastePatch.undo(resolved);
-          markerSource = "paste_sidecar";
-        }
-      }
-      if (parsed != null && fromClipboard && facingTransform != null) {
-        parsed = rotateSnapshot(parsed, facingTransform);
-        exort = buildExortTag(parsed);
-      }
-      boolean moveHit = false;
-      MarkerSnapshot moveDestinationExistingSnapshot = null;
-      if (base != null && movePatch != null) {
-        MarkerSnapshot moved = movePatch.get(resolved);
-        if (moved != null && matchesCarrier(base, moved)) {
-          parsed = moved;
-          exort = buildExortTag(parsed);
-          fromClipboard = true;
-          moveHit = true;
-          moveDestinationExistingSnapshot = movePatch.source(resolved);
-          markerSource = "move_sidecar";
-        }
-      }
-      MarkerSnapshot moveSourceHistory = null;
-      if (parsed == null && shouldRememberMoveSourceHistory(base)) {
-        moveSourceHistory =
-            WorldEditBridge.rememberMoveSourceHistory(
-                bridge.markerHistory,
-                rememberedHistory,
-                actorId,
-                world.getUID(),
-                resolved,
-                movePatch,
-                normalHistoryFrame);
-        if (moveSourceHistory != null) {
-          observedMoveSourceClears.add(key);
-          markerSource = "move_source_history";
-        }
-      }
-      MarkerSnapshot cutSourceHistory = null;
-      if (parsed == null && cutSourcePatch != null && isAirBlock(base)) {
-        LinCompoundTag sourceTag = cutSourcePatch.markers().get(resolved);
-        cutSourceHistory = parseSnapshot(sourceTag);
-        if (cutSourceHistory != null) {
-          markerSource = "cut_source_history";
-        }
-      }
-      if (shouldClearRelayLinkFromClipboard(
-          parsed, fromClipboard, sidecarHit, moveHit, historyAction, stage)) {
-        parsed = withRelay(parsed, new RelayData(null));
-        exort = buildExortTag(parsed);
-      }
-      boolean markerPresent = existingTag != null;
-      boolean historyHit = false;
-      boolean historyStorageCloneRequired = false;
-      BaseBlock historyClearBlock = null;
-      MarkerSnapshot historyRemovalSnapshot = null;
-      if (parsed == null && base != null && actorId != null && historyAction != null) {
-        WorldEditMarkerHistory.FrameState historyState =
-            bridge.markerHistory.peekState(
-                replayHistoryFrame, historyAction, resolved.x(), resolved.y(), resolved.z());
-        boolean historyFromStack = false;
-        if (!isUsableHistoryState(base, historyState)) {
-          WorldEditMarkerHistory.FrameState stackedState =
-              bridge.markerHistory.peekState(
-                  actorId, historyAction, world.getUID(), resolved.x(), resolved.y(), resolved.z());
-          if (isUsableHistoryState(base, stackedState)) {
-            historyState = stackedState;
-            historyFromStack = true;
-          }
-        }
-        if (historyState != null) {
-          MarkerSnapshot history = historyState.snapshot();
-          if (history != null && matchesCarrier(base, history)) {
-            if (historyFromStack) {
-              bridge.markerHistory.consumeState(
-                  actorId, historyAction, world.getUID(), resolved.x(), resolved.y(), resolved.z());
-            }
-            parsed = history;
-            exort = buildExortTag(parsed);
-            historyHit = true;
-            historyStorageCloneRequired = historyState.storageCloneRequired();
-            if (historyFromStack) {
-              markerSource = historyAction == HistoryAction.REDO ? "redo_history" : "undo_history";
-            } else {
-              markerSource = historyAction == HistoryAction.REDO ? "redo_frame" : "undo_frame";
-            }
-          } else if (historyState.clear()) {
-            if (historyFromStack) {
-              bridge.markerHistory.consumeState(
-                  actorId, historyAction, world.getUID(), resolved.x(), resolved.y(), resolved.z());
-            }
-            if (isHistoryCarrier(base)) {
-              historyClearBlock = airBlock();
-            }
-            HistoryAction reverseAction =
-                historyAction == HistoryAction.REDO ? HistoryAction.UNDO : HistoryAction.REDO;
-            WorldEditMarkerHistory.FrameState reverseState =
-                historyFromStack
-                    ? bridge.markerHistory.peekState(
-                        actorId,
-                        reverseAction,
-                        world.getUID(),
-                        resolved.x(),
-                        resolved.y(),
-                        resolved.z())
-                    : bridge.markerHistory.peekState(
-                        replayHistoryFrame,
-                        reverseAction,
-                        resolved.x(),
-                        resolved.y(),
-                        resolved.z());
-            historyRemovalSnapshot = reverseState == null ? null : reverseState.snapshot();
-            historyHit = true;
-            markerSource =
-                historyFromStack
-                    ? (historyAction == HistoryAction.REDO
-                        ? "redo_clear_history"
-                        : "undo_clear_history")
-                    : (historyAction == HistoryAction.REDO
-                        ? "redo_clear_frame"
-                        : "undo_clear_frame");
-          }
-        }
-      }
-      if (historyAction == null && actorId != null && stage == EditSession.Stage.BEFORE_HISTORY) {
-        MarkerSnapshot undoSnapshot =
-            chooseUndoSnapshot(
-                existingSnapshot,
-                moveDestinationExistingSnapshot,
-                pasteUndoSnapshot,
-                cutSourceHistory);
-        undoSnapshot = richerTransmitterSnapshot(undoSnapshot, moveSourceHistory);
-        if (normalHistoryFrame != null && parsed != null && undoSnapshot == null) {
-          bridge.markerHistory.rememberUndoClear(
-              actorId,
-              world.getUID(),
-              normalHistoryFrame,
-              resolved.x(),
-              resolved.y(),
-              resolved.z());
-        }
-        bridge.markerHistory.clearRedoTarget(
-            actorId, world.getUID(), resolved.x(), resolved.y(), resolved.z());
-        if (parsed != null) {
-          boolean redoStorageCloneRequired =
-              !moveOperation
-                  && shouldCloneStorageForNormalSet(parsed, fromClipboard, moveHit, historyAction);
-          bridge.markerHistory.rememberRedoTarget(
-              actorId,
-              world.getUID(),
-              resolved.x(),
-              resolved.y(),
-              resolved.z(),
-              parsed,
-              normalHistoryFrame,
-              redoStorageCloneRequired);
-        } else if (existingSnapshot != null
-            || moveSourceHistory != null
-            || cutSourceHistory != null) {
-          bridge.markerHistory.rememberRedoClear(
-              actorId,
-              world.getUID(),
-              normalHistoryFrame,
-              resolved.x(),
-              resolved.y(),
-              resolved.z());
-        }
-      }
-      MarkerSnapshot undoSnapshot =
-          chooseUndoSnapshot(
-              existingSnapshot,
-              moveDestinationExistingSnapshot,
-              pasteUndoSnapshot,
-              cutSourceHistory);
-      undoSnapshot = richerTransmitterSnapshot(undoSnapshot, moveSourceHistory);
-      rememberHistorySnapshotOnce(
-          bridge.markerHistory,
-          rememberedHistory,
-          actorId,
-          historyAction,
-          world.getUID(),
-          resolved,
-          undoSnapshot,
-          normalHistoryFrame);
-      ensureHistoryCapacity();
-      boolean storageCloneRequired =
-          parsed != null
-              && parsed.storage() != null
-              && (historyHit
-                  ? historyStorageCloneRequired
-                  : !moveOperation
-                      && shouldCloneStorageForNormalSet(
-                          parsed, fromClipboard, moveHit, historyAction));
-      WorldEditDebugService debug = bridge.deps.debugService();
-      if (debug != null && debug.isFull()) {
-        String baseType = base == null ? "null" : base.getBlockType().getId();
-        debug.recordEvent(
-            "setBlock pos="
-                + resolved.x()
-                + ","
-                + resolved.y()
-                + ","
-                + resolved.z()
-                + " stage="
-                + stage.name().toLowerCase(Locale.ROOT)
-                + " base="
-                + baseType
-                + " root="
-                + (root != null)
-                + " exort="
-                + (exort != null)
-                + " parsed="
-                + (parsed != null)
-                + " source="
-                + markerSource
-                + " sections="
-                + snapshotSections(
-                    parsed != null
-                        ? parsed
-                        : moveSourceHistory != null ? moveSourceHistory : cutSourceHistory)
-                + " carried="
-                + carriedHit
-                + " sidecar="
-                + sidecarHit
-                + " move="
-                + moveHit
-                + " commandMove="
-                + moveOperation
-                + " history="
-                + historyHit
-                + " historyAction="
-                + (historyAction == null ? "none" : historyAction.name().toLowerCase(Locale.ROOT))
-                + " markerPresent="
-                + markerPresent
-                + " fromClipboard="
-                + fromClipboard
-                + " storageClone="
-                + storageCloneRequired
-                + " moveOffset="
-                + (movePatch == null ? "none" : movePatch.offsetText()),
-            NamedTextColor.YELLOW);
-      }
-      if (parsed == null
-          && !markerPresent
-          && !historyHit
-          && moveSourceHistory == null
-          && cutSourceHistory == null) {
-        if (historyClearBlock != null) {
-          return super.setBlock(position, historyClearBlock);
-        }
-        return super.setBlock(position, block);
-      }
-      String removedStorageId = null;
-      MarkerSnapshot removalSnapshot = undoSnapshot != null ? undoSnapshot : historyRemovalSnapshot;
-      if (removalSnapshot != null) {
-        boolean markerChanged = parsed == null || !removalSnapshot.equals(parsed);
-        if (markerChanged && removalSnapshot.storage() != null) {
-          removedStorageId = removalSnapshot.storage().storageId();
-        }
-      }
-      BaseBlock toSet = historyClearBlock != null ? historyClearBlock : base;
-      if (parsed != null) {
-        BaseBlock carrier = carrierBlockForStage(parsed, exort, base);
-        if (carrier != null) {
-          toSet = carrier;
-        } else if (exort != null && root != null && base != null) {
-          LinCompoundTag cleaned = removeExort(root);
-          toSet = base.toBaseBlock(cleaned);
-        }
-      } else if (exort != null && root != null && base != null) {
-        LinCompoundTag cleaned = removeExort(root);
-        toSet = base.toBaseBlock(cleaned);
-      }
-      boolean result =
-          toSet != null ? super.setBlock(position, toSet) : super.setBlock(position, block);
-      boolean markerCleanupRequested =
-          parsed == null
-              && (markerPresent
-                  || historyHit
-                  || moveSourceHistory != null
-                  || cutSourceHistory != null);
-      if (debug != null && debug.isEnabled()) {
-        boolean hasMarker = parsed != null;
-        boolean cleared = !hasMarker && markerPresent;
-        debug.recordSetBlock(hasMarker, cleared);
-        if (debug.isFull() && (hasMarker || cleared)) {
-          debug.recordEvent(
-              "setBlock pos="
-                  + resolved.x()
-                  + ","
-                  + resolved.y()
-                  + ","
-                  + resolved.z()
-                  + " marker="
-                  + (hasMarker ? "set" : cleared ? "clear" : "none")
-                  + " result="
-                  + result,
-              hasMarker ? NamedTextColor.GREEN : NamedTextColor.RED);
-        }
-      }
-      if (result || markerCleanupRequested) {
-        bridge.enqueue(
-            new MarkerUpdate(
-                operationId,
-                world.getUID(),
-                resolved.x(),
-                resolved.y(),
-                resolved.z(),
-                parsed,
-                removedStorageId,
-                storageCloneRequired,
-                moveOperation));
-        if (stage == EditSession.Stage.BEFORE_HISTORY
-            && moveHit
-            && movePatch != null
-            && appliedMoveDestinations.add(key)
-            && appliedMoveDestinationCount.incrementAndGet()
-                == movePatch.destinationMarkers().size()
-            && moveSourceCleanupQueued.compareAndSet(false, true)) {
-          bridge.enqueueMoveSourceCleanup(
-              operationId, world.getUID(), movePatch, observedMoveSourceClears);
-        }
-      }
-      return result || markerCleanupRequested;
-    }
-
-    private void ensureHistoryCapacity() throws WorldEditHistoryLimitException {
-      if (normalHistoryFrame != null && normalHistoryFrame.overflowed()) {
-        throw new WorldEditHistoryLimitException();
-      }
-    }
-
-    private boolean isUsableHistoryState(BaseBlock base, WorldEditMarkerHistory.FrameState state) {
-      if (base == null || state == null) return false;
-      MarkerSnapshot snapshot = state.snapshot();
-      if (snapshot != null) {
-        return matchesCarrier(base, snapshot);
-      }
-      return state.clear();
-    }
-
-    private boolean shouldRememberMoveSourceHistory(BaseBlock base) {
-      return base != null
-          && actorId != null
-          && historyAction == null
-          && stage == EditSession.Stage.BEFORE_HISTORY
-          && movePatch != null
-          && isAirBlock(base);
-    }
-
-    private static boolean shouldCloneStorageForNormalSet(
-        MarkerSnapshot snapshot,
-        boolean fromClipboard,
-        boolean moveHit,
-        HistoryAction historyAction) {
-      return snapshot != null
-          && snapshot.storage() != null
-          && fromClipboard
-          && !moveHit
-          && historyAction == null;
-    }
-
-    private static boolean isAirBlock(BaseBlock base) {
-      return base != null && WorldEditBridge.airType().equals(base.getBlockType());
-    }
-
-    private BaseBlock carrierBlockForStage(
-        MarkerSnapshot snapshot, LinCompoundTag exort, BaseBlock fallback) {
-      if (stage == EditSession.Stage.BEFORE_HISTORY) {
-        Material material = bridge.carrierMaterial(snapshot);
-        BaseBlock withNbt = markerHistoryCarrierBlock(material, exort, fallback);
-        if (withNbt != null) {
-          return withNbt;
-        }
-      }
-      return carrierBlock(snapshot, fallback);
-    }
-
-    @SuppressWarnings("unused")
-    public <T extends BlockStateHolder<T>> boolean setBlock(int x, int y, int z, T block)
-        throws com.sk89q.worldedit.WorldEditException {
-      return setBlock(BlockVector3.at(x, y, z), block);
-    }
-
-    @SuppressWarnings("unused")
-    public <B extends BlockStateHolder<B>> int setBlocks(Region region, B block)
-        throws MaxChangedBlocksException {
-      if (world == null) {
-        return delegateSetBlocks(region, block);
-      }
-      if (!needsProcessing(region, block)) {
-        WorldEditDebugService debug = bridge.deps.debugService();
-        if (debug != null && debug.isEnabled()) {
-          debug.recordEvent("setBlocks constant delegated", NamedTextColor.GRAY);
-        }
-        return delegateSetBlocks(region, block);
-      }
-      int changed = 0;
-      int total = 0;
-      for (BlockVector3 pos : region) {
-        total++;
-        try {
-          if (setBlock(pos, block)) {
-            changed++;
-          }
-        } catch (MaxChangedBlocksException e) {
-          throw e;
-        } catch (com.sk89q.worldedit.WorldEditException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      WorldEditDebugService debug = bridge.deps.debugService();
-      if (debug != null && debug.isEnabled()) {
-        debug.recordSetBlocks(total);
-        debug.recordEvent(
-            "setBlocks constant blocks=" + total + " changed=" + changed, NamedTextColor.AQUA);
-      }
-      return changed;
-    }
-
-    @SuppressWarnings({"unused", "deprecation"})
-    public int setBlocks(Region region, BlockPattern pattern) throws MaxChangedBlocksException {
-      return setBlocks(region, (Pattern) pattern);
-    }
-
-    public int setBlocks(Region region, Pattern pattern) throws MaxChangedBlocksException {
-      if (world == null) {
-        return delegateSetBlocks(region, pattern);
-      }
-      if (!needsProcessing(region, pattern)) {
-        WorldEditDebugService debug = bridge.deps.debugService();
-        if (debug != null && debug.isEnabled()) {
-          debug.recordEvent("setBlocks pattern delegated", NamedTextColor.GRAY);
-        }
-        return delegateSetBlocks(region, pattern);
-      }
-      int changed = 0;
-      int total = 0;
-      for (BlockVector3 pos : region) {
-        total++;
-        BaseBlock block = pattern.applyBlock(pos);
-        try {
-          if (setBlock(pos, block)) {
-            changed++;
-          }
-        } catch (MaxChangedBlocksException e) {
-          throw e;
-        } catch (com.sk89q.worldedit.WorldEditException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      WorldEditDebugService debug = bridge.deps.debugService();
-      if (debug != null && debug.isEnabled()) {
-        debug.recordSetBlocks(total);
-        debug.recordEvent(
-            "setBlocks pattern blocks=" + total + " changed=" + changed, NamedTextColor.AQUA);
-      }
-      return changed;
-    }
-
-    @SuppressWarnings({"unused", "deprecation"})
-    public int setBlocks(Set<BlockVector3> positions, BlockPattern pattern) {
-      return setBlocks(positions, (Pattern) pattern);
-    }
-
-    public int setBlocks(Set<BlockVector3> positions, Pattern pattern) {
-      if (world == null) {
-        return delegateSetBlocksSet(positions, pattern);
-      }
-      if (!needsProcessing(positions, pattern)) {
-        WorldEditDebugService debug = bridge.deps.debugService();
-        if (debug != null && debug.isEnabled()) {
-          debug.recordEvent("setBlocks set delegated", NamedTextColor.GRAY);
-        }
-        return delegateSetBlocksSet(positions, pattern);
-      }
-      int changed = 0;
-      int total = 0;
-      for (BlockVector3 pos : positions) {
-        total++;
-        BaseBlock block = pattern.applyBlock(pos);
-        try {
-          if (setBlock(pos, block)) {
-            changed++;
-          }
-        } catch (com.sk89q.worldedit.WorldEditException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      WorldEditDebugService debug = bridge.deps.debugService();
-      if (debug != null && debug.isEnabled()) {
-        debug.recordSetBlocks(total);
-        debug.recordEvent(
-            "setBlocks set blocks=" + total + " changed=" + changed, NamedTextColor.AQUA);
-      }
-      return changed;
-    }
-
-    private boolean needsProcessing(Region region, BlockStateHolder<?> block) {
-      if (block == null) return regionHasMarkers(region);
-      BaseBlock base = block instanceof BaseBlock baseBlock ? baseBlock : block.toBaseBlock();
-      LinCompoundTag root = readRootNbt(base);
-      if (readExort(root) != null) {
-        return true;
-      }
-      return regionHasMarkers(region);
-    }
-
-    private boolean needsProcessing(Region region, Pattern pattern) {
-      if (pattern instanceof BlockStateHolder<?> holder) {
-        BaseBlock base = holder instanceof BaseBlock baseBlock ? baseBlock : holder.toBaseBlock();
-        LinCompoundTag root = readRootNbt(base);
-        if (readExort(root) != null) {
-          return true;
-        }
-        return regionHasMarkers(region);
-      }
-      return true;
-    }
-
-    private boolean needsProcessing(Set<BlockVector3> positions, Pattern pattern) {
-      if (positions == null || positions.isEmpty()) return false;
-      if (pattern instanceof BlockStateHolder<?> holder) {
-        BaseBlock base = holder instanceof BaseBlock baseBlock ? baseBlock : holder.toBaseBlock();
-        LinCompoundTag root = readRootNbt(base);
-        if (readExort(root) != null) {
-          return true;
-        }
-      }
-      for (BlockVector3 pos : positions) {
-        BlockVector3 resolved = resolvePosition(pos);
-        if (movePatch != null && movePatch.hasMarkerAt(resolved)) {
-          return true;
-        }
-        ChunkSnapshot snapshot = snapshot(resolved.x() >> 4, resolved.z() >> 4);
-        if (snapshot.get(blockKey(resolved.x(), resolved.y(), resolved.z())) != null) {
-          return true;
-        }
-        if (operationSnapshot != null && operationSnapshot.get(world.getUID(), resolved) != null) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    private boolean regionHasMarkers(Region region) {
-      if (region == null) return false;
-      if (movePatch != null && movePatch.hasMarkerIn(region)) {
-        return true;
-      }
-      if (operationSnapshot != null && operationSnapshot.hasMarkerIn(world.getUID(), region)) {
-        return true;
-      }
-      BlockVector3 min = region.getMinimumPoint();
-      BlockVector3 max = region.getMaximumPoint();
-      int minChunkX = min.x() >> 4;
-      int maxChunkX = max.x() >> 4;
-      int minChunkZ = min.z() >> 4;
-      int maxChunkZ = max.z() >> 4;
-      for (int cx = minChunkX; cx <= maxChunkX; cx++) {
-        for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-          ChunkSnapshot snapshot = snapshot(cx, cz);
-          if (snapshot != null && !snapshot.isEmpty()) {
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    private ChunkSnapshot snapshot(int chunkX, int chunkZ) {
-      ChunkKey key = new ChunkKey(world.getUID(), chunkX, chunkZ);
-      return snapshots.computeIfAbsent(key, missing -> bridge.loadSnapshot(world, chunkX, chunkZ));
-    }
-
-    private int delegateSetBlocks(Region region, Object payload) throws MaxChangedBlocksException {
-      Method method = resolveSetBlocksMethod(payload);
-      if (method != null) {
-        try {
-          Object result = method.invoke(getExtent(), region, payload);
-          if (result instanceof Integer count) {
-            return count;
-          }
-        } catch (java.lang.reflect.InvocationTargetException ex) {
-          Throwable cause = ex.getCause();
-          if (cause instanceof MaxChangedBlocksException max) {
-            throw max;
-          }
-          if (cause instanceof RuntimeException runtime) {
-            throw runtime;
-          }
-        } catch (Exception ignored) {
-        }
-      }
-      int changed = 0;
-      if (payload instanceof BlockStateHolder<?> block) {
-        for (BlockVector3 pos : region) {
-          BaseBlock base = block instanceof BaseBlock baseBlock ? baseBlock : block.toBaseBlock();
-          try {
-            if (getExtent().setBlock(pos, base)) {
-              changed++;
-            }
-          } catch (MaxChangedBlocksException e) {
-            throw e;
-          } catch (com.sk89q.worldedit.WorldEditException e) {
-            throw new RuntimeException(e);
-          }
-        }
-      } else if (payload instanceof Pattern pattern) {
-        for (BlockVector3 pos : region) {
-          BaseBlock block = pattern.applyBlock(pos);
-          try {
-            if (getExtent().setBlock(pos, block)) {
-              changed++;
-            }
-          } catch (MaxChangedBlocksException e) {
-            throw e;
-          } catch (com.sk89q.worldedit.WorldEditException e) {
-            throw new RuntimeException(e);
-          }
-        }
-      }
-      return changed;
-    }
-
-    private int delegateSetBlocksSet(Set<BlockVector3> positions, Pattern pattern) {
-      Method method = resolveSetBlocksSetMethod();
-      if (method != null) {
-        try {
-          Object result = method.invoke(getExtent(), positions, pattern);
-          if (result instanceof Integer count) {
-            return count;
-          }
-        } catch (Exception ignored) {
-        }
-      }
-      int changed = 0;
-      for (BlockVector3 pos : positions) {
-        BaseBlock block = pattern.applyBlock(pos);
-        try {
-          if (getExtent().setBlock(pos, block)) {
-            changed++;
-          }
-        } catch (com.sk89q.worldedit.WorldEditException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      return changed;
-    }
-
-    private Method resolveSetBlocksSetMethod() {
-      return findSetBlocksSetMethod(getExtent().getClass());
-    }
-
-    private Method resolveSetBlocksMethod(Object payload) {
-      if (payload == null) return null;
-      Class<?> param = payload instanceof Pattern ? Pattern.class : BlockStateHolder.class;
-      return findSetBlocks(getExtent().getClass(), param);
-    }
-
-    private BaseBlock carrierBlock(MarkerSnapshot snapshot, BaseBlock fallback) {
-      Material material = null;
-      if (snapshot.storage() != null || snapshot.storageCore()) {
-        material = bridge.deps.storageCarrier();
-      } else if (snapshot.terminal() != null) {
-        material = bridge.deps.terminalCarrier();
-      } else if (snapshot.monitor() != null) {
-        material = bridge.deps.monitorCarrier();
-      } else if (snapshot.bus() != null) {
-        material = bridge.deps.busCarrier();
-      } else if (snapshot.relay() != null) {
-        material = bridge.deps.relayCarrier();
-      } else if (snapshot.transmitter()) {
-        material = bridge.deps.transmitterCarrier();
-      } else if (snapshot.chunkLoader() != null) {
-        material = bridge.deps.chunkLoaderCarrier();
-      } else if (snapshot.wire()) {
-        material = bridge.deps.wireMaterial();
-      }
-      if (material == null) return fallback;
-      BlockType type = BlockTypes.get(material.getKey().toString());
-      if (type == null) return fallback;
-      if (material == Carriers.CHORUS_MATERIAL) {
-        BlockState state = type.getDefaultState();
-        for (Property<?> property : type.getPropertyMap().values()) {
-          String name = property.getName();
-          if ("waterlogged".equals(name)) {
-            state = withProperty(state, property, "false");
-            continue;
-          }
-          if (property instanceof BooleanProperty) {
-            state = withProperty(state, property, "true");
-          }
-        }
-        return state.toBaseBlock();
-      }
-      return type.getDefaultState().toBaseBlock();
-    }
-
-    private boolean matchesCarrier(BaseBlock base, MarkerSnapshot snapshot) {
-      if (base == null || snapshot == null) return false;
-      Material material = null;
-      if (snapshot.storage() != null || snapshot.storageCore()) {
-        material = bridge.deps.storageCarrier();
-      } else if (snapshot.terminal() != null) {
-        material = bridge.deps.terminalCarrier();
-      } else if (snapshot.monitor() != null) {
-        material = bridge.deps.monitorCarrier();
-      } else if (snapshot.bus() != null) {
-        material = bridge.deps.busCarrier();
-      } else if (snapshot.relay() != null) {
-        material = bridge.deps.relayCarrier();
-      } else if (snapshot.transmitter()) {
-        material = bridge.deps.transmitterCarrier();
-      } else if (snapshot.chunkLoader() != null) {
-        material = bridge.deps.chunkLoaderCarrier();
-      } else if (snapshot.wire()) {
-        material = bridge.deps.wireMaterial();
-      }
-      if (material == null) return false;
-      BlockType type = BlockTypes.get(material.getKey().toString());
-      return type != null && type.equals(base.getBlockType());
-    }
-
-    private boolean isHistoryCarrier(BaseBlock base) {
-      if (base == null) return false;
-      BlockType type = base.getBlockType();
-      if (type == null) return false;
-      return matchesMaterial(type, bridge.deps.storageCarrier())
-          || matchesMaterial(type, bridge.deps.terminalCarrier())
-          || matchesMaterial(type, bridge.deps.monitorCarrier())
-          || matchesMaterial(type, bridge.deps.busCarrier())
-          || matchesMaterial(type, bridge.deps.relayCarrier())
-          || matchesMaterial(type, bridge.deps.transmitterCarrier())
-          || matchesMaterial(type, bridge.deps.chunkLoaderCarrier())
-          || matchesMaterial(type, bridge.deps.wireMaterial());
-    }
-
-    private boolean matchesMaterial(BlockType type, Material material) {
-      if (type == null || material == null) return false;
-      BlockType materialType = BlockTypes.get(material.getKey().toString());
-      return type.equals(materialType);
-    }
-
-    private BaseBlock airBlock() {
-      return WorldEditBridge.airType().getDefaultState().toBaseBlock();
-    }
-
-    private BlockVector3 resolvePosition(BlockVector3 position) {
-      BlockVector3 resolved = position;
-      Extent current = getExtent();
-      while (current != null) {
-        BlockVector3 transformed = tryPositionTransform(current, resolved);
-        if (transformed != null) {
-          resolved = transformed;
-        }
-        TranslateAccessor accessor = translateAccessor(current);
-        if (accessor != null) {
-          int dx = accessor.dx(current);
-          int dy = accessor.dy(current);
-          int dz = accessor.dz(current);
-          if (dx != 0 || dy != 0 || dz != 0) {
-            resolved = resolved.add(dx, dy, dz);
-          }
-        }
-        if (current instanceof AbstractDelegateExtent delegateExtent) {
-          current = delegateExtent.getExtent();
-        } else {
-          break;
-        }
-      }
-      return resolved;
-    }
-  }
-
-  private static BlockVector3 tryPositionTransform(Extent extent, BlockVector3 position) {
-    Method method = positionMethod(extent);
-    if (method == null) return position;
-    try {
-      Object result = method.invoke(extent, position);
-      return result instanceof BlockVector3 vec ? vec : position;
-    } catch (Exception ignored) {
-      return position;
-    }
-  }
-
-  private static Method positionMethod(Object extent) {
-    Class<?> type = extent.getClass();
-    Method cached = POSITION_METHODS.get(type);
-    if (cached != null) return cached;
-    if (POSITION_SKIP.contains(type)) return null;
-    try {
-      Method method;
-      try {
-        method = type.getDeclaredMethod("getPos", BlockVector3.class);
-      } catch (NoSuchMethodException ignored) {
-        method = type.getMethod("getPos", BlockVector3.class);
-      }
-      method.setAccessible(true);
-      POSITION_METHODS.put(type, method);
-      return method;
-    } catch (Exception ignored) {
-      POSITION_SKIP.add(type);
-      return null;
-    }
-  }
-
-  private static TranslateAccessor translateAccessor(Object extent) {
-    Class<?> type = extent.getClass();
-    TranslateAccessor cached = TRANSLATE_ACCESSORS.get(type);
-    if (cached != null) return cached;
-    if (TRANSLATE_SKIP.contains(type)) return null;
-    try {
-      Field dx = type.getDeclaredField("dx");
-      Field dy = type.getDeclaredField("dy");
-      Field dz = type.getDeclaredField("dz");
-      dx.setAccessible(true);
-      dy.setAccessible(true);
-      dz.setAccessible(true);
-      TranslateAccessor accessor = new TranslateAccessor(dx, dy, dz);
-      TRANSLATE_ACCESSORS.put(type, accessor);
-      return accessor;
-    } catch (Exception ignored) {
-      TRANSLATE_SKIP.add(type);
-      return null;
-    }
-  }
-
-  private record TranslateAccessor(Field dx, Field dy, Field dz) {
-    int dx(Object instance) {
-      return read(dx, instance);
-    }
-
-    int dy(Object instance) {
-      return read(dy, instance);
-    }
-
-    int dz(Object instance) {
-      return read(dz, instance);
-    }
-
-    private static int read(Field field, Object instance) {
-      try {
-        return ((Number) field.get(instance)).intValue();
-      } catch (Exception ignored) {
-        return 0;
-      }
-    }
-  }
-
-  private record TransformAccessor(Method method, Field field) {
-    Transform get(Object instance) {
-      if (method != null) {
-        try {
-          Object value = method.invoke(instance);
-          if (value instanceof Transform transform) {
-            return transform;
-          }
-        } catch (Exception ignored) {
-          // ignored
-        }
-      }
-      if (field != null) {
-        try {
-          Object value = field.get(instance);
-          if (value instanceof Transform transform) {
-            return transform;
-          }
-        } catch (Exception ignored) {
-          // ignored
-        }
-      }
-      return null;
-    }
-  }
-
-  private static final Map<Class<?>, Method> SETBLOCKS_STATE = new ConcurrentHashMap<>();
-  private static final Map<Class<?>, Method> SETBLOCKS_PATTERN = new ConcurrentHashMap<>();
-  private static final Map<Class<?>, Method> SETBLOCKS_SET = new ConcurrentHashMap<>();
-  private static final Set<Class<?>> SETBLOCKS_STATE_SKIP = ConcurrentHashMap.newKeySet();
-  private static final Set<Class<?>> SETBLOCKS_PATTERN_SKIP = ConcurrentHashMap.newKeySet();
-  private static final Set<Class<?>> SETBLOCKS_SET_SKIP = ConcurrentHashMap.newKeySet();
-
-  private static Method findSetBlocks(Class<?> extentClass, Class<?> paramType) {
-    Map<Class<?>, Method> cache = paramType == Pattern.class ? SETBLOCKS_PATTERN : SETBLOCKS_STATE;
-    Set<Class<?>> skip = paramType == Pattern.class ? SETBLOCKS_PATTERN_SKIP : SETBLOCKS_STATE_SKIP;
-    Method cached = cache.get(extentClass);
-    if (cached != null) return cached;
-    if (skip.contains(extentClass)) return null;
-    try {
-      Method method = extentClass.getMethod("setBlocks", Region.class, paramType);
-      cache.put(extentClass, method);
-      return method;
-    } catch (Exception ignored) {
-      skip.add(extentClass);
-      return null;
-    }
-  }
-
-  private static Method findSetBlocksSetMethod(Class<?> extentClass) {
-    Method cached = SETBLOCKS_SET.get(extentClass);
-    if (cached != null) return cached;
-    if (SETBLOCKS_SET_SKIP.contains(extentClass)) return null;
-    try {
-      Method method =
-          extentClass.getMethod(
-              "setBlocks", Set.class, com.sk89q.worldedit.function.pattern.Pattern.class);
-      SETBLOCKS_SET.put(extentClass, method);
-      return method;
-    } catch (Exception ignored) {
-      SETBLOCKS_SET_SKIP.add(extentClass);
-      return null;
-    }
-  }
-
-  private static Transform resolveTransform(Extent extent) {
-    Transform combined = null;
-    Extent current = extent;
-    while (current != null) {
-      Transform transform = null;
-      if (current instanceof BlockTransformExtent blockTransformExtent) {
-        transform = blockTransformExtent.getTransform();
-      } else {
-        TransformAccessor accessor = transformAccessor(current);
-        if (accessor != null) {
-          transform = accessor.get(current);
-        }
-      }
-      if (transform != null && !transform.isIdentity()) {
-        combined = combined == null ? transform : combined.combine(transform);
-      }
-      if (current instanceof AbstractDelegateExtent delegateExtent) {
-        current = delegateExtent.getExtent();
-      } else {
-        break;
-      }
-    }
-    return combined;
-  }
-
-  private static FacingTransform resolveClipboardFacing(Actor actor) {
-    if (actor == null) return null;
-    try {
-      LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
-      if (session == null) return null;
-      ClipboardHolder holder;
-      try {
-        holder = session.getClipboard();
-      } catch (com.sk89q.worldedit.EmptyClipboardException ignored) {
-        return null;
-      }
-      if (holder == null) return null;
-      Transform transform = holder.getTransform();
-      if (transform == null || transform.isIdentity()) return null;
-      return face -> rotateFacing(face, transform);
-    } catch (Exception ignored) {
-      return null;
-    }
-  }
-
-  private static FacingTransform resolveFacingTransform(Extent extent, Transform transform) {
-    if (transform != null && !transform.isIdentity()) {
-      return face -> rotateFacing(face, transform);
-    }
-    return resolveFacingTransformFromPositions(extent);
-  }
-
-  private static FacingTransform resolveFacingTransformFromPositions(Extent extent) {
-    if (extent == null) return null;
-    BlockVector3 origin = BlockVector3.at(0, 0, 0);
-    BlockVector3 originPos = resolvePositionForFacing(extent, origin);
-    EnumMap<BlockFace, BlockFace> mapping = new EnumMap<>(BlockFace.class);
-    boolean changed = false;
-    for (BlockFace face : ROTATABLE_FACES) {
-      BlockVector3 offset = offsetForFace(face);
-      BlockVector3 transformed = resolvePositionForFacing(extent, origin.add(offset));
-      BlockVector3 delta = transformed.subtract(originPos);
-      BlockFace mapped = faceFromDelta(delta);
-      if (mapped == null) {
-        return null;
-      }
-      mapping.put(face, mapped);
-      if (mapped != face) {
-        changed = true;
-      }
-    }
-    if (!changed) return null;
-    return face -> mapping.getOrDefault(face, face);
-  }
-
-  private static BlockVector3 resolvePositionForFacing(Extent extent, BlockVector3 position) {
-    BlockVector3 resolved = position;
-    Extent current = extent;
-    while (current != null) {
-      BlockVector3 transformed = tryPositionTransform(current, resolved);
-      if (transformed != null) {
-        resolved = transformed;
-      }
-      TranslateAccessor accessor = translateAccessor(current);
-      if (accessor != null) {
-        int dx = accessor.dx(current);
-        int dy = accessor.dy(current);
-        int dz = accessor.dz(current);
-        if (dx != 0 || dy != 0 || dz != 0) {
-          resolved = resolved.add(dx, dy, dz);
-        }
-      }
-      if (current instanceof AbstractDelegateExtent delegateExtent) {
-        current = delegateExtent.getExtent();
-      } else {
-        break;
-      }
-    }
-    return resolved;
-  }
-
-  private static BlockVector3 offsetForFace(BlockFace face) {
-    return switch (face) {
-      case NORTH -> BlockVector3.at(0, 0, -1);
-      case SOUTH -> BlockVector3.at(0, 0, 1);
-      case EAST -> BlockVector3.at(1, 0, 0);
-      case WEST -> BlockVector3.at(-1, 0, 0);
-      case UP -> BlockVector3.at(0, 1, 0);
-      case DOWN -> BlockVector3.at(0, -1, 0);
-      default -> BlockVector3.at(0, 0, 0);
-    };
-  }
-
-  private static BlockFace faceFromDelta(BlockVector3 delta) {
-    int x = delta.x();
-    int y = delta.y();
-    int z = delta.z();
-    int ax = Math.abs(x);
-    int ay = Math.abs(y);
-    int az = Math.abs(z);
-    if (ax == 0 && ay == 0 && az == 0) {
-      return null;
-    }
-    if (ax >= ay && ax >= az) {
-      return x >= 0 ? BlockFace.EAST : BlockFace.WEST;
-    }
-    if (ay >= ax && ay >= az) {
-      return y >= 0 ? BlockFace.UP : BlockFace.DOWN;
-    }
-    return z >= 0 ? BlockFace.SOUTH : BlockFace.NORTH;
-  }
-
-  private static TransformAccessor transformAccessor(Object extent) {
-    Class<?> type = extent.getClass();
-    TransformAccessor cached = TRANSFORM_ACCESSORS.get(type);
-    if (cached != null) return cached;
-    if (TRANSFORM_SKIP.contains(type)) return null;
-    try {
-      Method method;
-      try {
-        method = type.getDeclaredMethod("getTransform");
-      } catch (NoSuchMethodException ignored) {
-        method = type.getMethod("getTransform");
-      }
-      if (Transform.class.isAssignableFrom(method.getReturnType())) {
-        method.setAccessible(true);
-        TransformAccessor accessor = new TransformAccessor(method, null);
-        TRANSFORM_ACCESSORS.put(type, accessor);
-        return accessor;
-      }
-    } catch (Exception ignored) {
-      // fallback to field lookup
-    }
-    try {
-      Field field = type.getDeclaredField("transform");
-      if (Transform.class.isAssignableFrom(field.getType())) {
-        field.setAccessible(true);
-        TransformAccessor accessor = new TransformAccessor(null, field);
-        TRANSFORM_ACCESSORS.put(type, accessor);
-        return accessor;
-      }
-    } catch (Exception ignored) {
-      // ignored
-    }
-    TRANSFORM_SKIP.add(type);
-    return null;
-  }
-
-  private BaseBlock buildMarkerBlock(LinCompoundTag exort) {
+  BaseBlock buildMarkerBlock(LinCompoundTag exort) {
     MarkerSnapshot snapshot = parseSnapshot(exort);
     if (snapshot == null) return null;
     Material material = carrierMaterial(snapshot);
@@ -4292,7 +2571,7 @@ public final class WorldEditBridge implements Listener {
     return rootBuilder.build();
   }
 
-  private Material carrierMaterial(MarkerSnapshot snapshot) {
+  Material carrierMaterial(MarkerSnapshot snapshot) {
     if (snapshot == null) return null;
     if (snapshot.storage() != null || snapshot.storageCore()) {
       return deps.storageCarrier();
@@ -4387,20 +2666,20 @@ public final class WorldEditBridge implements Listener {
     return parsed != null || matchesCarrierBlock(base, snapshot);
   }
 
-  private boolean shouldApplyPasteSidecar(BaseBlock base) {
+  boolean shouldApplyPasteSidecar(BaseBlock base) {
     if (base == null) return false;
     BlockType type = base.getBlockType();
     return type != null && !type.equals(airType());
   }
 
-  private static BlockType airType() {
+  static BlockType airType() {
     return Objects.requireNonNull(BlockTypes.AIR, "WorldEdit AIR block type");
   }
 
   private static boolean containsMarkerExtent(Extent extent, EditSession.Stage stage) {
     Extent current = extent;
     while (current != null) {
-      if (current instanceof MarkerExtent markerExtent && markerExtent.stage == stage) {
+      if (current instanceof WorldEditMarkerExtent markerExtent && markerExtent.stage == stage) {
         return true;
       }
       if (current instanceof AbstractDelegateExtent delegateExtent) {
@@ -4412,7 +2691,7 @@ public final class WorldEditBridge implements Listener {
     return false;
   }
 
-  private static MarkerSnapshot rotateSnapshot(MarkerSnapshot snapshot, FacingTransform transform) {
+  static MarkerSnapshot rotateSnapshot(MarkerSnapshot snapshot, FacingTransform transform) {
     if (snapshot == null || transform == null) return snapshot;
     StorageData resolvedStorage = resolveStorageTier(snapshot.storage());
     StorageData storage =
@@ -4511,7 +2790,7 @@ public final class WorldEditBridge implements Listener {
         storage.displayName());
   }
 
-  private static MarkerSnapshot withRelay(MarkerSnapshot snapshot, RelayData relay) {
+  static MarkerSnapshot withRelay(MarkerSnapshot snapshot, RelayData relay) {
     if (snapshot == null) return null;
     return new MarkerSnapshot(
         snapshot.storage(),
@@ -4538,7 +2817,7 @@ public final class WorldEditBridge implements Listener {
     return rotated == null ? facing : rotated.name();
   }
 
-  private static BlockFace rotateFacing(BlockFace face, Transform transform) {
+  static BlockFace rotateFacing(BlockFace face, Transform transform) {
     if (face == null || transform == null || transform.isIdentity()) return face;
     Vector3 dir =
         switch (face) {
@@ -4569,7 +2848,7 @@ public final class WorldEditBridge implements Listener {
     return transformedDir.z() >= 0 ? BlockFace.SOUTH : BlockFace.NORTH;
   }
 
-  private static LinCompoundTag readRootNbt(BaseBlock base) {
+  static LinCompoundTag readRootNbt(BaseBlock base) {
     if (base == null) return null;
     LazyReference<LinCompoundTag> ref = base.getNbtReference();
     if (ref != null) {
@@ -4590,7 +2869,7 @@ public final class WorldEditBridge implements Listener {
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private static BlockState withProperty(BlockState state, Property<?> property, String value) {
+  static BlockState withProperty(BlockState state, Property<?> property, String value) {
     Object resolved = property.getValueFor(value);
     return state.with((Property) property, resolved);
   }

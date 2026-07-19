@@ -2,6 +2,7 @@ package com.zxcmc.exort.items;
 
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageDisplayName;
+import com.zxcmc.exort.storage.StorageNameNormalizer;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.ItemStack;
@@ -36,7 +37,7 @@ public final class StorageItemNameEditor {
       return Optional.empty();
     }
     return Optional.ofNullable(
-        StorageDisplayName.normalize(pdc.get(keys.storageName(), PersistentDataType.STRING)));
+        StorageNameNormalizer.normalize(pdc.get(keys.storageName(), PersistentDataType.STRING)));
   }
 
   public static boolean apply(StorageKeys keys, ItemStack stack, String rawName) {
@@ -61,7 +62,7 @@ public final class StorageItemNameEditor {
       PersistentDataContainer pdc,
       String rawName,
       Component customName) {
-    String normalized = StorageDisplayName.normalize(rawName);
+    String normalized = StorageNameNormalizer.normalize(rawName);
     if (normalized == null) {
       pdc.remove(keys.storageName());
       meta.customName(null);

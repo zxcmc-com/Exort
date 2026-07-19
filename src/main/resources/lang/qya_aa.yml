@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Rávar: {0}, {1}"
   wire:
     hard_cap: "Tengwe tengwe anwa alta: {0}/{1}."
+    item_not_placeable: "Sina nat úpolë panyaina tengweo ara."
+  placement:
+    blocked: "Panië pusta sinomë."
   bus:
     no_storage: "Lá harmava nútina sina raxë."
     multiple_storages: "Rimbë harmavar nátinë. Á hehta er minë."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "I tulcamo-sambo mentano rámenna quanta."
     transmitter_booster_only: "Er tulcamo tengwa rámenna polë caita sina sambossë."
 debug:
+  value:
+    enabled: "Cuina"
+    disabled: "Quorin"
+    none: "Munta"
+    unknown: "Úsina"
   mode:
     read: "cenda er"
     write: "tecë"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Юллар: {0}, {1}"
   wire:
     hard_cap: "Чыбык чылбыры бик зур: {0}/{1}."
+    item_not_placeable: "Бу әйберне чыбык янына урнаштырып булмый."
+  placement:
+    blocked: "Бу урында урнаштыру тыелган."
   bus:
     no_storage: "Бу шинага саклагыч тоташмаган."
     multiple_storages: "Берничә саклагыч тоташкан. Берсен генә калдырыгыз."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Чыбыксыз тапшыргычның көчәйткеч урыны буш түгел."
     transmitter_booster_only: "Бу урынга чыбыксыз сигнал көчәйткечен генә куеп була."
 debug:
+  value:
+    enabled: "Кабызылган"
+    disabled: "Сүндерелгән"
+    none: "Юк"
+    unknown: "Билгесез"
   mode:
     read: "уку гына"
     write: "язу"

@@ -8,6 +8,7 @@ import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.MonitorMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ final class DebugCacheStatusRenderer {
   private final Supplier<Material> wireMaterial;
   private final Supplier<Material> storageCarrier;
   private final Supplier<Material> relayCarrier;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
 
   DebugCacheStatusRenderer(DebugCacheStatusRendererDependencies dependencies) {
     this.plugin = dependencies.plugin();
@@ -52,6 +54,7 @@ final class DebugCacheStatusRenderer {
     this.wireMaterial = dependencies.wireMaterial();
     this.storageCarrier = dependencies.storageCarrier();
     this.relayCarrier = dependencies.relayCarrier();
+    this.networkGraphCache = dependencies.networkGraphCache();
   }
 
   void send(CommandSender sender, String storageId) {
@@ -264,6 +267,7 @@ final class DebugCacheStatusRenderer {
             block,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),
@@ -282,6 +286,7 @@ final class DebugCacheStatusRenderer {
             block,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),
@@ -300,6 +305,7 @@ final class DebugCacheStatusRenderer {
             block,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit.getAsInt(),
             wireHardCap.getAsInt(),
             wireMaterial.get(),

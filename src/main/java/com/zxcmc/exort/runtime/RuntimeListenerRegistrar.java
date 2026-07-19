@@ -1,9 +1,10 @@
 package com.zxcmc.exort.runtime;
 
-import com.zxcmc.exort.block.listener.BlockListener;
-import com.zxcmc.exort.block.listener.BlockListenerDependencies;
+import com.zxcmc.exort.block.listener.CarrierListener;
+import com.zxcmc.exort.block.listener.CarrierListenerDependencies;
 import com.zxcmc.exort.breaking.explosion.ExortExplosionListener;
 import com.zxcmc.exort.bus.listener.BusListener;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.chunkloader.ChunkLoaderAuditListener;
 import com.zxcmc.exort.chunkloader.ChunkLoaderCreativeAudit;
 import com.zxcmc.exort.chunkloader.ChunkLoaderListener;
@@ -25,6 +26,11 @@ import com.zxcmc.exort.placement.PlacementGuardConfig;
 import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.placement.bridge.ItemPlaceBridgeDependencies;
 import com.zxcmc.exort.placement.bridge.ItemPlaceBridgeListener;
+import com.zxcmc.exort.placement.bridge.PlacementRefreshContext;
+import com.zxcmc.exort.placement.bridge.PlacementRuntimeContext;
+import com.zxcmc.exort.placement.bridge.PlacementServices;
+import com.zxcmc.exort.placement.storage.StoragePlacementDependencies;
+import com.zxcmc.exort.placement.storage.StoragePlacementService;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeDiscoveryListener;
 import com.zxcmc.exort.recipes.RecipeService;
@@ -54,7 +60,8 @@ public final class RuntimeListenerRegistrar {
             deps.plugin(), deps.storageClaimRegistry(), deps.materials().storageCarrier());
     register(deps, storageClaimReconciler);
     storageClaimReconciler.start();
-    registerBlockListeners(deps);
+    PlacementComposition placement = createPlacementComposition(deps);
+    registerCarrierListeners(deps, placement);
     registerGuiListeners(deps);
     registerStorageAndWireListeners(deps);
     ChunkLoaderAuditListener chunkLoaderAuditListener =
@@ -64,7 +71,7 @@ public final class RuntimeListenerRegistrar {
         chunkLoaderAuditListener == null
             ? ChunkLoaderCreativeAudit.NOOP
             : chunkLoaderAuditListener);
-    registerItemPlaceBridge(deps);
+    registerItemPlaceBridge(deps, placement);
     if (chunkLoaderAuditListener != null) {
       register(deps, chunkLoaderAuditListener);
     }
@@ -78,51 +85,26 @@ public final class RuntimeListenerRegistrar {
         placementGuard, recipes.craftingRules(), recipes.recipeService(), storageClaimReconciler);
   }
 
-  private static void registerBlockListeners(RuntimeListenerDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+  private static void registerCarrierListeners(
+      RuntimeListenerDependencies deps, PlacementComposition placement) {
+    CarrierMaterials materials = placement.materials();
     register(
         deps,
-        new BlockListener(
-            new BlockListenerDependencies(
-                deps.plugin(),
-                deps.storageManager(),
-                deps.storageClaimRegistry(),
-                deps.keys(),
-                deps.customItems(),
-                materials.wire(),
-                deps.wireHardCap(),
-                deps.hologramManager(),
-                deps.hologramManagerSource(),
+        new CarrierListener(
+            new CarrierListenerDependencies(
+                placement.services(),
+                materials,
+                placement.runtime(),
+                placement.refresh(),
                 deps.wireDisplayManager(),
-                materials.storageCarrier(),
-                materials.terminalCarrier(),
-                materials.monitorCarrier(),
-                materials.busCarrier(),
-                materials.relayCarrier(),
-                deps.relayEnabled(),
-                materials.transmitterCarrier(),
-                deps.wirelessService().isEnabled(),
-                deps.wirelessTransmitterService(),
-                materials.chunkLoaderCarrier(),
-                deps.breakHandler(),
-                deps.chunkLoaderService(),
-                deps.regionProtection(),
-                deps.playerFeedback(),
-                deps.displayRefreshServiceSource(),
-                deps.monitorDisplayManagerSource(),
-                deps.busServiceSource(),
-                deps.networkGraphCacheSource(),
-                deps.revalidateSessions(),
-                deps.transmitterPlacedRecorder(),
-                () -> deps.breakSoundConfig(),
-                () -> deps.busRuntimeConfig())));
+                deps.breakHandler())));
     register(
         deps,
         new ExortExplosionListener(deps.plugin(), deps.config(), materials, deps.breakHandler()));
   }
 
   private static void registerGuiListeners(RuntimeListenerDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     register(
         deps,
         new TerminalListener(
@@ -145,13 +127,15 @@ public final class RuntimeListenerRegistrar {
             materials.wire(),
             materials.storageCarrier(),
             deps.relayTraversalCarrier(),
-            materials.terminalCarrier()));
+            materials.terminalCarrier(),
+            deps.networkGraphCacheSource()));
     register(
         deps,
         new BusListener(
             deps.plugin(),
             deps.regionProtection(),
             deps.worldEditWandGuard(),
+            deps.playerFeedback(),
             block -> {
               if (deps.busDisplayManager() != null) {
                 deps.busDisplayManager().refresh(block);
@@ -172,7 +156,7 @@ public final class RuntimeListenerRegistrar {
   }
 
   private static void registerStorageAndWireListeners(RuntimeListenerDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     register(
         deps,
         new StorageListener(
@@ -190,12 +174,16 @@ public final class RuntimeListenerRegistrar {
                 deps.regionProtection(),
                 deps.worldEditWandGuard(),
                 deps.bossBarManager(),
+                deps.playerFeedback(),
                 deps.keys(),
+                deps.networkGraphCacheSource(),
                 deps.wireLimit(),
                 deps.wireHardCap(),
                 materials.wire(),
                 deps.wirePeekTicks(),
-                materials.storageCarrier())));
+                materials.storageCarrier(),
+                deps.relayTraversalCarrier(),
+                deps.relayRangeChunks())));
     register(
         deps,
         new RelayListener(
@@ -233,7 +221,7 @@ public final class RuntimeListenerRegistrar {
 
   private static void registerPickListener(
       RuntimeListenerDependencies deps, ChunkLoaderCreativeAudit chunkLoaderCreativeAudit) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     var pickListener =
         new PickListener(
             deps.plugin(),
@@ -255,43 +243,74 @@ public final class RuntimeListenerRegistrar {
     }
   }
 
-  private static void registerItemPlaceBridge(RuntimeListenerDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+  private static void registerItemPlaceBridge(
+      RuntimeListenerDependencies deps, PlacementComposition placement) {
     register(
         deps,
         new ItemPlaceBridgeListener(
             new ItemPlaceBridgeDependencies(
-                deps.plugin(),
-                deps.storageManager(),
-                deps.storageClaimRegistry(),
-                deps.customItems(),
-                deps.keys(),
-                materials.wire(),
-                deps.wireHardCap(),
-                materials.storageCarrier(),
-                materials.terminalCarrier(),
-                materials.monitorCarrier(),
-                materials.busCarrier(),
-                materials.relayCarrier(),
-                deps.relayEnabled(),
-                materials.transmitterCarrier(),
-                deps.wirelessService().isEnabled(),
-                deps.wirelessTransmitterService(),
-                materials.chunkLoaderCarrier(),
-                deps.regionProtection(),
-                deps.playerFeedback(),
-                deps.displayRefreshServiceSource(),
-                deps.hologramManagerSource(),
-                deps.monitorDisplayManagerSource(),
-                deps.busServiceSource(),
-                deps.networkGraphCacheSource(),
-                deps.revalidateSessions(),
-                deps.monitorPlacedRecorder(),
-                deps.transmitterPlacedRecorder(),
-                () -> deps.breakSoundConfig(),
-                deps.chunkLoaderService(),
-                () -> deps.busRuntimeConfig())));
+                placement.services(),
+                placement.materials(),
+                placement.runtime(),
+                placement.refresh())));
   }
+
+  private static PlacementComposition createPlacementComposition(RuntimeListenerDependencies deps) {
+    CarrierMaterials materials = deps.materials();
+    PlacementRuntimeContext runtime =
+        new PlacementRuntimeContext(
+            deps.wireHardCap(),
+            deps.relayEnabled(),
+            deps.wirelessService().isEnabled(),
+            () -> deps.breakSoundConfig(),
+            () -> deps.busRuntimeConfig());
+    PlacementRefreshContext refresh =
+        new PlacementRefreshContext(
+            deps.displayRefreshServiceSource(),
+            deps.hologramManagerSource(),
+            deps.monitorDisplayManagerSource(),
+            deps.busServiceSource(),
+            deps.networkGraphCacheSource(),
+            deps.revalidateSessions(),
+            deps.monitorPlacedRecorder(),
+            deps.transmitterPlacedRecorder());
+    StoragePlacementService storagePlacementService =
+        new StoragePlacementService(
+            deps.storageManager(),
+            deps.storageClaimRegistry(),
+            new StoragePlacementDependencies(
+                deps.plugin(),
+                deps.playerFeedback(),
+                materials.storageCarrier(),
+                refresh.displayRefreshService(),
+                refresh.hologramManager(),
+                refresh.revalidateSessions(),
+                block -> {
+                  var cache = refresh.networkGraphCache().get();
+                  if (cache != null) {
+                    cache.invalidateAround(block);
+                  }
+                }));
+    PlacementServices services =
+        new PlacementServices(
+            deps.plugin(),
+            deps.storageManager(),
+            deps.storageClaimRegistry(),
+            deps.customItems(),
+            deps.keys(),
+            deps.wirelessTransmitterService(),
+            deps.regionProtection(),
+            deps.playerFeedback(),
+            deps.chunkLoaderService(),
+            storagePlacementService);
+    return new PlacementComposition(services, materials, runtime, refresh);
+  }
+
+  private record PlacementComposition(
+      PlacementServices services,
+      CarrierMaterials materials,
+      PlacementRuntimeContext runtime,
+      PlacementRefreshContext refresh) {}
 
   private static ChunkLoaderAuditListener createChunkLoaderAuditListener(
       RuntimeListenerDependencies deps) {
@@ -304,7 +323,7 @@ public final class RuntimeListenerRegistrar {
   }
 
   private static void registerMonitorListener(RuntimeListenerDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     register(
         deps,
         new MonitorListener(
@@ -326,6 +345,7 @@ public final class RuntimeListenerRegistrar {
                 deps::wireLimit,
                 deps::wireHardCap,
                 deps::relayRangeChunks,
+                deps.networkGraphCacheSource(),
                 deps::storagePeekTicks,
                 deps.monitorRecentlyPlaced(),
                 block -> {
@@ -344,7 +364,7 @@ public final class RuntimeListenerRegistrar {
       return null;
     }
 
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     PlacementGuardBackend placementGuardBackend =
         createPlacementGuardBackend(deps, placementConfig);
     RightClickPlacementGuard placementGuard =
@@ -437,7 +457,7 @@ public final class RuntimeListenerRegistrar {
   }
 
   private static void registerWirelessListeners(RuntimeListenerDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     register(deps, deps.wirelessTransmitterService());
     register(
         deps,

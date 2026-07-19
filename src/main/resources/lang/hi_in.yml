@@ -203,6 +203,9 @@ message:
   lang_status_paths: "पथ: {0}, {1}"
   wire:
     hard_cap: "तार श्रृंखला बहुत बड़ी है: {0}/{1}."
+    item_not_placeable: "इस आइटम को तार के सहारे नहीं रखा जा सकता."
+  placement:
+    blocked: "यहाँ रखना अवरुद्ध है."
   bus:
     no_storage: "इस bus से कोई भंडारण जुड़ा नहीं है."
     multiple_storages: "कई भंडारण जुड़े हैं. केवल एक छोड़ें."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "वायरलेस ट्रांसमीटर का बूस्टर स्लॉट भरा हुआ है।"
     transmitter_booster_only: "इस स्लॉट में केवल वायरलेस सिग्नल बूस्टर रखा जा सकता है।"
 debug:
+  value:
+    enabled: "सक्षम"
+    disabled: "अक्षम"
+    none: "कोई नहीं"
+    unknown: "अज्ञात"
   mode:
     read: "केवल पढ़ना"
     write: "लिखना"

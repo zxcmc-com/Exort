@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Chemins: {0}, {1}"
   wire:
     hard_cap: "La chaîne de câbles est trop grande: {0}/{1}."
+    item_not_placeable: "Cet objet ne peut pas être placé contre un câble."
+  placement:
+    blocked: "Le placement est bloqué ici."
   bus:
     no_storage: "Aucun stockage connecté à ce bus."
     multiple_storages: "Plusieurs stockages sont connectés. N’en laisse qu’un."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "L'emplacement d'amplificateur du Transmetteur Sans Fil est occupé."
     transmitter_booster_only: "Seul un Amplificateur de Signal Sans Fil peut être placé dans cet emplacement."
 debug:
+  value:
+    enabled: "Activé"
+    disabled: "Désactivé"
+    none: "Aucun"
+    unknown: "Inconnu"
   mode:
     read: "lecture seule"
     write: "écriture"

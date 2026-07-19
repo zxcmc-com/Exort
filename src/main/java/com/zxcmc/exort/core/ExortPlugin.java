@@ -6,6 +6,7 @@ import com.zxcmc.exort.block.ExortBlockClassifier;
 import com.zxcmc.exort.breaking.overlay.DisplayBreakAnimationSender;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.carrier.WireCarrierMode;
 import com.zxcmc.exort.chunkloader.ChunkLoaderService;
 import com.zxcmc.exort.command.CommandRuntimeAccess;
@@ -28,7 +29,6 @@ import com.zxcmc.exort.gui.SearchDialogService;
 import com.zxcmc.exort.gui.SessionManager;
 import com.zxcmc.exort.gui.SessionManagerDependencies;
 import com.zxcmc.exort.gui.SortEvent;
-import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.PlayerLocaleService;
@@ -54,7 +54,6 @@ import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.InventoryRefreshService;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
-import com.zxcmc.exort.network.NetworkGraphCacheProvider;
 import com.zxcmc.exort.placement.RecentPlacementTracker;
 import com.zxcmc.exort.platform.MinecraftVersionRequirement;
 import com.zxcmc.exort.platform.ModePolicy;
@@ -63,16 +62,20 @@ import com.zxcmc.exort.platform.RuntimeModeCoordinator;
 import com.zxcmc.exort.platform.RuntimeModeState;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
+import com.zxcmc.exort.runtime.CoreServices;
 import com.zxcmc.exort.runtime.ExortRuntimeFactory;
 import com.zxcmc.exort.runtime.ExortRuntimeFactoryDependencies;
 import com.zxcmc.exort.runtime.ExortRuntimeServices;
+import com.zxcmc.exort.runtime.MaintenanceScheduler;
+import com.zxcmc.exort.runtime.RuntimeConfigSnapshot;
 import com.zxcmc.exort.runtime.RuntimeHandle;
-import com.zxcmc.exort.runtime.RuntimeMaterials;
+import com.zxcmc.exort.runtime.RuntimeHooks;
+import com.zxcmc.exort.runtime.RuntimeIntegrationContext;
 import com.zxcmc.exort.runtime.RuntimeReloadCoordinator;
-import com.zxcmc.exort.runtime.RuntimeTaskScheduler;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
@@ -102,7 +105,7 @@ import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCacheProvider {
+public class ExortPlugin extends JavaPlugin implements ExortApi {
   static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
   private static final MinecraftVersionRequirement MIN_MC_VERSION =
       MinecraftVersionRequirement.atLeast(1, 21, 11);
@@ -123,7 +126,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private SearchDialogService searchDialogService;
   private InventoryRefreshService inventoryRefreshService;
   private RecentPlacementTracker placementTracker;
-  private RuntimeTaskScheduler runtimeTasks;
+  private MaintenanceScheduler runtimeTasks;
   private int wireLimit;
   private int wireHardCap;
   private int relayRangeChunks;
@@ -131,7 +134,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private Material storageCarrier;
   private Material relayTraversalCarrier;
   private Material terminalCarrier;
-  private RuntimeMaterials runtimeMaterials;
+  private CarrierMaterials runtimeMaterials;
   private ExortBlockClassifier blockClassifier;
   private ItemHologramManager hologramManager;
   private MonitorDisplayManager monitorDisplayManager;
@@ -215,7 +218,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     playerFeedback = new PlayerFeedback(lang);
     playerLocaleService =
         new PlayerLocaleService(
-            this, lang, itemNameService, () -> sessionManager, () -> busSessionManager);
+            this,
+            lang,
+            itemNameService,
+            () -> sessionManager,
+            () -> busSessionManager,
+            () -> transmitterSessionManager);
     Bukkit.getPluginManager().registerEvents(playerLocaleService, this);
     searchDialogService = new SearchDialogService(lang);
     keys = new StorageKeys(this);
@@ -241,7 +249,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
             database::setStorageSortMode,
             cache -> cache.refreshCustomItems(customItems, wirelessService, true));
     runtimeTasks =
-        new RuntimeTaskScheduler(
+        new MaintenanceScheduler(
             this, () -> storageManager, () -> StorageRuntimeConfig.fromConfig(getConfig()));
     inventoryRefreshService = new InventoryRefreshService(() -> customItems, () -> wirelessService);
     placementTracker = new RecentPlacementTracker();
@@ -270,6 +278,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
                 () -> storageCarrier,
                 () -> relayTraversalCarrier,
                 () -> terminalCarrier,
+                () -> networkGraphCache,
                 () -> GuiRuntimeConfig.fromConfig(getConfig()),
                 GuiOverlayConfig::defaults,
                 storageId -> {
@@ -402,14 +411,14 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
 
   @Override
   public boolean isExortBlock(Block block) {
-    RuntimeMaterials materials = runtimeMaterials;
+    CarrierMaterials materials = runtimeMaterials;
     ExortBlockClassifier classifier = blockClassifier;
     return materials != null && classifier != null && classifier.isExortBlock(block);
   }
 
   @Override
   public boolean isExortChorusCarrier(Block block) {
-    RuntimeMaterials materials = runtimeMaterials;
+    CarrierMaterials materials = runtimeMaterials;
     ExortBlockClassifier classifier = blockClassifier;
     return materials != null && classifier != null && classifier.isExortChorusCarrier(block);
   }
@@ -616,53 +625,57 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
   private ExortRuntimeFactoryDependencies createRuntimeFactoryDependencies(
       FileConfiguration config) {
     return new ExortRuntimeFactoryDependencies(
-        this,
-        config,
-        lang,
-        itemNameService,
-        searchDialogService,
-        keys,
-        storageManager,
-        database,
-        sessionManager,
-        bossBarManager,
-        playerFeedback,
-        inventoryRefreshService,
-        () -> networkGraphCache,
-        () -> regionProtection,
-        () -> worldEditDebugService,
-        () -> busService,
-        recipeService,
-        runtimeTasks,
-        resourceMode,
-        resourceWireUsesBarrier,
-        () -> reloadDefaultSortMode(config),
-        this::unregisterReloadableRuntimeListeners,
-        () -> setupRegionProtection(config),
-        () -> {
-          if (sessionManager != null) {
-            sessionManager.revalidateSessions();
-          }
-        },
-        this::recordPickDebug,
-        this::recordPickDebugFull,
-        block -> {
-          if (placementTracker != null) {
-            placementTracker.markPlaced(block);
-          }
-        },
-        block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
-        block -> {
-          if (placementTracker != null) {
-            placementTracker.markPlaced(block);
-          }
-        },
-        block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
-        () -> GuiRuntimeConfig.fromConfig(config),
-        GuiOverlayConfig::defaults,
-        storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE),
-        WorldEditIntegration::tryRegister,
-        ignored -> {});
+        new CoreServices(
+            this,
+            lang,
+            itemNameService,
+            searchDialogService,
+            keys,
+            storageManager,
+            database,
+            sessionManager,
+            bossBarManager,
+            playerFeedback,
+            inventoryRefreshService,
+            runtimeTasks),
+        new RuntimeConfigSnapshot(
+            config,
+            resourceMode,
+            resourceWireUsesBarrier,
+            () -> GuiRuntimeConfig.fromConfig(config),
+            GuiOverlayConfig::defaults),
+        new RuntimeIntegrationContext(
+            () -> networkGraphCache,
+            () -> regionProtection,
+            () -> worldEditDebugService,
+            () -> busService,
+            recipeService,
+            WorldEditIntegration::tryRegister,
+            ignored -> {}),
+        new RuntimeHooks(
+            () -> reloadDefaultSortMode(config),
+            this::unregisterReloadableRuntimeListeners,
+            () -> setupRegionProtection(config),
+            () -> {
+              if (sessionManager != null) {
+                sessionManager.revalidateSessions();
+              }
+            },
+            this::recordPickDebug,
+            this::recordPickDebugFull,
+            block -> {
+              if (placementTracker != null) {
+                placementTracker.markPlaced(block);
+              }
+            },
+            block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
+            block -> {
+              if (placementTracker != null) {
+                placementTracker.markPlaced(block);
+              }
+            },
+            block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
+            storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE)));
   }
 
   private void applyRuntimeServices(ExortRuntimeServices services) {
@@ -671,7 +684,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
     wirelessTransmitterService = services.wirelessTransmitterService();
     transmitterSessionManager = services.transmitterSessionManager();
     chunkLoaderService = services.chunkLoaderService();
-    RuntimeMaterials materials = services.materials();
+    CarrierMaterials materials = services.materials();
     runtimeMaterials = materials;
     blockClassifier = new ExortBlockClassifier(this, materials);
     wireMaterial = materials.wire();
@@ -1144,7 +1157,10 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         this,
         lang,
         new CommandRuntimeAccess(
-            () -> customItems, () -> wirelessService, () -> chunkLoaderService),
+            () -> customItems,
+            () -> wirelessService,
+            () -> chunkLoaderService,
+            () -> networkGraphCache),
         keys,
         storageManager,
         database,
@@ -1181,11 +1197,6 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, NetworkGraphCac
         () -> storageCarrier,
         () -> relayTraversalCarrier,
         this::currentProtectionStatus);
-  }
-
-  @Override
-  public NetworkGraphCache getNetworkGraphCache() {
-    return networkGraphCache;
   }
 
   private void reloadDefaultSortMode(FileConfiguration config) {

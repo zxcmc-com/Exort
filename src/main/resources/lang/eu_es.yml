@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Bideak: {0}, {1}"
   wire:
     hard_cap: "Kable-katea handiegia da: {0}/{1}."
+    item_not_placeable: "Ezin da elementu hau kable baten kontra jarri."
+  placement:
+    blocked: "Hemen ezin da ezer jarri."
   bus:
     no_storage: "Ez dago biltegirik bus honi konektatuta."
     multiple_storages: "Biltegi bat baino gehiago konektatuta dago. Utzi bakarra."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Haririk Gabeko Transmisorearen indargailuaren zirrikitua beteta dago."
     transmitter_booster_only: "Haririk Gabeko Seinale-indargailu bat bakarrik jar daiteke zirrikitu honetan."
 debug:
+  value:
+    enabled: "Gaituta"
+    disabled: "Desgaituta"
+    none: "Bat ere ez"
+    unknown: "Ezezaguna"
   mode:
     read: "irakurtzeko soilik"
     write: "idazketa"

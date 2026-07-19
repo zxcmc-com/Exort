@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Paaie: {0}, {1}"
   wire:
     hard_cap: "Kabelketting is te groot: {0}/{1}."
+    item_not_placeable: "Hierdie item kan nie teen 'n kabel geplaas word nie."
+  placement:
+    blocked: "Plasing word hier geblokkeer."
   bus:
     no_storage: "Geen berging aan hierdie bus gekoppel nie."
     multiple_storages: "Verskeie bergings gekoppel. Laat net een oor."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Die versterkergleuf van die Draadlose Sender is beset."
     transmitter_booster_only: "Slegs 'n Draadlose Seinversterker kan in hierdie gleuf geplaas word."
 debug:
+  value:
+    enabled: "Geaktiveer"
+    disabled: "Gedeaktiveer"
+    none: "Geen"
+    unknown: "Onbekend"
   mode:
     read: "lees-alleen"
     write: "skryf"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Awọn ọna: {0}, {1}"
   wire:
     hard_cap: "Ẹwọn waya tobi ju: {0}/{1}."
+    item_not_placeable: "Ko ṣee fi nnkan yii si ẹgbẹ waya."
+  placement:
+    blocked: "A ti dina gbigbe nnkan si ibi yii."
   bus:
     no_storage: "Ko si ipamọ ti o sopọ mọ bus yii."
     multiple_storages: "Ọpọlọpọ ipamọ ni a so pọ. Fi ọkan nikan silẹ."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Ààyè amúná atagba alailowaya ti kún."
     transmitter_booster_only: "Ohun amúná ìfihàn alailowaya nìkan ni a lè fi sí ààyè yìí."
 debug:
+  value:
+    enabled: "Ti tan"
+    disabled: "Ti pa"
+    none: "Ko si"
+    unknown: "Aimọ"
   mode:
     read: "ka-nikan"
     write: "kọ"

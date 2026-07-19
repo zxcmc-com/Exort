@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class BoundedRefreshQueueTest {
+class DeduplicatingRefreshQueueTest {
   @Test
   void pollDrainsOnlyRequestedBudgetInInsertionOrder() {
-    BoundedRefreshQueue<String> queue = new BoundedRefreshQueue<>();
+    DeduplicatingRefreshQueue<String> queue = new DeduplicatingRefreshQueue<>();
     queue.enqueue("a");
     queue.enqueue("b");
     queue.enqueue("c");
@@ -20,7 +20,7 @@ class BoundedRefreshQueueTest {
 
   @Test
   void enqueueDeduplicatesValues() {
-    BoundedRefreshQueue<String> queue = new BoundedRefreshQueue<>();
+    DeduplicatingRefreshQueue<String> queue = new DeduplicatingRefreshQueue<>();
     queue.enqueue("a");
     queue.enqueue("a");
 

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ceļi: {0}, {1}"
   wire:
     hard_cap: "Vada ķēde ir pārāk liela: {0}/{1}."
+    item_not_placeable: "Šo priekšmetu nevar novietot pie vada."
+  placement:
+    blocked: "Novietošana šeit ir bloķēta."
   bus:
     no_storage: "Šai kopnei nav pievienota krātuve."
     multiple_storages: "Pievienotas vairākas krātuves. Atstāj tikai vienu."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Bezvadu raidītāja pastiprinātāja vieta ir aizņemta."
     transmitter_booster_only: "Šajā vietā var ievietot tikai bezvadu signāla pastiprinātāju."
 debug:
+  value:
+    enabled: "Ieslēgts"
+    disabled: "Izslēgts"
+    none: "Nav"
+    unknown: "Nezināms"
   mode:
     read: "tikai lasīšana"
     write: "rakstīšana"

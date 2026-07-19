@@ -76,22 +76,8 @@ class TransmitterSessionManagerTest {
         new CustomItems(
             keys,
             lang,
-            itemModels.wireItemModel(),
-            itemModels.storageItemModel(),
-            itemModels.terminalItemModel(),
-            itemModels.craftingTerminalItemModel(),
-            itemModels.monitorItemModel(),
-            itemModels.importBusItemModel(),
-            itemModels.exportBusItemModel(),
-            itemModels.relayItemModel(),
-            itemModels.transmitterItemModel(),
-            itemModels.chunkLoaderItemModel(),
-            itemModels.personalChunkLoaderItemModel(),
-            itemModels.dormantChunkLoaderItemModel(),
-            itemModels.wirelessItemModel(),
-            itemModels.wirelessDisabledModel(),
-            "minecraft:target",
-            itemModels.wirelessBoosterItemModels(),
+            itemModels.customItemModels(),
+            com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
             true);
     WirelessTerminalService wirelessService =
         new WirelessTerminalService(lang, keys, customItems, true, 48);

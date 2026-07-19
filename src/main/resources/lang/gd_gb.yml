@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Slighean: {0}, {1}"
   wire:
     hard_cap: "Tha slabhraidh uèir ro mhòr: {0}/{1}."
+    item_not_placeable: "Cha ghabh an nì seo a chur ri uèir."
+  placement:
+    blocked: "Tha cur an seo air a bhacadh."
   bus:
     no_storage: "Chan eil stòras ceangailte ris a' bhus seo."
     multiple_storages: "Tha grunn stòrasan ceangailte. Fàg aon a-mhàin."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Tha slot neartachaidh an Tar-chuiriche gun Uèir làn."
     transmitter_booster_only: "Chan fhaodar ach Neartaiche Comharran gun Uèir a chur san t-slot seo."
 debug:
+  value:
+    enabled: "Air a chomasachadh"
+    disabled: "Air a chur dheth"
+    none: "Chan eil gin"
+    unknown: "Neo-aithnichte"
   mode:
     read: "leughadh a-mhàin"
     write: "sgrìobhadh"

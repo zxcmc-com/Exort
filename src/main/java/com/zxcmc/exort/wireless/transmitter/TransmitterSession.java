@@ -376,7 +376,11 @@ public final class TransmitterSession implements InventoryHolder {
   private boolean deliverToInventory(
       TransmitterStoredTerminal.TakeReservation reservation, ItemStack output, String itemName) {
     InventoryDestination destination = inventoryDestination(output);
-    if (destination == null || !reservation.commit()) {
+    if (destination == null) {
+      return false;
+    }
+    if (!reservation.commit()) {
+      operationFailed();
       return false;
     }
     try {
@@ -517,6 +521,7 @@ public final class TransmitterSession implements InventoryHolder {
       return;
     }
     if (!reservation.commit()) {
+      operationFailed();
       render();
       return;
     }

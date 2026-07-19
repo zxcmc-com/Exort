@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ways: {0}, {1}"
   wire:
     hard_cap: "Wire chain too large: {0}/{1}."
+    item_not_placeable: "This thing may not be set against a wire."
+  placement:
+    blocked: "Setting is barred here."
   bus:
     no_storage: "No storehouse linked to this cart."
     multiple_storages: "Many storehouses linked. Leave only one."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "The Aether Sender's strengthener place is filled."
     transmitter_booster_only: "Only an Aether Signal Strengthener may be set in this place."
 debug:
+  value:
+    enabled: "On"
+    disabled: "Off"
+    none: "Naught"
+    unknown: "Unkenned"
   mode:
     read: "read alone"
     write: "write"

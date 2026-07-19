@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Be: {0}, {1}"
   wire:
     hard_cap: "Cadena kable toj muk': {0}/{1}."
+    item_not_placeable: "Li iteme ma xu' xak' ta kable."
+  placement:
+    blocked: "Makbil xak'el ta li'i."
   bus:
     no_storage: "Mu'yuk stsobel ch'akel ta bus li'i."
     multiple_storages: "Ep stsobel ch'akel. Ak'o jun no'ox."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Sna jchik’os ta transmisor mu’yuk kable oy xa k’usitik."
     transmitter_booster_only: "Ja’ no’ox jchik’os señal mu’yuk kable xu’ xak’ ta sna li’i."
 debug:
+  value:
+    enabled: "Yakal"
+    disabled: "Makbil"
+    none: "Mu'yuk"
+    unknown: "Mu'yuk k'ajbil"
   mode:
     read: "il-k'el no'ox"
     write: "ts'ibanel"

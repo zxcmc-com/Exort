@@ -4,12 +4,13 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.i18n.StorageTierText;
 import com.zxcmc.exort.items.CustomItemIdentity;
-import com.zxcmc.exort.items.CustomItemRegistry;
+import com.zxcmc.exort.items.FixedItemCatalog;
 import com.zxcmc.exort.items.StorageItemNameEditor;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
+import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.*;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.ItemStack;
@@ -373,7 +374,7 @@ public final class SortSearchHelper {
     if ("storage".equals(normalizedType)) {
       return storageSearchNames(pdc, lang, keys, language);
     }
-    return CustomItemRegistry.fixedItem(normalizedType)
+    return FixedItemCatalog.fixedItem(normalizedType)
         .map(identity -> fixedItemSearchNames(identity, lang, language))
         .orElse(null);
   }

@@ -95,7 +95,8 @@ class GuiSessionValidatorTest {
         () -> Material.BARRIER,
         () -> Material.BARRIER,
         () -> Material.BARRIER,
-        RegionProtection::allowAll);
+        RegionProtection::allowAll,
+        () -> null);
   }
 
   private static Plugin plugin() {

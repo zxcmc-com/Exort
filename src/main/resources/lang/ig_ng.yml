@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ụzọ: {0}, {1}"
   wire:
     hard_cap: "Agbụ waya buru ibu nke ukwuu: {0}/{1}."
+    item_not_placeable: "Enweghị ike idowe ihe a n'akụkụ waya."
+  placement:
+    blocked: "A gbochiri idowe ihe ebe a."
   bus:
     no_storage: "Enweghị nchekwa jikọrọ na bus a."
     multiple_storages: "Ọtụtụ nchekwa jikọrọ. Hapụ naanị otu."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Oghere ihe nkwalite nke ihe nzipụ enweghị waya ejupụtala."
     transmitter_booster_only: "Naanị Ihe Nkwalite Mgbaama Enweghị Waya ka a ga-etinye n’oghere a."
 debug:
+  value:
+    enabled: "Agbanyere"
+    disabled: "Agbanyụrụ"
+    none: "Ọ dịghị"
+    unknown: "Amaghị ama"
   mode:
     read: "gụ-naanị"
     write: "dee"

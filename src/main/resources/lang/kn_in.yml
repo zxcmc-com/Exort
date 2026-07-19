@@ -203,6 +203,9 @@ message:
   lang_status_paths: "ಮಾರ್ಗಗಳು: {0}, {1}"
   wire:
     hard_cap: "ವೈರ್ chain ತುಂಬಾ ದೊಡ್ಡದು: {0}/{1}."
+    item_not_placeable: "ಈ ಐಟಂ ಅನ್ನು ವೈರ್‌ಗೆ ಹೊಂದಿಕೊಂಡಂತೆ ಇರಿಸಲಾಗುವುದಿಲ್ಲ."
+  placement:
+    blocked: "ಇಲ್ಲಿ ಇರಿಸುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ."
   bus:
     no_storage: "ಈ bus ಗೆ ಸಂಗ್ರಹಣೆ ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ."
     multiple_storages: "ಹಲವು ಸಂಗ್ರಹಣೆಗಳು ಸಂಪರ್ಕಗೊಂಡಿವೆ. ಒಂದನ್ನೇ ಉಳಿಸಿ."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "ವೈರ್‌ಲೆಸ್ ಟ್ರಾನ್ಸ್‌ಮಿಟರ್‌ನ ಬೂಸ್ಟರ್ ಸ್ಲಾಟ್ ಭರ್ತಿಯಾಗಿದೆ."
     transmitter_booster_only: "ಈ ಸ್ಲಾಟ್‌ನಲ್ಲಿ ವೈರ್‌ಲೆಸ್ ಸಿಗ್ನಲ್ ಬೂಸ್ಟರ್ ಮಾತ್ರ ಇರಿಸಬಹುದು."
 debug:
+  value:
+    enabled: "ಸಕ್ರಿಯ"
+    disabled: "ನಿಷ್ಕ್ರಿಯ"
+    none: "ಯಾವುದೂ ಇಲ್ಲ"
+    unknown: "ತಿಳಿದಿಲ್ಲ"
   mode:
     read: "ಓದು ಮಾತ್ರ"
     write: "ಬರೆ"

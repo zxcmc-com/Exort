@@ -71,7 +71,8 @@ final class DebugCommand {
                 dependencies.relayRangeChunks(),
                 dependencies.wireMaterial(),
                 dependencies.storageCarrier(),
-                dependencies.relayCarrier()));
+                dependencies.relayCarrier(),
+                dependencies.runtimeAccess()::networkGraphCache));
   }
 
   LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -347,28 +348,28 @@ final class DebugCommand {
                 tr(
                     sender,
                     "message.debug_protection_status_policy",
-                    status.enabled() ? "enabled" : "disabled",
+                    debugFlag(sender, status.enabled()),
                     status.failClosedOnError() ? "fail-closed" : "fail-open")),
             Component.text(
                 tr(
                     sender,
                     "message.debug_protection_status_active",
-                    joinStatus(status.activeAdapters()))),
+                    joinStatus(sender, status.activeAdapters()))),
             Component.text(
                 tr(
                     sender,
                     "message.debug_protection_status_missing",
-                    joinStatus(status.missingPlugins()))),
+                    joinStatus(sender, status.missingPlugins()))),
             Component.text(
                 tr(
                     sender,
                     "message.debug_protection_status_failed",
-                    joinStatus(status.failedAdapters()))),
+                    joinStatus(sender, status.failedAdapters()))),
             Component.text(
                 tr(
                     sender,
                     "message.debug_protection_status_runtime",
-                    joinStatus(status.runtimeFailures())))));
+                    joinStatus(sender, status.runtimeFailures())))));
     return 1;
   }
 
@@ -626,8 +627,14 @@ final class DebugCommand {
     return mode.name().toLowerCase(Locale.ROOT).replace('_', '-');
   }
 
-  private static String joinStatus(List<String> values) {
-    return values == null || values.isEmpty() ? "none" : String.join(", ", values);
+  private String joinStatus(CommandSender sender, List<String> values) {
+    return values == null || values.isEmpty()
+        ? tr(sender, "debug.value.none")
+        : String.join(", ", values);
+  }
+
+  private String debugFlag(CommandSender sender, boolean enabled) {
+    return tr(sender, enabled ? "debug.value.enabled" : "debug.value.disabled");
   }
 
   private int cacheVerboseStart(
@@ -778,11 +785,11 @@ final class DebugCommand {
             sender,
             "message.debug_culling_client_status",
             targetName,
-            status.playerListed() ? "enabled" : "disabled",
+            debugFlag(sender, status.playerListed()),
             status.autoDetected() ? "detected" : "not-detected",
             status.source(),
             status.active() ? "active" : "inactive",
-            status.configEnabled() ? "enabled" : "disabled",
+            debugFlag(sender, status.configEnabled()),
             status.probeStatus().summary()));
     return 1;
   }

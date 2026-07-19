@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Paths: {0}, {1}"
   wire:
     hard_cap: "Wire chain is too large: {0}/{1}."
+    item_not_placeable: "This item cannot be placed against a wire."
+  placement:
+    blocked: "Placement is blocked here."
   bus:
     no_storage: "No storage connected to this bus."
     multiple_storages: "Multiple storage blocks connected. Leave only one."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Wireless Transmitter booster slot is occupied."
     transmitter_booster_only: "Only a Wireless Signal Booster can be placed in this slot."
 debug:
+  value:
+    enabled: "Enabled"
+    disabled: "Disabled"
+    none: "None"
+    unknown: "Unknown"
   mode:
     read: "read-only"
     write: "write"

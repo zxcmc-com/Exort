@@ -203,6 +203,9 @@ message:
   lang_status_paths: "ເສັ້ນທາງ: {0}, {1}"
   wire:
     hard_cap: "ໂຊ່ສາຍໃຫຍ່ເກີນໄປ: {0}/{1}."
+    item_not_placeable: "ບໍ່ສາມາດວາງໄອເທັມນີ້ຕິດກັບສາຍໄດ້."
+  placement:
+    blocked: "ການວາງຖືກປິດກັ້ນຢູ່ບ່ອນນີ້."
   bus:
     no_storage: "ບໍ່ມີຄັງເກັບເຊື່ອມກັບບັສນີ້."
     multiple_storages: "ມີຄັງເກັບຫຼາຍອັນເຊື່ອມຕໍ່. ໃຫ້ເຫຼືອອັນດຽວ."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "ຊ່ອງຕົວເພີ່ມຂອງຕົວສົ່ງສັນຍານໄຮ້ສາຍຖືກໃຊ້ຢູ່."
     transmitter_booster_only: "ສາມາດວາງໄດ້ແຕ່ຕົວເພີ່ມສັນຍານໄຮ້ສາຍໃນຊ່ອງນີ້."
 debug:
+  value:
+    enabled: "ເປີດໃຊ້"
+    disabled: "ປິດໃຊ້"
+    none: "ບໍ່ມີ"
+    unknown: "ບໍ່ຮູ້"
   mode:
     read: "ອ່ານຢ່າງດຽວ"
     write: "ຂຽນ"

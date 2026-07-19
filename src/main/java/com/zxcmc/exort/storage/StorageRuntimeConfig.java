@@ -1,8 +1,8 @@
 package com.zxcmc.exort.storage;
 
-import com.zxcmc.exort.gui.SortMode;
 import com.zxcmc.exort.infra.config.ConfigEnums;
 import com.zxcmc.exort.infra.config.ConfigNumbers;
+import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.Objects;
 import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;

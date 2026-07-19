@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.9 — 2026-07-19
+- Storage Wire inspection now follows the same loaded-chunk network traversal as terminals, including Network Relays, and explains hard-cap or incompatible-item denials without chat spam.
+- Wireless Terminal unbinding now follows one item-conserving rule in both vanilla crafting and the Crafting Terminal, including charged, stacked, and feature-disabled terminals.
+- Changing a language now refreshes an open Wireless Transmitter interface alongside Storage, Crafting Terminal, and Bus interfaces.
+
 ## 0.19.8 — 2026-07-18
 - WorldEdit and FAWE operations now correlate Exort state through bounded command contexts and trusted local clipboards; untrusted schematic markers and direct API edits cannot replace Exort-managed blocks, while ordinary schematic blocks continue to paste normally.
 - WorldEdit marker capture is now limited to loaded chunks inside the affected command region, avoiding world-wide marker scans and forced chunk loads for local edits.

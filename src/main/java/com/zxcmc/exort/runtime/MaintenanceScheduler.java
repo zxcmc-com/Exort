@@ -7,14 +7,14 @@ import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 
-public final class RuntimeTaskScheduler {
+public final class MaintenanceScheduler {
   private final Plugin plugin;
   private final Supplier<StorageManager> storageManager;
   private final Supplier<StorageRuntimeConfig> storageConfig;
   private int flushTaskId = -1;
   private int cacheEvictTaskId = -1;
 
-  public RuntimeTaskScheduler(
+  public MaintenanceScheduler(
       Plugin plugin,
       Supplier<StorageManager> storageManager,
       Supplier<StorageRuntimeConfig> storageConfig) {

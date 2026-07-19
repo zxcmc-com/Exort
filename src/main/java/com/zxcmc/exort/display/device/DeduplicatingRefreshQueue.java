@@ -6,7 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-final class BoundedRefreshQueue<T> {
+final class DeduplicatingRefreshQueue<T> {
   private final Set<T> queued = new LinkedHashSet<>();
 
   synchronized void enqueue(T value) {

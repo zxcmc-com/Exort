@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Патеки: {0}, {1}"
   wire:
     hard_cap: "Ланецот на жици е преголем: {0}/{1}."
+    item_not_placeable: "Овој предмет не може да се постави до жица."
+  placement:
+    blocked: "Поставувањето овде е блокирано."
   bus:
     no_storage: "Нема складиште поврзано со оваа шина."
     multiple_storages: "Поврзани се повеќе складишта. Оставете само едно."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Слотот за засилувач на безжичниот предавател е зафатен."
     transmitter_booster_only: "Во овој слот може да се стави само засилувач на безжичен сигнал."
 debug:
+  value:
+    enabled: "Вклучено"
+    disabled: "Исклучено"
+    none: "Нема"
+    unknown: "Непознато"
   mode:
     read: "само читање"
     write: "запис"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Mga path: {0}, {1}"
   wire:
     hard_cap: "Masyadong mahaba ang kadena ng kawad: {0}/{1}."
+    item_not_placeable: "Hindi maaaring ilagay ang item na ito sa tabi ng kawad."
+  placement:
+    blocked: "Harang ang paglalagay dito."
   bus:
     no_storage: "Walang storage na konektado sa bus na ito."
     multiple_storages: "Maraming storage ang konektado. Mag-iwan lamang ng isa."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "May laman ang puwang ng pampalakas sa Wireless na Transmitter."
     transmitter_booster_only: "Pampalakas ng Wireless na Signal lamang ang maaaring ilagay sa puwang na ito."
 debug:
+  value:
+    enabled: "Pinagana"
+    disabled: "Hindi pinagana"
+    none: "Wala"
+    unknown: "Hindi alam"
   mode:
     read: "basa lang"
     write: "sulat"

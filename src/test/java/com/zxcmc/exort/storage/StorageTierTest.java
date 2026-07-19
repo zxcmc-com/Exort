@@ -118,7 +118,7 @@ class StorageTierTest {
     StorageTier.loadFromConfig(config, LOGGER);
 
     var tier = StorageTier.fromString("basic_storage").orElseThrow();
-    assertEquals("Basic Storage", tier.displayName());
+    assertEquals("Basic Storage", tier.fallbackDisplayName());
     assertEquals("Basic Storage", tier.descriptor().displayName());
   }
 
@@ -132,7 +132,7 @@ class StorageTierTest {
     StorageTier.loadFromConfig(config, LOGGER);
 
     var tier = StorageTier.fromString("rare").orElseThrow();
-    assertEquals("Rare", tier.displayName());
+    assertEquals("Rare", tier.fallbackDisplayName());
     assertTrue(tier.translationKey().isEmpty());
   }
 
@@ -146,7 +146,7 @@ class StorageTierTest {
     StorageTier.loadFromConfig(config, LOGGER);
 
     var tier = StorageTier.fromString("rare").orElseThrow();
-    assertEquals("Rare", tier.displayName());
+    assertEquals("Rare", tier.fallbackDisplayName());
     assertEquals("tier.rare", tier.translationKey().orElseThrow());
   }
 
@@ -188,7 +188,8 @@ class StorageTierTest {
 
     StorageTier.loadFromConfig(config, LOGGER);
 
-    assertEquals("Wire Tier", StorageTier.fromString("wire-tier").orElseThrow().displayName());
+    assertEquals(
+        "Wire Tier", StorageTier.fromString("wire-tier").orElseThrow().fallbackDisplayName());
   }
 
   @Test

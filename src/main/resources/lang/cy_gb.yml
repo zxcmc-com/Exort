@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Llwybrau: {0}, {1}"
   wire:
     hard_cap: "Mae cadwyn y wifren yn rhy fawr: {0}/{1}."
+    item_not_placeable: "Ni ellir gosod yr eitem hon yn erbyn gwifren."
+  placement:
+    blocked: "Mae gosod wedi'i rwystro yma."
   bus:
     no_storage: "Dim storfa wedi'i chysylltu â'r bws hwn."
     multiple_storages: "Mae sawl storfa wedi'u cysylltu. Gadewch un yn unig."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Mae slot atgyfnerthu'r Trosglwyddydd Diwifr yn llawn."
     transmitter_booster_only: "Dim ond Atgyfnerthydd Signal Diwifr y gellir ei roi yn y slot hwn."
 debug:
+  value:
+    enabled: "Galluog"
+    disabled: "Analluog"
+    none: "Dim"
+    unknown: "Anhysbys"
   mode:
     read: "darllen yn unig"
     write: "ysgrifennu"

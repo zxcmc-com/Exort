@@ -1,6 +1,6 @@
 package com.zxcmc.exort.marker;
 
-import com.zxcmc.exort.storage.StorageDisplayName;
+import com.zxcmc.exort.storage.StorageNameNormalizer;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import java.util.Optional;
@@ -37,7 +37,7 @@ public final class StorageMarker {
     }
 
     public Data {
-      displayName = StorageDisplayName.normalize(displayName);
+      displayName = StorageNameNormalizer.normalize(displayName);
     }
   }
 
@@ -92,7 +92,7 @@ public final class StorageMarker {
     } else {
       ChunkMarkerStore.removeField(plugin, block, SECTION, FIELD_FACING);
     }
-    String normalizedName = StorageDisplayName.normalize(displayName);
+    String normalizedName = StorageNameNormalizer.normalize(displayName);
     if (normalizedName != null) {
       ChunkMarkerStore.setString(plugin, block, SECTION, FIELD_NAME, normalizedName);
     } else {
@@ -141,7 +141,7 @@ public final class StorageMarker {
       warnOrphaned(plugin, storageId, tierKey, storedMaxItems);
     }
     String nameRaw = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_NAME).orElse(null);
-    String displayName = StorageDisplayName.normalize(nameRaw);
+    String displayName = StorageNameNormalizer.normalize(nameRaw);
     return Optional.of(
         new Data(
             storageId,

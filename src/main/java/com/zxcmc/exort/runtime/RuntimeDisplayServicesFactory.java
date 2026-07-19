@@ -1,5 +1,6 @@
 package com.zxcmc.exort.runtime;
 
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.display.core.DisplayEntityIndex;
 import com.zxcmc.exort.display.core.DisplayEntityIndexCleanupListener;
 import com.zxcmc.exort.display.core.DisplayMetadataService;
@@ -32,7 +33,7 @@ public final class RuntimeDisplayServicesFactory {
   private RuntimeDisplayServicesFactory() {}
 
   public static RuntimeDisplayServices create(RuntimeDisplayServicesDependencies deps) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     RuntimeItemModelConfig itemModels = deps.itemModels();
     RuntimeDisplayModelConfig displayModels =
         RuntimeDisplayModelConfig.forMode(deps.resourceMode(), itemModels.displayNamespace());
@@ -65,6 +66,7 @@ public final class RuntimeDisplayServicesFactory {
             materials.storageCarrier(),
             deps.relayTraversalCarrier(),
             materials.terminalCarrier(),
+            deps.networkGraphCache(),
             deps.hologramConfig().terminal(),
             deps.hologramConfig().storage(),
             metadataService);
@@ -174,7 +176,7 @@ public final class RuntimeDisplayServicesFactory {
   private static WireDisplayManager createWireDisplayManager(
       RuntimeDisplayServicesDependencies deps, DisplayMetadataService metadataService) {
     RuntimeDisplayConfig wireDisplay = RuntimeDisplayConfig.defaults();
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     return new WireDisplayManager(
         deps.plugin(),
         true,
@@ -239,7 +241,7 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
     RuntimeDisplayConfig terminalDisplay = RuntimeDisplayConfig.defaults();
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     return new TerminalDisplayManager(
         deps.plugin(),
         materials.terminalCarrier(),
@@ -262,6 +264,7 @@ public final class RuntimeDisplayServicesFactory {
         materials.wire(),
         materials.storageCarrier(),
         deps.relayTraversalCarrier(),
+        deps.networkGraphCache(),
         deps.resourceMode());
   }
 
@@ -272,7 +275,7 @@ public final class RuntimeDisplayServicesFactory {
     RuntimeDisplayConfig monitorDisplay = RuntimeDisplayConfig.defaults();
     RuntimeMonitorScreenConfig monitorScreens =
         RuntimeMonitorScreenConfig.forMode(deps.resourceMode());
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     return new MonitorDisplayManager(
         deps.plugin(),
         deps.keys(),
@@ -293,6 +296,7 @@ public final class RuntimeDisplayServicesFactory {
         materials.wire(),
         materials.storageCarrier(),
         deps.relayTraversalCarrier(),
+        deps.networkGraphCache(),
         monitorScreens.item(),
         monitorScreens.block(),
         monitorScreens.thinBlock(),
@@ -328,7 +332,7 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayModelConfig displayModels,
       DisplayMetadataService metadataService) {
     RuntimeDisplayConfig relayDisplay = RuntimeDisplayConfig.defaults();
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     RelayVisualStateResolver visualStateResolver =
         deps.resourceMode()
             ? new RelayVisualStateResolver(
@@ -341,7 +345,8 @@ public final class RuntimeDisplayServicesFactory {
                 materials.wire(),
                 materials.storageCarrier(),
                 materials.relayCarrier(),
-                deps.relayTraversalCarrier())
+                deps.relayTraversalCarrier(),
+                deps.networkGraphCache())
             : null;
     return new RelayDisplayManager(
         deps.plugin(),
@@ -408,7 +413,7 @@ public final class RuntimeDisplayServicesFactory {
       RuntimeDisplayServicesDependencies deps,
       ItemHologramManager hologramManager,
       DisplayRefreshService displayRefreshService) {
-    RuntimeMaterials materials = deps.materials();
+    CarrierMaterials materials = deps.materials();
     var chunkSanityService =
         new ChunkSanityService(
             deps.plugin(),

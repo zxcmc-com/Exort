@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Cosáin: {0}, {1}"
   wire:
     hard_cap: "Tá slabhra sreinge rómhór: {0}/{1}."
+    item_not_placeable: "Ní féidir an mhír seo a chur in aghaidh sreinge."
+  placement:
+    blocked: "Tá cosc ar shocrúchán anseo."
   bus:
     no_storage: "Níl stóras ceangailte leis an mbus seo."
     multiple_storages: "Tá níos mó ná stóras amháin ceangailte. Fág ceann amháin."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Tá sliotán aimplitheora an Tarchuradóra Gan Sreang gafa."
     transmitter_booster_only: "Ní féidir ach Aimplitheoir Comhartha Gan Sreang a chur sa sliotán seo."
 debug:
+  value:
+    enabled: "Cumasaithe"
+    disabled: "Díchumasaithe"
+    none: "Ceann ar bith"
+    unknown: "Anaithnid"
   mode:
     read: "léamh amháin"
     write: "scríobh"

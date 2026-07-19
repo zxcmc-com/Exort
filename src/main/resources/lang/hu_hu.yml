@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Útvonalak: {0}, {1}"
   wire:
     hard_cap: "A kábel-lánc túl nagy: {0}/{1}."
+    item_not_placeable: "Ez a tárgy nem helyezhető kábel mellé."
+  placement:
+    blocked: "Itt nem lehet elhelyezni."
   bus:
     no_storage: "Ehhez a buszhoz nincs tároló csatlakoztatva."
     multiple_storages: "Több tároló csatlakozik. Csak egyet hagyj meg."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "A vezeték nélküli adó erősítőhelye foglalt."
     transmitter_booster_only: "Ebbe a helybe csak vezeték nélküli jelerősítő helyezhető."
 debug:
+  value:
+    enabled: "Engedélyezve"
+    disabled: "Letiltva"
+    none: "Nincs"
+    unknown: "Ismeretlen"
   mode:
     read: "csak olvasás"
     write: "írás"

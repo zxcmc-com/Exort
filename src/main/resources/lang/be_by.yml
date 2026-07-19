@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Шляхі: {0}, {1}"
   wire:
     hard_cap: "Ланцуг кабеля занадта вялікі: {0}/{1}."
+    item_not_placeable: "Гэты прадмет нельга размясціць побач з кабелем."
+  placement:
+    blocked: "Размяшчэнне тут заблакавана."
   bus:
     no_storage: "Да гэтай шыны не падключана сховішча."
     multiple_storages: "Падключана некалькі сховішчаў. Пакіньце толькі адно."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Слот узмацняльніка бесправаднога перадатчыка заняты."
     transmitter_booster_only: "У гэты слот можна змясціць толькі ўзмацняльнік бесправаднога сігналу."
 debug:
+  value:
+    enabled: "Уключана"
+    disabled: "Адключана"
+    none: "Няма"
+    unknown: "Невядома"
   mode:
     read: "толькі чытанне"
     write: "запіс"

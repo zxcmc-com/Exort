@@ -41,9 +41,9 @@ public final class CustomItemClassifier {
             .get(keys.type(), PersistentDataType.STRING);
     if (raw == null || raw.isEmpty() || !raw.equals(raw.trim())) return null;
     String type = raw.toLowerCase(Locale.ROOT);
-    if (!STORAGE_TYPE.equals(type) && CustomItemRegistry.fixedItem(type).isEmpty()) return null;
+    if (!STORAGE_TYPE.equals(type) && FixedItemCatalog.fixedItem(type).isEmpty()) return null;
     Material expectedMaterial =
-        CustomItemRegistry.WIRELESS_TERMINAL.id().equals(type) ? Material.SHIELD : Material.PAPER;
+        FixedItemCatalog.WIRELESS_TERMINAL.id().equals(type) ? Material.SHIELD : Material.PAPER;
     return stack.getType() == expectedMaterial ? type : null;
   }
 }

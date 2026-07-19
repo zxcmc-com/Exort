@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Šliachi: {0}, {1}"
   wire:
     hard_cap: "Lancuh kabelia zanadta vialiki: {0}/{1}."
+    item_not_placeable: "Hety pradmiet nieĺha razmiascić pobač z kabieliem."
+  placement:
+    blocked: "Razmiaščennie tut zablakav ana."
   bus:
     no_storage: "Da hetaj šyny nie padklučana schovišča."
     multiple_storages: "Padklučana niekaĺki schoviščaŭ. Pakindźcie toĺki adno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Slot uzmacnialnika biaspravadnoha pieradatčyka zaniaty."
     transmitter_booster_only: "U hety slot možna źmiaścić tolki uzmacnialnik biaspravadnoha sihnału."
 debug:
+  value:
+    enabled: "Uklučana"
+    disabled: "Adklučana"
+    none: "Niama"
+    unknown: "Nieviadoma"
   mode:
     read: "toĺki čytannie"
     write: "zapis"

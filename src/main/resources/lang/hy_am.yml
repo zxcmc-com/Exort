@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ուղիներ: {0}, {1}"
   wire:
     hard_cap: "Լարի շղթան չափազանց մեծ է: {0}/{1}."
+    item_not_placeable: "Այս իրը չի կարելի տեղադրել լարի կողքին։"
+  placement:
+    blocked: "Այստեղ տեղադրումն արգելափակված է։"
   bus:
     no_storage: "Այս bus-ին պահեստ միացված չէ."
     multiple_storages: "Միացված են մի քանի պահեստներ. թողեք միայն մեկը."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Անլար հաղորդիչի ուժեղացուցիչի բնիկը զբաղված է։"
     transmitter_booster_only: "Այս բնիկում կարելի է տեղադրել միայն անլար ազդանշանի ուժեղացուցիչ։"
 debug:
+  value:
+    enabled: "Միացված"
+    disabled: "Անջատված"
+    none: "Չկա"
+    unknown: "Անհայտ"
   mode:
     read: "միայն կարդալ"
     write: "գրել"

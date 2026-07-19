@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.bus.BusMode;
 import com.zxcmc.exort.bus.BusType;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.marker.BusMarker;
 import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.MonitorMarker;
@@ -14,7 +15,6 @@ import com.zxcmc.exort.marker.StorageCoreMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import com.zxcmc.exort.runtime.RuntimeMaterials;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.util.UUID;
 import org.bukkit.Material;
@@ -113,8 +113,8 @@ class ExortBlockClassifierTest {
     assertFalse(classifier.isExortChorusCarrier(null));
   }
 
-  private static RuntimeMaterials materials(Material wire) {
-    return new RuntimeMaterials(
+  private static CarrierMaterials materials(Material wire) {
+    return new CarrierMaterials(
         wire,
         Material.BARRIER,
         Material.BARRIER,

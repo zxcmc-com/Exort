@@ -8,6 +8,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -42,6 +43,7 @@ public record SessionManagerDependencies(
     Supplier<Material> storageCarrier,
     Supplier<Material> relayCarrier,
     Supplier<Material> terminalCarrier,
+    Supplier<NetworkGraphCache> networkGraphCache,
     Supplier<GuiRuntimeConfig> runtimeConfig,
     Supplier<GuiOverlayConfig> overlayConfig,
     Consumer<String> storageChangeListener) {
@@ -68,6 +70,7 @@ public record SessionManagerDependencies(
     Objects.requireNonNull(storageCarrier, "storageCarrier");
     Objects.requireNonNull(relayCarrier, "relayCarrier");
     Objects.requireNonNull(terminalCarrier, "terminalCarrier");
+    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(overlayConfig, "overlayConfig");
     Objects.requireNonNull(storageChangeListener, "storageChangeListener");

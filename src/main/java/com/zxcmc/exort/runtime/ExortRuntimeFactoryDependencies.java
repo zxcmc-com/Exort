@@ -22,79 +22,161 @@ import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public record ExortRuntimeFactoryDependencies(
-    JavaPlugin plugin,
-    FileConfiguration config,
-    Lang lang,
-    ItemNameService itemNameService,
-    SearchDialogService searchDialogService,
-    StorageKeys keys,
-    StorageManager storageManager,
-    Database database,
-    SessionManager sessionManager,
-    BossBarManager bossBarManager,
-    PlayerFeedback playerFeedback,
-    InventoryRefreshService inventoryRefreshService,
-    Supplier<NetworkGraphCache> networkGraphCache,
-    Supplier<RegionProtection> regionProtection,
-    Supplier<WorldEditDebugService> worldEditDebugService,
-    Supplier<BusService> busService,
-    RecipeService previousRecipeService,
-    RuntimeTaskScheduler runtimeTasks,
-    boolean resourceMode,
-    boolean resourceWireUsesBarrier,
-    Runnable reloadDefaultSortMode,
-    Runnable unregisterReloadableRuntimeListeners,
-    Runnable setupRegionProtection,
-    Runnable revalidateSessions,
-    Consumer<String> pickDebugSink,
-    Consumer<String> pickDebugFullSink,
-    Consumer<Block> monitorPlacedRecorder,
-    java.util.function.Predicate<Block> monitorRecentlyPlaced,
-    Consumer<Block> transmitterPlacedRecorder,
-    java.util.function.Predicate<Block> transmitterRecentlyPlaced,
-    Supplier<GuiRuntimeConfig> guiRuntimeConfig,
-    Supplier<GuiOverlayConfig> guiOverlayConfig,
-    Consumer<String> renderStorage,
-    Function<WorldEditBridgeDependencies, WorldEditIntegration> tryRegisterWorldEdit,
-    Consumer<WorldEditIntegration> worldEditIntegrationSink) {
+    CoreServices core,
+    RuntimeConfigSnapshot runtimeConfig,
+    RuntimeIntegrationContext integrations,
+    RuntimeHooks hooks) {
   public ExortRuntimeFactoryDependencies {
-    Objects.requireNonNull(plugin, "plugin");
-    Objects.requireNonNull(config, "config");
-    Objects.requireNonNull(lang, "lang");
-    Objects.requireNonNull(itemNameService, "itemNameService");
-    Objects.requireNonNull(searchDialogService, "searchDialogService");
-    Objects.requireNonNull(keys, "keys");
-    Objects.requireNonNull(storageManager, "storageManager");
-    Objects.requireNonNull(database, "database");
-    Objects.requireNonNull(sessionManager, "sessionManager");
-    Objects.requireNonNull(bossBarManager, "bossBarManager");
-    Objects.requireNonNull(playerFeedback, "playerFeedback");
-    Objects.requireNonNull(inventoryRefreshService, "inventoryRefreshService");
-    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
-    Objects.requireNonNull(regionProtection, "regionProtection");
-    Objects.requireNonNull(worldEditDebugService, "worldEditDebugService");
-    Objects.requireNonNull(busService, "busService");
-    Objects.requireNonNull(reloadDefaultSortMode, "reloadDefaultSortMode");
-    Objects.requireNonNull(
-        unregisterReloadableRuntimeListeners, "unregisterReloadableRuntimeListeners");
-    Objects.requireNonNull(setupRegionProtection, "setupRegionProtection");
-    Objects.requireNonNull(revalidateSessions, "revalidateSessions");
-    Objects.requireNonNull(pickDebugSink, "pickDebugSink");
-    Objects.requireNonNull(pickDebugFullSink, "pickDebugFullSink");
-    Objects.requireNonNull(monitorPlacedRecorder, "monitorPlacedRecorder");
-    Objects.requireNonNull(monitorRecentlyPlaced, "monitorRecentlyPlaced");
-    Objects.requireNonNull(transmitterPlacedRecorder, "transmitterPlacedRecorder");
-    Objects.requireNonNull(transmitterRecentlyPlaced, "transmitterRecentlyPlaced");
-    Objects.requireNonNull(guiRuntimeConfig, "guiRuntimeConfig");
-    Objects.requireNonNull(guiOverlayConfig, "guiOverlayConfig");
-    Objects.requireNonNull(renderStorage, "renderStorage");
-    Objects.requireNonNull(tryRegisterWorldEdit, "tryRegisterWorldEdit");
-    Objects.requireNonNull(worldEditIntegrationSink, "worldEditIntegrationSink");
+    Objects.requireNonNull(core, "core");
+    Objects.requireNonNull(runtimeConfig, "runtimeConfig");
+    Objects.requireNonNull(integrations, "integrations");
+    Objects.requireNonNull(hooks, "hooks");
+  }
+
+  public JavaPlugin plugin() {
+    return core.plugin();
+  }
+
+  public FileConfiguration config() {
+    return runtimeConfig.config();
+  }
+
+  public Lang lang() {
+    return core.lang();
+  }
+
+  public ItemNameService itemNameService() {
+    return core.itemNameService();
+  }
+
+  public SearchDialogService searchDialogService() {
+    return core.searchDialogService();
+  }
+
+  public StorageKeys keys() {
+    return core.keys();
+  }
+
+  public StorageManager storageManager() {
+    return core.storageManager();
+  }
+
+  public Database database() {
+    return core.database();
+  }
+
+  public SessionManager sessionManager() {
+    return core.sessionManager();
+  }
+
+  public BossBarManager bossBarManager() {
+    return core.bossBarManager();
+  }
+
+  public PlayerFeedback playerFeedback() {
+    return core.playerFeedback();
+  }
+
+  public InventoryRefreshService inventoryRefreshService() {
+    return core.inventoryRefreshService();
+  }
+
+  public MaintenanceScheduler runtimeTasks() {
+    return core.maintenanceScheduler();
+  }
+
+  public Supplier<NetworkGraphCache> networkGraphCache() {
+    return integrations.networkGraphCache();
+  }
+
+  public Supplier<RegionProtection> regionProtection() {
+    return integrations.regionProtection();
+  }
+
+  public Supplier<WorldEditDebugService> worldEditDebugService() {
+    return integrations.worldEditDebugService();
+  }
+
+  public Supplier<BusService> busService() {
+    return integrations.busService();
+  }
+
+  public RecipeService previousRecipeService() {
+    return integrations.previousRecipeService();
+  }
+
+  public boolean resourceMode() {
+    return runtimeConfig.resourceMode();
+  }
+
+  public boolean resourceWireUsesBarrier() {
+    return runtimeConfig.resourceWireUsesBarrier();
+  }
+
+  public Runnable reloadDefaultSortMode() {
+    return hooks.reloadDefaultSortMode();
+  }
+
+  public Runnable unregisterReloadableRuntimeListeners() {
+    return hooks.unregisterReloadableRuntimeListeners();
+  }
+
+  public Runnable setupRegionProtection() {
+    return hooks.setupRegionProtection();
+  }
+
+  public Runnable revalidateSessions() {
+    return hooks.revalidateSessions();
+  }
+
+  public Consumer<String> pickDebugSink() {
+    return hooks.pickDebugSink();
+  }
+
+  public Consumer<String> pickDebugFullSink() {
+    return hooks.pickDebugFullSink();
+  }
+
+  public Consumer<Block> monitorPlacedRecorder() {
+    return hooks.monitorPlacedRecorder();
+  }
+
+  public Predicate<Block> monitorRecentlyPlaced() {
+    return hooks.monitorRecentlyPlaced();
+  }
+
+  public Consumer<Block> transmitterPlacedRecorder() {
+    return hooks.transmitterPlacedRecorder();
+  }
+
+  public Predicate<Block> transmitterRecentlyPlaced() {
+    return hooks.transmitterRecentlyPlaced();
+  }
+
+  public Supplier<GuiRuntimeConfig> guiRuntimeConfig() {
+    return runtimeConfig.guiRuntimeConfig();
+  }
+
+  public Supplier<GuiOverlayConfig> guiOverlayConfig() {
+    return runtimeConfig.guiOverlayConfig();
+  }
+
+  public Consumer<String> renderStorage() {
+    return hooks.renderStorage();
+  }
+
+  public Function<WorldEditBridgeDependencies, WorldEditIntegration> tryRegisterWorldEdit() {
+    return integrations.tryRegisterWorldEdit();
+  }
+
+  public Consumer<WorldEditIntegration> worldEditIntegrationSink() {
+    return integrations.worldEditIntegrationSink();
   }
 }

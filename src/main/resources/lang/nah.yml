@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Ojtli: {0}, {1}"
   wire:
     hard_cap: "Tzicuini mecatl ueyi tlauel: {0}/{1}."
+    item_not_placeable: "Nin tlamantli amo huel motlalia itech mecatl."
+  placement:
+    blocked: "Amo huel motlalia nican."
   bus:
     no_storage: "Amo tlapialoni mopiloa ika nin bus."
     multiple_storages: "Miek tlapialoni mopiloa. Xikaua san se."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "In calpixka chikawaloni ipan tlatitlanili amo mecatl tentok."
     transmitter_booster_only: "San chikawaloni tlanextilli amo mecatl huel motlalia ipan nin calpixka."
 debug:
+  value:
+    enabled: "Tlapotok"
+    disabled: "Oseui"
+    none: "Amo onka"
+    unknown: "Amo ixmatki"
   mode:
     read: "san tlapoua"
     write: "ijkuiloa"

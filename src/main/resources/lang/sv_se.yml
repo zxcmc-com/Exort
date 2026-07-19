@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Sökvägar: {0}, {1}"
   wire:
     hard_cap: "Kabelkedjan är för stor: {0}/{1}."
+    item_not_placeable: "Det här föremålet kan inte placeras intill en kabel."
+  placement:
+    blocked: "Placering är blockerad här."
   bus:
     no_storage: "Ingen lagring är ansluten till den här bussen."
     multiple_storages: "Flera lagringar anslutna. Lämna bara en."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Förstärkarplatsen i den Trådlösa Sändaren är upptagen."
     transmitter_booster_only: "Endast en Trådlös Signalförstärkare kan placeras här."
 debug:
+  value:
+    enabled: "Aktiverad"
+    disabled: "Inaktiverad"
+    none: "Ingen"
+    unknown: "Okänd"
   mode:
     read: "skrivskyddat"
     write: "skrivläge"

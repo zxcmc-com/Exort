@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Path: {0}, {1}"
   wire:
     hard_cap: "Rantai wayar terlalu besar: {0}/{1}."
+    item_not_placeable: "Item ini tidak boleh diletakkan pada wayar."
+  placement:
+    blocked: "Peletakan disekat di sini."
   bus:
     no_storage: "Tiada storan bersambung ke bas ini."
     multiple_storages: "Beberapa storan bersambung. Tinggalkan satu sahaja."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Slot penggalak Pemancar Wayarles telah diduduki."
     transmitter_booster_only: "Hanya Penggalak Isyarat Wayarles boleh diletakkan di slot ini."
 debug:
+  value:
+    enabled: "Didayakan"
+    disabled: "Dinyahdayakan"
+    none: "Tiada"
+    unknown: "Tidak diketahui"
   mode:
     read: "baca sahaja"
     write: "tulis"

@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Pääd: {0}, {1}"
   wire:
     hard_cap: "Kabel-Kett es ze jroß: {0}/{1}."
+    item_not_placeable: "Dat Ding kann nit aan enem Kabel jelaat wääde."
+  placement:
+    blocked: "Et Plazzeere es he blockeet."
   bus:
     no_storage: "Kei Spiescher aan dämm Bus."
     multiple_storages: "Mieh Spieschere verbunge. Loss nor eine."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Dä Verstärker-Plaz vum Funk-Sänder es besatz."
     transmitter_booster_only: "En dä Plaz kann nor ene Funk-Sinjaal-Verstärker jedonn wääde."
 debug:
+  value:
+    enabled: "Aan"
+    disabled: "Us"
+    none: "Kein"
+    unknown: "Onbekannt"
   mode:
     read: "nor läse"
     write: "schrive"

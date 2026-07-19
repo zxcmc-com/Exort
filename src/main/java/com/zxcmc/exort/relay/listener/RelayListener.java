@@ -3,6 +3,7 @@ package com.zxcmc.exort.relay.listener;
 import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.feedback.BossBarManager;
+import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.integration.protection.RegionProtection;
@@ -12,7 +13,7 @@ import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.relay.RelaySetupTracker;
-import com.zxcmc.exort.storage.StorageDisplayName;
+import com.zxcmc.exort.storage.StorageNameNormalizer;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
@@ -105,13 +106,13 @@ public final class RelayListener implements Listener {
     if (worldEditWandGuard.isWorldEditWand(player, event.getItem())) return;
     if (!regionProtection.canUse(player, block)) {
       event.setCancelled(true);
-      playerFeedback.error(player, "message.no_permission");
+      playerFeedback.respond(player, FeedbackReason.INTERACTION_DENIED, "message.no_permission");
       return;
     }
     if (!featureEnabled) {
       consume(event);
       clearPending(player);
-      playerFeedback.warn(player, "message.relay_disabled");
+      playerFeedback.respond(player, FeedbackReason.INTERACTION_DENIED, "message.relay_disabled");
       return;
     }
     if (player.isSneaking()) {
@@ -154,12 +155,12 @@ public final class RelayListener implements Listener {
       return;
     }
     if (sameBlock(first.block(), clicked)) {
-      playerFeedback.warn(player, "message.relay_same");
+      playerFeedback.respond(player, FeedbackReason.INTERACTION_DENIED, "message.relay_same");
       return;
     }
     if (!regionProtection.canUse(player, first.block())) {
       clearPending(player);
-      playerFeedback.error(player, "message.no_permission");
+      playerFeedback.respond(player, FeedbackReason.INTERACTION_DENIED, "message.no_permission");
       return;
     }
     link(player, first.block(), clicked);
@@ -167,17 +168,23 @@ public final class RelayListener implements Listener {
 
   private void link(Player player, Block first, Block second) {
     if (!sameWorld(first, second)) {
-      playerFeedback.error(player, "message.relay_cross_world");
+      playerFeedback.respond(
+          player, FeedbackReason.INTERACTION_DENIED, "message.relay_cross_world");
       return;
     }
     if (RelayMarker.link(plugin, first).isPresent()
         || RelayMarker.link(plugin, second).isPresent()) {
       clearPending(player);
-      playerFeedback.error(player, "message.relay_already_linked");
+      playerFeedback.respond(
+          player, FeedbackReason.INTERACTION_DENIED, "message.relay_already_linked");
       return;
     }
     if (!NetworkGraphCache.inRelayRange(first, second, relayRangeChunks)) {
-      playerFeedback.error(player, "message.relay_out_of_range", relayRangeChunks);
+      playerFeedback.respond(
+          player,
+          FeedbackReason.INTERACTION_DENIED,
+          "message.relay_out_of_range",
+          relayRangeChunks);
       return;
     }
     RelayMarker.link(plugin, first, second);
@@ -219,6 +226,7 @@ public final class RelayListener implements Listener {
             relay,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,
@@ -229,7 +237,7 @@ public final class RelayListener implements Listener {
       return lang.tr(player, "relay.storage_multiple");
     }
     if (result.count() == 1 && result.data() != null) {
-      String displayName = StorageDisplayName.normalize(result.data().displayName());
+      String displayName = StorageNameNormalizer.normalize(result.data().displayName());
       String label = displayName != null ? displayName : tail(result.data().storageId());
       return lang.tr(player, "relay.storage_tail", label);
     }

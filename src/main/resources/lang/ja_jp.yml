@@ -203,6 +203,9 @@ message:
   lang_status_paths: "パス: {0}, {1}"
   wire:
     hard_cap: "ワイヤーチェーンが大きすぎます: {0}/{1}。"
+    item_not_placeable: "このアイテムはワイヤーに隣接して設置できません。"
+  placement:
+    blocked: "ここには設置できません。"
   bus:
     no_storage: "このバスに接続されたストレージがありません。"
     multiple_storages: "複数のストレージが接続されています。1つだけ残してください。"
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "無線送信機のブースタースロットは使用中です。"
     transmitter_booster_only: "このスロットには無線信号ブースターのみ配置できます。"
 debug:
+  value:
+    enabled: "有効"
+    disabled: "無効"
+    none: "なし"
+    unknown: "不明"
   mode:
     read: "読み取り専用"
     write: "書き込み"

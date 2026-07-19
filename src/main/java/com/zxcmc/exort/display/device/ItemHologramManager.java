@@ -8,11 +8,13 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.storage.StorageTier;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -53,13 +55,15 @@ public class ItemHologramManager implements Listener {
   private final Material relayCarrier;
   private final Material terminalCarrier;
   private final Material disconnectedMaterial;
+  private final Supplier<NetworkGraphCache> networkGraphCache;
   private final Config terminalConfig;
   private final Config storageConfig;
   private final DisplayMetadataService metadataService;
   private final Map<HoloPos, Kind> holograms = new ConcurrentHashMap<>();
   private final Map<HoloPos, ItemDisplay> displays = new ConcurrentHashMap<>();
   private final Map<HoloPos, Material> cache = new ConcurrentHashMap<>();
-  private final BoundedRefreshQueue<HoloPos> queuedRefreshes = new BoundedRefreshQueue<>();
+  private final DeduplicatingRefreshQueue<HoloPos> queuedRefreshes =
+      new DeduplicatingRefreshQueue<>();
   private int taskId = -1;
 
   public ItemHologramManager(
@@ -72,6 +76,7 @@ public class ItemHologramManager implements Listener {
       Material storageCarrier,
       Material relayCarrier,
       Material terminalCarrier,
+      Supplier<NetworkGraphCache> networkGraphCache,
       Config terminalConfig,
       Config storageConfig,
       DisplayMetadataService metadataService) {
@@ -84,6 +89,7 @@ public class ItemHologramManager implements Listener {
     this.storageCarrier = storageCarrier;
     this.relayCarrier = relayCarrier;
     this.terminalCarrier = terminalCarrier;
+    this.networkGraphCache = networkGraphCache;
     this.terminalConfig = terminalConfig;
     this.storageConfig = storageConfig;
     this.metadataService = metadataService;
@@ -251,6 +257,7 @@ public class ItemHologramManager implements Listener {
             terminal,
             keys,
             plugin,
+            networkGraphCache.get(),
             wireLimit,
             wireHardCap,
             wireMaterial,

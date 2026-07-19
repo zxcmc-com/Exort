@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Percorsi: {0}, {1}"
   wire:
     hard_cap: "La catena di cavi è troppo grande: {0}/{1}."
+    item_not_placeable: "Sto ogeto no se pol piazzar contro un cavo."
+  placement:
+    blocked: "El posissionamento el xe blocà qua."
   bus:
     no_storage: "Nessuno stoccaggio collegato a questo bus."
     multiple_storages: "Sono collegati più stoccaggi. Lasciane solo uno."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "El posto de l'amplificador del Trasmetitor Wireless el xe ocupà."
     transmitter_booster_only: "Solo un Amplificador de Segnal Wireless el pol èsar messo in sto posto."
 debug:
+  value:
+    enabled: "Ativà"
+    disabled: "Disativà"
+    none: "Nissun"
+    unknown: "Sconossùo"
   mode:
     read: "sola lettura"
     write: "scrittura"

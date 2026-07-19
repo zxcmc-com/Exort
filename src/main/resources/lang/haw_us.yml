@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Nā ala: {0}, {1}"
   wire:
     hard_cap: "Nui loa ke kaulahao uea: {0}/{1}."
+    item_not_placeable: "ʻAʻole hiki ke hoʻokomo ʻia kēia mea ma ka uea."
+  placement:
+    blocked: "Ua ālai ʻia ka hoʻokomo ʻana ma ʻaneʻi."
   bus:
     no_storage: "ʻAʻohe waihona i pili i kēia bus."
     multiple_storages: "Ua pili nā waihona he nui. Waiho hoʻokahi wale nō."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Ua paʻa ka hakahaka hoʻoikaika o ka mea hoʻouna uea ʻole."
     transmitter_booster_only: "Hiki ke hoʻokomo wale ʻia ka mea hoʻoikaika hōʻailona uea ʻole ma kēia hakahaka."
 debug:
+  value:
+    enabled: "Hoʻā ʻia"
+    disabled: "Pio"
+    none: "ʻAʻohe"
+    unknown: "ʻIke ʻole ʻia"
   mode:
     read: "helu-wale"
     write: "kākau"

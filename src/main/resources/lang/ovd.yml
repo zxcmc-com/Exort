@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Stigar: {0}, {1}"
   wire:
     hard_cap: "Kabelkjeda ir for stor: {0}/{1}."
+    item_not_placeable: "Denna sak kan int setas attmed ien kabel."
+  placement:
+    blocked: "Plassering ir blokkert jär."
   bus:
     no_storage: "Inga lagring kopplað til denne bussen."
     multiple_storages: "Fleire lagringar kopplaðe. Lat berre ein vara kvar."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Styrkarplassen på den Trådlause Sändaren ir upptikin."
     transmitter_booster_only: "Berre ein Trådlaus Signalstyrkare kan leggast i denne plassen."
 debug:
+  value:
+    enabled: "Aktivt"
+    disabled: "Avstengt"
+    none: "Ingan"
+    unknown: "Ukänd"
   mode:
     read: "berre lesing"
     write: "skriving"

@@ -1,6 +1,7 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.bus.BusRuntimeConfig;
+import com.zxcmc.exort.carrier.CarrierMaterials;
 import com.zxcmc.exort.feedback.BossBarManager;
 import com.zxcmc.exort.gui.GuiOverlayConfig;
 import com.zxcmc.exort.gui.GuiRuntimeConfig;
@@ -8,6 +9,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.keys.StorageKeys;
+import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Objects;
@@ -26,7 +28,7 @@ public record RuntimeBusServicesDependencies(
     WirelessTerminalService wirelessService,
     Lang lang,
     ItemNameService itemNameService,
-    RuntimeMaterials materials,
+    CarrierMaterials materials,
     int wireLimit,
     int wireHardCap,
     Material relayTraversalCarrier,
@@ -35,6 +37,7 @@ public record RuntimeBusServicesDependencies(
     BooleanSupplier resourceMode,
     Supplier<GuiRuntimeConfig> guiRuntimeConfig,
     Supplier<GuiOverlayConfig> guiOverlayConfig,
+    Supplier<NetworkGraphCache> networkGraphCache,
     Consumer<String> renderStorage) {
   public RuntimeBusServicesDependencies {
     Objects.requireNonNull(plugin, "plugin");
@@ -50,6 +53,7 @@ public record RuntimeBusServicesDependencies(
     Objects.requireNonNull(resourceMode, "resourceMode");
     Objects.requireNonNull(guiRuntimeConfig, "guiRuntimeConfig");
     Objects.requireNonNull(guiOverlayConfig, "guiOverlayConfig");
+    Objects.requireNonNull(networkGraphCache, "networkGraphCache");
     Objects.requireNonNull(renderStorage, "renderStorage");
   }
 }

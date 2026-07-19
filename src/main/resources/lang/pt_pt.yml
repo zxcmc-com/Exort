@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Caminhos: {0}, {1}"
   wire:
     hard_cap: "A cadeia de cabos é demasiado grande: {0}/{1}."
+    item_not_placeable: "Este item não pode ser colocado contra um cabo."
+  placement:
+    blocked: "A colocação está bloqueada aqui."
   bus:
     no_storage: "Nenhum armazenamento ligado a este bus."
     multiple_storages: "Há vários armazenamentos ligados. Deixa apenas um."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "O espaço de amplificador do Transmissor Sem Fios está ocupado."
     transmitter_booster_only: "Apenas um Amplificador de Sinal Sem Fios pode ser colocado neste espaço."
 debug:
+  value:
+    enabled: "Ativado"
+    disabled: "Desativado"
+    none: "Nenhum"
+    unknown: "Desconhecido"
   mode:
     read: "somente leitura"
     write: "escrita"

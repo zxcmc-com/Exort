@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Cesty: {0}, {1}"
   wire:
     hard_cap: "Łańcuch kabla je za srogi: {0}/{1}."
+    item_not_placeable: "Tego przedmiotu niy idzie położyć przi kablu."
+  placement:
+    blocked: "Stawianie sam je zablokowane."
   bus:
     no_storage: "Do tyj szyny niy ma podłōnczōnego magazynu."
     multiple_storages: "Podłōnczōnych je pora magazynōw. Ôstaw ino jedyn."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Plac na wzmacniŏcz bezdrôtowego nadajnika je zajynty."
     transmitter_booster_only: "Na tym placu idzie położyć ino wzmacniŏcz bezdrôtowego sygnału."
 debug:
+  value:
+    enabled: "Włōnczōne"
+    disabled: "Wyłōnczōne"
+    none: "Niy ma"
+    unknown: "Niyznōme"
   mode:
     read: "ino czytanie"
     write: "pisanie"

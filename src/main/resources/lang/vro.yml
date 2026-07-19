@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Rajaq: {0}, {1}"
   wire:
     hard_cap: "Juhtmekett om liiq suur: {0}/{1}."
+    item_not_placeable: "Tuud asja ei saa panda juhtmõ kõrvalõ."
+  placement:
+    blocked: "Panõminõ om siin keeldü."
   bus:
     no_storage: "Seo siiniga olõ-i hoidlat ühendüsen."
     multiple_storages: "Mitu hoidlat ühendüsen. Jätä ainult üts."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Juhtmõlda saatja kõvembas tegijä pesä om täüs."
     transmitter_booster_only: "Siiä pessä saa panda ainult juhtmõlda signaali kõvembas tegijä."
 debug:
+  value:
+    enabled: "Aktiivnõ"
+    disabled: "Vällä lülitet"
+    none: "Puudus"
+    unknown: "Tundmalda"
   mode:
     read: "ainult lugõminõ"
     write: "kirjutaminõ"

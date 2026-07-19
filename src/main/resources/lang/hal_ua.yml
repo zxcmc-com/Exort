@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Шляхи: {0}, {1}"
   wire:
     hard_cap: "Ланцюг дроту завеликий: {0}/{1}."
+    item_not_placeable: "Цей предмет не мож поставити біля дроту."
+  placement:
+    blocked: "Тут не мож розміщувати блоки."
   bus:
     no_storage: "До цієї шини не підключено сховище."
     multiple_storages: "Підключено кілька сховищ. Лишіть тільки одно."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Слот підсилювача бездротового передавача зайнятий."
     transmitter_booster_only: "До цего слота мож покласти лиш підсилювач бездротового сиґналу."
 debug:
+  value:
+    enabled: "Увімкнено"
+    disabled: "Вимкнено"
+    none: "Нема"
+    unknown: "Невідомо"
   mode:
     read: "тільки читання"
     write: "запис"

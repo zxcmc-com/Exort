@@ -203,6 +203,9 @@ message:
   lang_status_paths: "Сукмаксем: {0}, {1}"
   wire:
     hard_cap: "Проводсен сылтӑмӗ питӗ пысӑк: {0}/{1}."
+    item_not_placeable: "Ку предмета провод патне вырнаҫтарма ҫук."
+  placement:
+    blocked: "Кунта вырнаҫтарма чарнӑ."
   bus:
     no_storage: "Ку bus хранилищене ҫыхӑнман."
     multiple_storages: "Нумай хранилище ҫыхӑннӑ. Пӗрне анчах хӑварӑр."
@@ -225,6 +228,11 @@ message:
     transmitter_booster_slot_occupied: "Сымсӑр ӑсатаканӑн вӑйлатӑрӑш вырӑнӗ йышӑннӑ."
     transmitter_booster_only: "Ку вырӑна сымсӑр сигнал вӑйлатӑрӑшне ҫеҫ лартма юрать."
 debug:
+  value:
+    enabled: "Хутшӑннӑ"
+    disabled: "Сӳнтернӗ"
+    none: "Ҫук"
+    unknown: "Паллӑ мар"
   mode:
     read: "вуламалли анчах"
     write: "ҫыру"
