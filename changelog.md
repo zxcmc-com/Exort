@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.10 — 2026-07-20
+- Bus and GUI background processing now avoids redundant temporary collection copies during routine server ticks, reducing avoidable allocation pressure without changing processing limits or session behavior.
+
 ## 0.19.9 — 2026-07-19
 - Storage Wire inspection now follows the same loaded-chunk network traversal as terminals, including Network Relays, and explains hard-cap or incompatible-item denials without chat spam.
 - Wireless Terminal unbinding now follows one item-conserving rule in both vanilla crafting and the Crafting Terminal, including charged, stacked, and feature-disabled terminals.

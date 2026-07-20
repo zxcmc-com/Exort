@@ -466,7 +466,7 @@ public final class BlockBreakHandler {
     ItemStack drop = customItems.storageItem(tier, storageId, amount, displayName);
     dropItemSafe(block, drop);
 
-    for (GuiSession session : sessionManager.sessionsForStorage(storageId).stream().toList()) {
+    for (GuiSession session : sessionManager.sessionsForStorage(storageId)) {
       sessionManager.forceCloseSession(session.getViewer());
     }
 

@@ -29,10 +29,36 @@ class BusTickBudgetTest {
     BusPos sameChunk = new BusPos(WORLD, 15, 64, 15);
     BusPos otherChunk = new BusPos(WORLD, 16, 64, 1);
 
-    assertFalse(budget.isChunkBudgetReached(first));
-    budget.recordChunkAttempt(first);
+    assertTrue(budget.tryRecordChunkAttempt(first));
 
-    assertTrue(budget.isChunkBudgetReached(sameChunk));
-    assertFalse(budget.isChunkBudgetReached(otherChunk));
+    assertFalse(budget.tryRecordChunkAttempt(sameChunk));
+    assertTrue(budget.tryRecordChunkAttempt(otherChunk));
+  }
+
+  @Test
+  void resetIsolatesGlobalAndChunkBudgetsBetweenTicks() {
+    BusTickBudget budget = new BusTickBudget(1, 1);
+    BusPos position = new BusPos(WORLD, 1, 64, 1);
+
+    budget.recordDueAttempt();
+    assertFalse(budget.hasGlobalBudget());
+    assertTrue(budget.tryRecordChunkAttempt(position));
+    assertFalse(budget.tryRecordChunkAttempt(position));
+
+    budget.reset();
+
+    assertTrue(budget.hasGlobalBudget());
+    assertTrue(budget.tryRecordChunkAttempt(position));
+  }
+
+  @Test
+  void disabledChunkLimitAcceptsEveryAttemptAcrossReset() {
+    BusTickBudget budget = new BusTickBudget(2, 0);
+    BusPos position = new BusPos(WORLD, 1, 64, 1);
+
+    assertTrue(budget.tryRecordChunkAttempt(position));
+    assertTrue(budget.tryRecordChunkAttempt(position));
+    budget.reset();
+    assertTrue(budget.tryRecordChunkAttempt(position));
   }
 }

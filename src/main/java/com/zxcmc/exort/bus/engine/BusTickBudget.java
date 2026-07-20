@@ -15,6 +15,11 @@ final class BusTickBudget {
     this.maxAttemptsPerChunk = Math.max(0, maxAttemptsPerChunk);
   }
 
+  void reset() {
+    attempts = 0;
+    chunkAttempts.clear();
+  }
+
   boolean hasGlobalBudget() {
     return attempts < maxAttemptsPerTick;
   }
@@ -23,17 +28,17 @@ final class BusTickBudget {
     attempts++;
   }
 
-  boolean isChunkBudgetReached(BusPos pos) {
-    return maxAttemptsPerChunk > 0
-        && chunkAttempts.getOrDefault(ChunkKey.from(pos), 0) >= maxAttemptsPerChunk;
-  }
-
-  void recordChunkAttempt(BusPos pos) {
+  boolean tryRecordChunkAttempt(BusPos pos) {
     if (maxAttemptsPerChunk <= 0) {
-      return;
+      return true;
     }
     ChunkKey key = ChunkKey.from(pos);
-    chunkAttempts.put(key, chunkAttempts.getOrDefault(key, 0) + 1);
+    int attemptsInChunk = chunkAttempts.getOrDefault(key, 0);
+    if (attemptsInChunk >= maxAttemptsPerChunk) {
+      return false;
+    }
+    chunkAttempts.put(key, attemptsInChunk + 1);
+    return true;
   }
 
   private record ChunkKey(java.util.UUID world, int x, int z) {

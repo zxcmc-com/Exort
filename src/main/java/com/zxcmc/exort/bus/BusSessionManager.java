@@ -98,14 +98,19 @@ public class BusSessionManager {
                 plugin,
                 () -> {
                   Material currentBusCarrier = busCarrier.get();
-                  List<Player> toClose = new ArrayList<>();
-                  for (BusSession session : new ArrayList<>(byPlayer.values())) {
+                  List<Player> toClose = null;
+                  for (BusSession session : byPlayer.values()) {
                     if (shouldCloseSession(session, currentBusCarrier)) {
+                      if (toClose == null) {
+                        toClose = new ArrayList<>();
+                      }
                       toClose.add(session.getViewer());
                     }
                   }
-                  for (Player player : toClose) {
-                    forceCloseSession(player);
+                  if (toClose != null) {
+                    for (Player player : toClose) {
+                      forceCloseSession(player);
+                    }
                   }
                 },
                 intervalTicks,

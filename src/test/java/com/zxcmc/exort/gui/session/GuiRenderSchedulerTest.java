@@ -63,6 +63,27 @@ class GuiRenderSchedulerTest {
   }
 
   @Test
+  void snapshotRenderVisitsEverySessionWhenOneUnregistersItself() {
+    GuiSessionRegistry registry = new GuiSessionRegistry();
+    CapturingScheduler scheduler = new CapturingScheduler();
+    GuiRenderScheduler renderScheduler = new GuiRenderScheduler(registry, scheduler);
+    Player firstPlayer = player(UUID.randomUUID());
+    TestSession first =
+        new TestSession(
+            firstPlayer, "storage-a", true, () -> registry.unregister(firstPlayer, null));
+    TestSession second = new TestSession(player(UUID.randomUUID()), "storage-a", true, () -> {});
+    registry.register(first);
+    registry.register(second);
+
+    renderScheduler.request("storage-a", SortEvent.NONE);
+    scheduler.tasks.getFirst().run();
+
+    assertEquals(1, first.renderCount);
+    assertEquals(1, second.renderCount);
+    assertEquals(1, registry.allSessions().size());
+  }
+
+  @Test
   void nullStorageIdDoesNotScheduleFlush() {
     GuiSessionRegistry registry = new GuiSessionRegistry();
     CapturingScheduler scheduler = new CapturingScheduler();
@@ -116,12 +137,20 @@ class GuiRenderSchedulerTest {
   private static final class TestSession implements GuiSession {
     private final Player viewer;
     private final String storageId;
+    private final Runnable onRender;
+    private boolean readOnly;
     private SortEvent lastSortEvent = SortEvent.NONE;
     private int renderCount;
 
     private TestSession(Player viewer, String storageId) {
+      this(viewer, storageId, false, () -> {});
+    }
+
+    private TestSession(Player viewer, String storageId, boolean readOnly, Runnable onRender) {
       this.viewer = viewer;
       this.storageId = storageId;
+      this.readOnly = readOnly;
+      this.onRender = onRender;
     }
 
     @Override
@@ -161,15 +190,18 @@ class GuiRenderSchedulerTest {
 
     @Override
     public boolean isReadOnly() {
-      return false;
+      return readOnly;
     }
 
     @Override
-    public void setReadOnly(boolean readOnly) {}
+    public void setReadOnly(boolean readOnly) {
+      this.readOnly = readOnly;
+    }
 
     @Override
     public void render() {
       renderCount++;
+      onRender.run();
     }
 
     @Override

@@ -524,9 +524,9 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   private void closeRuntimeSessions() {
     if (sessionManager != null) {
-      sessionManager.allSessions().stream()
-          .toList()
-          .forEach(session -> sessionManager.forceCloseSession(session.getViewer()));
+      for (var session : sessionManager.allSessions()) {
+        sessionManager.forceCloseSession(session.getViewer());
+      }
     }
     if (busSessionManager != null) {
       busSessionManager.shutdown();

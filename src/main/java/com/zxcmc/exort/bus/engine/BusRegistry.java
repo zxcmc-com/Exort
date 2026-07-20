@@ -162,7 +162,7 @@ public final class BusRegistry {
   public List<BusState> snapshotList() {
     if (!stateListDirty) return stateList;
     stateListDirty = false;
-    stateList = new ArrayList<>(states.values());
+    stateList = List.copyOf(states.values());
     return stateList;
   }
 

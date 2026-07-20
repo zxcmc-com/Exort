@@ -2,7 +2,6 @@ package com.zxcmc.exort.gui.session;
 
 import com.zxcmc.exort.gui.GuiSession;
 import com.zxcmc.exort.gui.SortEvent;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -59,7 +58,7 @@ public final class GuiRenderScheduler {
         continue;
       }
       SortEvent event = sortEvents.getOrDefault(storageId, SortEvent.NONE);
-      for (GuiSession session : new ArrayList<>(sessions)) {
+      for (GuiSession session : sessions) {
         session.onSortEvent(event);
         session.render();
       }

@@ -11,6 +11,7 @@ import com.zxcmc.exort.text.GuiOverlayGlyphs;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -315,12 +316,21 @@ public final class TransmitterSessionManager {
             .scheduleSyncRepeatingTask(
                 plugin,
                 () -> {
-                  for (TransmitterSession session : new ArrayList<>(byPlayer.values())) {
+                  List<Player> toClose = null;
+                  for (TransmitterSession session : byPlayer.values()) {
                     if (!session.viewer().isOnline()) {
-                      forceCloseSession(session.viewer());
+                      if (toClose == null) {
+                        toClose = new ArrayList<>();
+                      }
+                      toClose.add(session.viewer());
                       continue;
                     }
                     session.render();
+                  }
+                  if (toClose != null) {
+                    for (Player player : toClose) {
+                      forceCloseSession(player);
+                    }
                   }
                   stopRefreshTaskIfIdle();
                 },

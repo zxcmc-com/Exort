@@ -4,7 +4,9 @@ import com.zxcmc.exort.bus.BusState;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -39,7 +41,17 @@ final class BusDueScheduler {
         schedule(state, Math.max(tick, state.nextTick()));
       }
     }
-    scheduledTicks.keySet().removeIf(state -> !live.contains(state));
+    Iterator<Map.Entry<BusState, Long>> scheduled = scheduledTicks.entrySet().iterator();
+    while (scheduled.hasNext()) {
+      Map.Entry<BusState, Long> entry = scheduled.next();
+      if (live.contains(entry.getKey())) {
+        continue;
+      }
+      BusState removedState = entry.getKey();
+      long removedTick = entry.getValue();
+      scheduled.remove();
+      removeFromBucket(removedState, removedTick);
+    }
     registryVersion = version;
   }
 
@@ -47,8 +59,23 @@ final class BusDueScheduler {
     if (state == null) {
       return;
     }
+    Long previousTick = scheduledTicks.get(state);
+    if (previousTick != null) {
+      if (previousTick == tick) {
+        return;
+      }
+      removeFromBucket(state, previousTick);
+    }
     scheduledTicks.put(state, tick);
     dueBuckets.computeIfAbsent(tick, ignored -> new ArrayDeque<>()).addLast(state);
+  }
+
+  int queuedEntryCount() {
+    int total = 0;
+    for (ArrayDeque<BusState> bucket : dueBuckets.values()) {
+      total += bucket.size();
+    }
+    return total;
   }
 
   BusState pollDue(long tick) {
@@ -74,5 +101,16 @@ final class BusDueScheduler {
       return state;
     }
     return null;
+  }
+
+  private void removeFromBucket(BusState state, long tick) {
+    ArrayDeque<BusState> bucket = dueBuckets.get(tick);
+    if (bucket == null) {
+      return;
+    }
+    bucket.removeFirstOccurrence(state);
+    if (bucket.isEmpty()) {
+      dueBuckets.remove(tick);
+    }
   }
 }

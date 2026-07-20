@@ -1,5 +1,6 @@
 package com.zxcmc.exort.bus.engine;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -34,8 +35,25 @@ class BusDueSchedulerTest {
     scheduler.schedule(state, 5L);
     scheduler.schedule(state, 6L);
 
+    assertEquals(1, scheduler.queuedEntryCount());
     assertNull(scheduler.pollDue(5L));
     assertSame(state, scheduler.pollDue(6L));
+    assertEquals(0, scheduler.queuedEntryCount());
+  }
+
+  @Test
+  void repeatedScheduleForSameTickKeepsOneEntryAndOriginalOrder() {
+    BusDueScheduler scheduler = new BusDueScheduler();
+    BusState first = state(1);
+    BusState second = state(2);
+
+    scheduler.schedule(first, 5L);
+    scheduler.schedule(second, 5L);
+    scheduler.schedule(first, 5L);
+
+    assertEquals(2, scheduler.queuedEntryCount());
+    assertSame(first, scheduler.pollDue(5L));
+    assertSame(second, scheduler.pollDue(5L));
   }
 
   @Test
@@ -60,8 +78,24 @@ class BusDueSchedulerTest {
     scheduler.sync(List.of(removed, live), 1L, 0L);
     scheduler.sync(List.of(live), 2L, 0L);
 
+    assertEquals(1, scheduler.queuedEntryCount());
     assertSame(live, scheduler.pollDue(0L));
     assertNull(scheduler.pollDue(0L));
+  }
+
+  @Test
+  void removingFarFutureBusReleasesItsQueuedEntryImmediately() {
+    BusDueScheduler scheduler = new BusDueScheduler();
+    BusState removed = state(1);
+    removed.setNextTick(72_000L);
+
+    scheduler.sync(List.of(removed), 1L, 0L);
+    assertEquals(1, scheduler.queuedEntryCount());
+
+    scheduler.sync(List.of(), 2L, 0L);
+
+    assertEquals(0, scheduler.queuedEntryCount());
+    assertNull(scheduler.pollDue(72_000L));
   }
 
   @Test

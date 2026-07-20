@@ -163,14 +163,17 @@ public class SessionManager {
                   WirelessTerminalService tickWireless = wirelessService.get();
                   WirelessTransmitterService tickTransmitter = wirelessTransmitterService.get();
                   Material tickStorageCarrier = storageCarrier.get();
-                  List<GuiSession> snapshot = new ArrayList<>(registry.allSessions());
-                  List<WirelessCloseRequest> toClose = new ArrayList<>();
-                  List<Player> physicalToClose = new ArrayList<>();
+                  Collection<GuiSession> snapshot = registry.allSessions();
+                  List<WirelessCloseRequest> toClose = null;
+                  List<Player> physicalToClose = null;
                   for (GuiSession session : snapshot) {
                     if (!(session instanceof AbstractStorageSession storageSession)) continue;
                     if (!storageSession.isWireless()) {
                       if (sessionValidator.shouldClosePhysicalSession(storageSession)
                           || !sessionValidator.isSessionValid(storageSession)) {
+                        if (physicalToClose == null) {
+                          physicalToClose = new ArrayList<>();
+                        }
                         physicalToClose.add(storageSession.getViewer());
                       }
                       continue;
@@ -180,16 +183,19 @@ public class SessionManager {
                         sessionValidator.wirelessValidation(
                             storageSession, tickWireless, tickTransmitter);
                     if (!validation.isValid() && validation.player() != null) {
+                      if (toClose == null) {
+                        toClose = new ArrayList<>();
+                      }
                       toClose.add(
                           new WirelessCloseRequest(validation.player(), validation.messageKey()));
                     }
                   }
-                  if (!physicalToClose.isEmpty()) {
+                  if (physicalToClose != null) {
                     for (Player player : physicalToClose) {
                       forceCloseSession(player);
                     }
                   }
-                  if (!toClose.isEmpty()) {
+                  if (toClose != null) {
                     for (WirelessCloseRequest request : toClose) {
                       Player player = request.player();
                       if (player == null) {

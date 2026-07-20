@@ -52,6 +52,8 @@ public final class BusEngine implements Runnable {
   private final BusTargetResolver targetResolver;
   private final BusRegistry registry;
   private final BusDueScheduler dueScheduler = new BusDueScheduler();
+  private final BusTickBudget tickBudget;
+  private final Set<String> changedStorages = new HashSet<>();
 
   private int taskId = -1;
   private final Map<BusPos, CachedContext> contextCache = new HashMap<>();
@@ -76,6 +78,7 @@ public final class BusEngine implements Runnable {
     this.idleIntervalTicks = runtimeConfig.idleIntervalTicks();
     this.itemsPerOperation = runtimeConfig.itemsPerOperation();
     this.maxOperationsPerTick = runtimeConfig.maxOperationsPerTick();
+    this.tickBudget = new BusTickBudget(maxOperationsPerTick, maxOperationsPerChunk);
     this.wirelessService = wirelessService;
     this.registry = registry;
     this.targetResolver =
@@ -123,24 +126,24 @@ public final class BusEngine implements Runnable {
   }
 
   private void runMeasured() {
+    tickBudget.reset();
+    changedStorages.clear();
     List<BusState> list = registry.snapshotList();
     if (list.isEmpty()) {
       dueScheduler.clear();
       return;
     }
-    BusTickBudget budget = new BusTickBudget(maxOperationsPerTick, maxOperationsPerChunk);
     long tick = Bukkit.getCurrentTick();
     dueScheduler.sync(list, registry.version(), tick);
     PerfStats.setGauge("bus.dueDepth", dueScheduler.size());
     refreshLoopDisabledSnapshotIfNeeded(list, tick);
-    Set<String> changedStorages = new HashSet<>();
     int contextBudget = contextBudget();
-    while (budget.hasGlobalBudget() && contextBudget-- > 0) {
+    while (tickBudget.hasGlobalBudget() && contextBudget-- > 0) {
       BusState state = dueScheduler.pollDue(tick);
       if (state == null) {
         break;
       }
-      budget.recordDueAttempt();
+      tickBudget.recordDueAttempt();
       long nextTick;
       if (state.viewers() > 0) {
         nextTick = tick + idleIntervalTicks;
@@ -148,13 +151,12 @@ public final class BusEngine implements Runnable {
         dueScheduler.schedule(state, nextTick);
         continue;
       }
-      if (budget.isChunkBudgetReached(state.pos())) {
+      if (!tickBudget.tryRecordChunkAttempt(state.pos())) {
         nextTick = tick + idleIntervalTicks;
         state.setNextTick(nextTick);
         dueScheduler.schedule(state, nextTick);
         continue;
       }
-      budget.recordChunkAttempt(state.pos());
       boolean moved = false;
       try {
         moved = tickBus(state, tick, changedStorages);

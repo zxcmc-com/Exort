@@ -11,6 +11,8 @@ import com.zxcmc.exort.gui.SessionType;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -66,6 +68,26 @@ class GuiSessionRegistryTest {
 
     assertSame(current, registry.sessionFor(player.getUniqueId()));
     assertTrue(registry.sessionsForStorage("storage-a").contains(current));
+  }
+
+  @Test
+  void snapshotsRemainStableWhileRegistryChanges() {
+    GuiSessionRegistry registry = new GuiSessionRegistry();
+    Player firstPlayer = player(UUID.randomUUID());
+    TestSession first = new TestSession(firstPlayer, "storage-a", SessionType.STORAGE, true);
+    TestSession second =
+        new TestSession(player(UUID.randomUUID()), "storage-a", SessionType.STORAGE, true);
+    registry.register(first);
+    registry.register(second);
+    Collection<GuiSession> allSnapshot = registry.allSessions();
+    Set<GuiSession> storageSnapshot = registry.sessionsForStorage("storage-a");
+
+    registry.unregister(firstPlayer, null);
+
+    assertEquals(2, allSnapshot.size());
+    assertEquals(2, storageSnapshot.size());
+    assertEquals(1, registry.allSessions().size());
+    assertEquals(1, registry.sessionsForStorage("storage-a").size());
   }
 
   @Test
