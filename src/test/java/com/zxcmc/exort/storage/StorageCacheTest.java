@@ -124,6 +124,21 @@ class StorageCacheTest {
   }
 
   @Test
+  void indexCursorReturnsLightweightBatchesAndRejectsStructuralMutation() {
+    StorageCache cache = new StorageCache("storage", null, null, null, persistableCodec());
+    cache.addItem(null, new PersistableItemStack(), 5L);
+    StorageCache.IndexCursor cursor = cache.beginIndexCursor();
+
+    StorageCache.IndexBatch batch = cache.readIndexBatch(cursor, 0, 32);
+
+    assertTrue(batch.valid());
+    assertEquals(1, batch.items().size());
+    assertEquals(5L, batch.items().getFirst().amount());
+    cache.removeItem(batch.items().getFirst().key(), 5L);
+    assertFalse(cache.readIndexBatch(cursor, 0, 32).valid());
+  }
+
+  @Test
   void runtimeDbItemFailsWhenSampleCannotBeSerialized() {
     StorageCache cache = new StorageCache("storage", null, null, null);
     StorageCache.StorageItem item =

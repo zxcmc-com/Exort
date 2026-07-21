@@ -6,10 +6,12 @@ import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageNameNormalizer;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.inventory.ItemStack;
@@ -23,6 +25,7 @@ public class CustomItems {
   private final CustomItemFactory factory;
   private final CustomItemAppearanceRefresher appearanceRefresher;
   private final WirelessRuntimeConfig wirelessConfig;
+  private final StorageTierCatalog storageTiers;
   private final boolean clientTranslations;
 
   public CustomItems(
@@ -31,12 +34,23 @@ public class CustomItems {
       CustomItemModelConfig models,
       WirelessRuntimeConfig wirelessConfig,
       boolean clientTranslations) {
+    this(keys, lang, models, wirelessConfig, clientTranslations, StorageTierCatalog.active());
+  }
+
+  public CustomItems(
+      StorageKeys keys,
+      Lang lang,
+      CustomItemModelConfig models,
+      WirelessRuntimeConfig wirelessConfig,
+      boolean clientTranslations,
+      StorageTierCatalog storageTiers) {
     CustomItemModelConfig safeModels = models == null ? CustomItemModelConfig.empty() : models;
     this.keys = keys;
     this.lang = lang;
     this.wirelessConfig =
         wirelessConfig == null ? WirelessRuntimeConfig.defaults() : wirelessConfig;
     this.clientTranslations = clientTranslations;
+    this.storageTiers = Objects.requireNonNull(storageTiers, "storageTiers");
     this.factory =
         keys == null || lang == null
             ? null
@@ -44,7 +58,7 @@ public class CustomItems {
                 keys, lang, safeModels, this.wirelessConfig, clientTranslations);
     this.appearanceRefresher =
         new CustomItemAppearanceRefresher(
-            keys, lang, safeModels, this.wirelessConfig, clientTranslations);
+            keys, lang, safeModels, this.wirelessConfig, clientTranslations, this.storageTiers);
   }
 
   public ItemStack storageItem(StorageTier tier, String storageId) {
@@ -278,6 +292,6 @@ public class CustomItems {
   private Optional<StorageTierResolver.Resolution> resolveStorageTier(PersistentDataContainer pdc) {
     String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
     Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
-    return StorageTierResolver.resolve(tierRaw, tierMaxItems);
+    return StorageTierResolver.resolve(storageTiers, tierRaw, tierMaxItems);
   }
 }

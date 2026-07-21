@@ -9,6 +9,7 @@ import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessMeta;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
@@ -39,6 +40,7 @@ public final class ExortItemLocalizationService {
   private final StorageKeys keys;
   private final Lang lang;
   private final WirelessRuntimeConfig wirelessConfig;
+  private final StorageTierCatalog storageTiers;
 
   public ExortItemLocalizationService(StorageKeys keys, Lang lang) {
     this(keys, lang, WirelessRuntimeConfig.defaults());
@@ -46,10 +48,19 @@ public final class ExortItemLocalizationService {
 
   public ExortItemLocalizationService(
       StorageKeys keys, Lang lang, WirelessRuntimeConfig wirelessConfig) {
+    this(keys, lang, wirelessConfig, StorageTierCatalog.active());
+  }
+
+  public ExortItemLocalizationService(
+      StorageKeys keys,
+      Lang lang,
+      WirelessRuntimeConfig wirelessConfig,
+      StorageTierCatalog storageTiers) {
     this.keys = keys;
     this.lang = lang;
     this.wirelessConfig =
         wirelessConfig == null ? WirelessRuntimeConfig.defaults() : wirelessConfig;
+    this.storageTiers = storageTiers;
   }
 
   public ItemStack localize(Player player, ItemStack source) {
@@ -115,7 +126,7 @@ public final class ExortItemLocalizationService {
     String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
     Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
     StorageTierResolver.Resolution resolution =
-        StorageTierResolver.resolve(tierRaw, tierMaxItems).orElse(null);
+        StorageTierResolver.resolve(storageTiers, tierRaw, tierMaxItems).orElse(null);
     if (resolution == null) {
       return false;
     }
@@ -232,7 +243,7 @@ public final class ExortItemLocalizationService {
     StorageTier tier = null;
     String tierRaw = pdc.get(keys.wirelessTier(), PersistentDataType.STRING);
     if (tierRaw != null) {
-      tier = StorageTier.fromString(tierRaw).orElse(null);
+      tier = storageTiers.find(tierRaw).orElse(null);
     }
     String storageId =
         PdcValueSanitizer.uuidString(pdc.get(keys.wirelessStorageId(), PersistentDataType.STRING));

@@ -24,6 +24,21 @@ class StorageTierTest {
   }
 
   @Test
+  void parsedCandidateCatalogIsInvisibleUntilAtomicPublication() {
+    YamlConfiguration active = validCatalog("basic", 100L);
+    assertTrue(StorageTier.loadFromConfig(active, LOGGER));
+    YamlConfiguration candidate = validCatalog("rare", 200L);
+
+    StorageTierCatalog parsed = StorageTierCatalog.parse(candidate, LOGGER);
+
+    assertTrue(StorageTier.fromString("basic").isPresent());
+    assertTrue(StorageTier.fromString("rare").isEmpty());
+    StorageTierCatalog.publish(parsed);
+    assertTrue(StorageTier.fromString("basic").isEmpty());
+    assertEquals(200L, StorageTier.fromString("rare").orElseThrow().maxItems());
+  }
+
+  @Test
   void invalidReplacementKeepsLastValidCatalog() {
     YamlConfiguration valid = new YamlConfiguration();
     valid.set("basic.maxItems", 128);
@@ -312,5 +327,12 @@ class StorageTierTest {
     var resolution = StorageTierResolver.resolve("missing", 128L).orElseThrow();
     assertEquals(128L, resolution.tierMaxItems());
     assertTrue(resolution.orphaned());
+  }
+
+  private static YamlConfiguration validCatalog(String key, long maxItems) {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set(key + ".maxItems", maxItems);
+    config.set(key + ".material", "CHEST");
+    return config;
   }
 }

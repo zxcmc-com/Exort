@@ -5,12 +5,14 @@ import com.zxcmc.exort.bus.BusSessionDependencies;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.bus.engine.BusEngineDependencies;
 import com.zxcmc.exort.carrier.CarrierMaterials;
-import org.bukkit.Bukkit;
 
 public final class RuntimeBusServicesFactory {
   private RuntimeBusServicesFactory() {}
 
-  public static RuntimeBusServices create(RuntimeBusServicesDependencies deps) {
+  public static RuntimeBusServices create(
+      RuntimeBusServicesDependencies deps,
+      RuntimeGenerationScope generation,
+      RuntimeHandle.Scope resources) {
     CarrierMaterials materials = deps.materials();
     var busDependencies =
         new BusEngineDependencies(
@@ -32,8 +34,9 @@ public final class RuntimeBusServicesFactory {
             materials.busCarrier(),
             deps.busRuntime(),
             deps.wirelessService());
+    resources.own("bus service", busService::stop);
     busService.start();
-    Bukkit.getScheduler().runTask(deps.plugin(), busService::scanLoadedChunks);
+    generation.runTask(busService::scanLoadedChunks);
 
     var busSessionDependencies =
         new BusSessionDependencies(
@@ -54,6 +57,7 @@ public final class RuntimeBusServicesFactory {
             deps.itemNameService());
     BusSessionManager busSessionManager =
         new BusSessionManager(busSessionDependencies, busService, deps.lang());
+    resources.own("bus sessions", busSessionManager::shutdown);
     busSessionManager.reconfigure();
     return new RuntimeBusServices(busService, busSessionManager);
   }

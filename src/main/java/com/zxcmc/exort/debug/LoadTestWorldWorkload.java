@@ -461,7 +461,6 @@ final class LoadTestWorldWorkload {
     }
     if (lane.storageId != null) {
       storageIds.add(lane.storageId);
-      dependencies.storageManager().discardCacheForInternalCleanup(lane.storageId);
       lane.storageId = null;
     }
     lane.storageBlock = null;
@@ -662,8 +661,11 @@ final class LoadTestWorldWorkload {
     List<CompletableFuture<Void>> deletes = new ArrayList<>();
     for (String storageId : new LinkedHashSet<>(storageIds)) {
       if (storageId == null || !storageId.startsWith(STORAGE_ID_PREFIX)) continue;
-      dependencies.storageManager().discardCacheForInternalCleanup(storageId);
-      deletes.add(database.deleteStorageForInternalCleanup(storageId));
+      deletes.add(
+          dependencies
+              .storageManager()
+              .discardCacheForInternalCleanup(storageId)
+              .thenCompose(ignored -> database.deleteStorageForInternalCleanup(storageId)));
     }
     for (BusPos pos : new LinkedHashSet<>(busPositions)) {
       deletes.add(database.deleteBusSettings(pos));

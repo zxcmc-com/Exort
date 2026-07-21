@@ -6,7 +6,10 @@ import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 
 public record GuiRuntimeConfig(
-    long sessionDeviceCheckIntervalTicks, long craftingConfirmTimeoutMs) {
+    long sessionDeviceCheckIntervalTicks,
+    long craftingConfirmTimeoutMs,
+    int indexEntriesPerTick,
+    int indexBudgetMicros) {
   private static final long CRAFTING_CONFIRM_TIMEOUT_MS = 10_000L;
   static final long MAX_SESSION_DEVICE_CHECK_INTERVAL_TICKS = 1_200L;
 
@@ -27,6 +30,8 @@ public record GuiRuntimeConfig(
             5L,
             1L,
             MAX_SESSION_DEVICE_CHECK_INTERVAL_TICKS),
-        CRAFTING_CONFIRM_TIMEOUT_MS);
+        CRAFTING_CONFIRM_TIMEOUT_MS,
+        (int) numbers.longInteger("performance.gui.indexEntriesPerTick", 256, 32, 4096),
+        (int) numbers.longInteger("performance.gui.indexBudgetMicros", 2000, 250, 10000));
   }
 }

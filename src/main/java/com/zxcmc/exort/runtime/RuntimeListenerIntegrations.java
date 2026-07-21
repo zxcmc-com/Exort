@@ -15,11 +15,12 @@ public record RuntimeListenerIntegrations(
     WorldEditWandGuard worldEditWandGuard,
     PacketEnhancements packetEnhancements,
     Supplier<NetworkGraphCache> networkGraphCache,
-    RecipeService previousRecipeService) {
+    RecipeService.Activation recipeActivation) {
   public RuntimeListenerIntegrations {
     Objects.requireNonNull(regionProtection, "regionProtection");
     Objects.requireNonNull(authenticationGate, "authenticationGate");
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(networkGraphCache, "networkGraphCache");
+    Objects.requireNonNull(recipeActivation, "recipeActivation");
   }
 }

@@ -8,6 +8,7 @@ import com.zxcmc.exort.storage.StorageLoadResult;
 import com.zxcmc.exort.storage.StorageNameNormalizer;
 import com.zxcmc.exort.storage.StorageQuarantineEntry;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.sort.SortMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,12 +36,22 @@ final class StorageRepository {
   private final SqliteDatabase database;
   private final Logger logger;
   private final Supplier<String> defaultSortModeName;
+  private final Supplier<StorageTierCatalog> storageTiers;
 
   StorageRepository(SqliteDatabase database, Logger logger, Supplier<String> defaultSortModeName) {
+    this(database, logger, defaultSortModeName, StorageTierCatalog::active);
+  }
+
+  StorageRepository(
+      SqliteDatabase database,
+      Logger logger,
+      Supplier<String> defaultSortModeName,
+      Supplier<StorageTierCatalog> storageTiers) {
     this.database = Objects.requireNonNull(database, "database");
     this.logger = logger;
     this.defaultSortModeName =
         defaultSortModeName == null ? () -> SortMode.AMOUNT.name() : defaultSortModeName;
+    this.storageTiers = storageTiers == null ? StorageTierCatalog::active : storageTiers;
   }
 
   public CompletableFuture<Void> ensureStorage(String id) {
@@ -67,7 +78,7 @@ final class StorageRepository {
   }
 
   public CompletableFuture<Void> setStorageTier(String storageId, String tierKey) {
-    Long tierMaxItems = StorageTier.fromString(tierKey).map(StorageTier::maxItems).orElse(null);
+    Long tierMaxItems = storageTiers.get().find(tierKey).map(StorageTier::maxItems).orElse(null);
     return setStorageTier(storageId, tierKey, tierMaxItems);
   }
 

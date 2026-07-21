@@ -8,7 +8,6 @@ import org.bukkit.block.Block;
 /** Host callbacks that keep the runtime factory independent from the plugin facade. */
 public record RuntimeHooks(
     Runnable reloadDefaultSortMode,
-    Runnable unregisterReloadableRuntimeListeners,
     Runnable setupRegionProtection,
     Runnable revalidateSessions,
     Consumer<String> pickDebugSink,
@@ -20,8 +19,6 @@ public record RuntimeHooks(
     Consumer<String> renderStorage) {
   public RuntimeHooks {
     Objects.requireNonNull(reloadDefaultSortMode, "reloadDefaultSortMode");
-    Objects.requireNonNull(
-        unregisterReloadableRuntimeListeners, "unregisterReloadableRuntimeListeners");
     Objects.requireNonNull(setupRegionProtection, "setupRegionProtection");
     Objects.requireNonNull(revalidateSessions, "revalidateSessions");
     Objects.requireNonNull(pickDebugSink, "pickDebugSink");

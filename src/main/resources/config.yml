@@ -70,6 +70,10 @@ performance:
   # Budget Exort marker/display/bus/network post-processing after WorldEdit/FAWE operations.
   worldEditBulk: true
   storage:
+    # Global round-robin hydration budget for large storage caches.
+    loadEntriesPerTick: 256
+    # Total main-thread hydration time budget per tick, in microseconds.
+    loadBudgetMicros: 2000
     # Seconds between periodic dirty-cache flushes to the database. Set 0 to disable the periodic flush.
     # Values outside 0..86400 are clamped with a warning.
     flushIntervalSeconds: 10
@@ -79,6 +83,11 @@ performance:
     # Seconds between idle-cache checks.
     # Values outside 0..86400 are clamped with a warning.
     idleCheckSeconds: 60
+  gui:
+    # Global round-robin budget for building indexes of actively viewed storages.
+    indexEntriesPerTick: 256
+    # Total main-thread GUI index time budget per tick, in microseconds.
+    indexBudgetMicros: 2000
   # Ticks between physical terminal/bus GUI distance checks. Values outside 1..1200 are clamped.
   sessionDeviceCheckIntervalTicks: 5
   bus:

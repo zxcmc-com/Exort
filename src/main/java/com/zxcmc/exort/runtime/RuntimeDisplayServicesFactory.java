@@ -27,32 +27,31 @@ import com.zxcmc.exort.sanity.DisplayCleanupService;
 import com.zxcmc.exort.sanity.MarkerSanityDependencies;
 import com.zxcmc.exort.sanity.MarkerSanityService;
 import com.zxcmc.exort.sanity.listener.ChunkSanityListener;
-import org.bukkit.Bukkit;
 
 public final class RuntimeDisplayServicesFactory {
   private RuntimeDisplayServicesFactory() {}
 
-  public static RuntimeDisplayServices create(RuntimeDisplayServicesDependencies deps) {
+  public static RuntimeDisplayServices create(
+      RuntimeDisplayServicesDependencies deps,
+      RuntimeGenerationScope generation,
+      RuntimeHandle.Scope resources) {
     CarrierMaterials materials = deps.materials();
     RuntimeItemModelConfig itemModels = deps.itemModels();
     RuntimeDisplayModelConfig displayModels =
         RuntimeDisplayModelConfig.forMode(deps.resourceMode(), itemModels.displayNamespace());
     DisplayCullingConfig displayCullingConfig = DisplayCullingConfig.fromConfig(deps.config());
     DisplayEntityIndex displayEntityIndex = new DisplayEntityIndex();
-    Bukkit.getPluginManager()
-        .registerEvents(new DisplayEntityIndexCleanupListener(displayEntityIndex), deps.plugin());
+    generation.registerListener(new DisplayEntityIndexCleanupListener(displayEntityIndex));
     DisplayMetadataService metadataService =
         new DisplayMetadataService(displayEntityIndex, displayCullingConfig);
     boolean fullPacketLocalization = registerPacketLocalization(deps, displayEntityIndex);
     if (fullPacketLocalization) {
-      Bukkit.getPluginManager()
-          .registerEvents(
-              new DisplayLocalizationRefreshService(
-                  deps.plugin(),
-                  displayEntityIndex,
-                  metadataService,
-                  displayCullingConfig.maxDistance()),
-              deps.plugin());
+      generation.registerListener(
+          new DisplayLocalizationRefreshService(
+              deps.plugin(),
+              displayEntityIndex,
+              metadataService,
+              displayCullingConfig.maxDistance()));
     }
 
     ItemHologramManager hologramManager =
@@ -70,42 +69,44 @@ public final class RuntimeDisplayServicesFactory {
             deps.hologramConfig().terminal(),
             deps.hologramConfig().storage(),
             metadataService);
+    resources.own("hologram manager", hologramManager::stop);
     hologramManager.start();
-    Bukkit.getPluginManager().registerEvents(hologramManager, deps.plugin());
+    generation.registerListener(hologramManager);
 
     WireDisplayManager wireDisplayManager = createWireDisplayManager(deps, metadataService);
     if (wireDisplayManager.isEnabled()) {
-      Bukkit.getScheduler().runTask(deps.plugin(), wireDisplayManager::scanLoadedChunks);
+      generation.runTask(wireDisplayManager::scanLoadedChunks);
     }
 
     StorageDisplayManager storageDisplayManager =
         createStorageDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), storageDisplayManager::scanLoadedChunks);
+    generation.runTask(storageDisplayManager::scanLoadedChunks);
 
     TerminalDisplayManager terminalDisplayManager =
         createTerminalDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), terminalDisplayManager::scanLoadedChunks);
+    generation.runTask(terminalDisplayManager::scanLoadedChunks);
 
     MonitorDisplayManager monitorDisplayManager =
         createMonitorDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), monitorDisplayManager::start);
+    resources.own("monitor display manager", monitorDisplayManager::stop);
+    generation.runTask(monitorDisplayManager::start);
 
     BusDisplayManager busDisplayManager =
         createBusDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), busDisplayManager::scanLoadedChunks);
+    generation.runTask(busDisplayManager::scanLoadedChunks);
 
     RelayDisplayManager relayDisplayManager =
         createRelayDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), relayDisplayManager::scanLoadedChunks);
+    generation.runTask(relayDisplayManager::scanLoadedChunks);
 
     TransmitterDisplayManager transmitterDisplayManager =
         createTransmitterDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), transmitterDisplayManager::scanLoadedChunks);
+    generation.runTask(transmitterDisplayManager::scanLoadedChunks);
 
     ChunkLoaderDisplayManager chunkLoaderDisplayManager =
         createChunkLoaderDisplayManager(deps, displayModels, metadataService);
-    Bukkit.getScheduler().runTask(deps.plugin(), chunkLoaderDisplayManager::scanLoadedChunks);
-    Bukkit.getScheduler().runTask(deps.plugin(), metadataService::rebuildLoadedDisplays);
+    generation.runTask(chunkLoaderDisplayManager::scanLoadedChunks);
+    generation.runTask(metadataService::rebuildLoadedDisplays);
 
     ExortBlockProxyService blockProxyService =
         new ExortBlockProxyService(
@@ -119,6 +120,7 @@ public final class RuntimeDisplayServicesFactory {
             materials.relayCarrier(),
             materials.transmitterCarrier(),
             materials.chunkLoaderCarrier());
+    resources.own("display block proxy", blockProxyService::stop);
     blockProxyService.start();
 
     DisplayCullingService displayCullingService =
@@ -130,6 +132,7 @@ public final class RuntimeDisplayServicesFactory {
             metadataService,
             blockProxyService,
             deps.database());
+    resources.own("display culling", displayCullingService::stop);
     displayCullingService.start();
 
     DisplayRefreshService displayRefreshService =
@@ -156,7 +159,8 @@ public final class RuntimeDisplayServicesFactory {
             chunkLoaderDisplayManager,
             blockProxyService,
             deps.relaySetupTracker());
-    registerSanityServices(deps, hologramManager, displayRefreshService);
+    resources.own("display refresh", displayRefreshService::shutdown);
+    registerSanityServices(deps, generation, hologramManager, displayRefreshService);
 
     return new RuntimeDisplayServices(
         hologramManager,
@@ -210,7 +214,8 @@ public final class RuntimeDisplayServicesFactory {
     return deps.packetEnhancements()
         .registerLocalization(
             deps.lang()::pluginTextLanguage,
-            new ExortItemLocalizationService(deps.keys(), deps.lang(), deps.wirelessConfig())
+            new ExortItemLocalizationService(
+                    deps.keys(), deps.lang(), deps.wirelessConfig(), deps.storageTierCatalog())
                 ::localizeForPacket,
             displayLocalization::localize,
             deps.resourceMode(),
@@ -411,6 +416,7 @@ public final class RuntimeDisplayServicesFactory {
 
   private static void registerSanityServices(
       RuntimeDisplayServicesDependencies deps,
+      RuntimeGenerationScope generation,
       ItemHologramManager hologramManager,
       DisplayRefreshService displayRefreshService) {
     CarrierMaterials materials = deps.materials();
@@ -448,7 +454,7 @@ public final class RuntimeDisplayServicesFactory {
             deps.worldEditDebugService());
     var chunkSanityListener =
         new ChunkSanityListener(deps.plugin(), chunkSanityService, deps.invalidateNetworkChunk());
-    Bukkit.getPluginManager().registerEvents(chunkSanityListener, deps.plugin());
-    Bukkit.getScheduler().runTask(deps.plugin(), chunkSanityService::scanLoadedChunks);
+    generation.registerListener(chunkSanityListener);
+    generation.runTask(chunkSanityService::scanLoadedChunks);
   }
 }

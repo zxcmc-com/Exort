@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -20,13 +21,18 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 public final class RecipeDiscoveryListener implements Listener {
-  private final Plugin plugin;
   private final RecipeService recipeService;
+  private final Consumer<Runnable> mainThreadScheduler;
   private final Set<UUID> pending = ConcurrentHashMap.newKeySet();
 
   public RecipeDiscoveryListener(Plugin plugin, RecipeService recipeService) {
-    this.plugin = plugin;
+    this(recipeService, action -> Bukkit.getScheduler().runTask(plugin, action));
+  }
+
+  public RecipeDiscoveryListener(
+      RecipeService recipeService, Consumer<Runnable> mainThreadScheduler) {
     this.recipeService = recipeService;
+    this.mainThreadScheduler = mainThreadScheduler;
   }
 
   public void discoverForOnlinePlayers() {
@@ -83,13 +89,11 @@ public final class RecipeDiscoveryListener implements Listener {
     if (!pending.add(playerId)) {
       return;
     }
-    Bukkit.getScheduler()
-        .runTask(
-            plugin,
-            () -> {
-              pending.remove(playerId);
-              discover(player);
-            });
+    mainThreadScheduler.accept(
+        () -> {
+          pending.remove(playerId);
+          discover(player);
+        });
   }
 
   void discover(Player player) {

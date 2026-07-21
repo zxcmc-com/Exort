@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,7 +16,7 @@ import java.util.logging.Logger;
  * Main-thread physical identity guard backed by a durable claim store. Async completions only
  * update this class' own synchronized maps and never call Bukkit APIs.
  */
-public final class StorageClaimRegistry {
+public final class StorageClaimRegistry implements AutoCloseable {
   public enum State {
     NEW,
     LOADING,
@@ -56,6 +58,7 @@ public final class StorageClaimRegistry {
   private final Clock clock;
   private final Map<String, Slot> byStorageId = new HashMap<>();
   private final Map<StorageClaimLocation, String> byLocation = new HashMap<>();
+  private final AtomicBoolean closed = new AtomicBoolean();
   private State state = State.NEW;
   private CompletableFuture<Void> readiness = new CompletableFuture<>();
 
@@ -74,6 +77,10 @@ public final class StorageClaimRegistry {
   }
 
   public CompletableFuture<Void> start() {
+    if (closed.get()) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("Storage claim registry is closed"));
+    }
     synchronized (this) {
       if (state == State.LOADING) {
         return readiness;
@@ -87,6 +94,9 @@ public final class StorageClaimRegistry {
     CompletableFuture<Void> load = store.loadStorageClaims().thenAccept(this::install);
     load.whenComplete(
         (ignored, error) -> {
+          if (closed.get()) {
+            return;
+          }
           CompletableFuture<Void> currentReadiness;
           synchronized (this) {
             currentReadiness = readiness;
@@ -111,6 +121,9 @@ public final class StorageClaimRegistry {
   }
 
   private synchronized void install(List<StorageClaim> claims) {
+    if (closed.get()) {
+      throw new CancellationException("Storage claim registry generation was closed");
+    }
     Map<String, Slot> candidateById = new HashMap<>();
     Map<StorageClaimLocation, String> candidateByLocation = new HashMap<>();
     for (StorageClaim claim : List.copyOf(claims)) {
@@ -133,6 +146,18 @@ public final class StorageClaimRegistry {
     byLocation.clear();
     byLocation.putAll(candidateByLocation);
     state = State.READY;
+  }
+
+  @Override
+  public synchronized void close() {
+    if (!closed.compareAndSet(false, true)) {
+      return;
+    }
+    state = State.FAILED;
+    byStorageId.clear();
+    byLocation.clear();
+    readiness.completeExceptionally(
+        new CancellationException("Storage claim registry generation was closed"));
   }
 
   public synchronized ReservationResult reserve(String storageId, StorageClaimLocation location) {

@@ -10,6 +10,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
@@ -27,6 +28,7 @@ public record RuntimeDisplayServicesDependencies(
     Lang lang,
     StorageKeys keys,
     WirelessRuntimeConfig wirelessConfig,
+    StorageTierCatalog storageTierCatalog,
     StorageManager storageManager,
     Database database,
     CarrierMaterials materials,
@@ -51,6 +53,7 @@ public record RuntimeDisplayServicesDependencies(
     Objects.requireNonNull(lang, "lang");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(wirelessConfig, "wirelessConfig");
+    Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(database, "database");
     Objects.requireNonNull(materials, "materials");

@@ -157,6 +157,9 @@ public class CraftingSession extends AbstractStorageSession {
       contents[slot] = stack;
       slotEntries.put(slot, entry);
     }
+    if (!isIndexReady()) {
+      contents[STORAGE_SLOTS[STORAGE_SLOTS.length / 2]] = indexStatusItem(useFillers);
+    }
 
     ItemStack[] grid = state.snapshot();
     for (int i = 0; i < CRAFT_SLOTS.length; i++) {
@@ -260,11 +263,38 @@ public class CraftingSession extends AbstractStorageSession {
     int topSize = inventory.getSize();
 
     if (rawSlot >= topSize) {
+      if (!isIndexReady()) {
+        event.setCancelled(true);
+        return;
+      }
       handleBottomClick(event);
       return;
     }
 
     event.setCancelled(true);
+
+    if (!isIndexReady()) {
+      if (rawSlot == GuiLayout.Crafting.SLOT_SEARCH) {
+        if (event.isShiftClick()) {
+          clearSearch();
+          render();
+        } else {
+          manager.openSearch(viewer, this);
+        }
+      } else if (rawSlot == GuiLayout.Crafting.SLOT_SORT && !readOnly) {
+        sortMode =
+            switch (sortMode) {
+              case AMOUNT -> SortMode.NAME;
+              case NAME -> SortMode.ID;
+              case ID -> SortMode.CATEGORY;
+              case CATEGORY -> SortMode.AMOUNT;
+            };
+        sortFrozen = false;
+        sortOrder.clear();
+        manager.updateSortMode(cache, sortMode);
+      }
+      return;
+    }
 
     if (rawSlot == GuiLayout.Crafting.SLOT_PREV) {
       state.resetConfirm();

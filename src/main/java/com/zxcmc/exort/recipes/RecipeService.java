@@ -46,8 +46,10 @@ public final class RecipeService {
   private final Supplier<FeatureAccessConfig> featureAccess;
   private final ChoiceFactory choiceFactory;
   private final RecipeRegistry recipeRegistry;
+  private final Function<String, java.util.Optional<StorageTier>> tierResolver;
   private final List<NamespacedKey> registered = new ArrayList<>();
   private final List<RecipeDiscoveryEntry> discoveryEntries = new ArrayList<>();
+  private List<RegisteredRecipe> disabledOriginals = List.of();
   private boolean registrationFailed;
   private boolean validationMode;
   private boolean validationFailed;
@@ -64,6 +66,24 @@ public final class RecipeService {
             plugin == null
                 ? FeatureAccessConfig.defaults()
                 : FeatureAccessConfig.fromConfig(plugin.getConfig()));
+  }
+
+  public RecipeService(
+      JavaPlugin plugin,
+      CustomItems customItems,
+      WirelessTerminalService wirelessService,
+      Function<String, java.util.Optional<StorageTier>> tierResolver) {
+    this(
+        plugin,
+        customItems,
+        wirelessService,
+        () ->
+            plugin == null
+                ? FeatureAccessConfig.defaults()
+                : FeatureAccessConfig.fromConfig(plugin.getConfig()),
+        ChoiceFactory.bukkit(),
+        RecipeRegistry.bukkit(),
+        tierResolver);
   }
 
   RecipeService(
@@ -96,16 +116,90 @@ public final class RecipeService {
       Supplier<FeatureAccessConfig> featureAccess,
       ChoiceFactory choiceFactory,
       RecipeRegistry recipeRegistry) {
+    this(
+        plugin,
+        customItems,
+        wirelessService,
+        featureAccess,
+        choiceFactory,
+        recipeRegistry,
+        StorageTier::fromString);
+  }
+
+  private RecipeService(
+      JavaPlugin plugin,
+      CustomItems customItems,
+      WirelessTerminalService wirelessService,
+      Supplier<FeatureAccessConfig> featureAccess,
+      ChoiceFactory choiceFactory,
+      RecipeRegistry recipeRegistry,
+      Function<String, java.util.Optional<StorageTier>> tierResolver) {
     this.plugin = plugin;
     this.customItems = customItems;
     this.wirelessService = wirelessService;
     this.featureAccess = featureAccess == null ? FeatureAccessConfig::defaults : featureAccess;
     this.choiceFactory = choiceFactory == null ? ChoiceFactory.bukkit() : choiceFactory;
     this.recipeRegistry = Objects.requireNonNull(recipeRegistry, "recipeRegistry");
+    this.tierResolver = Objects.requireNonNull(tierResolver, "tierResolver");
   }
 
   public void reload() {
     reloadReplacing(this);
+  }
+
+  /** Loads an immutable recipe-file snapshot before destructive runtime activation begins. */
+  public static Activation prepare(JavaPlugin plugin, ConfigurationSection runtimeConfig) {
+    Objects.requireNonNull(plugin, "plugin");
+    File file = new File(plugin.getDataFolder(), "recipes.yml");
+    if (!file.isFile()) {
+      throw new IllegalStateException("recipes.yml does not exist");
+    }
+    YamlConfiguration config = new YamlConfiguration();
+    try {
+      config.load(file);
+    } catch (Exception error) {
+      throw new IllegalStateException("recipes.yml is invalid", error);
+    }
+    boolean enabled = RecipeRuntimeConfig.fromConfig(runtimeConfig).enabled();
+    return Activation.candidate(config.saveToString(), enabled);
+  }
+
+  /** Captures the exact registry objects owned or disabled by this generation. */
+  public Checkpoint checkpoint() {
+    return snapshot();
+  }
+
+  /** Activates either a prepared candidate or an exact prior checkpoint without rereading files. */
+  public void activate(Activation activation) {
+    Objects.requireNonNull(activation, "activation");
+    if (activation.checkpoint != null) {
+      restore(activation.checkpoint);
+      return;
+    }
+    YamlConfiguration config = new YamlConfiguration();
+    try {
+      config.loadFromString(activation.serializedConfig);
+    } catch (Exception error) {
+      throw new IllegalStateException("Prepared recipes.yml snapshot is invalid", error);
+    }
+    if (!reloadReplacing(null, config, activation.enabled)) {
+      throw new IllegalStateException("Prepared recipe activation failed");
+    }
+  }
+
+  /** Semantically validates a prepared candidate without touching the live recipe registry. */
+  public boolean validateActivation(Activation activation) {
+    Objects.requireNonNull(activation, "activation");
+    if (activation.checkpoint != null || !activation.enabled) {
+      return true;
+    }
+    YamlConfiguration config = new YamlConfiguration();
+    try {
+      config.loadFromString(activation.serializedConfig);
+    } catch (Exception error) {
+      return false;
+    }
+    return validateRecipeConfig(config);
   }
 
   public boolean reloadReplacing(RecipeService previous) {
@@ -138,10 +232,10 @@ public final class RecipeService {
           "Failed to validate recipes.yml; keeping the last-known-good recipe set unchanged.");
       return false;
     }
-    RecipeSnapshot previousSnapshot;
+    Checkpoint previousSnapshot;
     List<RegisteredRecipe> disabledRecipeSnapshot;
     try {
-      previousSnapshot = previous == null ? RecipeSnapshot.empty() : previous.snapshot();
+      previousSnapshot = previous == null ? Checkpoint.empty() : previous.snapshot();
       Set<NamespacedKey> previousKeys =
           previous == null ? Set.of() : Set.copyOf(previous.registered);
       disabledRecipeSnapshot =
@@ -177,6 +271,7 @@ public final class RecipeService {
       ExortLog.error("Recipe reload was rolled back to the last-known-good recipe set.");
       return false;
     }
+    disabledOriginals = List.copyOf(disabledRecipeSnapshot);
     ExortLog.info(
         "Recipes loaded: "
             + applied.loaded()
@@ -237,6 +332,8 @@ public final class RecipeService {
     }
     registered.clear();
     discoveryEntries.clear();
+    restoreMissing(disabledOriginals);
+    disabledOriginals = List.of();
   }
 
   private File ensureFile() {
@@ -878,7 +975,7 @@ public final class RecipeService {
     }
   }
 
-  private RecipeSnapshot snapshot() {
+  private Checkpoint snapshot() {
     List<RegisteredRecipe> recipes = new ArrayList<>();
     for (NamespacedKey key : registered) {
       Recipe recipe = recipeRegistry.get(key);
@@ -886,7 +983,8 @@ public final class RecipeService {
         recipes.add(new RegisteredRecipe(key, recipe));
       }
     }
-    return new RecipeSnapshot(List.copyOf(recipes), List.copyOf(discoveryEntries));
+    return new Checkpoint(
+        List.copyOf(recipes), List.copyOf(discoveryEntries), List.copyOf(disabledOriginals));
   }
 
   private List<RegisteredRecipe> snapshotConfiguredRecipes(
@@ -915,11 +1013,15 @@ public final class RecipeService {
     return List.copyOf(recipes);
   }
 
-  private void restore(RecipeSnapshot snapshot) {
+  private void restore(Checkpoint snapshot) {
     registered.clear();
     discoveryEntries.clear();
+    disabledOriginals = List.of();
     if (snapshot == null) {
       return;
+    }
+    for (RegisteredRecipe entry : snapshot.disabledOriginals) {
+      recipeRegistry.remove(entry.key());
     }
     for (RegisteredRecipe entry : snapshot.recipes()) {
       try {
@@ -937,6 +1039,7 @@ public final class RecipeService {
       }
     }
     discoveryEntries.addAll(snapshot.discoveryEntries());
+    disabledOriginals = List.copyOf(snapshot.disabledOriginals);
   }
 
   private void restoreMissing(List<RegisteredRecipe> recipes) {
@@ -1070,7 +1173,7 @@ public final class RecipeService {
       default -> {
         if (id.startsWith("storage:")) {
           String tier = id.substring("storage:".length());
-          var tierOpt = StorageTier.fromString(tier);
+          var tierOpt = tierResolver.apply(tier);
           yield tierOpt.map(t -> customItems.storageItem(t, null)).orElse(null);
         }
         yield null;
@@ -1115,10 +1218,51 @@ public final class RecipeService {
 
   private record RegisteredRecipe(NamespacedKey key, Recipe recipe) {}
 
-  private record RecipeSnapshot(
-      List<RegisteredRecipe> recipes, List<RecipeDiscoveryEntry> discoveryEntries) {
-    private static RecipeSnapshot empty() {
-      return new RecipeSnapshot(List.of(), List.of());
+  public static final class Activation {
+    private final String serializedConfig;
+    private final boolean enabled;
+    private final Checkpoint checkpoint;
+
+    private Activation(String serializedConfig, boolean enabled, Checkpoint checkpoint) {
+      this.serializedConfig = serializedConfig;
+      this.enabled = enabled;
+      this.checkpoint = checkpoint;
+    }
+
+    public static Activation candidate(String serializedConfig, boolean enabled) {
+      return new Activation(
+          Objects.requireNonNull(serializedConfig, "serializedConfig"), enabled, null);
+    }
+
+    public static Activation restore(Checkpoint checkpoint) {
+      return new Activation(null, true, Objects.requireNonNull(checkpoint, "checkpoint"));
+    }
+  }
+
+  public static final class Checkpoint {
+    private final List<RegisteredRecipe> recipes;
+    private final List<RecipeDiscoveryEntry> discoveryEntries;
+    private final List<RegisteredRecipe> disabledOriginals;
+
+    private Checkpoint(
+        List<RegisteredRecipe> recipes,
+        List<RecipeDiscoveryEntry> discoveryEntries,
+        List<RegisteredRecipe> disabledOriginals) {
+      this.recipes = recipes;
+      this.discoveryEntries = discoveryEntries;
+      this.disabledOriginals = disabledOriginals;
+    }
+
+    private List<RegisteredRecipe> recipes() {
+      return recipes;
+    }
+
+    private List<RecipeDiscoveryEntry> discoveryEntries() {
+      return discoveryEntries;
+    }
+
+    private static Checkpoint empty() {
+      return new Checkpoint(List.of(), List.of(), List.of());
     }
   }
 

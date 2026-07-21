@@ -304,6 +304,46 @@ class RecipeServiceTest {
     assertEquals(2, candidate.discoveryEntries().size());
   }
 
+  @Test
+  void successfulCandidateRestoresDisabledExternalRecipeWhenGenerationCloses() {
+    FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
+    NamespacedKey externalKey = NamespacedKey.minecraft("external_recipe");
+    assertTrue(registry.add(recipe(externalKey)));
+    RecipeService service = recipeService(registry);
+    YamlConfiguration config = shapelessConfig("active");
+    config.set("disabled", List.of(externalKey.toString()));
+
+    assertTrue(service.reloadReplacing(null, config, true));
+    assertEquals(Set.of(key("active")), registry.keys());
+
+    service.unregisterAll();
+
+    assertEquals(Set.of(externalKey), registry.keys());
+  }
+
+  @Test
+  void checkpointRestoresExactRecipesAndDisabledOriginalsWithoutReadingConfig() {
+    FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
+    NamespacedKey externalKey = NamespacedKey.minecraft("external_recipe");
+    assertTrue(registry.add(recipe(externalKey)));
+    RecipeService original = recipeService(registry);
+    YamlConfiguration config = shapelessConfig("old");
+    config.set("disabled", List.of(externalKey.toString()));
+    assertTrue(original.reloadReplacing(null, config, true));
+    RecipeService.Checkpoint checkpoint = original.checkpoint();
+    original.unregisterAll();
+    assertEquals(Set.of(externalKey), registry.keys());
+
+    RecipeService restored = recipeService(registry);
+    restored.activate(RecipeService.Activation.restore(checkpoint));
+
+    assertEquals(Set.of(key("old")), registry.keys());
+    assertTrue(
+        restored.discoveryEntries().stream().anyMatch(entry -> entry.key().equals(key("old"))));
+    restored.unregisterAll();
+    assertEquals(Set.of(externalKey), registry.keys());
+  }
+
   private static void assertCandidateRegistrationFailureRollsBack(boolean exceptional) {
     FaultInjectingRecipeRegistry registry = new FaultInjectingRecipeRegistry();
     RecipeService previous = recipeService(registry);

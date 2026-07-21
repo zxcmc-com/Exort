@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.19.10'
+version = '0.19.11'
 description = 'Exort Storage Network'
 
 def pluginVersion = version.toString()
@@ -279,11 +279,6 @@ tasks.register('exportResourcePack', JavaExec) {
     inputs.dir file('src/main/resources/pack')
     inputs.dir file('src/main/resources/lang')
     outputs.file layout.buildDirectory.file('exort-resource-pack/exort.zip')
-}
-
-tasks.withType(JavaCompile).configureEach {
-    // Artifact-producing Gradle entrypoints rely on this auto-format gate.
-    dependsOn tasks.named('googleJavaFormat')
 }
 
 tasks.named('googleJavaFormatCheck') {

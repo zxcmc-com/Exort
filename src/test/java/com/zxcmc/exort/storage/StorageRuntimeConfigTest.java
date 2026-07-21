@@ -13,6 +13,8 @@ class StorageRuntimeConfigTest {
     yaml.set("performance.storage.flushIntervalSeconds", 25);
     yaml.set("performance.storage.idleUnloadSeconds", 120L);
     yaml.set("performance.storage.idleCheckSeconds", 15L);
+    yaml.set("performance.storage.loadEntriesPerTick", 512);
+    yaml.set("performance.storage.loadBudgetMicros", 3500);
 
     StorageRuntimeConfig config = StorageRuntimeConfig.fromConfig(yaml);
 
@@ -20,6 +22,8 @@ class StorageRuntimeConfigTest {
     assertEquals(25, config.flushIntervalSeconds());
     assertEquals(120L, config.cacheIdleUnloadSeconds());
     assertEquals(15L, config.cacheIdleCheckSeconds());
+    assertEquals(512, config.loadEntriesPerTick());
+    assertEquals(3500, config.loadBudgetMicros());
   }
 
   @Test
@@ -52,5 +56,17 @@ class StorageRuntimeConfigTest {
         StorageRuntimeConfig.MAX_SCHEDULER_INTERVAL_SECONDS * 1_000L,
         config.cacheIdleUnloadMillis());
     assertEquals(0L, config.cacheIdleCheckTicks());
+  }
+
+  @Test
+  void clampsStorageHydrationBudgets() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("performance.storage.loadEntriesPerTick", 1);
+    yaml.set("performance.storage.loadBudgetMicros", Long.MAX_VALUE);
+
+    StorageRuntimeConfig config = StorageRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(32, config.loadEntriesPerTick());
+    assertEquals(10_000, config.loadBudgetMicros());
   }
 }

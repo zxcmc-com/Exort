@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -29,9 +31,11 @@ final class WorldEditRefreshScheduler {
   private final Set<ChunkKey> queuedGraphChunks = new LinkedHashSet<>();
   private final Set<ChunkKey> queuedDisplayChunks = new LinkedHashSet<>();
   private final Set<ChunkKey> queuedBusChunks = new LinkedHashSet<>();
+  private final Set<BukkitTask> deferredTasks = ConcurrentHashMap.newKeySet();
   private BukkitTask drainTask;
   private BukkitTask networkSealTask;
   private long activeNetworkBatchId = -1L;
+  private volatile boolean closed;
 
   WorldEditRefreshScheduler(WorldEditBridgeDependencies deps, Runnable queueGaugeUpdater) {
     this.deps = deps;
@@ -48,7 +52,7 @@ final class WorldEditRefreshScheduler {
       Set<BlockRef> networkRefreshStarts,
       String reason,
       boolean invalidateGraph) {
-    if (chunkKeys == null || chunkKeys.isEmpty()) {
+    if (closed || chunkKeys == null || chunkKeys.isEmpty()) {
       return;
     }
     if (!deps.bulkConfig().enabled()) {
@@ -79,29 +83,22 @@ final class WorldEditRefreshScheduler {
   }
 
   void scheduleDeferredRefresh(Set<ChunkKey> chunkKeys) {
-    if (chunkKeys == null || chunkKeys.isEmpty()) {
+    if (closed || chunkKeys == null || chunkKeys.isEmpty()) {
       return;
     }
     Set<ChunkKey> chunks = Set.copyOf(chunkKeys);
     for (long delay : DEFERRED_REFRESH_DELAYS_TICKS) {
-      try {
-        Bukkit.getScheduler()
-            .runTaskLater(
-                deps.plugin(),
-                () -> {
-                  if (!deps.plugin().isEnabled()) {
-                    return;
-                  }
-                  refreshAffectedChunks(chunks, Set.of(), "deferred_" + delay + "t", false);
-                },
-                delay);
-      } catch (RuntimeException ignored) {
-        // The plugin may be disabling while a WorldEdit flush finishes.
-      }
+      scheduleDeferredTask(
+          () -> refreshAffectedChunks(chunks, Set.of(), "deferred_" + delay + "t", false), delay);
     }
   }
 
   void shutdown() {
+    closed = true;
+    for (BukkitTask task : deferredTasks) {
+      task.cancel();
+    }
+    deferredTasks.clear();
     if (drainTask != null) {
       drainTask.cancel();
       drainTask = null;
@@ -118,6 +115,9 @@ final class WorldEditRefreshScheduler {
   }
 
   void finishNetworkBatch() {
+    if (closed) {
+      return;
+    }
     sealActiveNetworkBatch();
   }
 
@@ -142,6 +142,9 @@ final class WorldEditRefreshScheduler {
   }
 
   private void scheduleQuietNetworkSeal() {
+    if (closed) {
+      return;
+    }
     if (networkSealTask != null) {
       networkSealTask.cancel();
       networkSealTask = null;
@@ -188,7 +191,7 @@ final class WorldEditRefreshScheduler {
   }
 
   private void scheduleDrain() {
-    if (drainTask != null) {
+    if (closed || drainTask != null) {
       return;
     }
     try {
@@ -200,7 +203,41 @@ final class WorldEditRefreshScheduler {
 
   private void drainQueues() {
     drainTask = null;
+    if (closed) {
+      return;
+    }
     PerfStats.measure("worldedit.drain", this::drainQueuesMeasured);
+  }
+
+  private void scheduleDeferredTask(Runnable action, long delayTicks) {
+    if (closed) {
+      return;
+    }
+    AtomicReference<BukkitTask> reference = new AtomicReference<>();
+    try {
+      BukkitTask task =
+          Bukkit.getScheduler()
+              .runTaskLater(
+                  deps.plugin(),
+                  () -> {
+                    BukkitTask current = reference.get();
+                    if (current != null) {
+                      deferredTasks.remove(current);
+                    }
+                    if (closed || !deps.plugin().isEnabled()) {
+                      return;
+                    }
+                    action.run();
+                  },
+                  delayTicks);
+      reference.set(task);
+      deferredTasks.add(task);
+      if (closed && deferredTasks.remove(task)) {
+        task.cancel();
+      }
+    } catch (RuntimeException ignored) {
+      // The plugin may be disabling while a WorldEdit flush finishes.
+    }
   }
 
   private void drainQueuesMeasured() {

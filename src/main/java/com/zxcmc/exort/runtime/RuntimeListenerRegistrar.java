@@ -44,7 +44,6 @@ import com.zxcmc.exort.wireless.listener.WirelessCraftListener;
 import com.zxcmc.exort.wireless.listener.WirelessListener;
 import com.zxcmc.exort.wireless.listener.WirelessListenerDependencies;
 import com.zxcmc.exort.wireless.transmitter.TransmitterListener;
-import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 
 public final class RuntimeListenerRegistrar {
@@ -58,6 +57,7 @@ public final class RuntimeListenerRegistrar {
     StorageClaimReconciler storageClaimReconciler =
         new StorageClaimReconciler(
             deps.plugin(), deps.storageClaimRegistry(), deps.materials().storageCarrier());
+    deps.resources().own("storage claim reconciliation", storageClaimReconciler::close);
     register(deps, storageClaimReconciler);
     storageClaimReconciler.start();
     PlacementComposition placement = createPlacementComposition(deps);
@@ -77,12 +77,16 @@ public final class RuntimeListenerRegistrar {
     }
     registerMonitorListener(deps);
     RightClickPlacementGuard placementGuard = registerPlacementGuard(deps, placementConfig);
-    registerInventoryRefreshListener(deps);
+    InventoryRefreshListener inventoryRefreshListener = registerInventoryRefreshListener(deps);
     registerStorageAnvilRenameListener(deps);
     RecipeRegistration recipes = registerRecipes(deps);
     registerWirelessListeners(deps);
     return new RuntimeListenerRegistration(
-        placementGuard, recipes.craftingRules(), recipes.recipeService(), storageClaimReconciler);
+        placementGuard,
+        recipes.craftingRules(),
+        recipes.recipeService(),
+        storageClaimReconciler,
+        inventoryRefreshListener);
   }
 
   private static void registerCarrierListeners(
@@ -335,7 +339,10 @@ public final class RuntimeListenerRegistrar {
                 deps.playerFeedback(),
                 deps.itemNameService(),
                 new ExortItemLocalizationService(
-                    deps.keys(), deps.lang(), deps.customItems().wirelessConfig()),
+                    deps.keys(),
+                    deps.lang(),
+                    deps.customItems().wirelessConfig(),
+                    deps.storageTierCatalog()),
                 deps.authenticationGate(),
                 deps.worldEditWandGuard(),
                 materials.monitorCarrier(),
@@ -387,6 +394,7 @@ public final class RuntimeListenerRegistrar {
             placementConfig.targetRangeBlocks(),
             placementConfig.guardScale(),
             placementConfig.cornerInset());
+    deps.resources().own("placement guard", placementGuard::stop);
     register(deps, placementGuard);
     placementGuard.start();
     return placementGuard;
@@ -422,14 +430,17 @@ public final class RuntimeListenerRegistrar {
     return paperBackend;
   }
 
-  private static void registerInventoryRefreshListener(RuntimeListenerDependencies deps) {
-    register(
-        deps,
+  private static InventoryRefreshListener registerInventoryRefreshListener(
+      RuntimeListenerDependencies deps) {
+    InventoryRefreshListener listener =
         new InventoryRefreshListener(
             deps.plugin(),
             deps.inventoryRefreshService()::epoch,
             deps.inventoryRefreshService()::refreshPlayerInventory,
-            deps.inventoryRefreshService()::refreshContainerInventory));
+            deps.inventoryRefreshService()::refreshContainerInventory);
+    deps.resources().own("inventory refresh cache", listener::close);
+    register(deps, listener);
+    return listener;
   }
 
   private static void registerStorageAnvilRenameListener(RuntimeListenerDependencies deps) {
@@ -437,20 +448,22 @@ public final class RuntimeListenerRegistrar {
   }
 
   private static RecipeRegistration registerRecipes(RuntimeListenerDependencies deps) {
-    RecipeService previousRecipeService = deps.previousRecipeService();
     CraftingRules craftingRules =
         new CraftingRules(
             deps.keys(),
             deps.craftingConfig().blockVanilla(),
             deps.craftingConfig().allowExternal());
     register(deps, new CraftBlockerListener(craftingRules));
-    RecipeService candidateRecipeService =
-        new RecipeService(deps.plugin(), deps.customItems(), deps.wirelessService());
-    boolean replaced = candidateRecipeService.reloadReplacing(previousRecipeService);
     RecipeService recipeService =
-        replaced || previousRecipeService == null ? candidateRecipeService : previousRecipeService;
+        new RecipeService(
+            deps.plugin(),
+            deps.customItems(),
+            deps.wirelessService(),
+            deps.storageTierCatalog()::find);
+    deps.resources().own("recipes", recipeService::unregisterAll);
+    recipeService.activate(deps.recipeActivation());
     RecipeDiscoveryListener discoveryListener =
-        new RecipeDiscoveryListener(deps.plugin(), recipeService);
+        new RecipeDiscoveryListener(recipeService, deps.generationScope()::runTask);
     register(deps, discoveryListener);
     discoveryListener.discoverForOnlinePlayers();
     return new RecipeRegistration(craftingRules, recipeService);
@@ -490,7 +503,7 @@ public final class RuntimeListenerRegistrar {
   }
 
   private static void register(RuntimeListenerDependencies deps, Listener listener) {
-    Bukkit.getPluginManager().registerEvents(listener, deps.plugin());
+    deps.generationScope().registerListener(listener);
   }
 
   private record RecipeRegistration(CraftingRules craftingRules, RecipeService recipeService) {}

@@ -10,6 +10,7 @@ import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.Objects;
@@ -30,6 +31,7 @@ public record WorldEditBridgeDependencies(
     Supplier<WirelessTransmitterService> wirelessTransmitterServiceSource,
     Supplier<TransmitterSessionManager> transmitterSessionManagerSource,
     Supplier<ItemHologramManager> hologramManagerSource,
+    StorageTierCatalog storageTierCatalog,
     CarrierMaterials materials,
     WorldEditBulkConfig bulkConfig,
     boolean autoConfigureFawe) {
@@ -46,6 +48,7 @@ public record WorldEditBridgeDependencies(
     Objects.requireNonNull(wirelessTransmitterServiceSource, "wirelessTransmitterServiceSource");
     Objects.requireNonNull(transmitterSessionManagerSource, "transmitterSessionManagerSource");
     Objects.requireNonNull(hologramManagerSource, "hologramManagerSource");
+    Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(bulkConfig, "bulkConfig");
   }

@@ -19,6 +19,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -32,12 +33,14 @@ public record ExortRuntimeFactoryDependencies(
     CoreServices core,
     RuntimeConfigSnapshot runtimeConfig,
     RuntimeIntegrationContext integrations,
-    RuntimeHooks hooks) {
+    RuntimeHooks hooks,
+    PreparedRuntime preparedRuntime) {
   public ExortRuntimeFactoryDependencies {
     Objects.requireNonNull(core, "core");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(integrations, "integrations");
     Objects.requireNonNull(hooks, "hooks");
+    Objects.requireNonNull(preparedRuntime, "preparedRuntime");
   }
 
   public JavaPlugin plugin() {
@@ -108,8 +111,12 @@ public record ExortRuntimeFactoryDependencies(
     return integrations.busService();
   }
 
-  public RecipeService previousRecipeService() {
-    return integrations.previousRecipeService();
+  public RecipeService.Activation recipeActivation() {
+    return preparedRuntime.recipeActivation();
+  }
+
+  public StorageTierCatalog storageTierCatalog() {
+    return preparedRuntime.storageTierCatalog();
   }
 
   public boolean resourceMode() {
@@ -122,10 +129,6 @@ public record ExortRuntimeFactoryDependencies(
 
   public Runnable reloadDefaultSortMode() {
     return hooks.reloadDefaultSortMode();
-  }
-
-  public Runnable unregisterReloadableRuntimeListeners() {
-    return hooks.unregisterReloadableRuntimeListeners();
   }
 
   public Runnable setupRegionProtection() {

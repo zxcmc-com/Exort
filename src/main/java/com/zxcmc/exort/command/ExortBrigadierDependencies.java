@@ -17,6 +17,7 @@ import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.platform.PaperChorusPlantUpdates;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,7 @@ public record ExortBrigadierDependencies(
     JavaPlugin plugin,
     Lang lang,
     CommandRuntimeAccess runtimeAccess,
+    Supplier<StorageTierCatalog> storageTierCatalog,
     StorageKeys keys,
     StorageManager storageManager,
     Database database,
@@ -66,6 +68,7 @@ public record ExortBrigadierDependencies(
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(lang, "lang");
     Objects.requireNonNull(runtimeAccess, "runtimeAccess");
+    Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(storageManager, "storageManager");
     Objects.requireNonNull(database, "database");

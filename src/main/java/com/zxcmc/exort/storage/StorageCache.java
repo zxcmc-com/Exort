@@ -216,6 +216,8 @@ public class StorageCache {
   private final Supplier<CacheDebugService> cacheDebugService;
   private final StoredItemCodec storedItemCodec;
   private final Map<String, StorageItem> items = new HashMap<>();
+  private final List<String> indexKeys = new ArrayList<>();
+  private final Map<String, Integer> indexPositions = new HashMap<>();
   private final Set<String> dirtyKeys = new HashSet<>();
   private final Set<String> removedKeys = new HashSet<>();
   private List<StorageCorruption> corruptions = List.of();
@@ -227,6 +229,8 @@ public class StorageCache {
   // refresh.
   private long totalWeighted;
   private long version;
+  private long structuralVersion;
+  private long contentVersion;
   private SortMode sortMode = SortMode.AMOUNT;
   private String displayName;
   private long lastAccessMs;
@@ -267,7 +271,19 @@ public class StorageCache {
 
   public synchronized LoadResult loadFromDb(
       Map<String, DbItem> data, Collection<StorageCorruption> structuralCorruptions) {
+    IncrementalLoad load = beginIncrementalLoad(structuralCorruptions);
+    Map<String, DbItem> safeData = data == null ? Map.of() : data;
+    for (DbItem item : safeData.values()) {
+      appendIncrementalLoad(load, item);
+    }
+    return finishIncrementalLoad(load);
+  }
+
+  synchronized IncrementalLoad beginIncrementalLoad(
+      Collection<StorageCorruption> structuralCorruptions) {
     items.clear();
+    indexKeys.clear();
+    indexPositions.clear();
     dirtyKeys.clear();
     removedKeys.clear();
     List<StorageCorruption> detected =
@@ -277,90 +293,98 @@ public class StorageCache {
     totalWeighted = 0;
     dirty = false;
     version++;
+    structuralVersion++;
+    contentVersion++;
     touch();
-    Map<String, DbItem> safeData = data == null ? Map.of() : data;
-    for (DbItem item : safeData.values()) {
-      if (item == null || item.amount() <= 0) {
-        recordCorruption(
-            item,
-            "amount must be positive",
-            detected,
-            quarantineEntries,
-            System.currentTimeMillis());
-        continue;
-      }
-      byte[] blob = item.blob();
-      if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
-        recordCorruption(
-            item,
-            "invalid serialized item blob length",
-            detected,
-            quarantineEntries,
-            System.currentTimeMillis());
-        continue;
-      }
-      StoredItemCodec.Preflight persisted = storedItemCodec.decodePersisted(item.key(), blob);
-      if (!persisted.accepted()) {
-        recordCorruption(
-            item,
-            "persisted item rejected (" + persisted.failure() + "): " + persisted.detail(),
-            detected,
-            quarantineEntries,
-            System.currentTimeMillis());
-        continue;
-      }
-      StoredItemCodec.PreparedItem prepared = persisted.item();
-      String key = prepared.key();
-      long weight;
-      try {
-        weight = nestedWeight(prepared.internalSample());
-      } catch (RuntimeException e) {
-        recordCorruption(
-            item,
-            "item weight cannot be read: " + failureDetail(e),
-            detected,
-            quarantineEntries,
-            System.currentTimeMillis());
-        continue;
-      }
-      long weighted = saturatingMultiply(item.amount(), weight);
-      if (weight <= 0
-          || weight == Long.MAX_VALUE
-          || weighted == Long.MAX_VALUE
-          || wouldOverflow(totalAmount, item.amount())
-          || wouldOverflow(totalWeighted, weighted)) {
-        recordCorruption(
-            item,
-            "item amount or nested weight would overflow storage totals",
-            detected,
-            quarantineEntries,
-            System.currentTimeMillis());
-        continue;
-      }
-      StorageItem existing = items.get(key);
-      if (existing == null) {
-        items.put(
-            key,
-            new StorageItem(
-                key, prepared.internalSample(), item.amount(), weight, prepared.internalBlob()));
-      } else {
-        existing.add(item.amount());
-      }
-      if (!key.equals(item.key())) {
-        removedKeys.add(item.key());
-        dirtyKeys.add(key);
-        dirty = true;
-        if (logger != null) {
-          logger.warning(
-              "Storage "
-                  + storageId
-                  + " normalized a version-sensitive item representation; the previous row key"
-                  + " will be replaced on the next flush.");
-        }
-      }
-      totalAmount = saturatingAdd(totalAmount, item.amount());
-      totalWeighted = saturatingAdd(totalWeighted, weighted);
+    return new IncrementalLoad(detected, quarantineEntries);
+  }
+
+  synchronized void appendIncrementalLoad(IncrementalLoad load, DbItem item) {
+    Objects.requireNonNull(load, "load");
+    if (item == null || item.amount() <= 0) {
+      recordCorruption(
+          item,
+          "amount must be positive",
+          load.detected,
+          load.quarantineEntries,
+          System.currentTimeMillis());
+      return;
     }
+    byte[] blob = item.blob();
+    if (blob == null || blob.length == 0 || blob.length > MAX_ITEM_BLOB_BYTES) {
+      recordCorruption(
+          item,
+          "invalid serialized item blob length",
+          load.detected,
+          load.quarantineEntries,
+          System.currentTimeMillis());
+      return;
+    }
+    StoredItemCodec.Preflight persisted = storedItemCodec.decodePersisted(item.key(), blob);
+    if (!persisted.accepted()) {
+      recordCorruption(
+          item,
+          "persisted item rejected (" + persisted.failure() + "): " + persisted.detail(),
+          load.detected,
+          load.quarantineEntries,
+          System.currentTimeMillis());
+      return;
+    }
+    StoredItemCodec.PreparedItem prepared = persisted.item();
+    String key = prepared.key();
+    long weight;
+    try {
+      weight = nestedWeight(prepared.internalSample());
+    } catch (RuntimeException e) {
+      recordCorruption(
+          item,
+          "item weight cannot be read: " + failureDetail(e),
+          load.detected,
+          load.quarantineEntries,
+          System.currentTimeMillis());
+      return;
+    }
+    long weighted = saturatingMultiply(item.amount(), weight);
+    if (weight <= 0
+        || weight == Long.MAX_VALUE
+        || weighted == Long.MAX_VALUE
+        || wouldOverflow(totalAmount, item.amount())
+        || wouldOverflow(totalWeighted, weighted)) {
+      recordCorruption(
+          item,
+          "item amount or nested weight would overflow storage totals",
+          load.detected,
+          load.quarantineEntries,
+          System.currentTimeMillis());
+      return;
+    }
+    StorageItem existing = items.get(key);
+    if (existing == null) {
+      putIndexed(
+          key,
+          new StorageItem(
+              key, prepared.internalSample(), item.amount(), weight, prepared.internalBlob()));
+    } else {
+      existing.add(item.amount());
+    }
+    if (!key.equals(item.key())) {
+      removedKeys.add(item.key());
+      dirtyKeys.add(key);
+      dirty = true;
+      if (logger != null) {
+        logger.warning(
+            "Storage "
+                + storageId
+                + " normalized a version-sensitive item representation; the previous row key"
+                + " will be replaced on the next flush.");
+      }
+    }
+    totalAmount = saturatingAdd(totalAmount, item.amount());
+    totalWeighted = saturatingAdd(totalWeighted, weighted);
+  }
+
+  synchronized LoadResult finishIncrementalLoad(IncrementalLoad load) {
+    Objects.requireNonNull(load, "load");
     log(
         CacheDebugService.EventType.LOAD,
         "cache load: "
@@ -371,7 +395,7 @@ public class StorageCache {
             + totalAmount
             + " weighted="
             + totalWeighted);
-    corruptions = List.copyOf(detected);
+    corruptions = List.copyOf(load.detected);
     dirty = dirty || !dirtyKeys.isEmpty() || !removedKeys.isEmpty();
     loaded = true;
     if (!corruptions.isEmpty()) {
@@ -395,72 +419,149 @@ public class StorageCache {
               + " reasons="
               + reasons);
     }
-    return new LoadResult(quarantineEntries);
+    return new LoadResult(load.quarantineEntries);
   }
 
-  public synchronized int refreshCustomItems(
+  static final class IncrementalLoad {
+    private final List<StorageCorruption> detected;
+    private final List<StorageQuarantineEntry> quarantineEntries;
+
+    private IncrementalLoad(
+        List<StorageCorruption> detected, List<StorageQuarantineEntry> quarantineEntries) {
+      this.detected = detected;
+      this.quarantineEntries = quarantineEntries;
+    }
+  }
+
+  public static final class IncrementalCustomItemRefresh {
+    private final long expectedStructuralVersion;
+    private final Map<String, StorageItem> updated;
+    private final Set<String> newDirty = new HashSet<>();
+    private final Set<String> newRemoved = new HashSet<>();
+    private int offset;
+    private long newTotal;
+    private long newWeighted;
+    private int refreshed;
+    private boolean changed;
+    private boolean finished;
+
+    private IncrementalCustomItemRefresh(long expectedStructuralVersion, int expectedSize) {
+      this.expectedStructuralVersion = expectedStructuralVersion;
+      this.updated = new HashMap<>(Math.max(0, expectedSize));
+    }
+
+    public int offset() {
+      return offset;
+    }
+  }
+
+  public int refreshCustomItems(
       CustomItems customItems, WirelessTerminalService wirelessService, boolean inStorage) {
-    if (isReadOnly()) return 0;
-    if (customItems == null) return 0;
-    if (items.isEmpty()) return 0;
-    Map<String, StorageItem> updated = new HashMap<>(items.size());
-    Set<String> newDirty = new HashSet<>();
-    Set<String> newRemoved = new HashSet<>();
-    long newTotal = 0;
-    long newWeighted = 0;
-    int refreshed = 0;
-    boolean changed = false;
-    for (StorageItem item : items.values()) {
-      if (item.amount() <= 0) continue;
-      ItemStack sample = item.sample();
-      boolean custom = customItems.isCustomItem(sample);
-      boolean updatedMeta = false;
-      if (custom) {
-        updatedMeta = customItems.refreshItem(sample, wirelessService, inStorage);
-        if (updatedMeta) {
-          refreshed++;
-          item.setBlob(null);
-        }
-      }
-      String newKey = custom ? ItemKeyUtil.keyFor(sample) : item.key();
-      long weight = nestedWeight(sample);
-      StorageItem target = updated.get(newKey);
-      if (target == null) {
-        ItemStack clone = ItemKeyUtil.cloneSample(sample);
-        StorageItem next = new StorageItem(newKey, clone, item.amount(), weight, null);
-        updated.put(newKey, next);
-      } else {
-        target.add(item.amount());
-      }
-      newTotal = saturatingAdd(newTotal, item.amount());
-      newWeighted = saturatingAdd(newWeighted, saturatingMultiply(item.amount(), weight));
-      if (custom) {
-        if (!newKey.equals(item.key())) {
-          newRemoved.add(item.key());
-          newDirty.add(newKey);
-          changed = true;
-        } else if (updatedMeta) {
-          newDirty.add(newKey);
-          changed = true;
-        }
+    IncrementalCustomItemRefresh refresh = beginIncrementalCustomItemRefresh();
+    while (refreshNextCustomItem(refresh, customItems, wirelessService, inStorage)) {
+      // Explicit whole-cache maintenance path; hydration uses the bounded step API directly.
+    }
+    return finishIncrementalCustomItemRefresh(refresh);
+  }
+
+  public synchronized IncrementalCustomItemRefresh beginIncrementalCustomItemRefresh() {
+    return new IncrementalCustomItemRefresh(structuralVersion, indexKeys.size());
+  }
+
+  public synchronized boolean refreshNextCustomItem(
+      IncrementalCustomItemRefresh refresh,
+      CustomItems customItems,
+      WirelessTerminalService wirelessService,
+      boolean inStorage) {
+    Objects.requireNonNull(refresh, "refresh");
+    requireCustomRefreshOpen(refresh);
+    if (isReadOnly() || customItems == null) {
+      refresh.offset = indexKeys.size();
+      return false;
+    }
+    if (refresh.offset >= indexKeys.size()) {
+      return false;
+    }
+    String originalKey = indexKeys.get(refresh.offset++);
+    StorageItem item = items.get(originalKey);
+    if (item == null || item.amount() <= 0) {
+      return refresh.offset < indexKeys.size();
+    }
+    ItemStack sample = item.sample();
+    boolean custom = customItems.isCustomItem(sample);
+    boolean updatedMeta = false;
+    if (custom) {
+      updatedMeta = customItems.refreshItem(sample, wirelessService, inStorage);
+      if (updatedMeta) {
+        refresh.refreshed++;
+        item.setBlob(null);
       }
     }
-    if (!changed) {
+    String newKey = custom ? ItemKeyUtil.keyFor(sample) : item.key();
+    long weight = nestedWeight(sample);
+    long itemAmount = item.amount();
+    boolean identityChanged = !newKey.equals(item.key()) || weight != item.weight();
+    StorageItem refreshedItem =
+        identityChanged ? new StorageItem(newKey, sample, itemAmount, weight, null) : item;
+    StorageItem target = refresh.updated.get(newKey);
+    if (target == null) {
+      refresh.updated.put(newKey, refreshedItem);
+    } else if (target != refreshedItem) {
+      target.add(itemAmount);
+    }
+    refresh.newTotal = saturatingAdd(refresh.newTotal, itemAmount);
+    refresh.newWeighted =
+        saturatingAdd(refresh.newWeighted, saturatingMultiply(itemAmount, weight));
+    if (custom) {
+      if (identityChanged) {
+        if (!newKey.equals(item.key())) {
+          refresh.newRemoved.add(item.key());
+        }
+        refresh.newDirty.add(newKey);
+        refresh.changed = true;
+      } else if (updatedMeta) {
+        refresh.newDirty.add(newKey);
+        refresh.changed = true;
+      }
+    }
+    return refresh.offset < indexKeys.size();
+  }
+
+  public synchronized int finishIncrementalCustomItemRefresh(IncrementalCustomItemRefresh refresh) {
+    Objects.requireNonNull(refresh, "refresh");
+    requireCustomRefreshOpen(refresh);
+    if (refresh.offset < indexKeys.size()) {
+      throw new IllegalStateException("Custom-item refresh is not complete");
+    }
+    refresh.finished = true;
+    if (!refresh.changed) {
       return 0;
     }
     items.clear();
-    items.putAll(updated);
-    totalAmount = newTotal;
-    totalWeighted = newWeighted;
-    if (!newRemoved.isEmpty()) {
-      removedKeys.addAll(newRemoved);
+    items.putAll(refresh.updated);
+    rebuildIndexKeys();
+    totalAmount = refresh.newTotal;
+    totalWeighted = refresh.newWeighted;
+    if (!refresh.newRemoved.isEmpty()) {
+      removedKeys.addAll(refresh.newRemoved);
     }
-    if (!newDirty.isEmpty()) {
-      dirtyKeys.addAll(newDirty);
+    if (!refresh.newDirty.isEmpty()) {
+      dirtyKeys.addAll(refresh.newDirty);
     }
     dirty = true;
     version++;
-    return refreshed;
+    structuralVersion++;
+    contentVersion++;
+    return refresh.refreshed;
+  }
+
+  private void requireCustomRefreshOpen(IncrementalCustomItemRefresh refresh) {
+    if (refresh.finished) {
+      throw new IllegalStateException("Custom-item refresh is already complete");
+    }
+    if (refresh.expectedStructuralVersion != structuralVersion) {
+      throw new ConcurrentModificationException("Storage structure changed during item refresh");
+    }
   }
 
   public synchronized SortMode getSortMode() {
@@ -579,7 +680,7 @@ public class StorageCache {
     StorageItem existing = plan.existing();
     if (existing == null) {
       StoredItemCodec.PreparedItem prepared = plan.prepared();
-      items.put(
+      putIndexed(
           plan.key(),
           new StorageItem(
               plan.key(),
@@ -587,8 +688,10 @@ public class StorageCache {
               plan.amount(),
               plan.weight(),
               prepared.internalBlob()));
+      structuralVersion++;
     } else {
       existing.add(plan.amount());
+      contentVersion++;
     }
     totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(plan.amount(), plan.weight()));
     markChanged(plan.key());
@@ -668,7 +771,7 @@ public class StorageCache {
     if (reserved == null || !reserved.claimRestore(amount)) return;
     StorageItem existing = items.get(reserved.key);
     if (existing == null) {
-      items.put(
+      putIndexed(
           reserved.key,
           new StorageItem(
               reserved.key,
@@ -676,8 +779,10 @@ public class StorageCache {
               amount,
               reserved.weight,
               reserved.blob == null ? null : Arrays.copyOf(reserved.blob, reserved.blob.length)));
+      structuralVersion++;
     } else {
       existing.add(amount);
+      contentVersion++;
     }
     totalAmount = saturatingAdd(totalAmount, amount);
     totalWeighted = saturatingAdd(totalWeighted, saturatingMultiply(amount, reserved.weight));
@@ -748,9 +853,11 @@ public class StorageCache {
     long removed = Math.min(amount, existing.amount());
     existing.subtract(removed);
     if (existing.amount() <= 0) {
-      items.remove(key);
+      removeIndexed(key);
+      structuralVersion++;
       markRemoved(key);
     } else {
+      contentVersion++;
       markChanged(key);
     }
     totalAmount = Math.max(0L, totalAmount - removed);
@@ -793,8 +900,11 @@ public class StorageCache {
       storageItem.subtract(remove);
       if (storageItem.amount() <= 0) {
         it.remove();
+        removeIndexKey(entry.getKey());
+        structuralVersion++;
         markRemoved(entry.getKey());
       } else {
+        contentVersion++;
         markChanged(entry.getKey());
       }
       totalAmount = Math.max(0L, totalAmount - remove);
@@ -883,6 +993,45 @@ public class StorageCache {
     return take;
   }
 
+  private void putIndexed(String key, StorageItem item) {
+    StorageItem previous = items.put(key, item);
+    if (previous != null) {
+      return;
+    }
+    indexPositions.put(key, indexKeys.size());
+    indexKeys.add(key);
+  }
+
+  private StorageItem removeIndexed(String key) {
+    StorageItem removed = items.remove(key);
+    if (removed != null) {
+      removeIndexKey(key);
+    }
+    return removed;
+  }
+
+  private void removeIndexKey(String key) {
+    Integer position = indexPositions.remove(key);
+    if (position == null) {
+      return;
+    }
+    int lastIndex = indexKeys.size() - 1;
+    String lastKey = indexKeys.remove(lastIndex);
+    if (position < lastIndex) {
+      indexKeys.set(position, lastKey);
+      indexPositions.put(lastKey, position);
+    }
+  }
+
+  private void rebuildIndexKeys() {
+    indexKeys.clear();
+    indexPositions.clear();
+    for (String key : items.keySet()) {
+      indexPositions.put(key, indexKeys.size());
+      indexKeys.add(key);
+    }
+  }
+
   public synchronized boolean hasMatchingWireless(WirelessTerminalService ws, ItemStack sample) {
     if (ws == null || sample == null) return false;
     if (!ws.isWireless(sample)) return false;
@@ -945,6 +1094,72 @@ public class StorageCache {
     }
     return list;
   }
+
+  public synchronized IndexCursor beginIndexCursor() {
+    touch();
+    return new IndexCursor(structuralVersion, contentVersion, indexKeys.size());
+  }
+
+  public synchronized IndexBatch readIndexBatch(IndexCursor cursor, int offset, int maxEntries) {
+    Objects.requireNonNull(cursor, "cursor");
+    if (cursor.structuralVersion != structuralVersion) {
+      return new IndexBatch(cursor, offset, List.of(), false);
+    }
+    int start = Math.max(0, offset);
+    int end = Math.min(indexKeys.size(), start + Math.max(1, maxEntries));
+    List<StorageItem> batch = new ArrayList<>(Math.max(0, end - start));
+    for (int i = start; i < end; i++) {
+      StorageItem item = items.get(indexKeys.get(i));
+      if (item != null && item.amount() > 0) {
+        batch.add(new StorageItem(item.key(), item.sample(), item.amount(), item.weight(), null));
+      }
+    }
+    return new IndexBatch(
+        new IndexCursor(structuralVersion, contentVersion, indexKeys.size()),
+        end,
+        List.copyOf(batch),
+        true);
+  }
+
+  public synchronized Optional<StorageItem> readIndexItem(String key) {
+    StorageItem item = key == null ? null : items.get(key);
+    if (item == null || item.amount() <= 0) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        new StorageItem(item.key(), item.sample(), item.amount(), item.weight(), null));
+  }
+
+  public synchronized DbItemIndexBatch readDbItemIndexBatch(
+      IndexCursor cursor, int offset, int maxEntries) {
+    Objects.requireNonNull(cursor, "cursor");
+    if (cursor.structuralVersion != structuralVersion) {
+      return new DbItemIndexBatch(cursor, offset, List.of(), false);
+    }
+    int start = Math.max(0, offset);
+    int end = Math.min(indexKeys.size(), start + Math.max(1, maxEntries));
+    List<DbItem> batch = new ArrayList<>(Math.max(0, end - start));
+    for (int i = start; i < end; i++) {
+      StorageItem item = items.get(indexKeys.get(i));
+      DbItem dbItem = runtimeDbItem(item);
+      if (dbItem != null) {
+        batch.add(dbItem);
+      }
+    }
+    return new DbItemIndexBatch(
+        new IndexCursor(structuralVersion, contentVersion, indexKeys.size()),
+        end,
+        List.copyOf(batch),
+        true);
+  }
+
+  public record IndexCursor(long structuralVersion, long contentVersion, int size) {}
+
+  public record IndexBatch(
+      IndexCursor current, int nextOffset, List<StorageItem> items, boolean valid) {}
+
+  public record DbItemIndexBatch(
+      IndexCursor current, int nextOffset, List<DbItem> items, boolean valid) {}
 
   public synchronized List<DbItem> snapshotItems() {
     touch();

@@ -6,7 +6,6 @@ import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.WorldEditBridgeDependencies;
 import com.zxcmc.exort.integration.worldedit.WorldEditIntegration;
 import com.zxcmc.exort.network.NetworkGraphCache;
-import com.zxcmc.exort.recipes.RecipeService;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -18,7 +17,6 @@ public record RuntimeIntegrationContext(
     Supplier<RegionProtection> regionProtection,
     Supplier<WorldEditDebugService> worldEditDebugService,
     Supplier<BusService> busService,
-    RecipeService previousRecipeService,
     Function<WorldEditBridgeDependencies, WorldEditIntegration> tryRegisterWorldEdit,
     Consumer<WorldEditIntegration> worldEditIntegrationSink) {
   public RuntimeIntegrationContext {

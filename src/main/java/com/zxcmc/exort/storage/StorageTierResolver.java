@@ -8,7 +8,12 @@ public final class StorageTierResolver {
   public record Resolution(StorageTier tier, long tierMaxItems, boolean orphaned) {}
 
   public static Optional<Resolution> resolve(String tierKey, Long storedMaxItems) {
-    Optional<StorageTier> configured = StorageTier.fromString(tierKey);
+    return resolve(StorageTierCatalog.active(), tierKey, storedMaxItems);
+  }
+
+  public static Optional<Resolution> resolve(
+      StorageTierCatalog catalog, String tierKey, Long storedMaxItems) {
+    Optional<StorageTier> configured = catalog == null ? Optional.empty() : catalog.find(tierKey);
     if (configured.isPresent()) {
       StorageTier tier = configured.get();
       return Optional.of(new Resolution(tier, tier.maxItems(), false));

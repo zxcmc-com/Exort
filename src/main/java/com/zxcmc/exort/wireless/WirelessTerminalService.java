@@ -4,6 +4,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.access.WirelessAccessService;
 import com.zxcmc.exort.wireless.bind.WirelessBindService;
 import com.zxcmc.exort.wireless.charge.WirelessChargeService;
@@ -32,11 +33,21 @@ public class WirelessTerminalService {
 
   public WirelessTerminalService(
       Lang lang, StorageKeys keys, CustomItems customItems, boolean enabled, int rangeBlocks) {
+    this(lang, keys, customItems, enabled, rangeBlocks, StorageTierCatalog.active());
+  }
+
+  public WirelessTerminalService(
+      Lang lang,
+      StorageKeys keys,
+      CustomItems customItems,
+      boolean enabled,
+      int rangeBlocks,
+      StorageTierCatalog storageTiers) {
     this.keys = keys;
     this.customItems = customItems;
     this.enabled = enabled;
     this.chargeService = new WirelessChargeService(keys);
-    this.bindService = new WirelessBindService(keys);
+    this.bindService = new WirelessBindService(keys, storageTiers);
     this.accessService = new WirelessAccessService(bindService);
     this.loreService = new WirelessLoreService(lang, customItems);
   }

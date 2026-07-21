@@ -339,7 +339,7 @@ final class GiveCommand {
       return 1;
     }
     String tierArg = StringArgumentType.getString(context, ARG_TIER).toLowerCase(Locale.ROOT);
-    var tierOpt = StorageTier.fromString(tierArg);
+    var tierOpt = dependencies.storageTierCatalog().get().find(tierArg);
     if (tierOpt.isEmpty()) {
       sendMessage(sender, dependencies.lang().tr(sender, "message.give_unknown"));
       return 1;

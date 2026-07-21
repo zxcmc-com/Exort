@@ -43,6 +43,7 @@ public class SessionManager {
   private final GuiSessionRegistry registry = new GuiSessionRegistry();
   private final GuiRenderScheduler renderScheduler;
   private final GuiSearchCoordinator searchCoordinator = new GuiSearchCoordinator();
+  private final StorageDisplayIndexService displayIndexService;
   private final Map<String, CraftingState> craftingStates = new HashMap<>();
   private final JavaPlugin plugin;
   private final Database database;
@@ -116,10 +117,15 @@ public class SessionManager {
     this.renderScheduler =
         new GuiRenderScheduler(
             registry, task -> Bukkit.getScheduler().runTask(plugin, task).getTaskId());
+    this.displayIndexService = new StorageDisplayIndexService(plugin, () -> this.runtimeConfig);
   }
 
   public JavaPlugin plugin() {
     return plugin;
+  }
+
+  StorageDisplayIndexService displayIndexService() {
+    return displayIndexService;
   }
 
   public BossBarManager bossBarManager() {
@@ -305,6 +311,7 @@ public class SessionManager {
         createSession(type, player, cache, tier, terminal, storageLocation, readOnly, wireless);
     registry.register(session);
     cache.viewerOpened();
+    displayIndexService.acquire(cache);
     player.openInventory(session.getInventory());
     session.render();
     if (storageLocation != null) {
@@ -351,6 +358,7 @@ public class SessionManager {
     GuiSession session = removal.session();
     changed = true;
     session.getCache().viewerClosed();
+    displayIndexService.release(session.getCache());
     session.onClose();
     if (session.getCache().isDirty() && !session.getCache().hasViewers()) {
       storageManager.flush(session.getCache());
@@ -367,6 +375,14 @@ public class SessionManager {
       renderStorage(session.getStorageId(), SortEvent.DEPOSIT);
     }
     return changed;
+  }
+
+  public void shutdown() {
+    stopSessionWatcher();
+    for (GuiSession session : List.copyOf(registry.allSessions())) {
+      forceCloseSession(session.getViewer());
+    }
+    displayIndexService.close();
   }
 
   public GuiSession sessionFor(Player player) {

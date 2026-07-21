@@ -27,6 +27,11 @@ public interface ExortApi {
    * <p>This is a read-only check for external integrations. It does not load chunks and returns
    * {@code false} for {@code null}, stale carriers without matching Exort marker data, and
    * client-only visual proxies.
+   *
+   * <p>This method reads Bukkit world and marker state and must be called on the primary server
+   * thread.
+   *
+   * @throws IllegalStateException when called asynchronously while the server is running
    */
   boolean isExortBlock(Block block);
 
@@ -37,6 +42,11 @@ public interface ExortApi {
    * <p>This is intended for chorus-carrier compatibility checks. It returns {@code false} for
    * BARRIER fallback carriers, VANILLA-mode carriers, stale markers, and client-only visual
    * proxies.
+   *
+   * <p>This method reads Bukkit world and marker state and must be called on the primary server
+   * thread.
+   *
+   * @throws IllegalStateException when called asynchronously while the server is running
    */
   boolean isExortChorusCarrier(Block block);
 }

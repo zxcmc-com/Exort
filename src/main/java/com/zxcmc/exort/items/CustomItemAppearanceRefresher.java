@@ -8,6 +8,7 @@ import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageDisplayName;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -36,18 +37,21 @@ final class CustomItemAppearanceRefresher {
   private final CustomItemModelConfig models;
   private final WirelessRuntimeConfig wirelessConfig;
   private final boolean clientTranslations;
+  private final StorageTierCatalog storageTiers;
 
   CustomItemAppearanceRefresher(
       StorageKeys keys,
       Lang lang,
       CustomItemModelConfig models,
       WirelessRuntimeConfig wirelessConfig,
-      boolean clientTranslations) {
+      boolean clientTranslations,
+      StorageTierCatalog storageTiers) {
     this.keys = keys;
     this.lang = lang;
     this.models = models;
     this.wirelessConfig = wirelessConfig;
     this.clientTranslations = clientTranslations;
+    this.storageTiers = storageTiers;
   }
 
   boolean refresh(ItemStack stack, WirelessTerminalService wirelessService, boolean inStorage) {
@@ -80,6 +84,7 @@ final class CustomItemAppearanceRefresher {
   private boolean refreshStorage(ItemStack stack, ItemMeta meta, PersistentDataContainer pdc) {
     StorageTierResolver.Resolution resolution =
         StorageTierResolver.resolve(
+                storageTiers,
                 pdc.get(keys.storageTier(), PersistentDataType.STRING),
                 pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG))
             .orElse(null);

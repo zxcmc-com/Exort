@@ -10,10 +10,14 @@ class GuiRuntimeConfigTest {
   void readsMovedSessionCheckInterval() {
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("performance.sessionDeviceCheckIntervalTicks", 12L);
+    yaml.set("performance.gui.indexEntriesPerTick", 1024);
+    yaml.set("performance.gui.indexBudgetMicros", 5000);
 
     GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
 
     assertEquals(12L, config.sessionDeviceCheckIntervalTicks());
+    assertEquals(1024, config.indexEntriesPerTick());
+    assertEquals(5000, config.indexBudgetMicros());
   }
 
   @Test
@@ -36,5 +40,17 @@ class GuiRuntimeConfigTest {
     assertEquals(
         GuiRuntimeConfig.MAX_SESSION_DEVICE_CHECK_INTERVAL_TICKS,
         config.sessionDeviceCheckIntervalTicks());
+  }
+
+  @Test
+  void clampsGuiIndexBudgets() {
+    YamlConfiguration yaml = new YamlConfiguration();
+    yaml.set("performance.gui.indexEntriesPerTick", 0L);
+    yaml.set("performance.gui.indexBudgetMicros", Long.MAX_VALUE);
+
+    GuiRuntimeConfig config = GuiRuntimeConfig.fromConfig(yaml);
+
+    assertEquals(32, config.indexEntriesPerTick());
+    assertEquals(10_000, config.indexBudgetMicros());
   }
 }

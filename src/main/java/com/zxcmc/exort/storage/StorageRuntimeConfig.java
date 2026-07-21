@@ -11,7 +11,9 @@ public record StorageRuntimeConfig(
     String defaultSortModeName,
     int flushIntervalSeconds,
     long cacheIdleUnloadSeconds,
-    long cacheIdleCheckSeconds) {
+    long cacheIdleCheckSeconds,
+    int loadEntriesPerTick,
+    int loadBudgetMicros) {
   static final int MAX_SCHEDULER_INTERVAL_SECONDS = 86_400;
 
   public StorageRuntimeConfig {
@@ -52,7 +54,9 @@ public record StorageRuntimeConfig(
         numbers.longInteger(
             "performance.storage.idleUnloadSeconds", 300, 0, MAX_SCHEDULER_INTERVAL_SECONDS),
         numbers.longInteger(
-            "performance.storage.idleCheckSeconds", 60, 0, MAX_SCHEDULER_INTERVAL_SECONDS));
+            "performance.storage.idleCheckSeconds", 60, 0, MAX_SCHEDULER_INTERVAL_SECONDS),
+        (int) numbers.longInteger("performance.storage.loadEntriesPerTick", 256, 32, 4096),
+        (int) numbers.longInteger("performance.storage.loadBudgetMicros", 2000, 250, 10000));
   }
 
   public static long secondsToTicks(long seconds) {

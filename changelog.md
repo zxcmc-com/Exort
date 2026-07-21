@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.11 — 2026-07-21
+- Runtime reload now prepares Storage tiers and recipes before teardown, publishes one generation state, restores exact recipe/discovery/disabled-external state on failure, and cancels generation-owned listeners, scheduled work, claim hydration, and deferred WorldEdit callbacks.
+- Chorusfix, Nexo, Oraxen, and protection-provider lifecycle watchers are registered once for the plugin lifetime again, so providers enabled or disabled after startup are reconciled without duplicate reload listeners.
+- Large Storage loads, loaded-Storage clones, and terminal search/sort indexes now use configurable shared per-tick count/time budgets; incomplete caches and pages remain unavailable until complete, and only the visible page clones item stacks.
+- Container refresh tracking is bounded to an 8192-entry LRU, and SQLite shutdown no longer closes its connection concurrently with a running statement.
+- Public block-classification API calls now fail fast off the server thread, while tier descriptors remain available through an immutable published snapshot.
+
 ## 0.19.10 — 2026-07-20
 - Bus and GUI background processing now avoids redundant temporary collection copies during routine server ticks, reducing avoidable allocation pressure without changing processing limits or session behavior.
 

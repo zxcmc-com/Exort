@@ -3,6 +3,7 @@ package com.zxcmc.exort.wireless.bind;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.WirelessMeta;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,9 +15,15 @@ import org.bukkit.persistence.PersistentDataType;
 
 public final class WirelessBindService {
   private final StorageKeys keys;
+  private final StorageTierCatalog storageTiers;
 
   public WirelessBindService(StorageKeys keys) {
+    this(keys, StorageTierCatalog.active());
+  }
+
+  public WirelessBindService(StorageKeys keys, StorageTierCatalog storageTiers) {
     this.keys = keys;
+    this.storageTiers = storageTiers;
   }
 
   public void bind(
@@ -59,7 +66,7 @@ public final class WirelessBindService {
     StorageTier tier = null;
     String tierRaw = pdc.get(keys.wirelessTier(), PersistentDataType.STRING);
     if (tierRaw != null) {
-      tier = StorageTier.fromString(tierRaw).orElse(null);
+      tier = storageTiers.find(tierRaw).orElse(null);
     }
     String storageId =
         PdcValueSanitizer.uuidString(pdc.get(keys.wirelessStorageId(), PersistentDataType.STRING));
@@ -84,7 +91,7 @@ public final class WirelessBindService {
 
   public Optional<StorageTier> tier(PersistentDataContainer pdc) {
     String raw = pdc.get(keys.wirelessTier(), PersistentDataType.STRING);
-    return StorageTier.fromString(raw);
+    return storageTiers.find(raw);
   }
 
   public Location storageLocation(PersistentDataContainer pdc) {

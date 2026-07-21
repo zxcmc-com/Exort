@@ -1,6 +1,5 @@
 package com.zxcmc.exort.gui;
 
-import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.items.ItemKeyUtil;
@@ -14,6 +13,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -67,6 +67,10 @@ public abstract class AbstractStorageSession implements SearchableSession {
   private int wirelessRefreshTaskId = -1;
   private boolean wirelessForceRebuild;
   private long wirelessRefreshUntilMs;
+  private IndexRequestKey pendingIndexKey;
+  private CompletableFuture<StorageDisplayIndexService.Result> pendingIndex;
+  private boolean indexReady;
+  private Throwable indexFailure;
 
   protected AbstractStorageSession(
       Player viewer,
@@ -205,7 +209,8 @@ public abstract class AbstractStorageSession implements SearchableSession {
     long version = cache.version();
     String itemLanguage = itemDictionaryLanguage();
     long nameServiceVersion = itemNames == null ? 0L : itemNames.version(itemLanguage);
-    if (!wirelessForceRebuild
+    if (indexReady
+        && !wirelessForceRebuild
         && version == lastBuildVersion
         && nameServiceVersion == lastBuildNameServiceVersion
         && Objects.equals(itemLanguage, lastBuildItemLanguage)
@@ -217,30 +222,110 @@ public abstract class AbstractStorageSession implements SearchableSession {
     }
     wirelessRefreshUntilMs = 0L;
     wirelessForceRebuild = false;
-    StorageDisplayListBuilder.Result result =
-        PerfStats.measure(
-            PerfStats.Area.GUI,
-            () ->
-                StorageDisplayListBuilder.build(
-                    cache.itemsSnapshot(),
-                    sortMode,
-                    sortFrozen,
-                    sortOrder,
-                    searchQuery,
-                    itemNames,
-                    lang,
-                    keys,
-                    itemLanguage,
-                    page,
-                    pageSize(),
-                    StorageDisplayListBuilder.DEFAULT_MAX_DISPLAY_ENTRIES,
-                    this::displaySample));
-    sortOrder = result.sortOrder();
-    searchResultsCount = result.searchResultsCount();
-    displayCategories = result.displayCategories();
-    displayListTruncated = result.truncated();
-    rememberBuildCache(version, nameServiceVersion, itemLanguage);
-    return result.displayList();
+    IndexRequestKey requestKey =
+        new IndexRequestKey(
+            nameServiceVersion,
+            itemLanguage,
+            sortMode,
+            sortFrozen,
+            List.copyOf(sortOrder),
+            searchQuery,
+            page);
+    if (!requestKey.equals(pendingIndexKey)) {
+      boolean backgroundContentRefresh =
+          indexReady
+              && nameServiceVersion == lastBuildNameServiceVersion
+              && Objects.equals(itemLanguage, lastBuildItemLanguage)
+              && sortMode == lastBuildSortMode
+              && sortFrozen == lastBuildSortFrozen
+              && page == lastBuildPage
+              && Objects.equals(searchQuery, lastBuildSearchQuery);
+      if (pendingIndex != null) {
+        pendingIndex.cancel(false);
+      }
+      pendingIndexKey = requestKey;
+      if (!backgroundContentRefresh) {
+        indexReady = false;
+        displayList = List.of();
+        displayCategories = List.of();
+      }
+      indexFailure = null;
+      pendingIndex =
+          manager
+              .displayIndexService()
+              .request(
+                  new StorageDisplayIndexService.Request(
+                      cache,
+                      sortMode,
+                      sortFrozen,
+                      sortOrder,
+                      searchQuery,
+                      itemNames,
+                      lang,
+                      keys,
+                      itemLanguage,
+                      page,
+                      pageSize(),
+                      this::displaySample));
+      CompletableFuture<StorageDisplayIndexService.Result> requested = pendingIndex;
+      requested.whenComplete(
+          (result, failure) -> {
+            if (pendingIndex != requested || !requestKey.equals(pendingIndexKey)) {
+              return;
+            }
+            if (failure != null) {
+              Throwable cause = unwrapIndexFailure(failure);
+              if (cause instanceof StorageDisplayIndexService.StaleStructureException) {
+                pendingIndex = null;
+                pendingIndexKey = null;
+                indexFailure = null;
+                if (manager.sessionFor(viewer) == this) {
+                  manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
+                }
+                return;
+              }
+              indexFailure = failure;
+              return;
+            }
+            sortOrder = result.sortOrder();
+            searchResultsCount = result.searchResultsCount();
+            displayCategories = result.displayCategories();
+            displayListTruncated = false;
+            displayList = result.displayList();
+            indexReady = true;
+            indexFailure = null;
+            pendingIndex = null;
+            pendingIndexKey = null;
+            rememberBuildCache(
+                result.cacheVersion(),
+                itemNames == null ? 0L : itemNames.version(itemDictionaryLanguage()),
+                itemDictionaryLanguage());
+            if (manager.sessionFor(viewer) == this) {
+              manager.renderStorage(cache.getStorageId(), SortEvent.NONE);
+            }
+          });
+    }
+    return displayList;
+  }
+
+  private static Throwable unwrapIndexFailure(Throwable failure) {
+    Throwable current = failure;
+    while ((current instanceof java.util.concurrent.CompletionException
+            || current instanceof java.util.concurrent.ExecutionException)
+        && current.getCause() != null) {
+      current = current.getCause();
+    }
+    return current;
+  }
+
+  protected boolean isIndexReady() {
+    return indexReady;
+  }
+
+  protected ItemStack indexStatusItem(boolean useFillers) {
+    String key = indexFailure == null ? "messages.storage_loading" : "messages.storage_load_failed";
+    Material material = indexFailure == null ? Material.CLOCK : Material.BARRIER;
+    return GuiItems.button(material, tr(key), null, useFillers);
   }
 
   private void rememberBuildCache(long version, long nameServiceVersion, String itemLanguage) {
@@ -252,6 +337,15 @@ public abstract class AbstractStorageSession implements SearchableSession {
     lastBuildSearchQuery = searchQuery;
     lastBuildPage = page;
   }
+
+  private record IndexRequestKey(
+      long nameServiceVersion,
+      String language,
+      SortMode sortMode,
+      boolean sortFrozen,
+      List<String> sortOrder,
+      SearchQuery searchQuery,
+      int page) {}
 
   private void maybeMarkWirelessRefresh(WirelessTerminalService ws, ItemStack sample) {
     long endAt = ws.chargingEndsAtMillis(sample);

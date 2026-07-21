@@ -43,7 +43,7 @@ public final class RuntimeBreakingServicesFactory {
                 deps.regionProtection(),
                 deps.playerFeedback(),
                 deps.chunkLoaderService()));
-    BreakConfig breakConfig = BreakConfig.fromConfig(deps.config(), null);
+    BreakConfig breakConfig = deps.breakConfig();
     BreakSoundConfig breakSoundConfig = BreakSoundConfig.defaults();
     CustomBlockBreaker customBlockBreaker =
         new CustomBlockBreaker(

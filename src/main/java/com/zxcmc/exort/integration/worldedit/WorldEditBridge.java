@@ -78,6 +78,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -136,6 +137,7 @@ public final class WorldEditBridge implements Listener {
   private final AtomicBoolean markerCaptureOverflowWarned = new AtomicBoolean();
   private final Set<WorldEditLoadedMarkerChunkCursor> entityRefreshCursors =
       ConcurrentHashMap.newKeySet();
+  private final Set<BukkitTask> lifecycleTasks = ConcurrentHashMap.newKeySet();
   private final WorldEditMarkerHistory markerHistory = new WorldEditMarkerHistory();
   private final Map<UUID, PendingClipboardPatch> clipboardPatches = new ConcurrentHashMap<>();
   private final Map<UUID, PendingClipboardPatch> pendingCutSourcePatches =
@@ -153,7 +155,7 @@ public final class WorldEditBridge implements Listener {
   private final Object flushTaskLock = new Object();
   private BukkitTask flushTask;
   private BukkitTask directReconciliationTask;
-  private boolean shuttingDown;
+  private volatile boolean shuttingDown;
   private long tickCounter;
 
   private WorldEditBridge(WorldEditBridgeDependencies deps) {
@@ -294,13 +296,13 @@ public final class WorldEditBridge implements Listener {
   }
 
   public void shutdown() {
+    shuttingDown = true;
     try {
       WorldEdit.getInstance().getEventBus().unregister(this);
     } catch (RuntimeException | LinkageError ignored) {
     }
     HandlerList.unregisterAll(this);
     synchronized (flushTaskLock) {
-      shuttingDown = true;
       if (flushTask != null) {
         flushTask.cancel();
         flushTask = null;
@@ -310,6 +312,10 @@ public final class WorldEditBridge implements Listener {
         directReconciliationTask = null;
       }
     }
+    for (BukkitTask task : lifecycleTasks) {
+      task.cancel();
+    }
+    lifecycleTasks.clear();
     refreshScheduler.shutdown();
     clipboardPatcher.shutdown();
     deferredUpdates.clear();
@@ -629,8 +635,7 @@ public final class WorldEditBridge implements Listener {
     pendingMovePatches.remove(actorId);
     pendingHistoryCommands.remove(actorId);
     pendingPasteCommands.put(actorId, pasteCommand);
-    Bukkit.getScheduler()
-        .runTaskLater(plugin, () -> pendingPasteCommands.remove(actorId, pasteCommand), 100L);
+    scheduleLifecycleTask(() -> pendingPasteCommands.remove(actorId, pasteCommand), 100L);
   }
 
   private void rememberMovePatch(UUID actorId, PendingMovePatch movePatch) {
@@ -643,8 +648,7 @@ public final class WorldEditBridge implements Listener {
       return;
     }
     pendingMovePatches.put(actorId, movePatch);
-    Bukkit.getScheduler()
-        .runTaskLater(plugin, () -> pendingMovePatches.remove(actorId, movePatch), 100L);
+    scheduleLifecycleTask(() -> pendingMovePatches.remove(actorId, movePatch), 100L);
   }
 
   private void rememberHistoryCommand(UUID actorId, ParsedHistoryCommand historyCommand) {
@@ -659,8 +663,7 @@ public final class WorldEditBridge implements Listener {
             System.currentTimeMillis(),
             historyStageUses(historyCommand.steps()));
     pendingHistoryCommands.put(actorId, command);
-    Bukkit.getScheduler()
-        .runTaskLater(plugin, () -> pendingHistoryCommands.remove(actorId, command), 100L);
+    scheduleLifecycleTask(() -> pendingHistoryCommands.remove(actorId, command), 100L);
   }
 
   private static int historyStageUses(int steps) {
@@ -726,8 +729,7 @@ public final class WorldEditBridge implements Listener {
     pendingCutSourcePatches.put(actorId, patch);
     pendingCutClipboardTransfers.add(actorId);
     PendingClipboardPatch retainedPatch = patch;
-    Bukkit.getScheduler()
-        .runTaskLater(plugin, () -> pendingCutSourcePatches.remove(actorId, retainedPatch), 100L);
+    scheduleLifecycleTask(() -> pendingCutSourcePatches.remove(actorId, retainedPatch), 100L);
   }
 
   private PendingClipboardPatch pendingCutSourcePatch(Actor actor) {
@@ -1114,21 +1116,46 @@ public final class WorldEditBridge implements Listener {
   }
 
   private void schedulePostCommandRefresh(Set<ChunkKey> chunks, String reason) {
-    if (chunks == null || chunks.isEmpty()) {
+    if (shuttingDown || chunks == null || chunks.isEmpty()) {
       return;
     }
     Set<ChunkKey> affected = Set.copyOf(chunks);
+    scheduleLifecycleTask(
+        () -> {
+          refreshScheduler.refreshAffectedChunks(affected, Set.of(), reason);
+          refreshScheduler.scheduleDeferredRefresh(affected);
+        },
+        1L);
+  }
+
+  private void scheduleLifecycleTask(Runnable action, long delayTicks) {
+    if (shuttingDown) {
+      return;
+    }
+    AtomicReference<BukkitTask> reference = new AtomicReference<>();
     try {
-      Bukkit.getScheduler()
-          .runTaskLater(
-              plugin,
-              () -> {
-                refreshScheduler.refreshAffectedChunks(affected, Set.of(), reason);
-                refreshScheduler.scheduleDeferredRefresh(affected);
-              },
-              1L);
+      BukkitTask task =
+          Bukkit.getScheduler()
+              .runTaskLater(
+                  plugin,
+                  () -> {
+                    BukkitTask current = reference.get();
+                    if (current != null) {
+                      lifecycleTasks.remove(current);
+                    }
+                    if (shuttingDown || !plugin.isEnabled()) {
+                      return;
+                    }
+                    action.run();
+                  },
+                  delayTicks);
+      reference.set(task);
+      lifecycleTasks.add(task);
+      if (shuttingDown && lifecycleTasks.remove(task)) {
+        task.cancel();
+      }
     } catch (RuntimeException ignored) {
-      // Plugin shutdown may reject scheduled refreshes; chunk-load reconciliation remains active.
+      // Plugin shutdown may reject scheduled work; chunk-load reconciliation remains available.
     }
   }
 
@@ -1807,7 +1834,10 @@ public final class WorldEditBridge implements Listener {
     ChunkMarkerStore.clearBlock(plugin, block);
     if (snapshot.storage() != null && Carriers.matchesCarrier(block, deps.storageCarrier())) {
       StorageTierResolver.Resolution resolution =
-          StorageTierResolver.resolve(snapshot.storage().tier(), snapshot.storage().tierMaxItems())
+          StorageTierResolver.resolve(
+                  deps.storageTierCatalog(),
+                  snapshot.storage().tier(),
+                  snapshot.storage().tierMaxItems())
               .orElse(null);
       String storageId = snapshot.storage().storageId();
       if (resolution != null) {
@@ -2263,7 +2293,7 @@ public final class WorldEditBridge implements Listener {
   }
 
   private void deferSnapshotReconcile(World world, int chunkX, int chunkZ) {
-    if (world == null) {
+    if (shuttingDown || world == null) {
       return;
     }
     ChunkKey key = new ChunkKey(world.getUID(), chunkX, chunkZ);
@@ -2271,12 +2301,7 @@ public final class WorldEditBridge implements Listener {
       return;
     }
     updateQueueDepthGauge();
-    try {
-      Bukkit.getScheduler()
-          .runTaskLater(plugin, () -> reconcileDeferredSnapshotChunk(key, "async_snapshot"), 2L);
-    } catch (RuntimeException ignored) {
-      // If the plugin is disabling, the chunk-load fallback is enough for any retained key.
-    }
+    scheduleLifecycleTask(() -> reconcileDeferredSnapshotChunk(key, "async_snapshot"), 2L);
   }
 
   private void reconcileDeferredSnapshotChunk(ChunkKey key, String reason) {

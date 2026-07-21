@@ -10,6 +10,7 @@ import com.zxcmc.exort.storage.StorageClaimLocation;
 import com.zxcmc.exort.storage.StorageClaimStore;
 import com.zxcmc.exort.storage.StorageLoadResult;
 import com.zxcmc.exort.storage.StorageQuarantineEntry;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.sort.SortMode;
 import java.io.File;
 import java.sql.Connection;
@@ -45,13 +46,21 @@ public class Database implements AutoCloseable, StorageClaimStore {
   }
 
   public Database(Logger logger, Supplier<String> defaultSortModeName) {
+    this(logger, defaultSortModeName, StorageTierCatalog::active);
+  }
+
+  public Database(
+      Logger logger,
+      Supplier<String> defaultSortModeName,
+      Supplier<StorageTierCatalog> storageTiers) {
     this.defaultSortModeName =
         defaultSortModeName == null ? () -> SortMode.AMOUNT.name() : defaultSortModeName;
     this.sqlite = new SqliteDatabase(logger);
     this.busSettingsRepository = new BusSettingsRepository(sqlite, logger);
     this.playerStateRepository = new PlayerStateRepository(sqlite, logger);
     this.chunkLoaderRepository = new ChunkLoaderRepository(sqlite, logger);
-    this.storageRepository = new StorageRepository(sqlite, logger, this.defaultSortModeName);
+    this.storageRepository =
+        new StorageRepository(sqlite, logger, this.defaultSortModeName, storageTiers);
   }
 
   public void init(File file) throws SQLException {

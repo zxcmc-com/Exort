@@ -24,6 +24,7 @@ import com.zxcmc.exort.recipes.CraftingRulesConfig;
 import com.zxcmc.exort.recipes.RecipeService;
 import com.zxcmc.exort.relay.RelaySetupTracker;
 import com.zxcmc.exort.storage.StorageClaimRegistry;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
@@ -46,7 +47,10 @@ public record RuntimeListenerDependencies(
     RuntimeBreakingServices breaking,
     RuntimeListenerIntegrations integrations,
     RuntimeListenerPolicies policies,
-    RuntimeHooks hooks) {
+    RuntimeHooks hooks,
+    RuntimeGenerationScope generationScope,
+    StorageTierCatalog storageTierCatalog,
+    RuntimeHandle.Scope resources) {
   public RuntimeListenerDependencies {
     Objects.requireNonNull(core, "core");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
@@ -59,6 +63,9 @@ public record RuntimeListenerDependencies(
     Objects.requireNonNull(integrations, "integrations");
     Objects.requireNonNull(policies, "policies");
     Objects.requireNonNull(hooks, "hooks");
+    Objects.requireNonNull(generationScope, "generationScope");
+    Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
+    Objects.requireNonNull(resources, "resources");
   }
 
   public ItemHologramManager hologramManager() {
@@ -125,8 +132,8 @@ public record RuntimeListenerDependencies(
     return integrations.packetEnhancements();
   }
 
-  public RecipeService previousRecipeService() {
-    return integrations.previousRecipeService();
+  public RecipeService.Activation recipeActivation() {
+    return integrations.recipeActivation();
   }
 
   public BusRuntimeConfig busRuntimeConfig() {

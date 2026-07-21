@@ -1,10 +1,11 @@
 package com.zxcmc.exort.items.listener;
 
 import com.zxcmc.exort.bus.BusSession;
+import com.zxcmc.exort.debug.PerfStats;
 import com.zxcmc.exort.gui.GuiSession;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import org.bukkit.Bukkit;
@@ -22,24 +23,46 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.plugin.Plugin;
 
 public final class InventoryRefreshListener implements Listener {
+  static final int MAX_TRACKED_CONTAINERS = 8_192;
+
   private final Plugin plugin;
   private final IntSupplier refreshEpoch;
   private final Consumer<Player> refreshPlayerInventory;
   private final Consumer<Inventory> refreshContainerInventory;
-  private final Map<String, Integer> refreshed = new ConcurrentHashMap<>();
-  private volatile int lastEpoch = -1;
+  private final Map<String, Integer> refreshed;
+  private final int maxTrackedContainers;
+  private int lastEpoch = -1;
 
   public InventoryRefreshListener(
       Plugin plugin,
       IntSupplier refreshEpoch,
       Consumer<Player> refreshPlayerInventory,
       Consumer<Inventory> refreshContainerInventory) {
+    this(
+        plugin,
+        refreshEpoch,
+        refreshPlayerInventory,
+        refreshContainerInventory,
+        MAX_TRACKED_CONTAINERS);
+  }
+
+  InventoryRefreshListener(
+      Plugin plugin,
+      IntSupplier refreshEpoch,
+      Consumer<Player> refreshPlayerInventory,
+      Consumer<Inventory> refreshContainerInventory,
+      int maxTrackedContainers) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.refreshEpoch = Objects.requireNonNull(refreshEpoch, "refreshEpoch");
     this.refreshPlayerInventory =
         Objects.requireNonNull(refreshPlayerInventory, "refreshPlayerInventory");
     this.refreshContainerInventory =
         Objects.requireNonNull(refreshContainerInventory, "refreshContainerInventory");
+    if (maxTrackedContainers <= 0) {
+      throw new IllegalArgumentException("maxTrackedContainers must be positive");
+    }
+    this.maxTrackedContainers = maxTrackedContainers;
+    this.refreshed = new LinkedHashMap<>(128, 0.75f, true);
   }
 
   @EventHandler
@@ -58,19 +81,48 @@ public final class InventoryRefreshListener implements Listener {
         || inventory.getType() == InventoryType.CRAFTING) return;
     if (holder instanceof Player && inventory.getType() != InventoryType.ENDER_CHEST) return;
     int epoch = refreshEpoch.getAsInt();
+    Player player = event.getPlayer() instanceof Player p ? p : null;
+    String key = resolveKey(inventory, holder, player);
+    if (key == null || key.isBlank()) return;
+    if (!shouldRefresh(key, epoch)) {
+      return;
+    }
+    Bukkit.getScheduler().runTask(plugin, () -> refreshContainerInventory.accept(inventory));
+  }
+
+  boolean shouldRefresh(String key, int epoch) {
+    if (key == null || key.isBlank()) {
+      return false;
+    }
     if (epoch != lastEpoch) {
       refreshed.clear();
       lastEpoch = epoch;
     }
-    Player player = event.getPlayer() instanceof Player p ? p : null;
-    String key = resolveKey(inventory, holder, player);
-    if (key == null || key.isBlank()) return;
     Integer seenEpoch = refreshed.get(key);
     if (seenEpoch != null && seenEpoch == epoch) {
-      return;
+      return false;
     }
     refreshed.put(key, epoch);
-    Bukkit.getScheduler().runTask(plugin, () -> refreshContainerInventory.accept(inventory));
+    if (refreshed.size() > maxTrackedContainers) {
+      var iterator = refreshed.entrySet().iterator();
+      if (iterator.hasNext()) {
+        iterator.next();
+        iterator.remove();
+        PerfStats.incrementCounter("inventoryRefresh.containerCacheEvictions");
+      }
+    }
+    PerfStats.setGauge("inventoryRefresh.trackedContainers", refreshed.size());
+    return true;
+  }
+
+  public void close() {
+    refreshed.clear();
+    lastEpoch = -1;
+    PerfStats.setGauge("inventoryRefresh.trackedContainers", 0);
+  }
+
+  int trackedContainerCount() {
+    return refreshed.size();
   }
 
   private String resolveKey(Inventory inventory, InventoryHolder holder, Player player) {

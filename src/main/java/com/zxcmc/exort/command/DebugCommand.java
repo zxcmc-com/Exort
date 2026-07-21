@@ -928,7 +928,11 @@ final class DebugCommand {
             optState -> {
               Optional<StorageTierResolver.Resolution> resolution =
                   optState.flatMap(
-                      state -> StorageTierResolver.resolve(state.tier(), state.tierMaxItems()));
+                      state ->
+                          StorageTierResolver.resolve(
+                              dependencies.storageTierCatalog().get(),
+                              state.tier(),
+                              state.tierMaxItems()));
               if (resolution.isEmpty()) {
                 return CompletableFuture.completedFuture(
                     new DebugStorageOpen(Optional.empty(), null));

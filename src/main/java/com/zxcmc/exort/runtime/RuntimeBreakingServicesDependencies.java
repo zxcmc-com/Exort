@@ -1,6 +1,7 @@
 package com.zxcmc.exort.runtime;
 
 import com.zxcmc.exort.breaking.BreakAnimationSender;
+import com.zxcmc.exort.breaking.BreakConfig;
 import com.zxcmc.exort.bus.BusService;
 import com.zxcmc.exort.bus.BusSessionManager;
 import com.zxcmc.exort.carrier.CarrierMaterials;
@@ -46,6 +47,7 @@ public record RuntimeBreakingServicesDependencies(
     WorldEditWandGuard worldEditWandGuard,
     PlayerFeedback playerFeedback,
     BreakAnimationSender breakAnimationSender,
+    BreakConfig breakConfig,
     WirelessTransmitterService wirelessTransmitterService,
     TransmitterSessionManager transmitterSessionManager,
     ChunkLoaderService chunkLoaderService,
@@ -70,6 +72,7 @@ public record RuntimeBreakingServicesDependencies(
     Objects.requireNonNull(worldEditWandGuard, "worldEditWandGuard");
     Objects.requireNonNull(playerFeedback, "playerFeedback");
     Objects.requireNonNull(breakAnimationSender, "breakAnimationSender");
+    Objects.requireNonNull(breakConfig, "breakConfig");
     Objects.requireNonNull(wirelessTransmitterService, "wirelessTransmitterService");
     Objects.requireNonNull(transmitterSessionManager, "transmitterSessionManager");
     Objects.requireNonNull(chunkLoaderService, "chunkLoaderService");

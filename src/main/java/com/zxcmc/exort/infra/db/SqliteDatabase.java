@@ -14,7 +14,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -32,28 +31,56 @@ final class SqliteDatabase implements AutoCloseable {
 
   private final Logger logger;
   private final AtomicBoolean closing = new AtomicBoolean();
+  private final AtomicBoolean connectionClosed = new AtomicBoolean();
   private final AtomicInteger queuedOperations = new AtomicInteger();
   private final Set<CompletableFuture<?>> pendingFutures = ConcurrentHashMap.newKeySet();
-  private final ExecutorService executor =
-      new ThreadPoolExecutor(
-          1,
-          1,
-          0L,
-          TimeUnit.MILLISECONDS,
-          new ArrayBlockingQueue<>(QUEUE_CAPACITY),
-          runnable -> {
-            Thread thread = new Thread(runnable, "exort-db");
-            thread.setDaemon(true);
-            return thread;
-          },
-          new ThreadPoolExecutor.AbortPolicy());
-  private Connection connection;
+  private final ThreadPoolExecutor executor;
+  private final long closeTimeoutMillis;
+  private final long forcedCloseTimeoutMillis;
+  private volatile Connection connection;
 
   SqliteDatabase(Logger logger) {
+    this(
+        logger,
+        TimeUnit.SECONDS.toMillis(CLOSE_TIMEOUT_SECONDS),
+        TimeUnit.SECONDS.toMillis(FORCED_CLOSE_TIMEOUT_SECONDS));
+  }
+
+  SqliteDatabase(Logger logger, long closeTimeoutMillis, long forcedCloseTimeoutMillis) {
     this.logger = logger;
+    if (closeTimeoutMillis < 0L || forcedCloseTimeoutMillis < 0L) {
+      throw new IllegalArgumentException("database close timeouts must be non-negative");
+    }
+    this.closeTimeoutMillis = closeTimeoutMillis;
+    this.forcedCloseTimeoutMillis = forcedCloseTimeoutMillis;
+    this.executor =
+        new ThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(QUEUE_CAPACITY),
+            runnable -> {
+              Thread thread = new Thread(runnable, "exort-db");
+              thread.setDaemon(true);
+              return thread;
+            },
+            new ThreadPoolExecutor.AbortPolicy()) {
+          @Override
+          protected void terminated() {
+            try {
+              closeOwnedConnection();
+            } finally {
+              super.terminated();
+            }
+          }
+        };
   }
 
   void init(File file, SchemaInitializer initializer) throws SQLException {
+    if (closing.get()) {
+      throw new IllegalStateException("Database is already closing");
+    }
     File parent = file.getParentFile();
     if (parent != null) {
       try {
@@ -80,10 +107,18 @@ final class SqliteDatabase implements AutoCloseable {
   }
 
   Connection connection() {
-    if (connection == null) {
+    Connection current = connection;
+    if (current == null) {
       throw new IllegalStateException("Database connection is not initialized");
     }
-    return connection;
+    return current;
+  }
+
+  void installConnectionForTesting(Connection connection) {
+    if (this.connection != null || closing.get()) {
+      throw new IllegalStateException("Database connection is already initialized or closing");
+    }
+    this.connection = java.util.Objects.requireNonNull(connection, "connection");
   }
 
   boolean isClosing() {
@@ -213,18 +248,22 @@ final class SqliteDatabase implements AutoCloseable {
 
   @Override
   public void close() {
-    closing.set(true);
+    if (!closing.compareAndSet(false, true)) {
+      return;
+    }
     executor.shutdown();
+    boolean terminated = false;
     try {
-      if (!executor.awaitTermination(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      terminated = executor.awaitTermination(closeTimeoutMillis, TimeUnit.MILLISECONDS);
+      if (!terminated) {
         if (logger != null) {
           logger.warning(
               "Database executor did not stop within "
-                  + CLOSE_TIMEOUT_SECONDS
-                  + "s; forcing shutdown");
+                  + closeTimeoutMillis
+                  + "ms; forcing shutdown");
         }
         executor.shutdownNow();
-        executor.awaitTermination(FORCED_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        terminated = executor.awaitTermination(forcedCloseTimeoutMillis, TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
@@ -237,9 +276,23 @@ final class SqliteDatabase implements AutoCloseable {
     pendingFutures.clear();
     queuedOperations.set(0);
     PerfStats.setGauge("storage-db.queueDepth", 0);
-    if (connection != null) {
+    if (!terminated) {
+      log(
+          Level.SEVERE,
+          "Database worker ignored shutdown; leaving its connection open until the daemon exits to"
+              + " avoid a concurrent JDBC close",
+          null);
+    }
+  }
+
+  private void closeOwnedConnection() {
+    if (!connectionClosed.compareAndSet(false, true)) {
+      return;
+    }
+    Connection owned = connection;
+    if (owned != null) {
       try {
-        connection.close();
+        owned.close();
       } catch (SQLException error) {
         log(Level.SEVERE, "Failed to close database", error);
       } finally {

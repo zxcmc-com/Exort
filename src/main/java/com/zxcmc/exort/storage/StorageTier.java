@@ -2,9 +2,7 @@ package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.api.model.StorageTierDescriptor;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -17,8 +15,6 @@ import org.bukkit.configuration.ConfigurationSection;
 
 public final class StorageTier {
   private static final long ITEMS_PER_PAGE = 45L * 64L;
-  private static volatile Map<String, StorageTier> registry = Map.of();
-
   private final String key;
   private final long maxItems;
   private final Material displayMaterial;
@@ -125,19 +121,27 @@ public final class StorageTier {
   }
 
   public static Optional<StorageTier> fromString(String raw) {
-    if (raw == null) return Optional.empty();
-    return Optional.ofNullable(registry.get(raw.toLowerCase(Locale.ROOT)));
+    return StorageTierCatalog.active().find(raw);
   }
 
   public static Collection<StorageTier> allTiers() {
-    return List.copyOf(registry.values());
+    return StorageTierCatalog.active().tiers();
   }
 
   public static boolean loadFromConfig(ConfigurationSection section, Logger logger) {
+    try {
+      StorageTierCatalog.publish(parseCatalog(section, logger));
+      return true;
+    } catch (IllegalArgumentException invalid) {
+      return false;
+    }
+  }
+
+  static StorageTierCatalog parseCatalog(ConfigurationSection section, Logger logger) {
     Objects.requireNonNull(logger, "logger");
     if (section == null) {
       logger.severe("No tiers section found; keeping the last valid storage tier catalog.");
-      return false;
+      throw new IllegalArgumentException("No tiers section found");
     }
     Map<String, StorageTier> candidate = new LinkedHashMap<>();
     Material fallback = parseMaterialOrNull("STRUCTURE_BLOCK");
@@ -147,7 +151,7 @@ public final class StorageTier {
       if (tierSec == null) {
         logger.severe(
             "Tier '" + key + "' is not a configuration section; keeping the last valid catalog.");
-        return false;
+        throw new IllegalArgumentException("Tier is not a configuration section: " + key);
       }
       long maxItems = parseMaxItems(tierSec.get("maxItems"), logger, key);
       String matRaw = tierSec.getString("material");
@@ -179,19 +183,18 @@ public final class StorageTier {
             "Storage tier key '"
                 + key
                 + "' duplicates another key after normalization; keeping the last valid catalog.");
-        return false;
+        throw new IllegalArgumentException("Duplicate normalized tier key: " + key);
       }
     }
     if (candidate.isEmpty()) {
       logger.severe("No storage tiers configured; keeping the last valid storage tier catalog.");
-      return false;
+      throw new IllegalArgumentException("No storage tiers configured");
     }
-    registry = Collections.unmodifiableMap(new LinkedHashMap<>(candidate));
-    return true;
+    return new StorageTierCatalog(candidate);
   }
 
   static void resetForTests() {
-    registry = Map.of();
+    StorageTierCatalog.resetForTests();
   }
 
   static String humanizeTierKey(String key) {

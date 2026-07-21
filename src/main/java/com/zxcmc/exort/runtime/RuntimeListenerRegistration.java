@@ -1,5 +1,6 @@
 package com.zxcmc.exort.runtime;
 
+import com.zxcmc.exort.items.listener.InventoryRefreshListener;
 import com.zxcmc.exort.placement.RightClickPlacementGuard;
 import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.recipes.RecipeService;
@@ -9,4 +10,5 @@ public record RuntimeListenerRegistration(
     RightClickPlacementGuard placementGuard,
     CraftingRules craftingRules,
     RecipeService recipeService,
-    StorageClaimReconciler storageClaimReconciler) {}
+    StorageClaimReconciler storageClaimReconciler,
+    InventoryRefreshListener inventoryRefreshListener) {}

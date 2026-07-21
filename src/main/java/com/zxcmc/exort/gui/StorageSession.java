@@ -104,6 +104,9 @@ public class StorageSession extends AbstractStorageSession {
       contents[i] = stack;
       slotEntries.put(i, entry);
     }
+    if (!isIndexReady()) {
+      contents[GuiLayout.PAGE_SIZE / 2] = indexStatusItem(useFillers);
+    }
 
     // Buttons and fillers
     String pageInfo = tr("gui.page_info", pageWindow.displayPage(), pageWindow.totalPages());
@@ -241,6 +244,10 @@ public class StorageSession extends AbstractStorageSession {
 
     int rawSlot = event.getRawSlot();
     if (rawSlot >= inventory.getSize()) {
+      if (!isIndexReady()) {
+        event.setCancelled(true);
+        return;
+      }
       handleBottomInventoryShiftDeposit(event);
       return;
     }
@@ -260,6 +267,9 @@ public class StorageSession extends AbstractStorageSession {
       return;
     }
 
+    if (!isIndexReady()) {
+      return;
+    }
     handleStorageSlotTransfer(event, slotEntries.get(rawSlot), SortEvent.NONE, SortEvent.WITHDRAW);
   }
 
