@@ -3,6 +3,7 @@ package com.zxcmc.exort.storage;
 import com.zxcmc.exort.debug.CacheDebugService;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.infra.db.DbItem;
+import com.zxcmc.exort.infra.scheduler.MainThreadWorkScheduler;
 import com.zxcmc.exort.infra.scheduler.RoundRobinMainThreadScheduler;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
@@ -37,7 +38,7 @@ public class StorageManager {
   private final Supplier<WirelessTerminalService> wirelessService;
   private final StorageFlushService flushService;
   private final StorageSortService sortService;
-  private final RoundRobinMainThreadScheduler hydrationScheduler;
+  private final MainThreadWorkScheduler hydrationScheduler;
   private final Map<String, StorageCache> caches = new ConcurrentHashMap<>();
   // Tracks in-flight loads to prevent duplicate DB work for the same storage id.
   private final Map<String, LoadOperation> loading = new ConcurrentHashMap<>();
@@ -54,6 +55,32 @@ public class StorageManager {
       Supplier<CustomItems> customItems,
       Supplier<WirelessTerminalService> wirelessService,
       Supplier<StorageRuntimeConfig> runtimeConfig) {
+    this(
+        database,
+        schedulerPlugin,
+        keys,
+        logger,
+        cacheDebugService,
+        defaultSortModeName,
+        persistSortMode,
+        customItems,
+        wirelessService,
+        runtimeConfig,
+        null);
+  }
+
+  StorageManager(
+      Database database,
+      Plugin schedulerPlugin,
+      StorageKeys keys,
+      Logger logger,
+      Supplier<CacheDebugService> cacheDebugService,
+      Supplier<String> defaultSortModeName,
+      BiConsumer<String, String> persistSortMode,
+      Supplier<CustomItems> customItems,
+      Supplier<WirelessTerminalService> wirelessService,
+      Supplier<StorageRuntimeConfig> runtimeConfig,
+      MainThreadWorkScheduler hydrationScheduler) {
     this.database = Objects.requireNonNull(database, "database");
     this.keys = Objects.requireNonNull(keys, "keys");
     this.logger = Objects.requireNonNull(logger, "logger");
@@ -63,13 +90,16 @@ public class StorageManager {
     this.flushService = new StorageFlushService(this.logger, this.cacheDebugService, this.database);
     this.sortService = new StorageSortService(defaultSortModeName, persistSortMode);
     this.hydrationScheduler =
-        new RoundRobinMainThreadScheduler(
-            Objects.requireNonNull(schedulerPlugin, "schedulerPlugin"),
-            () -> {
-              StorageRuntimeConfig config = runtimeConfig.get();
-              return new RoundRobinMainThreadScheduler.Budget(
-                  config.loadEntriesPerTick(), config.loadBudgetMicros());
-            });
+        hydrationScheduler == null
+            ? new RoundRobinMainThreadScheduler(
+                Objects.requireNonNull(schedulerPlugin, "schedulerPlugin"),
+                () -> {
+                  StorageRuntimeConfig config = runtimeConfig.get();
+                  return new RoundRobinMainThreadScheduler.Budget(
+                      config.loadEntriesPerTick(), config.loadBudgetMicros());
+                },
+                "storage.hydration")
+            : hydrationScheduler;
   }
 
   public CompletableFuture<StorageCache> getOrLoad(String storageId) {

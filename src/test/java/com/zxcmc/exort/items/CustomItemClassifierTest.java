@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.recipes.CraftingRules;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.HashMap;
@@ -99,7 +100,8 @@ class CustomItemClassifierTest {
         null,
         CustomItemModelConfig.empty(),
         com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
-        false);
+        false,
+        StorageTierTestFixtures.current());
   }
 
   private static final class PdcStack extends ItemStack {

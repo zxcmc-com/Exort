@@ -1,7 +1,6 @@
 package com.zxcmc.exort.storage;
 
 import com.zxcmc.exort.api.model.StorageTierDescriptor;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -120,23 +119,6 @@ public final class StorageTier {
         key, maxItems, displayMaterial.getKey().toString(), fallbackDisplayName);
   }
 
-  public static Optional<StorageTier> fromString(String raw) {
-    return StorageTierCatalog.active().find(raw);
-  }
-
-  public static Collection<StorageTier> allTiers() {
-    return StorageTierCatalog.active().tiers();
-  }
-
-  public static boolean loadFromConfig(ConfigurationSection section, Logger logger) {
-    try {
-      StorageTierCatalog.publish(parseCatalog(section, logger));
-      return true;
-    } catch (IllegalArgumentException invalid) {
-      return false;
-    }
-  }
-
   static StorageTierCatalog parseCatalog(ConfigurationSection section, Logger logger) {
     Objects.requireNonNull(logger, "logger");
     if (section == null) {
@@ -191,10 +173,6 @@ public final class StorageTier {
       throw new IllegalArgumentException("No storage tiers configured");
     }
     return new StorageTierCatalog(candidate);
-  }
-
-  static void resetForTests() {
-    StorageTierCatalog.resetForTests();
   }
 
   static String humanizeTierKey(String key) {

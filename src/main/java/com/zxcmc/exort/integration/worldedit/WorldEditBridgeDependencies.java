@@ -8,6 +8,7 @@ import com.zxcmc.exort.display.device.ItemHologramManager;
 import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.infra.db.Database;
 import com.zxcmc.exort.network.NetworkGraphCache;
+import com.zxcmc.exort.runtime.RuntimeGenerationScope;
 import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTierCatalog;
@@ -34,7 +35,8 @@ public record WorldEditBridgeDependencies(
     StorageTierCatalog storageTierCatalog,
     CarrierMaterials materials,
     WorldEditBulkConfig bulkConfig,
-    boolean autoConfigureFawe) {
+    boolean autoConfigureFawe,
+    RuntimeGenerationScope generationScope) {
   public WorldEditBridgeDependencies {
     Objects.requireNonNull(plugin, "plugin");
     Objects.requireNonNull(database, "database");
@@ -51,6 +53,7 @@ public record WorldEditBridgeDependencies(
     Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
     Objects.requireNonNull(materials, "materials");
     Objects.requireNonNull(bulkConfig, "bulkConfig");
+    Objects.requireNonNull(generationScope, "generationScope");
   }
 
   public WorldEditDebugService debugService() {

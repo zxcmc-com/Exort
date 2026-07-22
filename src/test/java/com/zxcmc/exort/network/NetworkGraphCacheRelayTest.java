@@ -15,6 +15,7 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.lang.reflect.InvocationHandler;
 import java.util.Map;
@@ -143,7 +144,7 @@ class NetworkGraphCacheRelayTest {
         config(Map.of("maxItems", 45L * 64L, "material", "minecraft:gold_block"));
     ConfigurationSection diamond =
         config(Map.of("maxItems", 10L * 45L * 64L, "material", "minecraft:diamond_block"));
-    StorageTier.loadFromConfig(
+    StorageTierTestFixtures.load(
         config(Map.of("gold", gold, "diamond", diamond), Set.of("gold", "diamond")),
         Logger.getLogger("ExortTest"));
     BukkitTestDoubles.TestWorld world =
@@ -244,8 +245,8 @@ class NetworkGraphCacheRelayTest {
   }
 
   private static StorageTier loadTier() {
-    StorageTier.loadFromConfig(tiersSection(), Logger.getLogger("ExortTest"));
-    return StorageTier.fromString("BASIC").orElseThrow();
+    StorageTierTestFixtures.load(tiersSection(), Logger.getLogger("ExortTest"));
+    return StorageTierTestFixtures.find("BASIC").orElseThrow();
   }
 
   private static ConfigurationSection tiersSection() {

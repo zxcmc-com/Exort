@@ -46,7 +46,7 @@ public class Database implements AutoCloseable, StorageClaimStore {
   }
 
   public Database(Logger logger, Supplier<String> defaultSortModeName) {
-    this(logger, defaultSortModeName, StorageTierCatalog::active);
+    this(logger, defaultSortModeName, StorageTierCatalog::empty);
   }
 
   public Database(

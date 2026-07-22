@@ -15,6 +15,7 @@ import com.zxcmc.exort.recipes.CraftingRules;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.text.GuiOverlayGlyphs;
@@ -66,6 +67,7 @@ public class SessionManager {
   private final Supplier<Material> storageCarrier;
   private final Supplier<Material> relayCarrier;
   private final Supplier<Material> terminalCarrier;
+  private final Supplier<StorageTierCatalog> storageTierCatalog;
   private final GuiSessionValidator sessionValidator;
   private final Supplier<GuiRuntimeConfig> runtimeConfigSource;
   private final Supplier<GuiOverlayConfig> overlayConfigSource;
@@ -96,6 +98,7 @@ public class SessionManager {
     this.storageCarrier = dependencies.storageCarrier();
     this.relayCarrier = dependencies.relayCarrier();
     this.terminalCarrier = dependencies.terminalCarrier();
+    this.storageTierCatalog = dependencies.storageTierCatalog();
     this.sessionValidator =
         new GuiSessionValidator(
             plugin,
@@ -108,7 +111,8 @@ public class SessionManager {
             relayCarrier,
             terminalCarrier,
             dependencies.regionProtection(),
-            dependencies.networkGraphCache());
+            dependencies.networkGraphCache(),
+            dependencies.storageTierCatalog());
     this.runtimeConfigSource = dependencies.runtimeConfig();
     this.overlayConfigSource = dependencies.overlayConfig();
     this.storageChangeListener = dependencies.storageChangeListener();
@@ -126,6 +130,10 @@ public class SessionManager {
 
   StorageDisplayIndexService displayIndexService() {
     return displayIndexService;
+  }
+
+  StorageTierCatalog storageTierCatalog() {
+    return storageTierCatalog.get();
   }
 
   public BossBarManager bossBarManager() {

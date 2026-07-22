@@ -4,9 +4,7 @@ import com.zxcmc.exort.integration.OptionalProviderLifecycle;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
@@ -26,7 +24,6 @@ public final class WorldEditRuntimeBootstrap {
     OptionalProviderLifecycle<WorldEditIntegration> lifecycle =
         new OptionalProviderLifecycle<>(integrationSink, WorldEditIntegration::shutdown);
     lifecycle.enable(() -> registrar.apply(dependencies));
-    Plugin plugin = dependencies.plugin();
     Listener watcher =
         new Listener() {
           @EventHandler
@@ -50,8 +47,8 @@ public final class WorldEditRuntimeBootstrap {
             }
           }
         };
-    Bukkit.getPluginManager().registerEvents(watcher, plugin);
-    return new Registration(watcher, lifecycle);
+    dependencies.generationScope().registerListener(watcher);
+    return new Registration(lifecycle);
   }
 
   private static boolean isWorldEditProvider(String pluginName) {
@@ -60,18 +57,15 @@ public final class WorldEditRuntimeBootstrap {
 
   private static boolean otherProviderIsEnabled(String disabledProvider) {
     String other = "WorldEdit".equals(disabledProvider) ? "FastAsyncWorldEdit" : "WorldEdit";
-    Plugin plugin = Bukkit.getPluginManager().getPlugin(other);
+    Plugin plugin = org.bukkit.Bukkit.getPluginManager().getPlugin(other);
     return plugin != null && plugin.isEnabled();
   }
 
   public static final class Registration implements AutoCloseable {
-    private final Listener watcher;
     private final OptionalProviderLifecycle<WorldEditIntegration> lifecycle;
     private boolean closed;
 
-    private Registration(
-        Listener watcher, OptionalProviderLifecycle<WorldEditIntegration> lifecycle) {
-      this.watcher = watcher;
+    private Registration(OptionalProviderLifecycle<WorldEditIntegration> lifecycle) {
       this.lifecycle = lifecycle;
     }
 
@@ -85,7 +79,6 @@ public final class WorldEditRuntimeBootstrap {
         return;
       }
       closed = true;
-      HandlerList.unregisterAll(watcher);
       lifecycle.close();
     }
   }

@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.marker.StorageMarker;
-import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
@@ -35,7 +35,7 @@ class GuiSessionValidatorTest {
     config.set("basic.maxItems", 64);
     config.set("basic.material", "CHEST");
     config.set("basic.name", "Basic");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 
   @Test
@@ -46,7 +46,7 @@ class GuiSessionValidatorTest {
         plugin,
         anchor.block,
         "storage-a",
-        StorageTier.fromString("basic").orElseThrow(),
+        StorageTierTestFixtures.find("basic").orElseThrow(),
         BlockFace.NORTH);
 
     assertTrue(validator(plugin).hasLiveStorageAnchor("storage-a", anchor.location()));
@@ -68,7 +68,7 @@ class GuiSessionValidatorTest {
         plugin,
         anchor.block,
         "storage-b",
-        StorageTier.fromString("basic").orElseThrow(),
+        StorageTierTestFixtures.find("basic").orElseThrow(),
         BlockFace.NORTH);
 
     assertFalse(validator(plugin).hasLiveStorageAnchor("storage-a", anchor.location()));
@@ -96,7 +96,8 @@ class GuiSessionValidatorTest {
         () -> Material.BARRIER,
         () -> Material.BARRIER,
         RegionProtection::allowAll,
-        () -> null);
+        () -> null,
+        StorageTierTestFixtures::current);
   }
 
   private static Plugin plugin() {

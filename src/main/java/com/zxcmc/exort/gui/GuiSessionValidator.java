@@ -7,6 +7,7 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.network.TerminalLinkFinder;
 import com.zxcmc.exort.platform.PlayerInteractionRange;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import java.util.function.IntSupplier;
@@ -31,6 +32,7 @@ final class GuiSessionValidator {
   private final Supplier<Material> terminalCarrier;
   private final Supplier<RegionProtection> regionProtection;
   private final Supplier<NetworkGraphCache> networkGraphCache;
+  private final Supplier<StorageTierCatalog> storageTierCatalog;
 
   GuiSessionValidator(
       Plugin plugin,
@@ -43,7 +45,8 @@ final class GuiSessionValidator {
       Supplier<Material> relayCarrier,
       Supplier<Material> terminalCarrier,
       Supplier<RegionProtection> regionProtection,
-      Supplier<NetworkGraphCache> networkGraphCache) {
+      Supplier<NetworkGraphCache> networkGraphCache,
+      Supplier<StorageTierCatalog> storageTierCatalog) {
     this.plugin = plugin;
     this.keys = keys;
     this.wireLimit = wireLimit;
@@ -55,6 +58,7 @@ final class GuiSessionValidator {
     this.terminalCarrier = terminalCarrier;
     this.regionProtection = regionProtection;
     this.networkGraphCache = networkGraphCache;
+    this.storageTierCatalog = storageTierCatalog;
   }
 
   boolean isSessionValid(GuiSession session) {
@@ -171,7 +175,7 @@ final class GuiSessionValidator {
     if (!world.isChunkLoaded(x >> 4, z >> 4)) return false;
     Block block = world.getBlockAt(x, anchor.getBlockY(), z);
     if (!Carriers.matchesCarrier(block, carrier)) return false;
-    return StorageMarker.get(plugin, block)
+    return StorageMarker.get(plugin, block, storageTierCatalog.get())
         .map(data -> expectedStorageId.equals(data.storageId()))
         .orElse(false);
   }

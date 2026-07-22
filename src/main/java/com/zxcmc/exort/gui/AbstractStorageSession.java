@@ -202,7 +202,8 @@ public abstract class AbstractStorageSession implements SearchableSession {
   }
 
   protected boolean matchesQuery(ItemStack stack) {
-    return searchQuery.matches(stack, itemNames, lang, keys, itemDictionaryLanguage());
+    return searchQuery.matches(
+        stack, itemNames, lang, keys, manager.storageTierCatalog(), itemDictionaryLanguage());
   }
 
   protected List<DisplayEntry> buildDisplayList() {
@@ -255,6 +256,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
               .displayIndexService()
               .request(
                   new StorageDisplayIndexService.Request(
+                      this,
                       cache,
                       sortMode,
                       sortFrozen,
@@ -263,6 +265,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
                       itemNames,
                       lang,
                       keys,
+                      manager.storageTierCatalog(),
                       itemLanguage,
                       page,
                       pageSize(),

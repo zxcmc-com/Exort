@@ -42,15 +42,6 @@ public final class ExortItemLocalizationService {
   private final WirelessRuntimeConfig wirelessConfig;
   private final StorageTierCatalog storageTiers;
 
-  public ExortItemLocalizationService(StorageKeys keys, Lang lang) {
-    this(keys, lang, WirelessRuntimeConfig.defaults());
-  }
-
-  public ExortItemLocalizationService(
-      StorageKeys keys, Lang lang, WirelessRuntimeConfig wirelessConfig) {
-    this(keys, lang, wirelessConfig, StorageTierCatalog.active());
-  }
-
   public ExortItemLocalizationService(
       StorageKeys keys,
       Lang lang,

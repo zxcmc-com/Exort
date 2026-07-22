@@ -14,7 +14,7 @@ import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TerminalKind;
 import com.zxcmc.exort.marker.TerminalMarker;
 import com.zxcmc.exort.marker.WireMarker;
-import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.EnumMap;
@@ -44,7 +44,7 @@ class BreakingOverlayModelResolverTest {
     config.set("basic.maxItems", 64);
     config.set("basic.material", "CHEST");
     config.set("basic.name", "Basic");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 
   @Test
@@ -67,7 +67,7 @@ class BreakingOverlayModelResolverTest {
         plugin,
         storage.block,
         "storage-1",
-        StorageTier.fromString("basic").orElseThrow(),
+        StorageTierTestFixtures.find("basic").orElseThrow(),
         BlockFace.EAST);
     TerminalMarker.set(plugin, terminal.block, TerminalKind.CRAFTING, BlockFace.WEST);
     MonitorMarker.set(plugin, monitor.block, BlockFace.NORTH);

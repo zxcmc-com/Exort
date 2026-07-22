@@ -6,6 +6,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.RelayMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.lang.reflect.InvocationHandler;
 import java.util.Map;
@@ -159,8 +160,8 @@ class RelayVisualStateResolverTest {
   }
 
   private static StorageTier loadTier() {
-    StorageTier.loadFromConfig(tiersSection(), Logger.getLogger("ExortTest"));
-    return StorageTier.fromString("BASIC").orElseThrow();
+    StorageTierTestFixtures.load(tiersSection(), Logger.getLogger("ExortTest"));
+    return StorageTierTestFixtures.find("BASIC").orElseThrow();
   }
 
   private static ConfigurationSection tiersSection() {

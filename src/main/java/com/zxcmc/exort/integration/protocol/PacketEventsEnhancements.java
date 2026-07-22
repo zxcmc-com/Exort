@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -76,6 +77,7 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
   private final List<PacketListenerCommon> packetListeners = new ArrayList<>();
   private final Map<Feature, FeatureProbe> featureProbes = new ConcurrentHashMap<>();
   private final PacketPlayerLanguageSnapshot playerLanguages = new PacketPlayerLanguageSnapshot();
+  private final AtomicBoolean unregistered = new AtomicBoolean();
   private volatile LocalizationHandlers localizationHandlers = LocalizationHandlers.disabled();
   private Listener localeListener;
   private boolean localizationRegistered;
@@ -316,6 +318,13 @@ public final class PacketEventsEnhancements implements PacketEnhancements {
 
   @Override
   public void unregister() {
+    if (!unregistered.compareAndSet(false, true)) {
+      return;
+    }
+    unregisterLoaded();
+  }
+
+  private void unregisterLoaded() {
     localizationHandlers = LocalizationHandlers.disabled();
     playerLanguages.replace(Map.of());
     if (localeListener != null) {

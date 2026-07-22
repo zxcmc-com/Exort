@@ -87,7 +87,8 @@ final class InventoryCommand {
                           actor.getLocation());
                 }
               },
-              () -> FeatureAccessConfig.fromConfig(dependencies.plugin().getConfig()))
+              () -> FeatureAccessConfig.fromConfig(dependencies.plugin().getConfig()),
+              dependencies.storageTierCatalog())
           .open(player);
     } catch (IllegalStateException e) {
       ExortLog.log(dependencies.plugin(), Level.WARNING, "Failed to open Exort inventory menu", e);

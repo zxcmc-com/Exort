@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
@@ -22,7 +23,7 @@ class StorageTierTextTest {
     loadRareTier();
     Lang lang = new Lang(null, null, Path.of("src/main/resources"));
     lang.load("en_us");
-    StorageTier tier = StorageTier.fromString("rare").orElseThrow();
+    StorageTier tier = StorageTierTestFixtures.find("rare").orElseThrow();
 
     Component englishName = StorageTierText.storageName(lang, "en_us", tier);
 
@@ -51,7 +52,7 @@ class StorageTierTextTest {
     config.set("rare.material", "CHEST");
     config.set("rare.name", "{tier.rare}");
     config.set("rare.color", "<red>");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 
   private static String plain(Component component) {

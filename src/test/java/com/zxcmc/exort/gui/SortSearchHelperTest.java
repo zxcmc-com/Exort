@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -77,12 +77,24 @@ class SortSearchHelperTest {
 
     assertTrue(
         SortSearchHelper.matchesQuery(
-            diamond, List.of("diamant"), itemNames, harness.lang(), harness.keys(), "de_de"));
+            diamond,
+            List.of("diamant"),
+            itemNames,
+            harness.lang(),
+            harness.keys(),
+            StorageTierTestFixtures.current(),
+            "de_de"));
   }
 
   private static boolean matches(ItemStack stack, String query, Harness harness) {
     return SortSearchHelper.matchesQuery(
-        stack, List.of(query), null, harness.lang(), harness.keys(), "ru_ru");
+        stack,
+        List.of(query),
+        null,
+        harness.lang(),
+        harness.keys(),
+        StorageTierTestFixtures.current(),
+        "ru_ru");
   }
 
   private static Harness harness() {
@@ -114,7 +126,7 @@ class SortSearchHelperTest {
     config.set("rare.maxItems", "5p");
     config.set("rare.material", "CHEST");
     config.set("rare.name", "{tier.rare}");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 
   private ItemNameService itemNameService(String language, Map<String, String> entries)

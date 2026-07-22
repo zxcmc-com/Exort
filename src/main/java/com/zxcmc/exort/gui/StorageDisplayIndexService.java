@@ -2,10 +2,12 @@ package com.zxcmc.exort.gui;
 
 import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
+import com.zxcmc.exort.infra.scheduler.MainThreadWorkScheduler;
 import com.zxcmc.exort.infra.scheduler.RoundRobinMainThreadScheduler;
 import com.zxcmc.exort.items.ItemKeyUtil;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.bukkit.inventory.ItemStack;
@@ -26,7 +29,7 @@ import org.bukkit.plugin.Plugin;
  * Builds shared storage snapshots and viewer-specific display indexes under a global tick budget.
  */
 public final class StorageDisplayIndexService implements AutoCloseable {
-  private final RoundRobinMainThreadScheduler scheduler;
+  private final MainThreadWorkScheduler scheduler;
   private final Map<String, ActiveIndex> active = new HashMap<>();
   private long generationSequence;
 
@@ -38,7 +41,12 @@ public final class StorageDisplayIndexService implements AutoCloseable {
               GuiRuntimeConfig config = configSource.get();
               return new RoundRobinMainThreadScheduler.Budget(
                   config.indexEntriesPerTick(), config.indexBudgetMicros());
-            });
+            },
+            "gui.index");
+  }
+
+  StorageDisplayIndexService(MainThreadWorkScheduler scheduler) {
+    this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
   }
 
   public void acquire(StorageCache cache) {
@@ -64,6 +72,7 @@ public final class StorageDisplayIndexService implements AutoCloseable {
       state.entries = List.of();
       state.baseReady = false;
       state.build = null;
+      cancelPending(state);
     }
   }
 
@@ -75,36 +84,81 @@ public final class StorageDisplayIndexService implements AutoCloseable {
           new CancellationException("Storage index has no active viewers"));
     }
     long generation = state.generation;
-    return ensureBaseIndex(state)
-        .thenCompose(
-            entries -> {
-              requireActive(state, generation);
-              return scheduler.submit(new DisplayBuildWork(state, generation, entries, request));
-            })
-        .thenApply(
-            result -> {
-              requireActive(state, generation);
-              StorageCache.IndexCursor current = state.cache.beginIndexCursor();
-              if (current.structuralVersion() != result.structuralVersion()) {
-                throw new StaleStructureException();
+    CompletableFuture<Result> requested = new CompletableFuture<>();
+    CompletableFuture<Result> previous = state.pendingByOwner.put(request.owner(), requested);
+    if (previous != null) {
+      previous.cancel(false);
+    }
+    AtomicReference<CompletableFuture<Result>> scheduledWork = new AtomicReference<>();
+    ensureBaseIndex(state)
+        .whenComplete(
+            (entries, baseFailure) -> {
+              if (requested.isDone()) {
+                return;
               }
-              return result;
+              if (baseFailure != null) {
+                requested.completeExceptionally(baseFailure);
+                return;
+              }
+              try {
+                requireActive(state, generation);
+                CompletableFuture<Result> work =
+                    scheduler.submit(new DisplayBuildWork(state, generation, entries, request));
+                scheduledWork.set(work);
+                if (requested.isCancelled()) {
+                  work.cancel(false);
+                  return;
+                }
+                work.whenComplete(
+                    (result, failure) -> {
+                      if (failure != null) {
+                        requested.completeExceptionally(failure);
+                        return;
+                      }
+                      try {
+                        requireActive(state, generation);
+                        StorageCache.IndexCursor current = state.cache.beginIndexCursor();
+                        if (current.structuralVersion() != result.structuralVersion()
+                            || current.contentVersion() != result.contentVersion()) {
+                          throw new StaleStructureException(current, result);
+                        }
+                        requested.complete(result);
+                      } catch (RuntimeException | LinkageError validationFailure) {
+                        requested.completeExceptionally(validationFailure);
+                      }
+                    });
+              } catch (RuntimeException | LinkageError submissionFailure) {
+                requested.completeExceptionally(submissionFailure);
+              }
             });
+    requested.whenComplete(
+        (ignored, failure) -> {
+          state.pendingByOwner.remove(request.owner(), requested);
+          if (requested.isCancelled()) {
+            CompletableFuture<Result> work = scheduledWork.get();
+            if (work != null) {
+              work.cancel(false);
+            }
+          }
+        });
+    return requested;
   }
 
   private CompletableFuture<List<StorageCache.StorageItem>> ensureBaseIndex(ActiveIndex state) {
     StorageCache.IndexCursor current = state.cache.beginIndexCursor();
     if (state.baseReady && state.structuralVersion == current.structuralVersion()) {
+      state.contentVersion = current.contentVersion();
       return CompletableFuture.completedFuture(state.entries);
     }
     if (state.build != null && !state.build.isDone()) {
       return state.build;
     }
     long generation = state.generation;
-    CompletableFuture<List<StorageCache.StorageItem>> build =
+    CompletableFuture<List<StorageCache.StorageItem>> scheduled =
         scheduler.submit(new BaseBuildWork(state, generation));
+    CompletableFuture<List<StorageCache.StorageItem>> build = new CompletableFuture<>();
     state.build = build;
-    build.whenComplete(
+    scheduled.whenComplete(
         (entries, failure) -> {
           if (failure == null && isActive(state, generation)) {
             StorageCache.IndexCursor cursor = state.cache.beginIndexCursor();
@@ -112,6 +166,12 @@ public final class StorageDisplayIndexService implements AutoCloseable {
             state.structuralVersion = cursor.structuralVersion();
             state.contentVersion = cursor.contentVersion();
             state.baseReady = true;
+            build.complete(state.entries);
+          } else if (failure != null) {
+            build.completeExceptionally(failure);
+          } else {
+            build.completeExceptionally(
+                new CancellationException("Storage base index generation was closed"));
           }
           if (state.build == build) {
             state.build = null;
@@ -139,12 +199,29 @@ public final class StorageDisplayIndexService implements AutoCloseable {
       state.viewers = 0;
       state.entries = List.of();
       state.baseReady = false;
+      cancelPending(state);
     }
     active.clear();
     scheduler.close();
   }
 
+  int activeIndexCount() {
+    return active.size();
+  }
+
+  int pendingRequestCount() {
+    return active.values().stream().mapToInt(state -> state.pendingByOwner.size()).sum();
+  }
+
+  private static void cancelPending(ActiveIndex state) {
+    for (CompletableFuture<Result> pending : List.copyOf(state.pendingByOwner.values())) {
+      pending.cancel(false);
+    }
+    state.pendingByOwner.clear();
+  }
+
   public record Request(
+      Object owner,
       StorageCache cache,
       SortMode sortMode,
       boolean sortFrozen,
@@ -153,15 +230,18 @@ public final class StorageDisplayIndexService implements AutoCloseable {
       ItemNameService itemNames,
       Lang lang,
       StorageKeys keys,
+      StorageTierCatalog storageTiers,
       String language,
       int page,
       int pageSize,
       Function<StorageCache.StorageItem, ItemStack> displaySample) {
     public Request {
+      Objects.requireNonNull(owner, "owner");
       Objects.requireNonNull(cache, "cache");
       Objects.requireNonNull(sortMode, "sortMode");
       previousSortOrder = List.copyOf(previousSortOrder);
       Objects.requireNonNull(searchQuery, "searchQuery");
+      Objects.requireNonNull(storageTiers, "storageTiers");
       Objects.requireNonNull(language, "language");
       if (pageSize <= 0) {
         throw new IllegalArgumentException("pageSize must be positive");
@@ -181,9 +261,26 @@ public final class StorageDisplayIndexService implements AutoCloseable {
 
   public static final class StaleStructureException extends RuntimeException {
     private StaleStructureException() {
-      super("Storage structure changed while the display index was being built");
+      super("Storage structure or content changed while the display index was being built");
+    }
+
+    private StaleStructureException(IndexCursorView current, IndexCursorView result) {
+      super(
+          "Storage structure or content changed while the display index was being built: current="
+              + current
+              + ", result="
+              + result);
+    }
+
+    private StaleStructureException(
+        StorageCache.IndexCursor current, StorageDisplayIndexService.Result result) {
+      this(
+          new IndexCursorView(current.structuralVersion(), current.contentVersion()),
+          new IndexCursorView(result.structuralVersion(), result.contentVersion()));
     }
   }
+
+  private record IndexCursorView(long structuralVersion, long contentVersion) {}
 
   private static final class ActiveIndex {
     private final StorageCache cache;
@@ -194,6 +291,7 @@ public final class StorageDisplayIndexService implements AutoCloseable {
     private List<StorageCache.StorageItem> entries = List.of();
     private boolean baseReady;
     private CompletableFuture<List<StorageCache.StorageItem>> build;
+    private final Map<Object, CompletableFuture<Result>> pendingByOwner = new HashMap<>();
 
     private ActiveIndex(StorageCache cache, long generation) {
       this.cache = cache;
@@ -284,7 +382,11 @@ public final class StorageDisplayIndexService implements AutoCloseable {
     @Override
     public RoundRobinMainThreadScheduler.Slice runSlice(int maxEntries, long deadlineNanos) {
       requireActive(state, generation);
+      long sliceStarted = System.nanoTime();
+      long sortDeadlineNanos =
+          sliceStarted + Math.max(1L, Math.max(0L, deadlineNanos - sliceStarted) / 4L);
       int processed = 0;
+      boolean madeProgress = false;
       while (processed < maxEntries && System.nanoTime() < deadlineNanos) {
         switch (phase) {
           case PREPARE -> {
@@ -295,14 +397,25 @@ public final class StorageDisplayIndexService implements AutoCloseable {
             }
             prepare(entries.get(cursor++));
             processed++;
+            madeProgress = true;
           }
           case SORT -> {
+            // Sorting is CPU-dense compared with preparing or assembling one entry. Reserve only
+            // part of the shared time slice so faster convergence does not turn into an MSPT
+            // regression for smaller indexes.
+            if (System.nanoTime() >= sortDeadlineNanos) {
+              return new RoundRobinMainThreadScheduler.Slice(processed, false, madeProgress);
+            }
             if (sorter.step()) {
               assembly = new Assembly(sorter.result(), request);
               phase = Phase.ASSEMBLE;
+              madeProgress = true;
               continue;
             }
-            processed++;
+            // Comparator work is bounded by the time deadline, but it is not another storage
+            // entry. Charging every merge step against entriesPerTick turns an O(n log n) sort
+            // into thousands of mostly idle ticks for large storages.
+            madeProgress = true;
           }
           case ASSEMBLE -> {
             if (assembly.step()) {
@@ -315,14 +428,15 @@ public final class StorageDisplayIndexService implements AutoCloseable {
               continue;
             }
             processed++;
+            madeProgress = true;
           }
           case COMPLETE -> {
-            return new RoundRobinMainThreadScheduler.Slice(processed, true);
+            return new RoundRobinMainThreadScheduler.Slice(processed, true, true);
           }
         }
       }
       return new RoundRobinMainThreadScheduler.Slice(
-          Math.max(1, processed), phase == Phase.COMPLETE);
+          processed, phase == Phase.COMPLETE, madeProgress);
     }
 
     private void prepare(StorageCache.StorageItem item) {
@@ -336,6 +450,7 @@ public final class StorageDisplayIndexService implements AutoCloseable {
               request.itemNames(),
               request.lang(),
               request.keys(),
+              request.storageTiers(),
               request.language());
       String id = item.sample().getType().getKey().getKey();
       boolean match =
@@ -347,6 +462,7 @@ public final class StorageDisplayIndexService implements AutoCloseable {
                   request.itemNames(),
                   request.lang(),
                   request.keys(),
+                  request.storageTiers(),
                   request.language());
       CreativeTabOrder order = CreativeTabOrder.get();
       if (request.sortMode() == SortMode.CATEGORY

@@ -39,7 +39,7 @@ final class StorageRepository {
   private final Supplier<StorageTierCatalog> storageTiers;
 
   StorageRepository(SqliteDatabase database, Logger logger, Supplier<String> defaultSortModeName) {
-    this(database, logger, defaultSortModeName, StorageTierCatalog::active);
+    this(database, logger, defaultSortModeName, StorageTierCatalog::empty);
   }
 
   StorageRepository(
@@ -51,7 +51,7 @@ final class StorageRepository {
     this.logger = logger;
     this.defaultSortModeName =
         defaultSortModeName == null ? () -> SortMode.AMOUNT.name() : defaultSortModeName;
-    this.storageTiers = storageTiers == null ? StorageTierCatalog::active : storageTiers;
+    this.storageTiers = storageTiers == null ? StorageTierCatalog::empty : storageTiers;
   }
 
   public CompletableFuture<Void> ensureStorage(String id) {

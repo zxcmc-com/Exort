@@ -8,12 +8,14 @@ import com.zxcmc.exort.display.refresh.DisplayRefreshService;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.network.NetworkGraphCache;
 import com.zxcmc.exort.storage.StorageManager;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import java.util.Objects;
 import org.bukkit.Material;
 
 public record LoadTestRuntimeDependencies(
     StorageKeys keys,
     StorageManager storageManager,
+    StorageTierCatalog storageTierCatalog,
     DisplayRefreshService displayRefreshService,
     BusService busService,
     NetworkGraphCache networkGraphCache,
@@ -27,6 +29,7 @@ public record LoadTestRuntimeDependencies(
   public LoadTestRuntimeDependencies {
     Objects.requireNonNull(keys, "keys");
     Objects.requireNonNull(storageManager, "storageManager");
+    Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
     Objects.requireNonNull(displayRefreshService, "displayRefreshService");
     Objects.requireNonNull(busService, "busService");
     Objects.requireNonNull(networkGraphCache, "networkGraphCache");

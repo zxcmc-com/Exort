@@ -1,5 +1,6 @@
 package com.zxcmc.exort.infra.scheduler;
 
+import com.zxcmc.exort.debug.PerfStats;
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -10,14 +11,18 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 /** Runs cooperative jobs on the main thread under one global count and time budget per tick. */
-public final class RoundRobinMainThreadScheduler implements AutoCloseable {
+public final class RoundRobinMainThreadScheduler implements MainThreadWorkScheduler {
   public interface Work<T> {
     Slice runSlice(int maxEntries, long deadlineNanos);
 
     T result();
   }
 
-  public record Slice(int processedEntries, boolean complete) {
+  public record Slice(int processedEntries, boolean complete, boolean madeProgress) {
+    public Slice(int processedEntries, boolean complete) {
+      this(processedEntries, complete, processedEntries > 0 || complete);
+    }
+
     public Slice {
       if (processedEntries < 0) {
         throw new IllegalArgumentException("processedEntries must not be negative");
@@ -35,14 +40,22 @@ public final class RoundRobinMainThreadScheduler implements AutoCloseable {
 
   private final Plugin plugin;
   private final Supplier<Budget> budgetSource;
+  private final String diagnosticsLabel;
   private final ArrayDeque<QueuedWork<?>> jobs = new ArrayDeque<>();
   private final AtomicBoolean closed = new AtomicBoolean();
   private BukkitTask tickTask;
   private boolean startPending;
 
   public RoundRobinMainThreadScheduler(Plugin plugin, Supplier<Budget> budgetSource) {
+    this(plugin, budgetSource, null);
+  }
+
+  public RoundRobinMainThreadScheduler(
+      Plugin plugin, Supplier<Budget> budgetSource, String diagnosticsLabel) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.budgetSource = Objects.requireNonNull(budgetSource, "budgetSource");
+    this.diagnosticsLabel =
+        diagnosticsLabel == null || diagnosticsLabel.isBlank() ? null : diagnosticsLabel.strip();
   }
 
   public <T> CompletableFuture<T> submit(Work<T> work) {
@@ -55,6 +68,7 @@ public final class RoundRobinMainThreadScheduler implements AutoCloseable {
         return queued.future;
       }
       jobs.addLast(queued);
+      recordPendingJobsLocked();
       requestStartLocked();
     }
     return queued.future;
@@ -77,9 +91,13 @@ public final class RoundRobinMainThreadScheduler implements AutoCloseable {
   }
 
   private void runTick() {
+    long tickStarted = System.nanoTime();
     Budget budget = Objects.requireNonNull(budgetSource.get(), "budgetSource returned null");
     int remaining = budget.entriesPerTick();
-    long deadline = System.nanoTime() + Math.max(1L, (long) budget.budgetMicros()) * 1_000L;
+    long budgetNanos = Math.max(1L, (long) budget.budgetMicros()) * 1_000L;
+    // Leave half of the configured main-thread allowance for surrounding Bukkit/Purpur work and
+    // for a single entry operation that crosses the cooperative deadline slightly.
+    long deadline = System.nanoTime() + Math.max(1L, budgetNanos / 2L);
     int turns;
     synchronized (this) {
       turns = jobs.size();
@@ -100,10 +118,23 @@ public final class RoundRobinMainThreadScheduler implements AutoCloseable {
         }
       }
     }
+    int processed = budget.entriesPerTick() - remaining;
+    int pending;
     synchronized (this) {
       if (jobs.isEmpty() && tickTask != null) {
         tickTask.cancel();
         tickTask = null;
+      }
+      pending = jobs.size();
+      recordPendingJobsLocked();
+    }
+    if (diagnosticsLabel != null) {
+      long elapsed = System.nanoTime() - tickStarted;
+      PerfStats.record(diagnosticsLabel + ".tick", elapsed);
+      PerfStats.setGauge(diagnosticsLabel + ".processedEntries", processed);
+      PerfStats.addCounter(diagnosticsLabel + ".processedEntriesTotal", processed);
+      if (pending > 0 && elapsed > budgetNanos) {
+        PerfStats.incrementCounter(diagnosticsLabel + ".overruns");
       }
     }
   }
@@ -120,6 +151,13 @@ public final class RoundRobinMainThreadScheduler implements AutoCloseable {
     IllegalStateException failure = new IllegalStateException("Main-thread work scheduler closed");
     while (!jobs.isEmpty()) {
       jobs.removeFirst().future.completeExceptionally(failure);
+    }
+    recordPendingJobsLocked();
+  }
+
+  private void recordPendingJobsLocked() {
+    if (diagnosticsLabel != null) {
+      PerfStats.setGauge(diagnosticsLabel + ".pendingJobs", jobs.size());
     }
   }
 
@@ -144,7 +182,7 @@ public final class RoundRobinMainThreadScheduler implements AutoCloseable {
           future.complete(work.result());
           return true;
         }
-        if (lastProcessed == 0) {
+        if (!slice.madeProgress() && System.nanoTime() < deadlineNanos) {
           future.completeExceptionally(
               new IllegalStateException("Cooperative job made no progress in its slice"));
           return true;

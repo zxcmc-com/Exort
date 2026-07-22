@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -395,7 +396,8 @@ class RecipeServiceTest {
           null,
           com.zxcmc.exort.items.CustomItemModelConfig.empty(),
           com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
-          false);
+          false,
+          StorageTierTestFixtures.current());
     }
 
     @Override

@@ -10,6 +10,7 @@ import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.runtime.RuntimeItemModelConfig;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -40,7 +41,7 @@ class WirelessTerminalServiceStoredChargeTest {
     tiers.set("common.maxItems", "1p");
     tiers.set("common.material", "CHEST");
     tiers.set("common.name", "Common");
-    com.zxcmc.exort.storage.StorageTier.loadFromConfig(tiers, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(tiers, Logger.getLogger("test"));
   }
 
   @Test
@@ -135,7 +136,7 @@ class WirelessTerminalServiceStoredChargeTest {
             owner,
             terminal,
             storageId,
-            com.zxcmc.exort.storage.StorageTier.fromString("common").orElseThrow(),
+            StorageTierTestFixtures.find("common").orElseThrow(),
             storageLocation));
     assertEquals(ownerId.toString(), harness.service.owner(terminal));
     assertEquals(storageId, harness.service.storageId(terminal));
@@ -155,8 +156,16 @@ class WirelessTerminalServiceStoredChargeTest {
     RuntimeItemModelConfig itemModels = RuntimeItemModelConfig.forMode(true);
     CustomItems customItems =
         new CustomItems(
-            keys, lang, itemModels.customItemModels(), WirelessRuntimeConfig.defaults(), true);
-    return new Harness(keys, new WirelessTerminalService(lang, keys, customItems, true, 48));
+            keys,
+            lang,
+            itemModels.customItemModels(),
+            WirelessRuntimeConfig.defaults(),
+            true,
+            StorageTierTestFixtures.current());
+    return new Harness(
+        keys,
+        new WirelessTerminalService(
+            lang, keys, customItems, true, 48, StorageTierTestFixtures.current()));
   }
 
   private static Player player(UUID id, String name) {

@@ -1,7 +1,6 @@
 package com.zxcmc.exort.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,54 +19,52 @@ class StorageTierTest {
 
   @BeforeEach
   void resetCatalog() {
-    StorageTier.resetForTests();
+    StorageTierTestFixtures.reset();
   }
 
   @Test
-  void parsedCandidateCatalogIsInvisibleUntilAtomicPublication() {
-    YamlConfiguration active = validCatalog("basic", 100L);
-    assertTrue(StorageTier.loadFromConfig(active, LOGGER));
-    YamlConfiguration candidate = validCatalog("rare", 200L);
+  void parsedCatalogsRemainIndependent() {
+    StorageTierCatalog active = StorageTierCatalog.parse(validCatalog("basic", 100L), LOGGER);
+    StorageTierCatalog candidate = StorageTierCatalog.parse(validCatalog("rare", 200L), LOGGER);
 
-    StorageTierCatalog parsed = StorageTierCatalog.parse(candidate, LOGGER);
-
-    assertTrue(StorageTier.fromString("basic").isPresent());
-    assertTrue(StorageTier.fromString("rare").isEmpty());
-    StorageTierCatalog.publish(parsed);
-    assertTrue(StorageTier.fromString("basic").isEmpty());
-    assertEquals(200L, StorageTier.fromString("rare").orElseThrow().maxItems());
+    assertTrue(active.find("basic").isPresent());
+    assertTrue(active.find("rare").isEmpty());
+    assertTrue(candidate.find("basic").isEmpty());
+    assertEquals(200L, candidate.find("rare").orElseThrow().maxItems());
   }
 
   @Test
-  void invalidReplacementKeepsLastValidCatalog() {
+  void invalidCandidateCannotMutateExistingCatalog() {
     YamlConfiguration valid = new YamlConfiguration();
     valid.set("basic.maxItems", 128);
     valid.set("basic.material", "CHEST");
-    assertTrue(StorageTier.loadFromConfig(valid, LOGGER));
+    StorageTierCatalog active = StorageTierCatalog.parse(valid, LOGGER);
 
-    assertFalse(StorageTier.loadFromConfig(new YamlConfiguration(), LOGGER));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> StorageTierCatalog.parse(new YamlConfiguration(), LOGGER));
 
-    StorageTier tier = StorageTier.fromString("basic").orElseThrow();
+    StorageTier tier = active.find("basic").orElseThrow();
     assertEquals(128, tier.maxItems());
     assertEquals(Material.CHEST, tier.displayMaterial());
   }
 
   @Test
-  void normalizedDuplicateKeyKeepsLastValidCatalog() {
+  void normalizedDuplicateKeyRejectsCandidateWithoutMutatingExistingCatalog() {
     YamlConfiguration valid = new YamlConfiguration();
     valid.set("basic.maxItems", 128);
     valid.set("basic.material", "CHEST");
-    assertTrue(StorageTier.loadFromConfig(valid, LOGGER));
+    StorageTierCatalog active = StorageTierCatalog.parse(valid, LOGGER);
     YamlConfiguration duplicate = new YamlConfiguration();
     duplicate.set("rare.maxItems", 256);
     duplicate.set("rare.material", "GOLD_BLOCK");
     duplicate.set("RARE.maxItems", 512);
     duplicate.set("RARE.material", "DIAMOND_BLOCK");
 
-    assertFalse(StorageTier.loadFromConfig(duplicate, LOGGER));
+    assertThrows(IllegalArgumentException.class, () -> StorageTierCatalog.parse(duplicate, LOGGER));
 
-    assertTrue(StorageTier.fromString("basic").isPresent());
-    assertTrue(StorageTier.fromString("rare").isEmpty());
+    assertTrue(active.find("basic").isPresent());
+    assertTrue(active.find("rare").isEmpty());
   }
 
   @Test
@@ -77,9 +74,9 @@ class StorageTierTest {
     config.set("basic.material", "CHEST");
     config.set("basic.name", "Basic");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("basic");
+    var tier = StorageTierTestFixtures.find("basic");
     assertTrue(tier.isPresent());
     assertEquals(45L * 64L * 2L, tier.get().maxItems());
     assertEquals(Material.CHEST, tier.get().displayMaterial());
@@ -91,9 +88,9 @@ class StorageTierTest {
     config.set("overflow.maxItems", Long.MAX_VALUE + "p");
     config.set("overflow.material", "CHEST");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("overflow");
+    var tier = StorageTierTestFixtures.find("overflow");
     assertTrue(tier.isPresent());
     assertEquals(45L * 64L * 5L, tier.get().maxItems());
   }
@@ -104,9 +101,9 @@ class StorageTierTest {
     config.set("zero.maxItems", 0);
     config.set("zero.material", "CHEST");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("zero");
+    var tier = StorageTierTestFixtures.find("zero");
     assertTrue(tier.isPresent());
     assertEquals(45L * 64L * 5L, tier.get().maxItems());
   }
@@ -117,9 +114,9 @@ class StorageTierTest {
     config.set("basic.maxItems", 128);
     config.set("basic.material", "minecraft:chest");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("BASIC");
+    var tier = StorageTierTestFixtures.find("BASIC");
     assertTrue(tier.isPresent());
     assertEquals(Material.CHEST, tier.get().displayMaterial());
   }
@@ -130,9 +127,9 @@ class StorageTierTest {
     config.set("basic_storage.maxItems", 128);
     config.set("basic_storage.material", "CHEST");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("basic_storage").orElseThrow();
+    var tier = StorageTierTestFixtures.find("basic_storage").orElseThrow();
     assertEquals("Basic Storage", tier.fallbackDisplayName());
     assertEquals("Basic Storage", tier.descriptor().displayName());
   }
@@ -144,9 +141,9 @@ class StorageTierTest {
     config.set("rare.material", "CHEST");
     config.set("rare.displayName", "Legacy Rare");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("rare").orElseThrow();
+    var tier = StorageTierTestFixtures.find("rare").orElseThrow();
     assertEquals("Rare", tier.fallbackDisplayName());
     assertTrue(tier.translationKey().isEmpty());
   }
@@ -158,9 +155,9 @@ class StorageTierTest {
     config.set("rare.material", "CHEST");
     config.set("rare.name", "{tier.rare}");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var tier = StorageTier.fromString("rare").orElseThrow();
+    var tier = StorageTierTestFixtures.find("rare").orElseThrow();
     assertEquals("Rare", tier.fallbackDisplayName());
     assertEquals("tier.rare", tier.translationKey().orElseThrow());
   }
@@ -175,11 +172,12 @@ class StorageTierTest {
     config.set("named.material", "CHEST");
     config.set("named.color", "<red>");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
     assertEquals(
-        TextColor.fromHexString("#4b69ff"), StorageTier.fromString("hex").orElseThrow().color());
-    assertEquals(NamedTextColor.RED, StorageTier.fromString("named").orElseThrow().color());
+        TextColor.fromHexString("#4b69ff"),
+        StorageTierTestFixtures.find("hex").orElseThrow().color());
+    assertEquals(NamedTextColor.RED, StorageTierTestFixtures.find("named").orElseThrow().color());
   }
 
   @Test
@@ -189,9 +187,9 @@ class StorageTierTest {
     config.set("bad.material", "CHEST");
     config.set("bad.color", "<#zzzzzz>");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    assertNull(StorageTier.fromString("bad").orElseThrow().color());
+    assertNull(StorageTierTestFixtures.find("bad").orElseThrow().color());
   }
 
   @Test
@@ -201,10 +199,10 @@ class StorageTierTest {
     config.set("wire-tier.material", "CHEST");
     config.set("wire-tier.name", " ");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
     assertEquals(
-        "Wire Tier", StorageTier.fromString("wire-tier").orElseThrow().fallbackDisplayName());
+        "Wire Tier", StorageTierTestFixtures.find("wire-tier").orElseThrow().fallbackDisplayName());
   }
 
   @Test
@@ -214,9 +212,9 @@ class StorageTierTest {
     config.set("basic.material", "minecraft:chest");
     config.set("basic.name", "Basic");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var descriptor = StorageTier.fromString("basic").orElseThrow().descriptor();
+    var descriptor = StorageTierTestFixtures.find("basic").orElseThrow().descriptor();
     assertEquals("BASIC", descriptor.key());
     assertEquals(128, descriptor.maxItems());
     assertEquals("minecraft:chest", descriptor.displayMaterialKey());
@@ -228,9 +226,9 @@ class StorageTierTest {
     YamlConfiguration config = new YamlConfiguration();
     config.set("basic.maxItems", 128);
     config.set("basic.material", "CHEST");
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    Collection<StorageTier> snapshot = StorageTier.allTiers();
+    Collection<StorageTier> snapshot = StorageTierTestFixtures.all();
     assertEquals(1, snapshot.size());
     assertThrows(UnsupportedOperationException.class, snapshot::clear);
 
@@ -239,10 +237,10 @@ class StorageTierTest {
     replacement.set("gold.material", "GOLD_BLOCK");
     replacement.set("diamond.maxItems", 512);
     replacement.set("diamond.material", "DIAMOND_BLOCK");
-    StorageTier.loadFromConfig(replacement, LOGGER);
+    StorageTierTestFixtures.load(replacement, LOGGER);
 
     assertEquals(1, snapshot.size());
-    assertEquals(2, StorageTier.allTiers().size());
+    assertEquals(2, StorageTierTestFixtures.all().size());
   }
 
   @Test
@@ -250,9 +248,10 @@ class StorageTierTest {
     YamlConfiguration config = new YamlConfiguration();
     config.set("gold.maxItems", 256);
     config.set("gold.material", "GOLD_BLOCK");
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var resolution = StorageTierResolver.resolve("gold", 128L).orElseThrow();
+    var resolution =
+        StorageTierResolver.resolve(StorageTierTestFixtures.current(), "gold", 128L).orElseThrow();
 
     assertEquals("GOLD", resolution.tier().key());
     assertEquals(256L, resolution.tierMaxItems());
@@ -265,9 +264,11 @@ class StorageTierTest {
     config.set("gold.material", "GOLD_BLOCK");
     config.set("diamond.maxItems", 512);
     config.set("diamond.material", "DIAMOND_BLOCK");
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var resolution = StorageTierResolver.resolve("missing", 512L).orElseThrow();
+    var resolution =
+        StorageTierResolver.resolve(StorageTierTestFixtures.current(), "missing", 512L)
+            .orElseThrow();
 
     assertEquals("MISSING", resolution.tier().key());
     assertEquals(512L, resolution.tierMaxItems());
@@ -284,9 +285,11 @@ class StorageTierTest {
     config.set("diamond.material", "DIAMOND_BLOCK");
     config.set("netherite.maxItems", 1024);
     config.set("netherite.material", "NETHERITE_BLOCK");
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var resolution = StorageTierResolver.resolve("missing", 900L).orElseThrow();
+    var resolution =
+        StorageTierResolver.resolve(StorageTierTestFixtures.current(), "missing", 900L)
+            .orElseThrow();
 
     assertEquals("MISSING", resolution.tier().key());
     assertEquals(900L, resolution.tierMaxItems());
@@ -300,9 +303,11 @@ class StorageTierTest {
     config.set("gold.material", "GOLD_BLOCK");
     config.set("diamond.maxItems", 512);
     config.set("diamond.material", "DIAMOND_BLOCK");
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    var resolution = StorageTierResolver.resolve("missing", 128L).orElseThrow();
+    var resolution =
+        StorageTierResolver.resolve(StorageTierTestFixtures.current(), "missing", 128L)
+            .orElseThrow();
 
     assertEquals("MISSING", resolution.tier().key());
     assertEquals(128L, resolution.tierMaxItems());
@@ -315,16 +320,19 @@ class StorageTierTest {
     config.set("gold.material", "GOLD_BLOCK");
     config.set("diamond.maxItems", 512);
     config.set("diamond.material", "DIAMOND_BLOCK");
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
 
-    assertTrue(StorageTierResolver.resolve("missing", null).isEmpty());
+    assertTrue(
+        StorageTierResolver.resolve(StorageTierTestFixtures.current(), "missing", null).isEmpty());
   }
 
   @Test
   void resolverPreservesOrphanEvenWhenNoTiersAreConfigured() {
-    StorageTier.loadFromConfig(new YamlConfiguration(), LOGGER);
+    StorageTierTestFixtures.load(new YamlConfiguration(), LOGGER);
 
-    var resolution = StorageTierResolver.resolve("missing", 128L).orElseThrow();
+    var resolution =
+        StorageTierResolver.resolve(StorageTierTestFixtures.current(), "missing", 128L)
+            .orElseThrow();
     assertEquals(128L, resolution.tierMaxItems());
     assertTrue(resolution.orphaned());
   }

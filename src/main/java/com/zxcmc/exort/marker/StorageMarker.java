@@ -2,6 +2,8 @@ package com.zxcmc.exort.marker;
 
 import com.zxcmc.exort.storage.StorageNameNormalizer;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
+import com.zxcmc.exort.storage.StorageTierCatalogSource;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import java.util.Optional;
 import java.util.Set;
@@ -111,13 +113,22 @@ public final class StorageMarker {
   }
 
   public static Optional<Data> get(Plugin plugin, Block block) {
+    StorageTierCatalog catalog =
+        plugin instanceof StorageTierCatalogSource source
+            ? source.storageTierCatalog()
+            : StorageTierCatalog.empty();
+    return get(plugin, block, catalog);
+  }
+
+  public static Optional<Data> get(
+      Plugin plugin, Block block, StorageTierCatalog storageTierCatalog) {
     if (!ChunkMarkerStore.hasSection(plugin, block, SECTION)) return Optional.empty();
     String storageId = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_ID).orElse(null);
     String tierKey = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TIER).orElse(null);
     if (storageId == null || tierKey == null) return Optional.empty();
     Long storedMaxItems =
         ChunkMarkerStore.getLong(plugin, block, SECTION, FIELD_TIER_MAX_ITEMS).orElse(null);
-    var resolution = StorageTierResolver.resolve(tierKey, storedMaxItems);
+    var resolution = StorageTierResolver.resolve(storageTierCatalog, tierKey, storedMaxItems);
     if (resolution.isEmpty()) {
       warnUnusable(plugin, storageId, tierKey);
       return Optional.empty();

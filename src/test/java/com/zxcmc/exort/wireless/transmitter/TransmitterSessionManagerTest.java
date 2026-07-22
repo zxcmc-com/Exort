@@ -11,7 +11,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.marker.TransmitterMarker;
 import com.zxcmc.exort.runtime.RuntimeItemModelConfig;
-import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.UUID;
@@ -30,7 +30,7 @@ class TransmitterSessionManagerTest {
     tiers.set("common.maxItems", "1p");
     tiers.set("common.material", "CHEST");
     tiers.set("common.name", "Common");
-    StorageTier.loadFromConfig(tiers, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(tiers, Logger.getLogger("test"));
   }
 
   @Test
@@ -78,9 +78,11 @@ class TransmitterSessionManagerTest {
             lang,
             itemModels.customItemModels(),
             com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
-            true);
+            true,
+            StorageTierTestFixtures.current());
     WirelessTerminalService wirelessService =
-        new WirelessTerminalService(lang, keys, customItems, true, 48);
+        new WirelessTerminalService(
+            lang, keys, customItems, true, 48, StorageTierTestFixtures.current());
     WirelessTransmitterService transmitterService =
         new WirelessTransmitterService(
             plugin,

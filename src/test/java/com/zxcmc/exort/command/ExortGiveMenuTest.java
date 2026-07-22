@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zxcmc.exort.infra.config.FeatureAccessConfig;
-import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import java.lang.reflect.Proxy;
 import java.util.logging.Logger;
 import org.bukkit.Material;
@@ -22,14 +22,17 @@ class ExortGiveMenuTest {
   void defaultCatalogFitsSingleInventory() {
     loadDefaultLikeTiers();
 
-    assertTrue(ExortGiveMenu.catalogIds().size() <= ExortGiveMenu.SIZE);
+    assertTrue(
+        ExortGiveMenu.catalogIds(StorageTierTestFixtures.current()).size() <= ExortGiveMenu.SIZE);
   }
 
   @Test
   void catalogHidesDisabledFeatureItems() {
     loadDefaultLikeTiers();
 
-    var ids = ExortGiveMenu.catalogIds(new FeatureAccessConfig(false, false, false));
+    var ids =
+        ExortGiveMenu.catalogIds(
+            new FeatureAccessConfig(false, false, false), StorageTierTestFixtures.current());
 
     assertFalse(ids.contains("relay"));
     assertFalse(ids.contains("chunk_loader"));
@@ -115,6 +118,6 @@ class ExortGiveMenuTest {
     config.set("immortal.material", Material.YELLOW_SHULKER_BOX.name());
     config.set("immortal.name", "{tier.immortal}");
 
-    StorageTier.loadFromConfig(config, LOGGER);
+    StorageTierTestFixtures.load(config, LOGGER);
   }
 }

@@ -114,7 +114,7 @@ final class LoadTestWorldWorkload {
     if (dependencies == null || world == null || chunks == null || chunks.isEmpty()) {
       return Optional.empty();
     }
-    Optional<StorageTier> tier = StorageTier.allTiers().stream().findFirst();
+    Optional<StorageTier> tier = dependencies.storageTierCatalog().tiers().stream().findFirst();
     if (tier.isEmpty()) {
       plugin.getLogger().warning("Benchmark world workload disabled: no storage tiers loaded.");
       return Optional.empty();

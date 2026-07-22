@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.zxcmc.exort.items.CustomItemModelConfig;
 import com.zxcmc.exort.items.CustomItems;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,10 +45,16 @@ class CommandRuntimeAccessTest {
 
   private static CustomItems customItems() {
     return new CustomItems(
-        null, null, CustomItemModelConfig.empty(), WirelessRuntimeConfig.defaults(), false);
+        null,
+        null,
+        CustomItemModelConfig.empty(),
+        WirelessRuntimeConfig.defaults(),
+        false,
+        StorageTierTestFixtures.current());
   }
 
   private static WirelessTerminalService wirelessService(CustomItems customItems) {
-    return new WirelessTerminalService(null, null, customItems, true, 0);
+    return new WirelessTerminalService(
+        null, null, customItems, true, 0, StorageTierTestFixtures.current());
   }
 }

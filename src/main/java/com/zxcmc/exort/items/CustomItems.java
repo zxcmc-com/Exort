@@ -33,15 +33,6 @@ public class CustomItems {
       Lang lang,
       CustomItemModelConfig models,
       WirelessRuntimeConfig wirelessConfig,
-      boolean clientTranslations) {
-    this(keys, lang, models, wirelessConfig, clientTranslations, StorageTierCatalog.active());
-  }
-
-  public CustomItems(
-      StorageKeys keys,
-      Lang lang,
-      CustomItemModelConfig models,
-      WirelessRuntimeConfig wirelessConfig,
       boolean clientTranslations,
       StorageTierCatalog storageTiers) {
     CustomItemModelConfig safeModels = models == null ? CustomItemModelConfig.empty() : models;

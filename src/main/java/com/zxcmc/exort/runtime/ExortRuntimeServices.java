@@ -31,6 +31,7 @@ import com.zxcmc.exort.wireless.transmitter.WirelessTransmitterService;
 import org.bukkit.Material;
 
 public record ExortRuntimeServices(
+    RuntimeGenerationScope generationScope,
     RuntimeItemNamesReload itemNamesReload,
     CustomItems customItems,
     WirelessTerminalService wirelessService,

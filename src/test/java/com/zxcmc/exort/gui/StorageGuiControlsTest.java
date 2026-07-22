@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import java.util.List;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
@@ -22,7 +23,7 @@ class StorageGuiControlsTest {
     loadRareTier();
     Lang lang = new Lang(null);
     lang.load("en_us");
-    StorageTier tier = StorageTier.fromString("rare").orElseThrow();
+    StorageTier tier = StorageTierTestFixtures.find("rare").orElseThrow();
     StorageCache cache = new StorageCache("storage-id", null, Logger.getLogger("test"), () -> null);
     cache.setDisplayName("example");
 
@@ -55,6 +56,6 @@ class StorageGuiControlsTest {
     config.set("rare.material", "CHEST");
     config.set("rare.name", "{tier.rare}");
     config.set("rare.color", "red");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 }

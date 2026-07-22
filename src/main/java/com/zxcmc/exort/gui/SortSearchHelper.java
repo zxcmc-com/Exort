@@ -9,6 +9,7 @@ import com.zxcmc.exort.items.StorageItemNameEditor;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.StorageTierResolver;
 import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.*;
@@ -58,6 +59,7 @@ public final class SortSearchHelper {
         itemNames,
         null,
         null,
+        StorageTierCatalog.empty(),
         language,
         allowCategoryDuplicates);
   }
@@ -70,6 +72,7 @@ public final class SortSearchHelper {
       ItemNameService itemNames,
       Lang lang,
       StorageKeys keys,
+      StorageTierCatalog storageTiers,
       String language,
       boolean allowCategoryDuplicates) {
     Map<String, StorageCache.StorageItem> byKey = new HashMap<>();
@@ -79,7 +82,15 @@ public final class SortSearchHelper {
     if (sortFrozen) {
       if (currentOrder.isEmpty()) {
         List<StorageCache.StorageItem> sorted =
-            sortItems(items, sortMode, itemNames, lang, keys, language, allowCategoryDuplicates);
+            sortItems(
+                items,
+                sortMode,
+                itemNames,
+                lang,
+                keys,
+                storageTiers,
+                language,
+                allowCategoryDuplicates);
         List<String> order =
             new ArrayList<>(sorted.stream().map(StorageCache.StorageItem::key).toList());
         return new SortResult(sorted, order);
@@ -100,12 +111,28 @@ public final class SortSearchHelper {
           }
         }
         ordered.addAll(
-            sortItems(extra, sortMode, itemNames, lang, keys, language, allowCategoryDuplicates));
+            sortItems(
+                extra,
+                sortMode,
+                itemNames,
+                lang,
+                keys,
+                storageTiers,
+                language,
+                allowCategoryDuplicates));
       }
       return new SortResult(ordered, new ArrayList<>(currentOrder));
     }
     List<StorageCache.StorageItem> sorted =
-        sortItems(items, sortMode, itemNames, lang, keys, language, allowCategoryDuplicates);
+        sortItems(
+            items,
+            sortMode,
+            itemNames,
+            lang,
+            keys,
+            storageTiers,
+            language,
+            allowCategoryDuplicates);
     List<String> order =
         new ArrayList<>(sorted.stream().map(StorageCache.StorageItem::key).toList());
     return new SortResult(sorted, order);
@@ -125,7 +152,15 @@ public final class SortSearchHelper {
       ItemNameService itemNames,
       String language,
       boolean allowCategoryDuplicates) {
-    return sortItems(items, sortMode, itemNames, null, null, language, allowCategoryDuplicates);
+    return sortItems(
+        items,
+        sortMode,
+        itemNames,
+        null,
+        null,
+        StorageTierCatalog.empty(),
+        language,
+        allowCategoryDuplicates);
   }
 
   public static List<StorageCache.StorageItem> sortItems(
@@ -134,6 +169,7 @@ public final class SortSearchHelper {
       ItemNameService itemNames,
       Lang lang,
       StorageKeys keys,
+      StorageTierCatalog storageTiers,
       String language,
       boolean allowCategoryDuplicates) {
     List<StorageCache.StorageItem> list = new ArrayList<>(items);
@@ -144,7 +180,7 @@ public final class SortSearchHelper {
     Map<String, List<CreativeTabOrder.Position>> positionsCache = new HashMap<>();
     for (StorageCache.StorageItem item : items) {
       String key = item.key();
-      nameKeys.put(key, sortNameKey(item.sample(), itemNames, lang, keys, language));
+      nameKeys.put(key, sortNameKey(item.sample(), itemNames, lang, keys, storageTiers, language));
       idKeys.put(key, item.sample().getType().getKey().getKey());
       categoryKeys.put(key, categoryIndex(item.sample()));
     }
@@ -250,7 +286,8 @@ public final class SortSearchHelper {
 
   public static boolean matchesQuery(
       ItemStack stack, List<String> searchTokens, ItemNameService itemNames, String language) {
-    return matchesQuery(stack, searchTokens, itemNames, null, null, language);
+    return matchesQuery(
+        stack, searchTokens, itemNames, null, null, StorageTierCatalog.empty(), language);
   }
 
   public static boolean matchesQuery(
@@ -259,9 +296,11 @@ public final class SortSearchHelper {
       ItemNameService itemNames,
       Lang lang,
       StorageKeys keys,
+      StorageTierCatalog storageTiers,
       String language) {
     if (searchTokens == null || searchTokens.isEmpty()) return true;
-    List<String> candidates = buildSearchCandidates(stack, itemNames, lang, keys, language);
+    List<String> candidates =
+        buildSearchCandidates(stack, itemNames, lang, keys, storageTiers, language);
     if (candidates.isEmpty()) return true;
     for (String token : searchTokens) {
       for (String candidate : candidates) {
@@ -278,11 +317,16 @@ public final class SortSearchHelper {
   }
 
   public static String sortNameKey(ItemStack stack, ItemNameService itemNames, String language) {
-    return sortNameKey(stack, itemNames, null, null, language);
+    return sortNameKey(stack, itemNames, null, null, StorageTierCatalog.empty(), language);
   }
 
   public static String sortNameKey(
-      ItemStack stack, ItemNameService itemNames, Lang lang, StorageKeys keys, String language) {
+      ItemStack stack,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      StorageTierCatalog storageTiers,
+      String language) {
     if (stack == null) return "";
     ItemMeta meta = stack.getItemMeta();
     if (meta != null) {
@@ -290,7 +334,7 @@ public final class SortSearchHelper {
         return PlainTextComponentSerializer.plainText().serialize(meta.displayName());
       }
     }
-    ExortSearchNames exortNames = exortSearchNames(stack, lang, keys, language);
+    ExortSearchNames exortNames = exortSearchNames(stack, lang, keys, storageTiers, language);
     if (exortNames != null
         && exortNames.primaryName() != null
         && !exortNames.primaryName().isBlank()) {
@@ -314,11 +358,17 @@ public final class SortSearchHelper {
 
   public static List<String> buildSearchCandidates(
       ItemStack stack, ItemNameService itemNames, String language) {
-    return buildSearchCandidates(stack, itemNames, null, null, language);
+    return buildSearchCandidates(
+        stack, itemNames, null, null, StorageTierCatalog.empty(), language);
   }
 
   public static List<String> buildSearchCandidates(
-      ItemStack stack, ItemNameService itemNames, Lang lang, StorageKeys keys, String language) {
+      ItemStack stack,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      StorageTierCatalog storageTiers,
+      String language) {
     List<String> candidates = new ArrayList<>();
     if (stack == null) return candidates;
     ItemMeta meta = stack.getItemMeta();
@@ -330,7 +380,7 @@ public final class SortSearchHelper {
         }
       }
     }
-    ExortSearchNames exortNames = exortSearchNames(stack, lang, keys, language);
+    ExortSearchNames exortNames = exortSearchNames(stack, lang, keys, storageTiers, language);
     if (exortNames != null) {
       for (String candidate : exortNames.candidates()) {
         addCandidate(candidates, candidate);
@@ -357,7 +407,11 @@ public final class SortSearchHelper {
   }
 
   private static ExortSearchNames exortSearchNames(
-      ItemStack stack, Lang lang, StorageKeys keys, String language) {
+      ItemStack stack,
+      Lang lang,
+      StorageKeys keys,
+      StorageTierCatalog storageTiers,
+      String language) {
     if (stack == null || lang == null || keys == null || !stack.hasItemMeta()) {
       return null;
     }
@@ -372,7 +426,7 @@ public final class SortSearchHelper {
     }
     String normalizedType = type.trim().toLowerCase(Locale.ROOT);
     if ("storage".equals(normalizedType)) {
-      return storageSearchNames(pdc, lang, keys, language);
+      return storageSearchNames(pdc, lang, keys, storageTiers, language);
     }
     return FixedItemCatalog.fixedItem(normalizedType)
         .map(identity -> fixedItemSearchNames(identity, lang, language))
@@ -390,12 +444,17 @@ public final class SortSearchHelper {
   }
 
   private static ExortSearchNames storageSearchNames(
-      PersistentDataContainer pdc, Lang lang, StorageKeys keys, String language) {
+      PersistentDataContainer pdc,
+      Lang lang,
+      StorageKeys keys,
+      StorageTierCatalog storageTiers,
+      String language) {
     String storageName = lang.trLanguage(language, "item.storage");
     List<String> candidates = new ArrayList<>();
     addCandidate(candidates, storageName);
     StorageTierResolver.Resolution resolution =
         StorageTierResolver.resolve(
+                storageTiers,
                 pdc.get(keys.storageTier(), PersistentDataType.STRING),
                 pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG))
             .orElse(null);

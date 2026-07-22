@@ -31,11 +31,11 @@ public final class RuntimePostRefreshScheduler {
     Objects.requireNonNull(deps, "deps");
     long generation =
         GENERATIONS.computeIfAbsent(deps.plugin(), ignored -> new AtomicLong()).incrementAndGet();
-    Registration registration = new Registration(deps.plugin(), generation);
+    Registration registration = new Registration(deps.plugin(), generation, deps.generationScope());
     registration.replaceTask(
-        Bukkit.getScheduler()
+        deps.generationScope()
             .runTaskLater(
-                deps.plugin(),
+                "post-runtime refresh delay",
                 () -> refreshAfterRuntimeSwitch(deps, generation, registration),
                 MODE_SWITCH_REFRESH_DELAY_TICKS));
     return registration;
@@ -138,7 +138,8 @@ public final class RuntimePostRefreshScheduler {
         processed++;
       }
       if (cursor < chunks.size()) {
-        registration.replaceTask(Bukkit.getScheduler().runTaskLater(deps.plugin(), this, 1L));
+        registration.replaceTask(
+            deps.generationScope().runTaskLater("post-runtime chunk refresh", this, 1L));
         return;
       }
       finishRefresh(deps, generation);
@@ -151,18 +152,20 @@ public final class RuntimePostRefreshScheduler {
   public static final class Registration implements AutoCloseable {
     private final Plugin plugin;
     private final long generation;
+    private final RuntimeGenerationScope generationScope;
     private final AtomicBoolean closed = new AtomicBoolean();
     private BukkitTask task;
 
-    private Registration(Plugin plugin, long generation) {
+    private Registration(Plugin plugin, long generation, RuntimeGenerationScope generationScope) {
       this.plugin = plugin;
       this.generation = generation;
+      this.generationScope = generationScope;
     }
 
     private synchronized void replaceTask(BukkitTask replacement) {
       Objects.requireNonNull(replacement, "replacement");
       if (closed.get()) {
-        replacement.cancel();
+        generationScope.cancelTask(replacement);
         return;
       }
       task = replacement;
@@ -178,7 +181,7 @@ public final class RuntimePostRefreshScheduler {
         current.compareAndSet(generation, generation + 1L);
       }
       if (task != null) {
-        task.cancel();
+        generationScope.cancelTask(task);
         task = null;
       }
     }
@@ -189,12 +192,14 @@ public final class RuntimePostRefreshScheduler {
       Supplier<NetworkGraphCache> networkGraphCache,
       DisplayRefreshService displayRefreshService,
       StorageManager storageManager,
-      InventoryRefreshService inventoryRefreshService) {
+      InventoryRefreshService inventoryRefreshService,
+      RuntimeGenerationScope generationScope) {
     public RuntimePostRefreshDependencies {
       Objects.requireNonNull(plugin, "plugin");
       Objects.requireNonNull(networkGraphCache, "networkGraphCache");
       Objects.requireNonNull(displayRefreshService, "displayRefreshService");
       Objects.requireNonNull(inventoryRefreshService, "inventoryRefreshService");
+      Objects.requireNonNull(generationScope, "generationScope");
     }
   }
 }

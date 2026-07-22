@@ -481,7 +481,7 @@ final class GiveCommand {
   private CompletableFuture<Suggestions> suggestTiers(
       CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
     List<String> options = new ArrayList<>();
-    for (StorageTier tier : StorageTier.allTiers()) {
+    for (StorageTier tier : dependencies.storageTierCatalog().get().tiers()) {
       options.add(tier.key().toLowerCase(Locale.ROOT));
     }
     List<String> matches =

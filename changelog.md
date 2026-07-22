@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.12 — 2026-07-22
+- Storage tier resolution now reads only the immutable catalog owned by the published runtime generation, so a prepared or rejected reload cannot leak candidate tier definitions into commands, markers, recipes, GUI search, wireless items, or database reads.
+- Storage terminal indexing now rejects stale structural results, cancels superseded or closed-session work without publishing a partial or outdated item page, and time-budgets internal sorting without charging every comparison as another storage entry, substantially reducing readiness time for very large indexes.
+- PacketEvents listeners now detach while the provider is still loaded and Exort rebuilds its runtime after provider lifecycle changes, preventing optional-integration shutdown failures; embedded Chorusfix state is likewise refreshed after provider disable completes.
+
 ## 0.19.11 — 2026-07-21
 - Runtime reload now prepares Storage tiers and recipes before teardown, publishes one generation state, restores exact recipe/discovery/disabled-external state on failure, and cancels generation-owned listeners, scheduled work, claim hydration, and deferred WorldEdit callbacks.
 - Chorusfix, Nexo, Oraxen, and protection-provider lifecycle watchers are registered once for the plugin lifetime again, so providers enabled or disabled after startup are reconciled without duplicate reload listeners.

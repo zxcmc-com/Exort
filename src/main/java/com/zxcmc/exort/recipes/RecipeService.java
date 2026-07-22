@@ -7,16 +7,23 @@ import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
+import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
@@ -123,7 +130,7 @@ public final class RecipeService {
         featureAccess,
         choiceFactory,
         recipeRegistry,
-        StorageTier::fromString);
+        ignored -> java.util.Optional.empty());
   }
 
   private RecipeService(
@@ -1263,6 +1270,122 @@ public final class RecipeService {
 
     private static Checkpoint empty() {
       return new Checkpoint(List.of(), List.of(), List.of());
+    }
+
+    /** Stable semantic fingerprint of Exort recipes, discovery entries, and disabled originals. */
+    public String fingerprint() {
+      StringBuilder canonical = new StringBuilder();
+      appendRecipes(canonical, "registered", recipes);
+      canonical.append("discovery\n");
+      discoveryEntries.stream()
+          .sorted(java.util.Comparator.comparing(entry -> entry.key().toString()))
+          .forEach(
+              entry -> {
+                canonical.append(entry.key()).append('|');
+                entry.unlockChoices().stream()
+                    .map(Checkpoint::choiceFingerprint)
+                    .sorted()
+                    .forEach(choice -> canonical.append(choice).append(';'));
+                canonical.append('\n');
+              });
+      appendRecipes(canonical, "disabled", disabledOriginals);
+      try {
+        return HexFormat.of()
+            .formatHex(
+                MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));
+      } catch (NoSuchAlgorithmException impossible) {
+        throw new IllegalStateException("SHA-256 is unavailable", impossible);
+      }
+    }
+
+    private static void appendRecipes(
+        StringBuilder canonical, String label, List<RegisteredRecipe> entries) {
+      canonical.append(label).append('\n');
+      entries.stream()
+          .sorted(java.util.Comparator.comparing(entry -> entry.key().toString()))
+          .forEach(
+              entry ->
+                  canonical
+                      .append(entry.key())
+                      .append('|')
+                      .append(recipeFingerprint(entry.recipe()))
+                      .append('\n'));
+    }
+
+    private static String recipeFingerprint(Recipe recipe) {
+      StringBuilder value =
+          new StringBuilder(recipe.getClass().getName())
+              .append('|')
+              .append(itemFingerprint(recipe.getResult()));
+      if (recipe instanceof Keyed keyed) {
+        value.append('|').append(keyed.getKey());
+      }
+      if (recipe instanceof ShapedRecipe shaped) {
+        value.append("|shape=").append(String.join("/", shaped.getShape()));
+        shaped.getChoiceMap().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(
+                entry ->
+                    value
+                        .append('|')
+                        .append(entry.getKey())
+                        .append('=')
+                        .append(choiceFingerprint(entry.getValue())));
+      } else if (recipe instanceof ShapelessRecipe shapeless) {
+        value.append("|choices=");
+        shapeless.getChoiceList().stream()
+            .map(Checkpoint::choiceFingerprint)
+            .sorted()
+            .forEach(choice -> value.append(choice).append(';'));
+      } else if (recipe instanceof CookingRecipe<?> cooking) {
+        value
+            .append("|input=")
+            .append(choiceFingerprint(cooking.getInputChoice()))
+            .append("|experience=")
+            .append(cooking.getExperience())
+            .append("|time=")
+            .append(cooking.getCookingTime());
+      } else if (recipe instanceof StonecuttingRecipe stonecutting) {
+        value.append("|input=").append(choiceFingerprint(stonecutting.getInputChoice()));
+      } else if (recipe instanceof SmithingTransformRecipe smithing) {
+        value
+            .append("|template=")
+            .append(choiceFingerprint(smithing.getTemplate()))
+            .append("|base=")
+            .append(choiceFingerprint(smithing.getBase()))
+            .append("|addition=")
+            .append(choiceFingerprint(smithing.getAddition()))
+            .append("|copy=")
+            .append(smithing.willCopyDataComponents());
+      }
+      return value.toString();
+    }
+
+    private static String choiceFingerprint(RecipeChoice choice) {
+      if (choice == null) {
+        return "null";
+      }
+      if (choice instanceof RecipeChoice.MaterialChoice materials) {
+        return materials.getChoices().stream()
+            .map(material -> material.getKey().toString())
+            .sorted()
+            .collect(java.util.stream.Collectors.joining(",", "materials[", "]"));
+      }
+      if (choice instanceof RecipeChoice.ExactChoice exact) {
+        return exact.getChoices().stream()
+            .map(Checkpoint::itemFingerprint)
+            .sorted()
+            .collect(java.util.stream.Collectors.joining(",", "exact[", "]"));
+      }
+      return choice.getClass().getName() + ':' + choice;
+    }
+
+    private static String itemFingerprint(ItemStack item) {
+      if (item == null) {
+        return "null";
+      }
+      return Base64.getEncoder().encodeToString(item.serializeAsBytes());
     }
   }
 

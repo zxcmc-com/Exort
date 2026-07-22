@@ -165,7 +165,11 @@ public final class WorldEditBridge implements Listener {
     this.refreshScheduler = new WorldEditRefreshScheduler(deps, this::updateQueueDepthGauge);
     this.clipboardPatcher =
         new WorldEditClipboardPatcher(
-            plugin, this::buildMarkerBlock, deps::debugService, this::onClipboardPatchResult);
+            plugin,
+            deps.generationScope(),
+            this::buildMarkerBlock,
+            deps::debugService,
+            this::onClipboardPatchResult);
   }
 
   WorldEditBridgeDependencies dependencies() {
@@ -240,7 +244,7 @@ public final class WorldEditBridge implements Listener {
       bridge = new WorldEditBridge(deps);
       WorldEdit.getInstance().getEventBus().register(bridge);
       eventBusRegistered = true;
-      Bukkit.getPluginManager().registerEvents(bridge, plugin);
+      deps.generationScope().registerListener(bridge);
       ExortLog.success("[WorldEdit] Integration enabled.");
       return bridge;
     } catch (NoClassDefFoundError err) {
@@ -304,16 +308,16 @@ public final class WorldEditBridge implements Listener {
     HandlerList.unregisterAll(this);
     synchronized (flushTaskLock) {
       if (flushTask != null) {
-        flushTask.cancel();
+        deps.generationScope().cancelTask(flushTask);
         flushTask = null;
       }
       if (directReconciliationTask != null) {
-        directReconciliationTask.cancel();
+        deps.generationScope().cancelTask(directReconciliationTask);
         directReconciliationTask = null;
       }
     }
     for (BukkitTask task : lifecycleTasks) {
-      task.cancel();
+      deps.generationScope().cancelTask(task);
     }
     lifecycleTasks.clear();
     refreshScheduler.shutdown();
@@ -1096,6 +1100,7 @@ public final class WorldEditBridge implements Listener {
     WorldEditLoadedMarkerChunkCursor cursor =
         new WorldEditLoadedMarkerChunkCursor(
             plugin,
+            deps.generationScope(),
             world,
             chunks -> {
               entityRefreshCursors.remove(reference[0]);
@@ -1135,9 +1140,9 @@ public final class WorldEditBridge implements Listener {
     AtomicReference<BukkitTask> reference = new AtomicReference<>();
     try {
       BukkitTask task =
-          Bukkit.getScheduler()
+          deps.generationScope()
               .runTaskLater(
-                  plugin,
+                  "WorldEdit lifecycle callback",
                   () -> {
                     BukkitTask current = reference.get();
                     if (current != null) {
@@ -1152,7 +1157,7 @@ public final class WorldEditBridge implements Listener {
       reference.set(task);
       lifecycleTasks.add(task);
       if (shuttingDown && lifecycleTasks.remove(task)) {
-        task.cancel();
+        deps.generationScope().cancelTask(task);
       }
     } catch (RuntimeException ignored) {
       // Plugin shutdown may reject scheduled work; chunk-load reconciliation remains available.
@@ -1525,7 +1530,8 @@ public final class WorldEditBridge implements Listener {
         return;
       }
       try {
-        flushTask = Bukkit.getScheduler().runTaskLater(plugin, this::flushUpdates, 1L);
+        flushTask =
+            deps.generationScope().runTaskLater("WorldEdit marker flush", this::flushUpdates, 1L);
       } catch (IllegalStateException ignored) {
         flushTask = null;
       }
@@ -2345,7 +2351,9 @@ public final class WorldEditBridge implements Listener {
       if (!shuttingDown && directReconciliationTask == null) {
         try {
           directReconciliationTask =
-              Bukkit.getScheduler().runTaskLater(plugin, this::drainDirectReconciliation, 1L);
+              deps.generationScope()
+                  .runTaskLater(
+                      "WorldEdit direct reconciliation", this::drainDirectReconciliation, 1L);
         } catch (IllegalStateException ignored) {
           directReconciliationTask = null;
         }
@@ -2391,7 +2399,9 @@ public final class WorldEditBridge implements Listener {
       synchronized (flushTaskLock) {
         if (!shuttingDown && directReconciliationTask == null) {
           directReconciliationTask =
-              Bukkit.getScheduler().runTaskLater(plugin, this::drainDirectReconciliation, 1L);
+              deps.generationScope()
+                  .runTaskLater(
+                      "WorldEdit direct reconciliation", this::drainDirectReconciliation, 1L);
         }
       }
     }
@@ -2718,7 +2728,7 @@ public final class WorldEditBridge implements Listener {
 
   static MarkerSnapshot rotateSnapshot(MarkerSnapshot snapshot, FacingTransform transform) {
     if (snapshot == null || transform == null) return snapshot;
-    StorageData resolvedStorage = resolveStorageTier(snapshot.storage());
+    StorageData resolvedStorage = snapshot.storage();
     StorageData storage =
         resolvedStorage == null
             ? null
@@ -2763,7 +2773,7 @@ public final class WorldEditBridge implements Listener {
 
   private static MarkerSnapshot withStorageId(MarkerSnapshot snapshot, String storageId) {
     if (snapshot == null || snapshot.storage() == null) return snapshot;
-    StorageData resolvedStorage = resolveStorageTier(snapshot.storage());
+    StorageData resolvedStorage = snapshot.storage();
     if (resolvedStorage == null) return snapshot;
     StorageData storage =
         new StorageData(
@@ -2785,7 +2795,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.storageCore());
   }
 
-  private static MarkerSnapshot resolveStorageTier(MarkerSnapshot snapshot) {
+  private MarkerSnapshot resolveStorageTier(MarkerSnapshot snapshot) {
     if (snapshot == null || snapshot.storage() == null) return snapshot;
     StorageData storage = resolveStorageTier(snapshot.storage());
     if (storage == null) return snapshot;
@@ -2802,10 +2812,12 @@ public final class WorldEditBridge implements Listener {
         snapshot.storageCore());
   }
 
-  private static StorageData resolveStorageTier(StorageData storage) {
+  private StorageData resolveStorageTier(StorageData storage) {
     if (storage == null) return null;
     StorageTierResolver.Resolution resolution =
-        StorageTierResolver.resolve(storage.tier(), storage.tierMaxItems()).orElse(null);
+        StorageTierResolver.resolve(
+                deps.storageTierCatalog(), storage.tier(), storage.tierMaxItems())
+            .orElse(null);
     if (resolution == null) return storage;
     return new StorageData(
         storage.storageId(),

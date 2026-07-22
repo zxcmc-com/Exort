@@ -71,6 +71,8 @@ import com.zxcmc.exort.runtime.PreparedRuntime;
 import com.zxcmc.exort.runtime.PublishedRuntimeState;
 import com.zxcmc.exort.runtime.RuntimeCheckpoint;
 import com.zxcmc.exort.runtime.RuntimeConfigSnapshot;
+import com.zxcmc.exort.runtime.RuntimeConstructionStage;
+import com.zxcmc.exort.runtime.RuntimeFaultController;
 import com.zxcmc.exort.runtime.RuntimeHandle;
 import com.zxcmc.exort.runtime.RuntimeHooks;
 import com.zxcmc.exort.runtime.RuntimeIntegrationContext;
@@ -79,6 +81,7 @@ import com.zxcmc.exort.storage.StorageManager;
 import com.zxcmc.exort.storage.StorageRuntimeConfig;
 import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.StorageTierCatalog;
+import com.zxcmc.exort.storage.StorageTierCatalogSource;
 import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.text.ExortText;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
@@ -108,7 +111,7 @@ import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class ExortPlugin extends JavaPlugin implements ExortApi {
+public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCatalogSource {
   static final String MODE_FIX_RESOURCE_COMMAND = "/exort mode fix RESOURCE";
   private static final MinecraftVersionRequirement MIN_MC_VERSION =
       MinecraftVersionRequirement.atLeast(1, 21, 11);
@@ -159,11 +162,13 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   private NetworkGraphCache networkGraphCache;
   private RuntimeHandle<ExortRuntimeServices> runtimeHandle;
   private volatile PublishedRuntimeState publishedRuntimeState;
+  private final RuntimeFaultController runtimeFaultController = new RuntimeFaultController();
   private FileConfiguration activeRuntimeConfig;
   private boolean resourceMode;
   private boolean resourceWireUsesBarrier;
   private boolean resourceWireCarrierFallback;
   private boolean chorusfixIntegrationLogged;
+  private boolean packetEventsRuntimeReloadScheduled;
   private String configuredMode = "RESOURCE";
   private volatile String defaultSortModeName = SortMode.AMOUNT.name();
   private final MutableRegionProtection regionProtection =
@@ -233,7 +238,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
     searchDialogService = new SearchDialogService(lang);
     keys = new StorageKeys(this);
     networkGraphCache = new NetworkGraphCache(this);
-    database = new Database(getLogger(), () -> defaultSortModeName, this::activeStorageTierCatalog);
+    database = new Database(getLogger(), () -> defaultSortModeName, this::storageTierCatalog);
     File dbFile = new File(new File(getDataFolder(), "db"), "storage.db");
     try {
       database.init(dbFile);
@@ -285,6 +290,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 () -> relayTraversalCarrier,
                 () -> terminalCarrier,
                 () -> networkGraphCache,
+                this::storageTierCatalog,
                 () -> GuiRuntimeConfig.fromConfig(getConfig()),
                 GuiOverlayConfig::defaults,
                 storageId -> {
@@ -408,17 +414,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
 
   @Override
   public Optional<StorageTierDescriptor> getStorageTier(String key) {
-    return activeStorageTierCatalog().find(key).map(StorageTier::descriptor);
+    return storageTierCatalog().find(key).map(StorageTier::descriptor);
   }
 
   @Override
   public Collection<StorageTierDescriptor> getStorageTiers() {
-    return activeStorageTierCatalog().tiers().stream().map(StorageTier::descriptor).toList();
+    return storageTierCatalog().tiers().stream().map(StorageTier::descriptor).toList();
   }
 
-  private StorageTierCatalog activeStorageTierCatalog() {
+  @Override
+  public StorageTierCatalog storageTierCatalog() {
     PublishedRuntimeState state = publishedRuntimeState;
-    return state == null ? StorageTierCatalog.active() : state.storageTierCatalog();
+    return state == null ? StorageTierCatalog.empty() : state.storageTierCatalog();
   }
 
   @Override
@@ -641,9 +648,12 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
       ExortRuntimeServices services, FileConfiguration config, PreparedRuntime prepared) {
     applyRuntimeServices(services);
     refreshEmbeddedChorusfix();
-    StorageTierCatalog.publish(prepared.storageTierCatalog());
+    runtimeFaultController.checkpoint(
+        RuntimeConstructionStage.PUBLICATION_FIELDS, services.generationScope());
     publishedRuntimeState = new PublishedRuntimeState(services, config, prepared);
     activeRuntimeConfig = config;
+    runtimeFaultController.checkpoint(
+        RuntimeConstructionStage.FINAL_PUBLISH, services.generationScope());
   }
 
   private ExortRuntimeFactoryDependencies createRuntimeFactoryDependencies(
@@ -698,7 +708,8 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             },
             block -> placementTracker != null && placementTracker.isRecentlyPlaced(block),
             storageId -> sessionManager.renderStorage(storageId, SortEvent.NONE)),
-        prepared);
+        prepared,
+        runtimeFaultController);
   }
 
   private void applyRuntimeServices(ExortRuntimeServices services) {
@@ -733,6 +744,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
           new LoadTestRuntimeDependencies(
               keys,
               storageManager,
+              storageTierCatalog(),
               services.displayRefreshService(),
               services.busService(),
               networkGraphCache,
@@ -821,10 +833,64 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
   }
 
   private void registerRuntimeIntegrationWatchers() {
+    registerPacketEventsLifecycleWatcher();
     registerChorusfixIntegrationWatcher();
     registerOraxenResourcePackIntegrationWatcher();
     registerNexoResourcePackIntegrationWatcher();
     registerProtectionLifecycleWatcher();
+  }
+
+  private void registerPacketEventsLifecycleWatcher() {
+    Bukkit.getPluginManager()
+        .registerEvents(
+            new Listener() {
+              @EventHandler
+              public void onPluginEnable(PluginEnableEvent event) {
+                if (!"packetevents".equalsIgnoreCase(event.getPlugin().getName())) {
+                  return;
+                }
+                schedulePacketEventsRuntimeReload("enabled");
+              }
+
+              @EventHandler
+              public void onPluginDisable(PluginDisableEvent event) {
+                if (!"packetevents".equalsIgnoreCase(event.getPlugin().getName())) {
+                  return;
+                }
+                RuntimeHandle<ExortRuntimeServices> current = runtimeHandle;
+                if (current != null && !current.isClosed()) {
+                  current.value().packetEnhancements().unregister();
+                }
+                schedulePacketEventsRuntimeReload("disabled");
+              }
+            },
+            this);
+  }
+
+  private void schedulePacketEventsRuntimeReload(String lifecycleState) {
+    if (packetEventsRuntimeReloadScheduled) {
+      return;
+    }
+    packetEventsRuntimeReloadScheduled = true;
+    Bukkit.getScheduler()
+        .runTask(
+            this,
+            () -> {
+              packetEventsRuntimeReloadScheduled = false;
+              if (!isEnabled() || runtimeHandle == null) {
+                return;
+              }
+              reloadRuntime()
+                  .exceptionally(
+                      error -> {
+                        getLogger()
+                            .log(
+                                Level.WARNING,
+                                "Could not reload Exort after PacketEvents was " + lifecycleState,
+                                error);
+                        return null;
+                      });
+            });
   }
 
   private void clearRuntimeIntegrationRegistrations() {
@@ -872,10 +938,18 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
                 if (chorusfixDisabled) {
                   chorusfixIntegrationLogged = false;
                 }
-                refreshEmbeddedChorusfix();
-                if ("ItemsAdder".equals(pluginName)) {
-                  reloadResourcePackService();
-                }
+                Bukkit.getScheduler()
+                    .runTask(
+                        ExortPlugin.this,
+                        () -> {
+                          if (!isEnabled()) {
+                            return;
+                          }
+                          refreshEmbeddedChorusfix();
+                          if ("ItemsAdder".equals(pluginName)) {
+                            reloadResourcePackService();
+                          }
+                        });
               }
             },
             this);
@@ -1200,7 +1274,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi {
             () -> wirelessService,
             () -> chunkLoaderService,
             () -> networkGraphCache),
-        this::activeStorageTierCatalog,
+        this::storageTierCatalog,
         keys,
         storageManager,
         database,

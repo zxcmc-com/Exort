@@ -12,6 +12,7 @@ import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.zxcmc.exort.debug.WorldEditDebugService;
+import com.zxcmc.exort.runtime.RuntimeGenerationScope;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +22,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.enginehub.linbus.tree.LinCompoundTag;
 
@@ -29,6 +29,7 @@ final class WorldEditClipboardPatcher {
   private static final int CLIPBOARD_PATCH_ATTEMPTS = 100;
 
   private final Plugin plugin;
+  private final RuntimeGenerationScope generationScope;
   private final Function<LinCompoundTag, BaseBlock> markerBlockBuilder;
   private final Supplier<WorldEditDebugService> debugService;
   private final BiConsumer<UUID, PatchResult> resultConsumer;
@@ -38,10 +39,12 @@ final class WorldEditClipboardPatcher {
 
   WorldEditClipboardPatcher(
       Plugin plugin,
+      RuntimeGenerationScope generationScope,
       Function<LinCompoundTag, BaseBlock> markerBlockBuilder,
       Supplier<WorldEditDebugService> debugService,
       BiConsumer<UUID, PatchResult> resultConsumer) {
     this.plugin = plugin;
+    this.generationScope = generationScope;
     this.markerBlockBuilder = markerBlockBuilder;
     this.debugService = debugService;
     this.resultConsumer = resultConsumer;
@@ -60,49 +63,49 @@ final class WorldEditClipboardPatcher {
     requests.put(actorId, new Request(patch, baseline, generation));
     BukkitTask previous = tasks.remove(actorId);
     if (previous != null) {
-      previous.cancel();
+      generationScope.cancelTask(previous);
     }
-    BukkitRunnable runnable =
-        new BukkitRunnable() {
-          private int attempts;
-
-          @Override
-          public void run() {
-            if (!generations.isCurrent(actorId, generation)) {
-              cancel();
-              return;
-            }
-            attempts++;
-            Clipboard applied = apply(actor, patch, baseline);
-            if (applied == null && attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
-              plugin
-                  .getLogger()
-                  .warning(
-                      "[WorldEdit] Exort clipboard patch did not apply after "
-                          + attempts
-                          + " attempts; paste may leave carrier placeholders.");
-              notifyResult(actorId, new PatchResult(null, patch, false));
-            }
-            if (applied != null) {
-              notifyResult(actorId, new PatchResult(applied, patch, true));
-            }
-            if (applied != null || attempts >= CLIPBOARD_PATCH_ATTEMPTS) {
-              tasks.computeIfPresent(
-                  actorId,
-                  (ignored, current) -> current.getTaskId() == this.getTaskId() ? null : current);
-              generations.complete(actorId, generation);
-              requests.remove(actorId, new Request(patch, baseline, generation));
-              cancel();
-            }
-          }
-        };
-    BukkitTask task = runnable.runTaskTimer(plugin, 1L, 2L);
+    int[] attempts = {0};
+    BukkitTask[] taskReference = new BukkitTask[1];
+    BukkitTask task =
+        generationScope.runTaskTimer(
+            "WorldEdit clipboard patch",
+            () -> {
+              BukkitTask currentTask = taskReference[0];
+              if (!generations.isCurrent(actorId, generation)) {
+                generationScope.cancelTask(currentTask);
+                return;
+              }
+              attempts[0]++;
+              Clipboard applied = apply(actor, patch, baseline);
+              if (applied == null && attempts[0] >= CLIPBOARD_PATCH_ATTEMPTS) {
+                plugin
+                    .getLogger()
+                    .warning(
+                        "[WorldEdit] Exort clipboard patch did not apply after "
+                            + attempts[0]
+                            + " attempts; paste may leave carrier placeholders.");
+                notifyResult(actorId, new PatchResult(null, patch, false));
+              }
+              if (applied != null) {
+                notifyResult(actorId, new PatchResult(applied, patch, true));
+              }
+              if (applied != null || attempts[0] >= CLIPBOARD_PATCH_ATTEMPTS) {
+                tasks.remove(actorId, currentTask);
+                generations.complete(actorId, generation);
+                requests.remove(actorId, new Request(patch, baseline, generation));
+                generationScope.cancelTask(currentTask);
+              }
+            },
+            1L,
+            2L);
+    taskReference[0] = task;
     tasks.put(actorId, task);
   }
 
   void shutdown() {
     for (BukkitTask task : tasks.values()) {
-      task.cancel();
+      generationScope.cancelTask(task);
     }
     tasks.clear();
     requests.clear();
@@ -117,7 +120,7 @@ final class WorldEditClipboardPatcher {
     requests.remove(actorId);
     BukkitTask task = tasks.remove(actorId);
     if (task != null) {
-      task.cancel();
+      generationScope.cancelTask(task);
     }
   }
 
@@ -129,7 +132,7 @@ final class WorldEditClipboardPatcher {
     Clipboard applied = apply(actor, request.patch(), request.baseline());
     if (applied == null) return false;
     BukkitTask task = tasks.remove(actorId);
-    if (task != null) task.cancel();
+    if (task != null) generationScope.cancelTask(task);
     requests.remove(actorId, request);
     generations.complete(actorId, request.generation());
     notifyResult(actorId, new PatchResult(applied, request.patch(), true));

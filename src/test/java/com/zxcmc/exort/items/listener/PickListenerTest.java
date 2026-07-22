@@ -12,6 +12,7 @@ import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.ChunkLoaderMarker;
 import com.zxcmc.exort.marker.StorageMarker;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.testsupport.BukkitTestDoubles;
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
 import java.util.Collections;
@@ -326,7 +327,7 @@ class PickListenerTest {
         BukkitTestDoubles.world("pick-storage-" + UUID.randomUUID(), UUID.randomUUID());
     Block block = world.block(1, 64, 0, Material.BARRIER);
     StorageMarker.set(
-        plugin, block, "storage-block", StorageTier.fromString("basic").orElseThrow());
+        plugin, block, "storage-block", StorageTierTestFixtures.find("basic").orElseThrow());
     return block;
   }
 
@@ -335,7 +336,7 @@ class PickListenerTest {
     config.set("basic.maxItems", 64);
     config.set("basic.material", "CHEST");
     config.set("basic.name", "Basic");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 
   private static ItemStack chunkLoaderStack(StorageKeys keys, ChunkLoaderType type, UUID loaderId) {
@@ -401,7 +402,8 @@ class PickListenerTest {
           null,
           com.zxcmc.exort.items.CustomItemModelConfig.empty(),
           com.zxcmc.exort.wireless.WirelessRuntimeConfig.defaults(),
-          false);
+          false,
+          StorageTierTestFixtures.current());
       this.keys = keys;
     }
 

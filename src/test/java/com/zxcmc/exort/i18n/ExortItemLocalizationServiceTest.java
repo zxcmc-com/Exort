@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.items.CustomItemText;
 import com.zxcmc.exort.keys.StorageKeys;
-import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierTestFixtures;
 import com.zxcmc.exort.wireless.WirelessRuntimeConfig;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.lang.reflect.InvocationHandler;
@@ -121,7 +121,7 @@ class ExortItemLocalizationServiceTest {
     config.set("rare.material", "CHEST");
     config.set("rare.name", "{tier.rare}");
     config.set("rare.color", "red");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
 
     Harness harness = harness("en_us");
     TestItemStack item = item(Material.PAPER, 1);
@@ -224,7 +224,10 @@ class ExortItemLocalizationServiceTest {
     StorageKeys keys = new StorageKeys(plugin());
     Lang lang = new Lang(null, null, Path.of("src/main/resources"));
     lang.load(configuredLanguage);
-    return new Harness(keys, new ExortItemLocalizationService(keys, lang, wirelessConfig));
+    return new Harness(
+        keys,
+        new ExortItemLocalizationService(
+            keys, lang, wirelessConfig, StorageTierTestFixtures.current()));
   }
 
   private static Plugin plugin() {

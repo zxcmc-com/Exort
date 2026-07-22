@@ -31,7 +31,7 @@ class StorageDisplayNameTest {
     loadRareTier();
     Lang lang = new Lang(null);
     lang.load("en_us");
-    StorageTier tier = StorageTier.fromString("rare").orElseThrow();
+    StorageTier tier = StorageTierTestFixtures.find("rare").orElseThrow();
 
     String custom = StorageDisplayName.label(lang, "ru_ru", tier, " Main Vault ");
     String fallback = StorageDisplayName.label(lang, "ru_ru", tier, " ");
@@ -70,7 +70,7 @@ class StorageDisplayNameTest {
     loadRareTier();
     Lang lang = new Lang(null);
     lang.load("ru_ru");
-    StorageTier tier = StorageTier.fromString("rare").orElseThrow();
+    StorageTier tier = StorageTierTestFixtures.find("rare").orElseThrow();
 
     Component component = StorageDisplayName.customNameComponent(lang, "ru_ru", tier, "Main Vault");
 
@@ -85,6 +85,6 @@ class StorageDisplayNameTest {
     config.set("rare.material", "CHEST");
     config.set("rare.name", "{tier.rare}");
     config.set("rare.color", "red");
-    StorageTier.loadFromConfig(config, Logger.getLogger("test"));
+    StorageTierTestFixtures.load(config, Logger.getLogger("test"));
   }
 }

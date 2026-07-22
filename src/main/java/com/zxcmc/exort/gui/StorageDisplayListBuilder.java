@@ -5,6 +5,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.storage.sort.SortMode;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -76,6 +77,7 @@ final class StorageDisplayListBuilder {
                     itemNames,
                     lang,
                     keys,
+                    StorageTierCatalog.empty(),
                     itemLanguage,
                     allowCategoryDupes));
     List<String> sortOrder = orderedResult.order();
@@ -103,7 +105,13 @@ final class StorageDisplayListBuilder {
         () -> {
           for (StorageCache.StorageItem item : ordered) {
             if (activeSearch.matchesCached(
-                item, candidatesCache, itemNames, lang, keys, itemLanguage)) {
+                item,
+                candidatesCache,
+                itemNames,
+                lang,
+                keys,
+                StorageTierCatalog.empty(),
+                itemLanguage)) {
               matches.add(item);
             } else {
               others.add(item);

@@ -17,10 +17,6 @@ public final class WirelessBindService {
   private final StorageKeys keys;
   private final StorageTierCatalog storageTiers;
 
-  public WirelessBindService(StorageKeys keys) {
-    this(keys, StorageTierCatalog.active());
-  }
-
   public WirelessBindService(StorageKeys keys, StorageTierCatalog storageTiers) {
     this.keys = keys;
     this.storageTiers = storageTiers;

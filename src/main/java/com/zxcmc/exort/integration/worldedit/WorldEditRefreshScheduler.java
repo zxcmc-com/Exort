@@ -96,15 +96,15 @@ final class WorldEditRefreshScheduler {
   void shutdown() {
     closed = true;
     for (BukkitTask task : deferredTasks) {
-      task.cancel();
+      deps.generationScope().cancelTask(task);
     }
     deferredTasks.clear();
     if (drainTask != null) {
-      drainTask.cancel();
+      deps.generationScope().cancelTask(drainTask);
       drainTask = null;
     }
     if (networkSealTask != null) {
-      networkSealTask.cancel();
+      deps.generationScope().cancelTask(networkSealTask);
       networkSealTask = null;
     }
     cancelActiveNetworkBatch();
@@ -146,14 +146,14 @@ final class WorldEditRefreshScheduler {
       return;
     }
     if (networkSealTask != null) {
-      networkSealTask.cancel();
+      deps.generationScope().cancelTask(networkSealTask);
       networkSealTask = null;
     }
     try {
       networkSealTask =
-          Bukkit.getScheduler()
+          deps.generationScope()
               .runTaskLater(
-                  deps.plugin(),
+                  "WorldEdit network batch seal",
                   () -> {
                     networkSealTask = null;
                     sealActiveNetworkBatch();
@@ -166,7 +166,7 @@ final class WorldEditRefreshScheduler {
 
   private void sealActiveNetworkBatch() {
     if (networkSealTask != null) {
-      networkSealTask.cancel();
+      deps.generationScope().cancelTask(networkSealTask);
       networkSealTask = null;
     }
     if (activeNetworkBatchId == -1L) {
@@ -195,7 +195,8 @@ final class WorldEditRefreshScheduler {
       return;
     }
     try {
-      drainTask = Bukkit.getScheduler().runTask(deps.plugin(), this::drainQueues);
+      drainTask =
+          deps.generationScope().runTask("WorldEdit refresh queue drain", this::drainQueues);
     } catch (RuntimeException ignored) {
       drainTask = null;
     }
@@ -216,9 +217,9 @@ final class WorldEditRefreshScheduler {
     AtomicReference<BukkitTask> reference = new AtomicReference<>();
     try {
       BukkitTask task =
-          Bukkit.getScheduler()
+          deps.generationScope()
               .runTaskLater(
-                  deps.plugin(),
+                  "WorldEdit deferred refresh " + delayTicks + "t",
                   () -> {
                     BukkitTask current = reference.get();
                     if (current != null) {
@@ -233,7 +234,7 @@ final class WorldEditRefreshScheduler {
       reference.set(task);
       deferredTasks.add(task);
       if (closed && deferredTasks.remove(task)) {
-        task.cancel();
+        deps.generationScope().cancelTask(task);
       }
     } catch (RuntimeException ignored) {
       // The plugin may be disabling while a WorldEdit flush finishes.

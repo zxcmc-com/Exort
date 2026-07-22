@@ -104,9 +104,12 @@ public final class ExortRuntimeFactory {
 
   public static RuntimeHandle<ExortRuntimeServices> create(
       ExortRuntimeFactoryDependencies deps, boolean refreshItemDictionaries) {
-    RuntimeHandle.Scope scope = RuntimeHandle.scope();
+    RuntimeGenerationScope generation =
+        new RuntimeGenerationScope(deps.plugin(), deps.runtimeFaultController());
+    RuntimeHandle.Scope scope = RuntimeHandle.scope(generation);
     try {
-      ExortRuntimeServices services = createServices(deps, refreshItemDictionaries, scope);
+      ExortRuntimeServices services =
+          createServices(deps, refreshItemDictionaries, generation, scope);
       return scope.complete(services);
     } catch (RuntimeException | LinkageError constructionFailure) {
       try {
@@ -121,9 +124,8 @@ public final class ExortRuntimeFactory {
   private static ExortRuntimeServices createServices(
       ExortRuntimeFactoryDependencies deps,
       boolean refreshItemDictionaries,
+      RuntimeGenerationScope generation,
       RuntimeHandle.Scope scope) {
-    RuntimeGenerationScope generation = new RuntimeGenerationScope(deps.plugin());
-    scope.own("runtime generation fallback", generation::close);
     deps.reloadDefaultSortMode().run();
     RuntimeItemNamesReload itemNamesReload = prepareLanguage(deps, refreshItemDictionaries);
     CreativeTabOrder.init(deps.plugin(), deps.keys());
@@ -150,10 +152,12 @@ public final class ExortRuntimeFactory {
       deps.networkGraphCache().get().invalidateAll();
     }
     var relayTraversalCarrier = networkConfig.relayEnabled() ? materials.relayCarrier() : null;
+    checkpoint(deps, generation, RuntimeConstructionStage.GENERATION_CORE_PREPARATION);
 
     CustomItems customItems = createCustomItems(deps, itemModels, wirelessConfig);
     WirelessTerminalService wirelessService =
         createWirelessService(deps, customItems, wirelessConfig);
+    checkpoint(deps, generation, RuntimeConstructionStage.ITEM_WIRELESS);
     WirelessTransmitterService wirelessTransmitterService =
         createWirelessTransmitterService(deps, materials, networkConfig, wirelessConfig);
     RuntimeServiceState state = new RuntimeServiceState();
@@ -178,12 +182,17 @@ public final class ExortRuntimeFactory {
     transmitterSessionManager.reconfigure();
     wirelessTransmitterService.scanLoadedChunks();
     deps.sessionManager().reconfigure();
+    checkpoint(deps, generation, RuntimeConstructionStage.TRANSMITTER);
 
     PacketEnhancements packetEnhancements =
         PacketEnhancementsFactory.tryCreate(deps.plugin(), deps.pickDebugFullSink());
     if (packetEnhancements != null) {
-      scope.own("packet enhancements", packetEnhancements::unregister);
+      scope.own(
+          RuntimeGenerationScope.ResourceKind.INTEGRATION,
+          "packet enhancements",
+          packetEnhancements::unregister);
     }
+    checkpoint(deps, generation, RuntimeConstructionStage.PACKET_EVENTS);
     ChunkLoaderConfig chunkLoaderConfig = deps.preparedRuntime().chunkLoader();
     ChunkLoaderAuditFileWriter chunkLoaderAuditFileWriter =
         chunkLoaderConfig.audit().shouldWriteFile()
@@ -202,6 +211,7 @@ public final class ExortRuntimeFactory {
                 deps.plugin().getLogger(), chunkLoaderConfig.audit(), chunkLoaderAuditFileWriter));
     scope.own("chunk loader", chunkLoaderService::stop);
     chunkLoaderService.start();
+    checkpoint(deps, generation, RuntimeConstructionStage.CHUNK_LOADER);
     StorageClaimRegistry storageClaimRegistry =
         new StorageClaimRegistry(deps.database(), deps.plugin().getLogger());
     scope.own("storage claim registry", storageClaimRegistry::close);
@@ -226,6 +236,7 @@ public final class ExortRuntimeFactory {
               }
             });
     scope.own("relay setup tracker", relaySetupTracker::stop);
+    checkpoint(deps, generation, RuntimeConstructionStage.CLAIMS_RELAY_PROTECTION);
     RuntimeHologramConfig hologramConfig = RuntimeHologramConfig.forMode(deps.resourceMode());
     RuntimeDisplayServices displayServices =
         RuntimeDisplayServicesFactory.create(
@@ -261,6 +272,7 @@ public final class ExortRuntimeFactory {
             generation,
             scope);
     state.displayRefreshService = displayServices.displayRefreshService();
+    checkpoint(deps, generation, RuntimeConstructionStage.DISPLAY);
 
     BusRuntimeConfig busRuntime = deps.preparedRuntime().bus();
     RuntimeBusServices busServices =
@@ -288,6 +300,7 @@ public final class ExortRuntimeFactory {
             generation,
             scope);
     state.busService = busServices.busService();
+    checkpoint(deps, generation, RuntimeConstructionStage.BUS);
 
     RuntimeBreakingServices breakingServices =
         RuntimeBreakingServicesFactory.create(
@@ -317,6 +330,7 @@ public final class ExortRuntimeFactory {
                 chunkLoaderService,
                 packetEnhancements));
     scope.own("custom block breaker", breakingServices.customBlockBreaker()::shutdown);
+    checkpoint(deps, generation, RuntimeConstructionStage.BREAKING);
 
     RuntimeListenerRegistration listenerRegistration =
         RuntimeListenerRegistrar.register(
@@ -350,6 +364,7 @@ public final class ExortRuntimeFactory {
                 deps.storageTierCatalog(),
                 scope),
             deps.preparedRuntime().placementGuard());
+    checkpoint(deps, generation, RuntimeConstructionStage.LISTENERS_RECIPES);
 
     RuntimePostRefreshScheduler.Registration postRefresh =
         RuntimePostRefreshScheduler.schedule(
@@ -358,8 +373,13 @@ public final class ExortRuntimeFactory {
                 deps.networkGraphCache(),
                 displayServices.displayRefreshService(),
                 deps.storageManager(),
-                deps.inventoryRefreshService()));
-    scope.own("post-runtime refresh", postRefresh::close);
+                deps.inventoryRefreshService(),
+                generation));
+    scope.own(
+        RuntimeGenerationScope.ResourceKind.BUKKIT_TASK,
+        "post-runtime refresh",
+        postRefresh::close);
+    checkpoint(deps, generation, RuntimeConstructionStage.POST_REFRESH);
     WorldEditBridgeDependencies worldEditDependencies =
         new WorldEditBridgeDependencies(
             deps.plugin(),
@@ -377,53 +397,72 @@ public final class ExortRuntimeFactory {
             deps.storageTierCatalog(),
             materials,
             deps.preparedRuntime().worldEdit(),
-            deps.config().getBoolean("integrations.fawe.autoConfigure", false));
+            deps.config().getBoolean("integrations.fawe.autoConfigure", false),
+            generation);
     WorldEditRuntimeBootstrap.Registration worldEditRegistration =
         WorldEditRuntimeBootstrap.register(
             worldEditDependencies, deps.tryRegisterWorldEdit(), deps.worldEditIntegrationSink());
-    scope.own("WorldEdit integration lifecycle", worldEditRegistration::close);
+    scope.own(
+        RuntimeGenerationScope.ResourceKind.INTEGRATION,
+        "WorldEdit integration lifecycle",
+        worldEditRegistration::close);
     WorldEditIntegration worldEditIntegration = worldEditRegistration.current();
+    checkpoint(deps, generation, RuntimeConstructionStage.WORLD_EDIT);
     if (deps.runtimeTasks() != null) {
+      scope.own(
+          RuntimeGenerationScope.ResourceKind.BUKKIT_TASK,
+          "runtime tasks",
+          deps.runtimeTasks()::cancel);
       deps.runtimeTasks().schedule(deps.preparedRuntime().storage());
-      scope.own("runtime tasks", deps.runtimeTasks()::cancel);
     }
-    scope.own("runtime generation", generation::close);
+    checkpoint(deps, generation, RuntimeConstructionStage.MAINTENANCE);
 
-    return new ExortRuntimeServices(
-        itemNamesReload,
-        customItems,
-        wirelessService,
-        wirelessTransmitterService,
-        transmitterSessionManager,
-        chunkLoaderService,
-        storageClaimRegistry,
-        relaySetupTracker,
-        materials,
-        relayTraversalCarrier,
-        networkConfig.wireLimit(),
-        networkConfig.wireHardCap(),
-        networkConfig.relayRangeChunks(),
-        networkConfig.storagePeekTicks(),
-        networkConfig.wirePeekTicks(),
-        displayServices.hologramManager(),
-        displayServices.wireDisplayManager(),
-        displayServices.storageDisplayManager(),
-        displayServices.terminalDisplayManager(),
-        displayServices.monitorDisplayManager(),
-        displayServices.busDisplayManager(),
-        displayServices.blockProxyService(),
-        displayServices.displayCullingService(),
-        displayServices.displayRefreshService(),
-        busServices.busService(),
-        busServices.busSessionManager(),
-        breakingServices.breakHandler(),
-        breakingServices.customBlockBreaker(),
-        breakingServices.breakSoundConfig(),
-        listenerRegistration.craftingRules(),
-        listenerRegistration.recipeService(),
-        packetEnhancements,
-        listenerRegistration.placementGuard(),
-        worldEditIntegration);
+    ExortRuntimeServices services =
+        new ExortRuntimeServices(
+            generation,
+            itemNamesReload,
+            customItems,
+            wirelessService,
+            wirelessTransmitterService,
+            transmitterSessionManager,
+            chunkLoaderService,
+            storageClaimRegistry,
+            relaySetupTracker,
+            materials,
+            relayTraversalCarrier,
+            networkConfig.wireLimit(),
+            networkConfig.wireHardCap(),
+            networkConfig.relayRangeChunks(),
+            networkConfig.storagePeekTicks(),
+            networkConfig.wirePeekTicks(),
+            displayServices.hologramManager(),
+            displayServices.wireDisplayManager(),
+            displayServices.storageDisplayManager(),
+            displayServices.terminalDisplayManager(),
+            displayServices.monitorDisplayManager(),
+            displayServices.busDisplayManager(),
+            displayServices.blockProxyService(),
+            displayServices.displayCullingService(),
+            displayServices.displayRefreshService(),
+            busServices.busService(),
+            busServices.busSessionManager(),
+            breakingServices.breakHandler(),
+            breakingServices.customBlockBreaker(),
+            breakingServices.breakSoundConfig(),
+            listenerRegistration.craftingRules(),
+            listenerRegistration.recipeService(),
+            packetEnhancements,
+            listenerRegistration.placementGuard(),
+            worldEditIntegration);
+    checkpoint(deps, generation, RuntimeConstructionStage.SERVICES_COMPLETE);
+    return services;
+  }
+
+  private static void checkpoint(
+      ExortRuntimeFactoryDependencies deps,
+      RuntimeGenerationScope generation,
+      RuntimeConstructionStage stage) {
+    deps.runtimeFaultController().checkpoint(stage, generation);
   }
 
   private static RuntimeItemNamesReload prepareLanguage(

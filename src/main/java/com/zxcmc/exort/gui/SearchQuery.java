@@ -4,6 +4,7 @@ import com.zxcmc.exort.i18n.ItemNameService;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.storage.StorageCache;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -64,8 +65,14 @@ record SearchQuery(String displayText, List<String> tokens) {
   }
 
   boolean matches(
-      ItemStack stack, ItemNameService itemNames, Lang lang, StorageKeys keys, String language) {
-    return SortSearchHelper.matchesQuery(stack, tokens, itemNames, lang, keys, language);
+      ItemStack stack,
+      ItemNameService itemNames,
+      Lang lang,
+      StorageKeys keys,
+      StorageTierCatalog storageTiers,
+      String language) {
+    return SortSearchHelper.matchesQuery(
+        stack, tokens, itemNames, lang, keys, storageTiers, language);
   }
 
   boolean matchesCached(
@@ -73,7 +80,8 @@ record SearchQuery(String displayText, List<String> tokens) {
       Map<String, List<String>> candidatesCache,
       ItemNameService itemNames,
       String language) {
-    return matchesCached(item, candidatesCache, itemNames, null, null, language);
+    return matchesCached(
+        item, candidatesCache, itemNames, null, null, StorageTierCatalog.empty(), language);
   }
 
   boolean matchesCached(
@@ -82,6 +90,7 @@ record SearchQuery(String displayText, List<String> tokens) {
       ItemNameService itemNames,
       Lang lang,
       StorageKeys keys,
+      StorageTierCatalog storageTiers,
       String language) {
     if (tokens.isEmpty()) return true;
     List<String> candidates =
@@ -89,7 +98,7 @@ record SearchQuery(String displayText, List<String> tokens) {
             item.key(),
             key ->
                 SortSearchHelper.buildSearchCandidates(
-                    item.sample(), itemNames, lang, keys, language));
+                    item.sample(), itemNames, lang, keys, storageTiers, language));
     if (candidates.isEmpty()) return true;
     for (String token : tokens) {
       for (String candidate : candidates) {

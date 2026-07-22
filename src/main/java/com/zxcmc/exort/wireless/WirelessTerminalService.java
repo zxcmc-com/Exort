@@ -32,11 +32,6 @@ public class WirelessTerminalService {
   private final WirelessLoreService loreService;
 
   public WirelessTerminalService(
-      Lang lang, StorageKeys keys, CustomItems customItems, boolean enabled, int rangeBlocks) {
-    this(lang, keys, customItems, enabled, rangeBlocks, StorageTierCatalog.active());
-  }
-
-  public WirelessTerminalService(
       Lang lang,
       StorageKeys keys,
       CustomItems customItems,

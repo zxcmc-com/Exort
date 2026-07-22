@@ -34,13 +34,15 @@ public record ExortRuntimeFactoryDependencies(
     RuntimeConfigSnapshot runtimeConfig,
     RuntimeIntegrationContext integrations,
     RuntimeHooks hooks,
-    PreparedRuntime preparedRuntime) {
+    PreparedRuntime preparedRuntime,
+    RuntimeFaultController runtimeFaultController) {
   public ExortRuntimeFactoryDependencies {
     Objects.requireNonNull(core, "core");
     Objects.requireNonNull(runtimeConfig, "runtimeConfig");
     Objects.requireNonNull(integrations, "integrations");
     Objects.requireNonNull(hooks, "hooks");
     Objects.requireNonNull(preparedRuntime, "preparedRuntime");
+    Objects.requireNonNull(runtimeFaultController, "runtimeFaultController");
   }
 
   public JavaPlugin plugin() {

@@ -5,6 +5,7 @@ import com.zxcmc.exort.infra.config.FeatureAccessConfig;
 import com.zxcmc.exort.items.CustomItems;
 import com.zxcmc.exort.items.FixedItemCatalog;
 import com.zxcmc.exort.storage.StorageTier;
+import com.zxcmc.exort.storage.StorageTierCatalog;
 import com.zxcmc.exort.wireless.booster.WirelessBoosterTier;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,7 @@ public final class ExortGiveMenu implements InventoryHolder {
   private final Supplier<CustomItems> customItems;
   private final Supplier<ItemStack> wirelessTerminalFactory;
   private final Supplier<FeatureAccessConfig> featureAccess;
+  private final Supplier<StorageTierCatalog> storageTierCatalog;
   private final BiConsumer<Player, ItemStack> issueLogger;
   private final BiConsumer<Player, ItemStack> destroyLogger;
 
@@ -70,7 +72,8 @@ public final class ExortGiveMenu implements InventoryHolder {
         title,
         issueLogger,
         destroyLogger,
-        FeatureAccessConfig::defaults);
+        FeatureAccessConfig::defaults,
+        StorageTierCatalog::empty);
   }
 
   public ExortGiveMenu(
@@ -79,11 +82,13 @@ public final class ExortGiveMenu implements InventoryHolder {
       Component title,
       BiConsumer<Player, ItemStack> issueLogger,
       BiConsumer<Player, ItemStack> destroyLogger,
-      Supplier<FeatureAccessConfig> featureAccess) {
+      Supplier<FeatureAccessConfig> featureAccess,
+      Supplier<StorageTierCatalog> storageTierCatalog) {
     this.customItems = Objects.requireNonNull(customItems, "customItems");
     this.wirelessTerminalFactory =
         Objects.requireNonNull(wirelessTerminalFactory, "wirelessTerminalFactory");
     this.featureAccess = featureAccess == null ? FeatureAccessConfig::defaults : featureAccess;
+    this.storageTierCatalog = Objects.requireNonNull(storageTierCatalog, "storageTierCatalog");
     this.issueLogger = issueLogger == null ? (player, item) -> {} : issueLogger;
     this.destroyLogger = destroyLogger == null ? (player, item) -> {} : destroyLogger;
     inventory = Bukkit.createInventory(this, SIZE, title == null ? Component.text(TITLE) : title);
@@ -92,7 +97,11 @@ public final class ExortGiveMenu implements InventoryHolder {
 
   public void refreshCatalog() {
     List<ItemStack> items =
-        catalogItems(currentCustomItems(), wirelessTerminalFactory, currentFeatureAccess());
+        catalogItems(
+            currentCustomItems(),
+            wirelessTerminalFactory,
+            currentFeatureAccess(),
+            currentStorageTierCatalog());
     validateCatalogSize(items.size());
     inventory.clear();
     for (int i = 0; i < items.size(); i++) {
@@ -178,15 +187,16 @@ public final class ExortGiveMenu implements InventoryHolder {
     }
   }
 
-  static List<String> catalogIds() {
-    return catalogIds(FeatureAccessConfig.defaults());
+  static List<String> catalogIds(StorageTierCatalog storageTiers) {
+    return catalogIds(FeatureAccessConfig.defaults(), storageTiers);
   }
 
-  static List<String> catalogIds(FeatureAccessConfig featureAccess) {
+  static List<String> catalogIds(
+      FeatureAccessConfig featureAccess, StorageTierCatalog storageTiers) {
     FeatureAccessConfig access =
         featureAccess == null ? FeatureAccessConfig.defaults() : featureAccess;
     List<String> ids = new ArrayList<>();
-    for (StorageTier tier : StorageTier.allTiers()) {
+    for (StorageTier tier : storageTiers.tiers()) {
       ids.add("storage:" + tier.key().toLowerCase(Locale.ROOT));
     }
     for (String id : FIXED_ITEM_IDS) {
@@ -241,11 +251,12 @@ public final class ExortGiveMenu implements InventoryHolder {
   private static List<ItemStack> catalogItems(
       CustomItems customItems,
       Supplier<ItemStack> wirelessTerminalFactory,
-      FeatureAccessConfig featureAccess) {
+      FeatureAccessConfig featureAccess,
+      StorageTierCatalog storageTiers) {
     FeatureAccessConfig access =
         featureAccess == null ? FeatureAccessConfig.defaults() : featureAccess;
     List<ItemStack> items = new ArrayList<>();
-    for (StorageTier tier : StorageTier.allTiers()) {
+    for (StorageTier tier : storageTiers.tiers()) {
       items.add(oneItemCopy(customItems.storageItem(tier, null)));
     }
     items.add(oneItemCopy(customItems.storageCoreItem()));
@@ -328,6 +339,10 @@ public final class ExortGiveMenu implements InventoryHolder {
   private FeatureAccessConfig currentFeatureAccess() {
     FeatureAccessConfig access = featureAccess.get();
     return access == null ? FeatureAccessConfig.defaults() : access;
+  }
+
+  private StorageTierCatalog currentStorageTierCatalog() {
+    return Objects.requireNonNull(storageTierCatalog.get(), "storageTierCatalog");
   }
 
   private ItemStack copyForDelivery(ItemStack sample) {
