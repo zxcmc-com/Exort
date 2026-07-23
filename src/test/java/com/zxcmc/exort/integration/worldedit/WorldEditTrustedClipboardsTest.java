@@ -1,6 +1,8 @@
 package com.zxcmc.exort.integration.worldedit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard;
@@ -8,6 +10,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import java.util.Map;
 import java.util.UUID;
+import org.enginehub.linbus.tree.LinCompoundTag;
 import org.junit.jupiter.api.Test;
 
 class WorldEditTrustedClipboardsTest {
@@ -68,6 +71,30 @@ class WorldEditTrustedClipboardsTest {
     clipboard.setOrigin(BlockVector3.at(1, 0, 0));
 
     assertFalse(trusted.matches(actorId, clipboard));
+  }
+
+  @Test
+  void trustedSchematicPatchRebasesOnlyAcrossEqualSizedClipboardRegions() {
+    BlockVector3 originalMinimum = BlockVector3.at(100, 40, -20);
+    BlockVector3 originalMaximum = BlockVector3.at(102, 41, -18);
+    BlockVector3 markerPosition = BlockVector3.at(101, 40, -19);
+    LinCompoundTag marker = LinCompoundTag.builder().putByte("wire", (byte) 1).build();
+    PendingClipboardPatch patch =
+        new PendingClipboardPatch(
+            UUID.randomUUID(),
+            new WorldEditBounds(originalMinimum, originalMaximum),
+            originalMinimum,
+            Map.of(markerPosition, marker));
+    BlockArrayClipboard loaded =
+        clipboard(BlockVector3.at(0, 0, 0), BlockVector3.at(2, 1, 2), BlockVector3.ZERO);
+
+    PendingClipboardPatch rebased = patch.rebaseTo(loaded);
+
+    assertEquals(Map.of(BlockVector3.at(1, 0, 1), marker), rebased.markers());
+    assertTrue(rebased.matches(loaded));
+    assertNull(
+        patch.rebaseTo(
+            clipboard(BlockVector3.at(0, 0, 0), BlockVector3.at(3, 1, 2), BlockVector3.ZERO)));
   }
 
   private static BlockArrayClipboard clipboard(

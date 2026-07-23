@@ -689,6 +689,9 @@ public final class ChunkLoaderService implements Listener {
     if (existing != null && !existing.sameBlock(block)) {
       if (supersededRemoval == null) {
         ChunkLoaderMarker.clear(plugin, block);
+        if (Carriers.matchesCarrier(block, carrier)) {
+          block.setType(Material.AIR, false);
+        }
         auditLogger.log(
             ChunkLoaderAuditEvent.CLEANUP, null, data.id(), data.type(), block, "duplicate_marker");
         return;

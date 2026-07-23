@@ -72,10 +72,27 @@ final class WorldEditCommandParser {
   }
 
   static boolean isSchematicLoadCommand(String arguments) {
+    return schematicName(arguments, "load") != null;
+  }
+
+  static String schematicName(String arguments, String operation) {
     String command = commandName(arguments);
-    if (!"schematic".equals(command) && !"schem".equals(command)) return false;
+    if ((!"schematic".equals(command) && !"schem".equals(command))
+        || operation == null
+        || operation.isBlank()) {
+      return null;
+    }
     String[] tokens = nonFlagTokens(commandRemainder(arguments));
-    return tokens.length > 0 && "load".equalsIgnoreCase(tokens[0]);
+    if (tokens.length < 2 || !operation.equalsIgnoreCase(tokens[0])) {
+      return null;
+    }
+    String name = tokens[tokens.length - 1].trim().toLowerCase(Locale.ROOT);
+    if (name.endsWith(".schematic")) {
+      name = name.substring(0, name.length() - ".schematic".length());
+    } else if (name.endsWith(".schem")) {
+      name = name.substring(0, name.length() - ".schem".length());
+    }
+    return name.isBlank() ? null : name;
   }
 
   static HistoryAction parseHistoryAction(String arguments) {

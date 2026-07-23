@@ -552,6 +552,12 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
       }
     }
     if (result || markerCleanupRequested) {
+      boolean identityRelocation =
+          moveOperation
+              || historyAction != null
+                  && parsed != null
+                  && parsed.storage() != null
+                  && !storageCloneRequired;
       bridge.enqueue(
           new MarkerUpdate(
               operationId,
@@ -562,7 +568,7 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
               parsed,
               removedStorageId,
               storageCloneRequired,
-              moveOperation));
+              identityRelocation));
       if (stage == EditSession.Stage.BEFORE_HISTORY
           && moveHit
           && movePatch != null

@@ -76,4 +76,18 @@ class WorldEditCommandBoundsTest {
     assertFalse(WorldEditCommandParser.invalidatesClipboardTrust("//flip north"));
     assertFalse(WorldEditCommandParser.invalidatesClipboardTrust("//paste"));
   }
+
+  @Test
+  void schematicCommandsResolveTheFinalNonFlagName() {
+    assertEquals(
+        "folder/example",
+        WorldEditCommandParser.schematicName(
+            "//schem save -f sponge folder/Example.schem", "save"));
+    assertEquals(
+        "folder/example",
+        WorldEditCommandParser.schematicName(
+            "/worldedit:schematic load folder/EXAMPLE.schematic", "load"));
+    assertNull(WorldEditCommandParser.schematicName("//schem list", "load"));
+    assertNull(WorldEditCommandParser.schematicName("//schem load", "load"));
+  }
 }

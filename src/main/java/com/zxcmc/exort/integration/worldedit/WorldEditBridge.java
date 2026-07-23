@@ -120,6 +120,8 @@ public final class WorldEditBridge implements Listener {
   private static final long HISTORY_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
   private static final long MOVE_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
   private static final long OPERATION_CONTEXT_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+  private static final long TRUSTED_SCHEMATIC_TTL_MS = TimeUnit.MINUTES.toMillis(10);
+  private static final long REJECTED_CLIPBOARD_TTL_MS = TimeUnit.SECONDS.toMillis(30);
   private static final int HISTORY_STAGE_USES_PER_STEP = 3;
 
   private final Plugin plugin;
@@ -149,6 +151,8 @@ public final class WorldEditBridge implements Listener {
   private final WorldEditOperationContexts operationContexts =
       new WorldEditOperationContexts(OPERATION_CONTEXT_TTL_MS);
   private final WorldEditTrustedClipboards trustedClipboards = new WorldEditTrustedClipboards();
+  private final Map<UUID, RejectedClipboard> rejectedClipboards = new ConcurrentHashMap<>();
+  private final Map<UUID, TrustedSchematic> trustedSchematics = new ConcurrentHashMap<>();
   private final WorldEditOperationTracker operationTracker = new WorldEditOperationTracker();
   private final Map<StoragePreparationKey, CompletableFuture<Boolean>> storagePreparations =
       new ConcurrentHashMap<>();
@@ -339,6 +343,8 @@ public final class WorldEditBridge implements Listener {
     pendingMovePatches.clear();
     operationContexts.clear();
     trustedClipboards.clear();
+    rejectedClipboards.clear();
+    trustedSchematics.clear();
     storagePreparations.clear();
     operationTracker.clear();
   }
@@ -446,7 +452,9 @@ public final class WorldEditBridge implements Listener {
     }
     Player player = event.getPlayer();
     Actor actor = wrapBukkitActor(player);
-    prepareCommand(actor, event.getMessage(), player);
+    if (prepareCommand(actor, event.getMessage(), player)) {
+      event.setCancelled(true);
+    }
   }
 
   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -459,14 +467,35 @@ public final class WorldEditBridge implements Listener {
       return;
     }
     Actor actor = wrapBukkitActor(event.getSender());
-    prepareCommand(actor, event.getCommand(), null);
+    if (prepareCommand(actor, event.getCommand(), null)) {
+      event.setCancelled(true);
+    }
   }
 
+  /** Returns {@code true} only when the command must be cancelled fail-safe. */
   private boolean prepareCommand(Actor actor, String command, Player player) {
     if (actor == null || actor.getUniqueId() == null || !Bukkit.isPrimaryThread()) {
       return false;
     }
     UUID actorId = actor.getUniqueId();
+    String schematicSaveName = WorldEditCommandParser.schematicName(command, "save");
+    if (schematicSaveName != null) {
+      rememberTrustedSchematic(actor, schematicSaveName);
+      return false;
+    }
+    String schematicLoadName = WorldEditCommandParser.schematicName(command, "load");
+    if (schematicLoadName != null) {
+      TrustedSchematic schematic = trustedSchematic(actorId, schematicLoadName);
+      clearActorClipboardState(actorId);
+      if (schematic != null) {
+        rememberClipboardPatch(actor, schematic.patch());
+        clipboardPatcher.scheduleTrustedSchematic(actor, schematic.patch());
+      }
+      return false;
+    }
+    if (WorldEditCommandParser.isClipboardCopyCommand(command)) {
+      rememberRejectedClipboard(actor);
+    }
     if (WorldEditCommandParser.invalidatesClipboardTrust(command)) {
       trustedClipboards.clear(actorId);
       clipboardPatcher.cancel(actorId);
@@ -475,7 +504,7 @@ public final class WorldEditBridge implements Listener {
     if (historyCommand != null) {
       rememberHistoryCommand(actorId, historyCommand);
       rememberOperationContext(actor, command, null, null);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.isClipboardCopyCommand(command)) {
       ClipboardCapture capture = captureClipboardPatches(actor);
@@ -484,44 +513,52 @@ public final class WorldEditBridge implements Listener {
         clipboardPatches.remove(actorId);
         pendingCutSourcePatches.remove(actorId);
         rememberOperationContext(actor, command, patch, null);
-        return true;
+        return false;
       }
       rememberClipboardPatch(actor, patch);
       rememberCutSourcePatchIfNeeded(actor, command, capture.cutPatch());
       rememberOperationContext(actor, command, patch, null);
       clipboardPatcher.schedule(actor, patch);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.isClipboardPasteCommand(command)) {
       clipboardPatcher.tryApplyNow(actor);
+      if (!scrubRejectedClipboard(actor)) {
+        ExortLog.warn(
+            "Blocked WorldEdit paste because a rejected Exort clipboard could not be scrubbed for"
+                + " actor "
+                + actorId
+                + ".");
+        return true;
+      }
       rememberPasteCommand(actorId, WorldEditCommandParser.parsePasteCommand(command));
       rememberOperationContext(actor, command, clipboardPatches.get(actorId), null);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.isMoveCommand(command)) {
       rememberMovePatch(actorId, captureMovePatch(actor, command, player));
       rememberOperationContext(actor, command, null, null);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.isOperationSnapshotCommand(command)) {
       PendingOperationSnapshot snapshot = captureOperationSnapshot(actor, command, player);
       rememberOperationSnapshot(snapshot);
       rememberOperationContext(actor, command, null, snapshot);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.isEntityRefreshCommand(command)) {
       scheduleEntityRefresh(actor, command);
       rememberOperationContext(actor, command, null, null);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.isClipboardClearCommand(command)) {
       clearActorClipboardState(actorId);
-      return true;
+      return false;
     }
     if (WorldEditCommandParser.invalidatesClipboardTrust(command)) {
       operationContexts.clear(actorId);
       clipboardPatches.remove(actorId);
-      return true;
+      return false;
     }
     return false;
   }
@@ -582,6 +619,7 @@ public final class WorldEditBridge implements Listener {
   private void onClipboardPatchResult(UUID actorId, WorldEditClipboardPatcher.PatchResult result) {
     if (actorId == null || result == null) return;
     if (result.applied()) {
+      rejectedClipboards.remove(actorId);
       trustedClipboards.trust(actorId, result.clipboard(), result.patch());
       return;
     }
@@ -631,6 +669,34 @@ public final class WorldEditBridge implements Listener {
     clearActorClipboardState(actorId);
     pendingHistoryCommands.remove(actorId);
     markerHistory.clearActor(actorId);
+    trustedSchematics.remove(actorId);
+  }
+
+  private void rememberTrustedSchematic(Actor actor, String name) {
+    if (actor == null || actor.getUniqueId() == null || name == null) return;
+    UUID actorId = actor.getUniqueId();
+    PendingClipboardPatch patch = clipboardPatches.get(actorId);
+    Clipboard clipboard = currentClipboard(actor);
+    if (patch == null
+        || clipboard == null
+        || !patch.matches(clipboard)
+        || !trustedClipboards.matches(actorId, clipboard)) {
+      trustedSchematics.remove(actorId);
+      return;
+    }
+    trustedSchematics.put(actorId, new TrustedSchematic(name, patch, System.currentTimeMillis()));
+  }
+
+  private TrustedSchematic trustedSchematic(UUID actorId, String name) {
+    if (actorId == null || name == null) return null;
+    TrustedSchematic schematic = trustedSchematics.get(actorId);
+    if (schematic == null) return null;
+    long ageMs = System.currentTimeMillis() - schematic.timestampMs();
+    if (ageMs < 0L || ageMs > TRUSTED_SCHEMATIC_TTL_MS || !name.equals(schematic.name())) {
+      trustedSchematics.remove(actorId, schematic);
+      return null;
+    }
+    return schematic;
   }
 
   private void rememberPasteCommand(UUID actorId, PendingPasteCommand pasteCommand) {
@@ -719,6 +785,49 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
+  private void rememberRejectedClipboard(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return;
+    UUID actorId = actor.getUniqueId();
+    Clipboard clipboard = currentClipboard(actor);
+    PendingClipboardPatch patch = clipboardPatches.get(actorId);
+    if (clipboard == null
+        || patch == null
+        || patch.markers().isEmpty()
+        || !patch.matches(clipboard)
+        || !trustedClipboards.matches(actorId, clipboard)) {
+      rejectedClipboards.remove(actorId);
+      return;
+    }
+    RejectedClipboard rejected =
+        new RejectedClipboard(clipboard, patch, System.currentTimeMillis());
+    rejectedClipboards.put(actorId, rejected);
+    scheduleLifecycleTask(
+        () -> rejectedClipboards.remove(actorId, rejected),
+        Math.max(1L, TimeUnit.MILLISECONDS.toSeconds(REJECTED_CLIPBOARD_TTL_MS) * 20L));
+  }
+
+  private boolean scrubRejectedClipboard(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return true;
+    UUID actorId = actor.getUniqueId();
+    RejectedClipboard rejected = rejectedClipboards.get(actorId);
+    if (rejected == null) return true;
+    long ageMs = System.currentTimeMillis() - rejected.timestampMs();
+    Clipboard clipboard = currentClipboard(actor);
+    if (ageMs < 0L
+        || ageMs > REJECTED_CLIPBOARD_TTL_MS
+        || clipboard != rejected.clipboard()
+        || !rejected.patch().matches(clipboard)) {
+      rejectedClipboards.remove(actorId, rejected);
+      return true;
+    }
+    if (clipboardPatcher.scrubRejected(actor, clipboard, rejected.patch())) {
+      rejectedClipboards.remove(actorId, rejected);
+      PerfStats.incrementCounter("worldedit.clipboard.rejectedScrubs");
+      return true;
+    }
+    return false;
+  }
+
   private void rememberCutSourcePatchIfNeeded(
       Actor actor, String command, PendingClipboardPatch patch) {
     if (actor == null || actor.getUniqueId() == null) return;
@@ -751,6 +860,7 @@ public final class WorldEditBridge implements Listener {
     pendingMovePatches.remove(actorId);
     operationContexts.clear(actorId);
     trustedClipboards.clear(actorId);
+    rejectedClipboards.remove(actorId);
   }
 
   private PendingPastePatch resolvePendingPastePatch(Actor actor, UUID destinationWorldId) {
@@ -1587,6 +1697,7 @@ public final class WorldEditBridge implements Listener {
         operationTracker.removedStorageIdsByOperation(batches);
     Set<ChunkKey> changedChunks = new HashSet<>();
     Set<BlockRef> networkRefreshStarts = new HashSet<>();
+    Set<Long> blockedMoveOperations = new HashSet<>();
     for (ChunkUpdateBatch batch : batches.values()) {
       World world = Bukkit.getWorld(batch.key.worldId());
       if (world == null) {
@@ -1600,6 +1711,11 @@ public final class WorldEditBridge implements Listener {
       Iterable<PendingUpdate> updatesToApply = coalesceByBlock(batch.updates);
       for (PendingUpdate pending : updatesToApply) {
         MarkerUpdate update = pending.update;
+        if (update.moveOperation() && blockedMoveOperations.contains(update.operationId())) {
+          pending.nextTick = tickCounter + 1L;
+          updates.add(pending);
+          continue;
+        }
         MarkerSnapshot snapshot = update.snapshot();
         if (snapshot != null && snapshot.storage() != null && update.storageCloneRequired()) {
           String storageId = snapshot.storage().storageId();
@@ -1666,6 +1782,9 @@ public final class WorldEditBridge implements Listener {
           }
         }
         if (!applyUpdate(world, update)) {
+          if (update.moveOperation()) {
+            blockedMoveOperations.add(update.operationId());
+          }
           if (pending.attempts < MAX_RETRIES) {
             pending.attempts++;
             pending.nextTick = tickCounter + RETRY_DELAY_TICKS;
@@ -2012,7 +2131,7 @@ public final class WorldEditBridge implements Listener {
     }
     Block target = world.getBlockAt(clonedUpdate.x(), clonedUpdate.y(), clonedUpdate.z());
     StorageClaimLocation destination = StorageClaimLocation.fromBlock(target);
-    releaseDifferentStorageAt(target, storage.storageId())
+    releaseDifferentStorageAt(target, storage.storageId(), false)
         .thenCompose(
             released -> {
               if (!released) {
@@ -2075,7 +2194,7 @@ public final class WorldEditBridge implements Listener {
     storagePreparations.computeIfAbsent(
         key,
         ignored ->
-            releaseDifferentStorageAt(block, storage.storageId())
+            releaseDifferentStorageAt(block, storage.storageId(), update.moveOperation())
                 .thenCompose(
                     released -> {
                       if (!released) return CompletableFuture.completedFuture(false);
@@ -2106,7 +2225,7 @@ public final class WorldEditBridge implements Listener {
                 .whenComplete(
                     (prepared, error) -> {
                       storagePreparations.remove(key);
-                      if (error != null || !Boolean.TRUE.equals(prepared)) {
+                      if (error != null) {
                         plugin
                             .getLogger()
                             .log(
@@ -2119,16 +2238,14 @@ public final class WorldEditBridge implements Listener {
                                     + update.y()
                                     + ","
                                     + update.z(),
-                                error == null
-                                    ? new IllegalStateException("physical claim was denied")
-                                    : unwrap(error));
+                                unwrap(error));
                       }
                     }));
     return false;
   }
 
   private CompletableFuture<Boolean> releaseDifferentStorageAt(
-      Block target, String incomingStorageId) {
+      Block target, String incomingStorageId, boolean allowDisplacedMoveMarker) {
     Optional<StorageMarker.Data> existing = StorageMarker.get(plugin, target);
     if (existing.isEmpty() || incomingStorageId.equals(existing.get().storageId())) {
       return CompletableFuture.completedFuture(true);
@@ -2138,6 +2255,9 @@ public final class WorldEditBridge implements Listener {
     StorageClaimRegistry.ExactClaim exact =
         registry.exactClaim(existing.get().storageId(), location);
     if (exact == StorageClaimRegistry.ExactClaim.ABSENT) {
+      return CompletableFuture.completedFuture(true);
+    }
+    if (exact == StorageClaimRegistry.ExactClaim.MISMATCH && allowDisplacedMoveMarker) {
       return CompletableFuture.completedFuture(true);
     }
     if (exact != StorageClaimRegistry.ExactClaim.MATCHED) {
@@ -2910,6 +3030,11 @@ public final class WorldEditBridge implements Listener {
     Object resolved = property.getValueFor(value);
     return state.with((Property) property, resolved);
   }
+
+  private record TrustedSchematic(String name, PendingClipboardPatch patch, long timestampMs) {}
+
+  private record RejectedClipboard(
+      Clipboard clipboard, PendingClipboardPatch patch, long timestampMs) {}
 
   private Throwable unwrap(Throwable err) {
     if (err instanceof CompletionException && err.getCause() != null) {

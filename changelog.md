@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.13 — 2026-07-23
+- WorldEdit and FAWE now serialize overlapping Storage identity moves and their history reconciliation, preventing async claim preparation from leaving a moved or restored Storage without its original identity.
+- Trusted Exort clipboard state now survives a same-session schematic save/load round trip, while failed copies that retain an older FAWE clipboard scrub Exort carrier positions before paste instead of creating bare carrier blocks.
+- Copying an existing Chunk Loader through WorldEdit or FAWE now removes the rejected duplicate carrier together with its marker instead of leaving a bare barrier behind.
+
 ## 0.19.12 — 2026-07-22
 - Storage tier resolution now reads only the immutable catalog owned by the published runtime generation, so a prepared or rejected reload cannot leak candidate tier definitions into commands, markers, recipes, GUI search, wireless items, or database reads.
 - Storage terminal indexing now rejects stale structural results, cancels superseded or closed-session work without publishing a partial or outdated item page, and time-budgets internal sorting without charging every comparison as another storage entry, substantially reducing readiness time for very large indexes.
