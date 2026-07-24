@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.14 — 2026-07-24
+- Developers can now obtain the experimental read-only Exort API v1 through Bukkit ServicesManager, inspect typed Exort item/block descriptors with explicit copy-safety policies, and compile against dedicated API, sources, and Javadoc artifacts without depending on the full plugin JAR.
+
 ## 0.19.13 — 2026-07-23
 - WorldEdit and FAWE now serialize overlapping Storage identity moves and their history reconciliation, preventing async claim preparation from leaving a moved or restored Storage without its original identity.
 - Trusted Exort clipboard state now survives a same-session schematic save/load round trip, while failed copies that retain an older FAWE clipboard scrub Exort carrier positions before paste instead of creating bare carrier blocks.

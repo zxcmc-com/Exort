@@ -46,6 +46,22 @@ public final class TerminalMarker {
     return parseType(raw, TerminalKind.TERMINAL);
   }
 
+  /** Returns the stored kind only when the marker value is valid. */
+  public static Optional<TerminalKind> validKind(Plugin plugin, Block block) {
+    if (!isTerminal(plugin, block)) {
+      return Optional.empty();
+    }
+    String raw = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TYPE).orElse(null);
+    if (raw == null) {
+      return Optional.of(TerminalKind.TERMINAL);
+    }
+    try {
+      return Optional.of(TerminalKind.valueOf(raw));
+    } catch (IllegalArgumentException ignored) {
+      return Optional.empty();
+    }
+  }
+
   public static Optional<BlockFace> facing(Plugin plugin, Block block) {
     String raw = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_FACING).orElse(null);
     if (raw == null) return Optional.empty();

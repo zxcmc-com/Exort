@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'com.zxcmc.exort'
-version = '0.19.13'
+version = '0.19.14'
 description = 'Exort Storage Network'
 
 def pluginVersion = version.toString()
@@ -156,6 +156,7 @@ repositories {
 
 configurations {
     googleJavaFormat
+    apiConsumerPaper
 }
 
 configurations.configureEach {
@@ -204,6 +205,7 @@ dependencies {
     testImplementation 'com.sk89q.worldedit:worldedit-core:7.3.0'
     testRuntimeOnly 'org.xerial:sqlite-jdbc:3.45.3.0'
     googleJavaFormat 'com.google.googlejavaformat:google-java-format:1.35.0'
+    apiConsumerPaper "io.papermc.paper:paper-api:${paperApiVersion}"
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -235,6 +237,7 @@ tasks.register('googleJavaFormat', JavaExec) {
     args fileTree('src') {
         include 'main/java/**/*.java'
         include 'test/java/**/*.java'
+        include 'apiConsumer/java/**/*.java'
         exclude '**/CreativeTabData.java'
     }.files
 }
@@ -260,6 +263,7 @@ tasks.register('googleJavaFormatCheck', JavaExec) {
     args fileTree('src') {
         include 'main/java/**/*.java'
         include 'test/java/**/*.java'
+        include 'apiConsumer/java/**/*.java'
         exclude '**/CreativeTabData.java'
     }.files
 }
@@ -324,8 +328,99 @@ tasks.named('jar') {
     enabled = false
 }
 
+def apiPackages = ['com/zxcmc/exort/api/**']
+def apiJar = tasks.register('apiJar', Jar) {
+    group = 'build'
+    description = 'Builds the compile-only Exort public API artifact.'
+    dependsOn tasks.named('classes')
+    archiveClassifier.set('api')
+    includeEmptyDirs = false
+    from(sourceSets.main.output) {
+        include apiPackages
+    }
+    from('LICENSE.md')
+    manifest {
+        attributes(
+            'Automatic-Module-Name': 'com.zxcmc.exort.api',
+            'Implementation-Title': 'Exort API',
+            'Implementation-Version': pluginVersion
+        )
+    }
+}
+
+def apiSourcesJar = tasks.register('apiSourcesJar', Jar) {
+    group = 'build'
+    description = 'Builds the Exort public API source artifact.'
+    archiveClassifier.set('api-sources')
+    includeEmptyDirs = false
+    from(sourceSets.main.allJava) {
+        include apiPackages
+    }
+    from('LICENSE.md')
+    manifest {
+        attributes(
+            'Automatic-Module-Name': 'com.zxcmc.exort.api',
+            'Implementation-Title': 'Exort API Sources',
+            'Implementation-Version': pluginVersion
+        )
+    }
+}
+
+def apiJavadoc = tasks.register('apiJavadoc', Javadoc) {
+    group = 'documentation'
+    description = 'Generates strict Javadoc for the Exort public API.'
+    source = sourceSets.main.allJava.matching {
+        include apiPackages
+    }
+    classpath = sourceSets.main.compileClasspath
+    destinationDir = layout.buildDirectory.dir('docs/exort-api').get().asFile
+    failOnError = true
+    options {
+        encoding = 'UTF-8'
+        charSet = 'UTF-8'
+        docEncoding = 'UTF-8'
+        memberLevel = JavadocMemberLevel.PUBLIC
+        addStringOption('Xdoclint:all', '-quiet')
+        addBooleanOption('Werror', true)
+        windowTitle = "Exort ${pluginVersion} API"
+        docTitle = "Exort ${pluginVersion} API"
+    }
+}
+
+def apiJavadocJar = tasks.register('apiJavadocJar', Jar) {
+    group = 'build'
+    description = 'Builds the Exort public API Javadoc artifact.'
+    dependsOn apiJavadoc
+    archiveClassifier.set('api-javadoc')
+    includeEmptyDirs = false
+    from(apiJavadoc.map { it.destinationDir })
+    from('LICENSE.md')
+    manifest {
+        attributes(
+            'Automatic-Module-Name': 'com.zxcmc.exort.api',
+            'Implementation-Title': 'Exort API Javadoc',
+            'Implementation-Version': pluginVersion
+        )
+    }
+}
+
+def compileApiConsumer = tasks.register('compileApiConsumer', JavaCompile) {
+    group = 'verification'
+    description = 'Compiles an external consumer using only the API JAR and Paper API.'
+    dependsOn apiJar
+    source = fileTree('src/apiConsumer/java') {
+        include '**/*.java'
+    }
+    classpath = files(apiJar.flatMap { it.archiveFile }) + configurations.apiConsumerPaper
+    destinationDirectory = layout.buildDirectory.dir('classes/apiConsumer')
+}
+
+tasks.named('assemble') {
+    dependsOn apiJar, apiSourcesJar, apiJavadocJar
+}
+
 tasks.named('build') {
-    dependsOn tasks.named('verifyPluginJar')
+    dependsOn tasks.named('verifyPluginJar'), tasks.named('verifyApiJar')
 }
 
 tasks.processResources {
@@ -453,4 +548,80 @@ tasks.register('verifyPluginJar') {
             }
         }
     }
+}
+
+tasks.register('verifyApiJar') {
+    group = 'verification'
+    description = 'Verifies the isolated public API artifacts and compile-only consumer boundary.'
+    dependsOn apiJar, apiSourcesJar, apiJavadocJar, compileApiConsumer
+    inputs.files(
+        apiJar.flatMap { it.archiveFile },
+        apiSourcesJar.flatMap { it.archiveFile },
+        apiJavadocJar.flatMap { it.archiveFile }
+    )
+
+    doLast {
+        def jarFile = apiJar.get().archiveFile.get().asFile
+        if (!jarFile.isFile() || jarFile.length() == 0L) {
+            throw new GradleException("API JAR is missing or empty: ${jarFile}")
+        }
+        def requiredClasses = [
+            'com/zxcmc/exort/api/ExortApi.class',
+            'com/zxcmc/exort/api/model/ExortBlockDescriptor.class',
+            'com/zxcmc/exort/api/model/ExortContentType.class',
+            'com/zxcmc/exort/api/model/ExortItemCopyPolicy.class',
+            'com/zxcmc/exort/api/model/ExortItemDescriptor.class',
+            'com/zxcmc/exort/api/model/StorageTierDescriptor.class'
+        ] as Set
+        def allowedRootFiles = ['LICENSE.md'] as Set
+        def allowedPrefixes = ['META-INF/', 'com/zxcmc/exort/api/']
+
+        new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+            def entries = zip.entries().toList()
+            def entryNames = entries.collect { it.name }
+            if (entryNames.toSet().size() != entryNames.size()) {
+                throw new GradleException("API JAR contains duplicate ZIP entries: ${jarFile}")
+            }
+            def missing = requiredClasses - (entryNames as Set)
+            if (!missing.isEmpty()) {
+                throw new GradleException("API JAR is missing public classes: ${missing}")
+            }
+            def unexpectedEntry = entryNames.find { name ->
+                !name.endsWith('/') &&
+                    !allowedRootFiles.contains(name) &&
+                    !allowedPrefixes.any { name.startsWith(it) }
+            }
+            if (unexpectedEntry != null) {
+                throw new GradleException(
+                    "API JAR contains an entry outside the public boundary: ${unexpectedEntry}"
+                )
+            }
+            entries.findAll { !it.directory && it.name.endsWith('.class') }.each { entry ->
+                byte[] bytes = zip.getInputStream(entry).bytes
+                def header = new DataInputStream(new ByteArrayInputStream(bytes))
+                if (Integer.toUnsignedLong(header.readInt()) != 0xCAFEBABEL) {
+                    throw new GradleException("Invalid class-file header in ${entry.name}")
+                }
+                header.readUnsignedShort()
+                def majorVersion = header.readUnsignedShort()
+                if (majorVersion != 65) {
+                    throw new GradleException(
+                        "Expected Java 21 class-file version 65 in ${entry.name}, found ${majorVersion}"
+                    )
+                }
+                def constants = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+                def internalReference =
+                    (constants =~ /com\\/zxcmc\\/exort\\/(?!api\\/)[A-Za-z0-9_\\/$]+/).find()
+                if (internalReference) {
+                    throw new GradleException(
+                        "Public API class ${entry.name} references an internal Exort package"
+                    )
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyApiJar')
 }

@@ -1,6 +1,8 @@
 package com.zxcmc.exort.core;
 
 import com.zxcmc.exort.api.ExortApi;
+import com.zxcmc.exort.api.model.ExortBlockDescriptor;
+import com.zxcmc.exort.api.model.ExortItemDescriptor;
 import com.zxcmc.exort.api.model.StorageTierDescriptor;
 import com.zxcmc.exort.block.ExortBlockClassifier;
 import com.zxcmc.exort.breaking.overlay.DisplayBreakAnimationSender;
@@ -109,6 +111,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCatalogSource {
@@ -194,6 +198,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCata
     }
     registerRuntimeIntegrationWatchers();
     registerRuntime(true);
+    registerApiService();
     reloadResourcePackService();
     registerBrigadierCommands();
     scheduleEmbeddedChorusfixFinalLog();
@@ -316,6 +321,7 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCata
 
   @Override
   public void onDisable() {
+    unregisterApiService();
     if (runtimeTasks != null) {
       runtimeTasks.cancel();
     }
@@ -408,6 +414,11 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCata
   }
 
   @Override
+  public int getApiVersion() {
+    return 1;
+  }
+
+  @Override
   public String getVersion() {
     return getPluginMeta().getVersion();
   }
@@ -420,6 +431,20 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCata
   @Override
   public Collection<StorageTierDescriptor> getStorageTiers() {
     return storageTierCatalog().tiers().stream().map(StorageTier::descriptor).toList();
+  }
+
+  @Override
+  public Optional<ExortBlockDescriptor> inspectBlock(Block block) {
+    requirePrimaryThread("inspectBlock");
+    ExortBlockClassifier classifier = blockClassifier;
+    return classifier == null ? Optional.empty() : classifier.inspect(block);
+  }
+
+  @Override
+  public Optional<ExortItemDescriptor> inspectItem(ItemStack item) {
+    requirePrimaryThread("inspectItem");
+    CustomItems items = customItems;
+    return items == null ? Optional.empty() : items.inspectItem(item);
   }
 
   @Override
@@ -448,6 +473,15 @@ public class ExortPlugin extends JavaPlugin implements ExortApi, StorageTierCata
     if (Bukkit.getServer() != null && !Bukkit.isPrimaryThread()) {
       throw new IllegalStateException("ExortApi." + operation + " must run on the server thread");
     }
+  }
+
+  private void registerApiService() {
+    Bukkit.getServicesManager().unregister(ExortApi.class, this);
+    Bukkit.getServicesManager().register(ExortApi.class, this, this, ServicePriority.Normal);
+  }
+
+  private void unregisterApiService() {
+    Bukkit.getServicesManager().unregister(ExortApi.class, this);
   }
 
   private boolean ensureMinMinecraftVersion() {

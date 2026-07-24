@@ -122,6 +122,22 @@ public final class StorageMarker {
 
   public static Optional<Data> get(
       Plugin plugin, Block block, StorageTierCatalog storageTierCatalog) {
+    return read(plugin, block, storageTierCatalog, true);
+  }
+
+  /**
+   * Reads a Storage marker without recording orphan diagnostics, for side-effect-free inspection.
+   */
+  public static Optional<Data> getForInspection(
+      Plugin plugin, Block block, StorageTierCatalog storageTierCatalog) {
+    return read(plugin, block, storageTierCatalog, false);
+  }
+
+  private static Optional<Data> read(
+      Plugin plugin,
+      Block block,
+      StorageTierCatalog storageTierCatalog,
+      boolean recordDiagnostics) {
     if (!ChunkMarkerStore.hasSection(plugin, block, SECTION)) return Optional.empty();
     String storageId = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_ID).orElse(null);
     String tierKey = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TIER).orElse(null);
@@ -130,7 +146,9 @@ public final class StorageMarker {
         ChunkMarkerStore.getLong(plugin, block, SECTION, FIELD_TIER_MAX_ITEMS).orElse(null);
     var resolution = StorageTierResolver.resolve(storageTierCatalog, tierKey, storedMaxItems);
     if (resolution.isEmpty()) {
-      warnUnusable(plugin, storageId, tierKey);
+      if (recordDiagnostics) {
+        warnUnusable(plugin, storageId, tierKey);
+      }
       return Optional.empty();
     }
     StorageTierResolver.Resolution resolved = resolution.get();
@@ -149,7 +167,9 @@ public final class StorageMarker {
       }
     }
     if (resolved.orphaned()) {
-      warnOrphaned(plugin, storageId, tierKey, storedMaxItems);
+      if (recordDiagnostics) {
+        warnOrphaned(plugin, storageId, tierKey, storedMaxItems);
+      }
     }
     String nameRaw = ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_NAME).orElse(null);
     String displayName = StorageNameNormalizer.normalize(nameRaw);

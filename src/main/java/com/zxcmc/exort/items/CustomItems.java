@@ -1,5 +1,8 @@
 package com.zxcmc.exort.items;
 
+import com.zxcmc.exort.api.model.ExortContentType;
+import com.zxcmc.exort.api.model.ExortItemCopyPolicy;
+import com.zxcmc.exort.api.model.ExortItemDescriptor;
 import com.zxcmc.exort.chunkloader.ChunkLoaderType;
 import com.zxcmc.exort.i18n.Lang;
 import com.zxcmc.exort.keys.PdcValueSanitizer;
@@ -127,6 +130,55 @@ public class CustomItems {
 
   public boolean isCustomItem(ItemStack stack) {
     return CustomItemClassifier.isCustomItem(keys, stack);
+  }
+
+  /** Returns a safe public projection of a valid Exort item without mutating the supplied stack. */
+  public Optional<ExortItemDescriptor> inspectItem(ItemStack stack) {
+    String rawType = CustomItemClassifier.recognizedType(keys, stack);
+    Optional<ExortContentType> contentType = ExortContentType.fromId(rawType);
+    if (contentType.isEmpty()) {
+      return Optional.empty();
+    }
+    ExortContentType type = contentType.orElseThrow();
+    PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+    if (type == ExortContentType.STORAGE) {
+      Optional<StorageTier> tier =
+          storageTiers.find(pdc.get(keys.storageTier(), PersistentDataType.STRING));
+      if (tier.isEmpty() || hasInvalidUuid(pdc, keys.storageId())) {
+        return Optional.empty();
+      }
+      boolean identified = hasValidUuid(pdc, keys.storageId());
+      return Optional.of(
+          new ExortItemDescriptor(
+              type,
+              Optional.of(tier.orElseThrow().key()),
+              identified
+                  ? ExortItemCopyPolicy.PRESERVE_UNIQUE_IDENTITY
+                  : ExortItemCopyPolicy.PRESERVE_STATE));
+    }
+    if (type == ExortContentType.WIRELESS_BOOSTER) {
+      Optional<WirelessBoosterTier> tier = wirelessBoosterTier(stack);
+      return tier.map(
+          value ->
+              new ExortItemDescriptor(type, Optional.of(value.id()), ExortItemCopyPolicy.TEMPLATE));
+    }
+    if (isChunkLoaderType(type)) {
+      if (hasInvalidUuid(pdc, keys.chunkLoaderId())) {
+        return Optional.empty();
+      }
+      return Optional.of(
+          new ExortItemDescriptor(
+              type,
+              Optional.empty(),
+              hasValidUuid(pdc, keys.chunkLoaderId())
+                  ? ExortItemCopyPolicy.PRESERVE_UNIQUE_IDENTITY
+                  : ExortItemCopyPolicy.TEMPLATE));
+    }
+    ExortItemCopyPolicy copyPolicy =
+        type == ExortContentType.WIRELESS_TERMINAL
+            ? ExortItemCopyPolicy.PRESERVE_STATE
+            : ExortItemCopyPolicy.TEMPLATE;
+    return Optional.of(new ExortItemDescriptor(type, Optional.empty(), copyPolicy));
   }
 
   public boolean refreshItem(
@@ -284,5 +336,21 @@ public class CustomItems {
     String tierRaw = pdc.get(keys.storageTier(), PersistentDataType.STRING);
     Long tierMaxItems = pdc.get(keys.storageTierMaxItems(), PersistentDataType.LONG);
     return StorageTierResolver.resolve(storageTiers, tierRaw, tierMaxItems);
+  }
+
+  private static boolean isChunkLoaderType(ExortContentType type) {
+    return type == ExortContentType.CHUNK_LOADER
+        || type == ExortContentType.PERSONAL_CHUNK_LOADER
+        || type == ExortContentType.DORMANT_CHUNK_LOADER;
+  }
+
+  private static boolean hasValidUuid(PersistentDataContainer pdc, org.bukkit.NamespacedKey key) {
+    String raw = pdc.get(key, PersistentDataType.STRING);
+    return raw != null && PdcValueSanitizer.uuidString(raw) != null;
+  }
+
+  private static boolean hasInvalidUuid(PersistentDataContainer pdc, org.bukkit.NamespacedKey key) {
+    String raw = pdc.get(key, PersistentDataType.STRING);
+    return raw != null && PdcValueSanitizer.uuidString(raw) == null;
   }
 }
