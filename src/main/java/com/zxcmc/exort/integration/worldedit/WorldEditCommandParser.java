@@ -7,12 +7,27 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 
 final class WorldEditCommandParser {
-  private static final Set<String> OPERATION_SNAPSHOT_COMMANDS =
+  enum BlockMutationKind {
+    NONE,
+    SELECTION,
+    LOCAL,
+    GENERATION,
+    STACK,
+    MOVE,
+    PASTE,
+    CUT
+  }
+
+  private static final int DEFAULT_LOCAL_RADIUS = 10;
+  private static final Set<String> SELECTION_MUTATION_COMMANDS =
       Set.of(
           "set",
           "replace",
-          "replacenear",
+          "re",
+          "rep",
           "regen",
+          "regenerate",
+          "restore",
           "smooth",
           "snowsmooth",
           "naturalize",
@@ -20,26 +35,52 @@ final class WorldEditCommandParser {
           "faces",
           "outline",
           "center",
+          "middle",
           "overlay",
           "hollow",
           "deform",
           "forest",
           "flora",
-          "green",
-          "snow",
-          "thaw",
+          "line",
+          "curve",
+          "generate",
+          "g",
+          "gen",
+          "update");
+  private static final Set<String> LOCAL_MUTATION_COMMANDS =
+      Set.of(
+          "replacenear",
           "fixlava",
           "fixwater",
           "drain",
           "fill",
           "fillr",
-          "line",
-          "curve",
-          "stack");
+          "removeabove",
+          "removebelow",
+          "removenear",
+          "snow",
+          "thaw",
+          "green",
+          "extinguish",
+          "ex",
+          "ext");
+  private static final Set<String> GENERATION_MUTATION_COMMANDS =
+      Set.of(
+          "cyl",
+          "hcyl",
+          "sphere",
+          "hsphere",
+          "pyramid",
+          "hpyramid",
+          "hollowpyramid",
+          "cone",
+          "forestgen",
+          "pumpkins",
+          "feature",
+          "structure",
+          "revolve");
   private static final Set<String> ENTITY_REFRESH_COMMANDS =
       Set.of("butcher", "remove", "rem", "rement");
-  private static final Set<String> BROAD_OPERATION_SNAPSHOT_COMMANDS =
-      Set.of("replacenear", "fixlava", "fixwater", "drain", "fill", "fillr", "stack");
 
   private WorldEditCommandParser() {}
 
@@ -140,7 +181,11 @@ final class WorldEditCommandParser {
   }
 
   static boolean isOperationSnapshotCommand(String arguments) {
-    return OPERATION_SNAPSHOT_COMMANDS.contains(commandName(arguments));
+    BlockMutationKind kind = blockMutationKind(arguments);
+    return kind == BlockMutationKind.SELECTION
+        || kind == BlockMutationKind.LOCAL
+        || kind == BlockMutationKind.GENERATION
+        || kind == BlockMutationKind.STACK;
   }
 
   static boolean isEntityRefreshCommand(String arguments) {
@@ -148,7 +193,22 @@ final class WorldEditCommandParser {
   }
 
   static boolean isBroadOperationSnapshotCommand(String arguments) {
-    return BROAD_OPERATION_SNAPSHOT_COMMANDS.contains(commandName(arguments));
+    BlockMutationKind kind = blockMutationKind(arguments);
+    return kind == BlockMutationKind.LOCAL
+        || kind == BlockMutationKind.GENERATION
+        || kind == BlockMutationKind.STACK;
+  }
+
+  static BlockMutationKind blockMutationKind(String arguments) {
+    String command = commandName(arguments);
+    if ("move".equals(command)) return BlockMutationKind.MOVE;
+    if ("stack".equals(command)) return BlockMutationKind.STACK;
+    if ("paste".equals(command)) return BlockMutationKind.PASTE;
+    if ("cut".equals(command) || "lazycut".equals(command)) return BlockMutationKind.CUT;
+    if (SELECTION_MUTATION_COMMANDS.contains(command)) return BlockMutationKind.SELECTION;
+    if (LOCAL_MUTATION_COMMANDS.contains(command)) return BlockMutationKind.LOCAL;
+    if (GENERATION_MUTATION_COMMANDS.contains(command)) return BlockMutationKind.GENERATION;
+    return BlockMutationKind.NONE;
   }
 
   static WorldEditBounds affectedBounds(
@@ -157,10 +217,18 @@ final class WorldEditCommandParser {
       BlockVector3 placement,
       BlockVector3 stackDirection) {
     String command = commandName(arguments);
-    if (!BROAD_OPERATION_SNAPSHOT_COMMANDS.contains(command)) {
-      return selection;
-    }
+    BlockMutationKind kind = blockMutationKind(arguments);
+    if (kind == BlockMutationKind.SELECTION) return selection;
     String[] tokens = nonFlagTokens(commandRemainder(arguments));
+    if (kind == BlockMutationKind.STACK) {
+      return stackBounds(selection, tokens, stackDirection);
+    }
+    if (kind == BlockMutationKind.GENERATION) {
+      return generationBounds(command, tokens, selection, placement);
+    }
+    if (kind != BlockMutationKind.LOCAL) {
+      return null;
+    }
     return switch (command) {
       case "replacenear", "fixlava", "fixwater", "drain" -> {
         Integer radius = firstPositiveInteger(tokens, 0);
@@ -175,9 +243,98 @@ final class WorldEditCommandParser {
             ? null
             : WorldEditBounds.around(placement, radius, depth == null ? radius : depth);
       }
-      case "stack" -> stackBounds(selection, tokens, stackDirection);
-      default -> selection;
+      case "removeabove", "removebelow" -> {
+        Integer radius = firstPositiveInteger(tokens, 0);
+        Integer height = firstPositiveInteger(tokens, 1);
+        int resolvedRadius = radius == null ? DEFAULT_LOCAL_RADIUS : radius;
+        int resolvedHeight = height == null ? resolvedRadius : height;
+        yield placement == null
+            ? null
+            : WorldEditBounds.around(placement, resolvedRadius, resolvedHeight);
+      }
+      case "removenear" -> {
+        Integer radius = firstPositiveInteger(tokens, 1);
+        yield placement == null
+            ? null
+            : WorldEditBounds.around(
+                placement,
+                radius == null ? DEFAULT_LOCAL_RADIUS : radius,
+                radius == null ? DEFAULT_LOCAL_RADIUS : radius);
+      }
+      case "snow", "thaw", "green", "extinguish" -> {
+        Integer radius = firstPositiveInteger(tokens, 0);
+        int resolved = radius == null ? DEFAULT_LOCAL_RADIUS : radius;
+        yield placement == null ? null : WorldEditBounds.around(placement, resolved, resolved);
+      }
+      default -> null;
     };
+  }
+
+  private static WorldEditBounds generationBounds(
+      String command, String[] tokens, WorldEditBounds selection, BlockVector3 placement) {
+    if ("generate".equals(command)) {
+      return selection;
+    }
+    if ("g".equals(command) || "gen".equals(command)) {
+      return selection;
+    }
+    if ("revolve".equals(command)) {
+      return revolveBounds(selection, placement);
+    }
+    if (placement == null) {
+      return null;
+    }
+    int horizontal =
+        switch (command) {
+          case "cyl", "hcyl", "sphere", "hsphere", "pyramid", "hpyramid", "hollowpyramid", "cone" ->
+              positiveMagnitude(tokens, 1, DEFAULT_LOCAL_RADIUS);
+          case "forestgen", "pumpkins" -> positiveMagnitude(tokens, 0, DEFAULT_LOCAL_RADIUS);
+          default -> maxPositiveMagnitude(tokens, DEFAULT_LOCAL_RADIUS);
+        };
+    int vertical =
+        switch (command) {
+          case "cyl", "hcyl", "cone" -> {
+            Integer parsed = firstPositiveInteger(tokens, 2);
+            yield parsed == null ? horizontal : parsed;
+          }
+          case "feature", "structure" -> Math.max(DEFAULT_LOCAL_RADIUS, horizontal);
+          default -> horizontal;
+        };
+    return WorldEditBounds.around(placement, horizontal, vertical);
+  }
+
+  private static WorldEditBounds revolveBounds(WorldEditBounds selection, BlockVector3 placement) {
+    if (selection == null || placement == null) {
+      return null;
+    }
+    int horizontal =
+        maxSaturatedDistance(
+            placement.x(),
+            placement.z(),
+            selection.minimum().x(),
+            selection.minimum().z(),
+            selection.maximum().x(),
+            selection.maximum().z());
+    int vertical =
+        Math.max(
+            saturatedAbsoluteDifference(placement.y(), selection.minimum().y()),
+            saturatedAbsoluteDifference(placement.y(), selection.maximum().y()));
+    return WorldEditBounds.around(placement, horizontal, vertical);
+  }
+
+  private static int maxSaturatedDistance(
+      int centerX, int centerZ, int minX, int minZ, int maxX, int maxZ) {
+    return Math.max(
+        Math.max(
+            saturatedAbsoluteDifference(centerX, minX), saturatedAbsoluteDifference(centerX, maxX)),
+        Math.max(
+            saturatedAbsoluteDifference(centerZ, minZ),
+            saturatedAbsoluteDifference(centerZ, maxZ)));
+  }
+
+  private static int saturatedAbsoluteDifference(int first, int second) {
+    long difference = Math.abs((long) first - second);
+    return difference > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) difference;
   }
 
   static BlockVector3 parseStackDirection(String arguments, Player player) {
@@ -189,6 +346,18 @@ final class WorldEditCommandParser {
     }
     BlockFace direction = directionFromPlayer(player);
     return direction == null ? null : vectorFor(direction, 1);
+  }
+
+  static Integer parseStackCount(String arguments) {
+    if (blockMutationKind(arguments) != BlockMutationKind.STACK) {
+      return null;
+    }
+    String[] tokens = nonFlagTokens(commandRemainder(arguments));
+    if (tokens.length == 0) {
+      return 1;
+    }
+    Integer count = firstPositiveInteger(tokens, 0);
+    return count == null && tokens.length > 0 && tokens[0].matches("[+-]?\\d+") ? null : count;
   }
 
   static String commandSignature(String arguments) {
@@ -293,6 +462,37 @@ final class WorldEditCommandParser {
     } catch (NumberFormatException ignored) {
       return null;
     }
+  }
+
+  private static int maxPositiveMagnitude(String[] tokens, int fallback) {
+    int maximum = Math.max(1, fallback);
+    if (tokens == null) {
+      return maximum;
+    }
+    for (String token : tokens) {
+      if (token == null || token.isBlank()) continue;
+      for (String component : token.split(",")) {
+        Integer parsed = parsePositiveInteger(component);
+        if (parsed != null) {
+          maximum = Math.max(maximum, parsed);
+        }
+      }
+    }
+    return maximum;
+  }
+
+  private static int positiveMagnitude(String[] tokens, int index, int fallback) {
+    if (tokens == null || index < 0 || index >= tokens.length) {
+      return Math.max(1, fallback);
+    }
+    int maximum = 0;
+    for (String component : tokens[index].split(",")) {
+      Integer parsed = parsePositiveInteger(component);
+      if (parsed != null) {
+        maximum = Math.max(maximum, parsed);
+      }
+    }
+    return maximum == 0 ? Math.max(1, fallback) : maximum;
   }
 
   private static String commandName(String arguments) {

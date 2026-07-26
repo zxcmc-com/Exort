@@ -203,7 +203,6 @@ message:
   lang_status_paths: "경로: {0}, {1}"
   wire:
     hard_cap: "와이어 체인이 너무 큽니다: {0}/{1}."
-    item_not_placeable: "이 아이템은 와이어에 맞대어 설치할 수 없습니다."
   placement:
     blocked: "이곳에는 설치할 수 없습니다."
   bus:

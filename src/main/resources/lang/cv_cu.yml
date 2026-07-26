@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Сукмаксем: {0}, {1}"
   wire:
     hard_cap: "Проводсен сылтӑмӗ питӗ пысӑк: {0}/{1}."
-    item_not_placeable: "Ку предмета провод патне вырнаҫтарма ҫук."
   placement:
     blocked: "Кунта вырнаҫтарма чарнӑ."
   bus:

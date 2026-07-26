@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Шляхі: {0}, {1}"
   wire:
     hard_cap: "Ланцуг кабеля занадта вялікі: {0}/{1}."
-    item_not_placeable: "Гэты прадмет нельга размясціць побач з кабелем."
   placement:
     blocked: "Размяшчэнне тут заблакавана."
   bus:

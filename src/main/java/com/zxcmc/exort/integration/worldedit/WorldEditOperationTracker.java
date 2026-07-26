@@ -13,7 +13,10 @@ final class WorldEditOperationTracker {
 
   private final AtomicLong operationIds = new AtomicLong();
   private final Map<Long, Set<String>> operationRemovedStorageIds = new ConcurrentHashMap<>();
-  private final Map<Long, Long> operationStorageSeenMs = new ConcurrentHashMap<>();
+  private final Map<Long, Set<String>> operationPreservedStorageIds = new ConcurrentHashMap<>();
+  private final Map<Long, Long> operationSeenMs = new ConcurrentHashMap<>();
+  private final Map<BlockRef, LatestUpdate> latestUpdates = new ConcurrentHashMap<>();
+  private final Map<String, LatestStorageUpdate> latestStorageUpdates = new ConcurrentHashMap<>();
 
   long nextOperationId() {
     return operationIds.incrementAndGet();
@@ -21,13 +24,101 @@ final class WorldEditOperationTracker {
 
   void record(MarkerUpdate update) {
     if (update == null) return;
-    operationStorageSeenMs.put(update.operationId(), System.currentTimeMillis());
+    long now = System.currentTimeMillis();
+    operationSeenMs.put(update.operationId(), now);
+    BlockRef ref = new BlockRef(update.worldId(), update.x(), update.y(), update.z());
+    latestUpdates.compute(
+        ref,
+        (ignored, current) -> {
+          if (current == null
+              || MarkerUpdate.hasHigherPriority(
+                  update.operationId(),
+                  update.authoritativeFinalState(),
+                  current.operationId(),
+                  current.authoritativeFinalState())) {
+            return new LatestUpdate(update.operationId(), update.authoritativeFinalState(), now);
+          }
+          return new LatestUpdate(current.operationId(), current.authoritativeFinalState(), now);
+        });
     String removedStorageId = update.removedStorageId();
     if (removedStorageId != null && !removedStorageId.isBlank()) {
       operationRemovedStorageIds
           .computeIfAbsent(update.operationId(), ignored -> ConcurrentHashMap.newKeySet())
           .add(removedStorageId);
     }
+    MarkerSnapshot snapshot = update.snapshot();
+    if (snapshot != null && snapshot.storage() != null) {
+      String storageId = snapshot.storage().storageId();
+      if (storageId != null && !storageId.isBlank()) {
+        BlockRef destination = new BlockRef(update.worldId(), update.x(), update.y(), update.z());
+        latestStorageUpdates.compute(
+            storageId,
+            (ignored, current) -> {
+              if (current == null
+                  || MarkerUpdate.hasHigherPriority(
+                      update.operationId(),
+                      update.authoritativeFinalState(),
+                      current.operationId(),
+                      current.authoritativeFinalState())) {
+                return new LatestStorageUpdate(
+                    update.operationId(), update.authoritativeFinalState(), destination, now);
+              }
+              return new LatestStorageUpdate(
+                  current.operationId(),
+                  current.authoritativeFinalState(),
+                  current.destination(),
+                  now);
+            });
+      }
+    }
+    if (update.moveOperation() && snapshot != null && snapshot.storage() != null) {
+      String preservedStorageId = snapshot.storage().storageId();
+      if (preservedStorageId != null && !preservedStorageId.isBlank()) {
+        operationPreservedStorageIds
+            .computeIfAbsent(update.operationId(), ignored -> ConcurrentHashMap.newKeySet())
+            .add(preservedStorageId);
+      }
+    }
+  }
+
+  boolean isSuperseded(MarkerUpdate update) {
+    if (update == null) return false;
+    LatestUpdate latest =
+        latestUpdates.get(new BlockRef(update.worldId(), update.x(), update.y(), update.z()));
+    if (latest != null
+        && MarkerUpdate.hasHigherPriority(
+            latest.operationId(),
+            latest.authoritativeFinalState(),
+            update.operationId(),
+            update.authoritativeFinalState())) {
+      return true;
+    }
+    MarkerSnapshot snapshot = update.snapshot();
+    if (snapshot == null || snapshot.storage() == null) {
+      return false;
+    }
+    String storageId = snapshot.storage().storageId();
+    if (storageId == null || storageId.isBlank()) {
+      return false;
+    }
+    LatestStorageUpdate latestStorage = latestStorageUpdates.get(storageId);
+    return latestStorage != null
+        && MarkerUpdate.hasHigherPriority(
+            latestStorage.operationId(),
+            latestStorage.authoritativeFinalState(),
+            update.operationId(),
+            update.authoritativeFinalState());
+  }
+
+  boolean preservesStorageIdentity(MarkerUpdate update) {
+    if (update == null || update.removedStorageId() == null) {
+      return false;
+    }
+    if (update.moveOperation()) {
+      return true;
+    }
+    Set<String> preserved = operationPreservedStorageIds.get(update.operationId());
+    return preserved != null && preserved.contains(update.removedStorageId());
   }
 
   Map<Long, Set<String>> removedStorageIdsByOperation(Map<ChunkKey, ChunkUpdateBatch> batches) {
@@ -53,20 +144,35 @@ final class WorldEditOperationTracker {
   }
 
   void purge(long nowMs) {
-    for (Map.Entry<Long, Long> entry : operationStorageSeenMs.entrySet()) {
+    for (Map.Entry<Long, Long> entry : operationSeenMs.entrySet()) {
       long lastSeenMs = entry.getValue();
       if (nowMs - lastSeenMs <= OPERATION_STORAGE_TTL_MS) {
         continue;
       }
       long operationId = entry.getKey();
-      if (operationStorageSeenMs.remove(operationId, lastSeenMs)) {
+      if (operationSeenMs.remove(operationId, lastSeenMs)) {
         operationRemovedStorageIds.remove(operationId);
+        operationPreservedStorageIds.remove(operationId);
       }
     }
+    latestUpdates
+        .entrySet()
+        .removeIf(entry -> nowMs - entry.getValue().seenMs() > OPERATION_STORAGE_TTL_MS);
+    latestStorageUpdates
+        .entrySet()
+        .removeIf(entry -> nowMs - entry.getValue().seenMs() > OPERATION_STORAGE_TTL_MS);
   }
 
   void clear() {
     operationRemovedStorageIds.clear();
-    operationStorageSeenMs.clear();
+    operationPreservedStorageIds.clear();
+    operationSeenMs.clear();
+    latestUpdates.clear();
+    latestStorageUpdates.clear();
   }
+
+  private record LatestUpdate(long operationId, boolean authoritativeFinalState, long seenMs) {}
+
+  private record LatestStorageUpdate(
+      long operationId, boolean authoritativeFinalState, BlockRef destination, long seenMs) {}
 }

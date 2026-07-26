@@ -9,10 +9,10 @@ import com.zxcmc.exort.network.NetworkGraphCache;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.bukkit.Material;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 
 public record WireListenerDependencies(
-    JavaPlugin plugin,
+    Plugin plugin,
     RegionProtection regionProtection,
     WorldEditWandGuard worldEditWandGuard,
     BossBarManager bossBarManager,

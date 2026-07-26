@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Paden: {0}, {1}"
   wire:
     hard_cap: "Kabelketen is te groot: {0}/{1}."
-    item_not_placeable: "Dit item kan niet tegen een kabel geplaatst worden."
   placement:
     blocked: "Plaatsing is hier geblokkeerd."
   bus:

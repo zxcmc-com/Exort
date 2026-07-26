@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Rajaq: {0}, {1}"
   wire:
     hard_cap: "Juhtmekett om liiq suur: {0}/{1}."
-    item_not_placeable: "Tuud asja ei saa panda juhtmõ kõrvalõ."
   placement:
     blocked: "Panõminõ om siin keeldü."
   bus:

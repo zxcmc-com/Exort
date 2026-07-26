@@ -6,7 +6,6 @@ import com.zxcmc.exort.feedback.FeedbackReason;
 import com.zxcmc.exort.feedback.PlayerFeedback;
 import com.zxcmc.exort.integration.protection.RegionProtection;
 import com.zxcmc.exort.integration.worldedit.wand.WorldEditWandGuard;
-import com.zxcmc.exort.items.CustomItemClassifier;
 import com.zxcmc.exort.keys.StorageKeys;
 import com.zxcmc.exort.marker.WireMarker;
 import com.zxcmc.exort.network.NetworkGraphCache;
@@ -14,20 +13,18 @@ import com.zxcmc.exort.network.TerminalLinkFinder;
 import java.util.function.Supplier;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 
 public class WireListener implements Listener {
   private final int wireLimit;
   private final int wireHardCap;
-  private final JavaPlugin plugin;
+  private final Plugin plugin;
   private final RegionProtection regionProtection;
   private final WorldEditWandGuard worldEditWandGuard;
   private final BossBarManager bossBarManager;
@@ -61,13 +58,11 @@ public class WireListener implements Listener {
   @EventHandler(ignoreCancelled = true)
   public void onInteract(PlayerInteractEvent event) {
     if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-    if (event.getPlayer().isSneaking()) return;
     Block block = event.getClickedBlock();
     if (block == null || !Carriers.matchesCarrier(block, wireMaterial)) return;
     if (!WireMarker.isWire(plugin, block)) return;
     if (worldEditWandGuard.isWorldEditWand(event.getPlayer(), event.getItem())) return;
     if (!regionProtection.canInteract(event.getPlayer(), block)) {
-      event.setCancelled(true);
       playerFeedback.respond(
           event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.no_permission");
       return;
@@ -75,7 +70,6 @@ public class WireListener implements Listener {
 
     NetworkGraphCache.Inspection info = inspectNetwork(block);
     if (info.storage().status() == TerminalLinkFinder.StorageSearchStatus.HARD_CAP) {
-      event.setCancelled(true);
       playerFeedback.respond(
           event.getPlayer(),
           FeedbackReason.NETWORK_TRAVERSAL_LIMIT,
@@ -93,13 +87,6 @@ public class WireListener implements Listener {
         info.storage().connected(),
         event.getPlayer(),
         peekDurationTicks);
-    event.setUseInteractedBlock(Result.DENY);
-    event.setUseItemInHand(Result.DENY);
-    if (!allowPlacement(event.getItem())) {
-      event.setCancelled(true);
-      playerFeedback.respond(
-          event.getPlayer(), FeedbackReason.INTERACTION_DENIED, "message.wire.item_not_placeable");
-    }
   }
 
   @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -136,17 +123,5 @@ public class WireListener implements Listener {
         storageCarrier,
         relayCarrier,
         relayRangeChunks);
-  }
-
-  private boolean allowPlacement(ItemStack item) {
-    return CustomItemClassifier.isType(keys, item, "wire")
-        || CustomItemClassifier.isType(keys, item, "terminal")
-        || CustomItemClassifier.isType(keys, item, "crafting_terminal")
-        || CustomItemClassifier.isType(keys, item, "storage")
-        || CustomItemClassifier.isType(keys, item, "monitor")
-        || CustomItemClassifier.isType(keys, item, "import_bus")
-        || CustomItemClassifier.isType(keys, item, "export_bus")
-        || CustomItemClassifier.isType(keys, item, "relay")
-        || CustomItemClassifier.isType(keys, item, "transmitter");
   }
 }

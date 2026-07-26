@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Leiðir: {0}, {1}"
   wire:
     hard_cap: "Leiðingarketan er ov stór: {0}/{1}."
-    item_not_placeable: "Hetta tingið kann ikki setast móti einari leiðing."
   placement:
     blocked: "Plasering er forðað her."
   bus:

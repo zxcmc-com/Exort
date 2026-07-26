@@ -203,7 +203,6 @@ message:
   lang_status_paths: "المسارات: {0}, {1}"
   wire:
     hard_cap: "سلسلة الأسلاك كبيرة جدا: {0}/{1}."
-    item_not_placeable: "لا يمكن وضع هذا العنصر بجوار سلك."
   placement:
     blocked: "الوضع محظور هنا."
   bus:

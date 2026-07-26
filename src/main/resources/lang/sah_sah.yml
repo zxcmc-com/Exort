@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Суоллар: {0}, {1}"
   wire:
     hard_cap: "Кабель цепэ наһаа улахан: {0}/{1}."
-    item_not_placeable: "Бу предмети кабель кытыытыгар туруорор кыах суох."
   placement:
     blocked: "Манна туруоруу бобуллар."
   bus:

@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Sökvägar: {0}, {1}"
   wire:
     hard_cap: "Kabelkedjan är för stor: {0}/{1}."
-    item_not_placeable: "Det här föremålet kan inte placeras intill en kabel."
   placement:
     blocked: "Placering är blockerad här."
   bus:

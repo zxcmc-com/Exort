@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Stigar: {0}, {1}"
   wire:
     hard_cap: "Leidningskjeda er for stor: {0}/{1}."
-    item_not_placeable: "Denne tingen kan ikkje setjast attmed ei leidning."
   placement:
     blocked: "Plassering er sperra her."
   bus:

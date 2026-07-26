@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Bideak: {0}, {1}"
   wire:
     hard_cap: "Kable-katea handiegia da: {0}/{1}."
-    item_not_placeable: "Ezin da elementu hau kable baten kontra jarri."
   placement:
     blocked: "Hemen ezin da ezer jarri."
   bus:

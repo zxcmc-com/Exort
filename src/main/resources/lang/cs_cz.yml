@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Cesty: {0}, {1}"
   wire:
     hard_cap: "Řetěz kabelů je příliš velký: {0}/{1}."
-    item_not_placeable: "Tento předmět nelze umístit ke kabelu."
   placement:
     blocked: "Umístění je zde blokováno."
   bus:

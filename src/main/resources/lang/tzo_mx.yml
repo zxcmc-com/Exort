@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Be: {0}, {1}"
   wire:
     hard_cap: "Cadena kable toj muk': {0}/{1}."
-    item_not_placeable: "Li iteme ma xu' xak' ta kable."
   placement:
     blocked: "Makbil xak'el ta li'i."
   bus:

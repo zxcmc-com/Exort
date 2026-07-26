@@ -5,7 +5,9 @@ import com.zxcmc.exort.infra.scheduler.PluginTasks;
 import com.zxcmc.exort.marker.ChunkMarkerStore;
 import com.zxcmc.exort.marker.StorageMarker;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,23 +20,25 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.ChunkLoadEvent;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
-/** Imports existing loaded storage markers into the durable physical-identity registry. */
+/** Keeps loaded Storage markers and durable physical-identity claims mutually consistent. */
 public final class StorageClaimReconciler implements Listener, AutoCloseable {
   private static final int STARTUP_CHUNKS_PER_TICK = 8;
 
-  private final JavaPlugin plugin;
+  private final Plugin plugin;
   private final StorageClaimRegistry registry;
   private final Material storageCarrier;
   private final ArrayDeque<Chunk> startupChunks = new ArrayDeque<>();
   private final Set<String> warnedConflicts = new HashSet<>();
+  private final Set<String> repairingOrphans = new HashSet<>();
+  private final Map<String, Set<StorageClaimLocation>> conflictedMarkers = new HashMap<>();
   private final AtomicBoolean closed = new AtomicBoolean();
   private BukkitTask startupTask;
 
   public StorageClaimReconciler(
-      JavaPlugin plugin, StorageClaimRegistry registry, Material storageCarrier) {
+      Plugin plugin, StorageClaimRegistry registry, Material storageCarrier) {
     this.plugin = plugin;
     this.registry = registry;
     this.storageCarrier = storageCarrier;
@@ -82,9 +86,15 @@ public final class StorageClaimReconciler implements Listener, AutoCloseable {
     }
   }
 
-  private void reconcileChunk(Chunk chunk) {
-    if (chunk == null || !ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) return;
-    ChunkMarkerStore.forEachBlock(plugin, chunk, (block, ignored) -> reconcileBlock(block));
+  void reconcileChunk(Chunk chunk) {
+    if (chunk == null || !chunk.isLoaded()) return;
+    if (ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) {
+      ChunkMarkerStore.forEachBlock(plugin, chunk, (block, ignored) -> reconcileBlock(block));
+    }
+    for (StorageClaim claim :
+        registry.persistedClaimsInChunk(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ())) {
+      reconcileClaim(chunk, claim);
+    }
   }
 
   private void reconcileBlock(Block block) {
@@ -96,6 +106,7 @@ public final class StorageClaimReconciler implements Listener, AutoCloseable {
     StorageClaimRegistry.ExactClaim exact = registry.exactClaim(data.storageId(), location);
     if (exact == StorageClaimRegistry.ExactClaim.MATCHED) {
       StorageMarker.setClaimConflict(plugin, block, false);
+      clearConflict(data.storageId(), location);
       return;
     }
     if (registry
@@ -104,10 +115,12 @@ public final class StorageClaimReconciler implements Listener, AutoCloseable {
         .filter(location::equals)
         .isPresent()) {
       StorageMarker.setClaimConflict(plugin, block, false);
+      clearConflict(data.storageId(), location);
       return;
     }
     if (exact != StorageClaimRegistry.ExactClaim.ABSENT) {
       StorageMarker.setClaimConflict(plugin, block, true);
+      rememberConflict(data.storageId(), location);
       warnConflict(data.storageId(), location, exact.name());
       return;
     }
@@ -115,6 +128,7 @@ public final class StorageClaimReconciler implements Listener, AutoCloseable {
         registry.reserve(data.storageId(), location);
     if (!reservation.allowed()) {
       StorageMarker.setClaimConflict(plugin, block, true);
+      rememberConflict(data.storageId(), location);
       warnConflict(data.storageId(), location, String.valueOf(reservation.denial()));
       return;
     }
@@ -142,9 +156,75 @@ public final class StorageClaimReconciler implements Listener, AutoCloseable {
                             .filter(data.storageId()::equals)
                             .isPresent()) {
                       StorageMarker.setClaimConflict(plugin, block, false);
+                      clearConflict(data.storageId(), location);
                     }
                   });
             });
+  }
+
+  private void reconcileClaim(Chunk chunk, StorageClaim claim) {
+    if (!claim.worldId().equals(chunk.getWorld().getUID())) return;
+    Block block = chunk.getWorld().getBlockAt(claim.x(), claim.y(), claim.z());
+    if (StorageMarker.hasMarkerData(plugin, block) || !repairingOrphans.add(claim.storageId())) {
+      return;
+    }
+    StorageClaimLocation location = claim.location();
+    plugin
+        .getLogger()
+        .warning(
+            "Repairing orphaned physical storage claim "
+                + claim.storageId()
+                + " at "
+                + location
+                + ": the chunk is loaded but the exact position has no Storage marker");
+    registry
+        .releaseExact(claim.storageId(), location)
+        .whenComplete(
+            (released, error) ->
+                PluginTasks.runSyncIfEnabled(
+                    plugin, () -> finishOrphanRepair(claim, released, error)));
+  }
+
+  private void finishOrphanRepair(StorageClaim claim, Boolean released, Throwable error) {
+    repairingOrphans.remove(claim.storageId());
+    if (error != null) {
+      plugin
+          .getLogger()
+          .log(
+              Level.SEVERE,
+              "Failed to repair orphaned physical storage claim " + claim.storageId(),
+              error);
+      return;
+    }
+    if (!Boolean.TRUE.equals(released)) {
+      return;
+    }
+    plugin
+        .getLogger()
+        .info(
+            "Released orphaned physical storage claim "
+                + claim.storageId()
+                + "; the Storage row and contents were preserved");
+    Set<StorageClaimLocation> conflicts = conflictedMarkers.remove(claim.storageId());
+    if (conflicts == null) return;
+    for (StorageClaimLocation conflict : conflicts) {
+      var world = Bukkit.getWorld(conflict.worldId());
+      if (world == null || !world.isChunkLoaded(conflict.x() >> 4, conflict.z() >> 4)) continue;
+      reconcileBlock(world.getBlockAt(conflict.x(), conflict.y(), conflict.z()));
+    }
+  }
+
+  private void rememberConflict(String storageId, StorageClaimLocation location) {
+    conflictedMarkers.computeIfAbsent(storageId, ignored -> new HashSet<>()).add(location);
+  }
+
+  private void clearConflict(String storageId, StorageClaimLocation location) {
+    Set<StorageClaimLocation> locations = conflictedMarkers.get(storageId);
+    if (locations == null) return;
+    locations.remove(location);
+    if (locations.isEmpty()) {
+      conflictedMarkers.remove(storageId);
+    }
   }
 
   private void warnConflict(String storageId, StorageClaimLocation location, String reason) {
@@ -177,6 +257,8 @@ public final class StorageClaimReconciler implements Listener, AutoCloseable {
     cancelStartupTask();
     startupChunks.clear();
     warnedConflicts.clear();
+    repairingOrphans.clear();
+    conflictedMarkers.clear();
   }
 
   private void cancelStartupTask() {

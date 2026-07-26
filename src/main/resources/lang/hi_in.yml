@@ -203,7 +203,6 @@ message:
   lang_status_paths: "पथ: {0}, {1}"
   wire:
     hard_cap: "तार श्रृंखला बहुत बड़ी है: {0}/{1}."
-    item_not_placeable: "इस आइटम को तार के सहारे नहीं रखा जा सकता."
   placement:
     blocked: "यहाँ रखना अवरुद्ध है."
   bus:

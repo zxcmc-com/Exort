@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Yollar: {0}, {1}"
   wire:
     hard_cap: "Naqil zənciri çox böyükdür: {0}/{1}."
-    item_not_placeable: "Bu əşyanı naqilə bitişik yerləşdirmək olmaz."
   placement:
     blocked: "Burada yerləşdirmə bloklanıb."
   bus:

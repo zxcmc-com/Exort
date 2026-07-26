@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Cesty: {0}, {1}"
   wire:
     hard_cap: "Łańcuch kabla je za srogi: {0}/{1}."
-    item_not_placeable: "Tego przedmiotu niy idzie położyć przi kablu."
   placement:
     blocked: "Stawianie sam je zablokowane."
   bus:

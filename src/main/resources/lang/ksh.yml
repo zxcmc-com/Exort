@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Pääd: {0}, {1}"
   wire:
     hard_cap: "Kabel-Kett es ze jroß: {0}/{1}."
-    item_not_placeable: "Dat Ding kann nit aan enem Kabel jelaat wääde."
   placement:
     blocked: "Et Plazzeere es he blockeet."
   bus:

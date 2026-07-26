@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Căi: {0}, {1}"
   wire:
     hard_cap: "Lanțul de fire este prea mare: {0}/{1}."
-    item_not_placeable: "Acest obiect nu poate fi amplasat lângă un cablu."
   placement:
     blocked: "Amplasarea este blocată aici."
   bus:

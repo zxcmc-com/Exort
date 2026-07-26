@@ -203,7 +203,6 @@ message:
   lang_status_paths: "ಮಾರ್ಗಗಳು: {0}, {1}"
   wire:
     hard_cap: "ವೈರ್ chain ತುಂಬಾ ದೊಡ್ಡದು: {0}/{1}."
-    item_not_placeable: "ಈ ಐಟಂ ಅನ್ನು ವೈರ್‌ಗೆ ಹೊಂದಿಕೊಂಡಂತೆ ಇರಿಸಲಾಗುವುದಿಲ್ಲ."
   placement:
     blocked: "ಇಲ್ಲಿ ಇರಿಸುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ."
   bus:

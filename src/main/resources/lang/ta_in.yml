@@ -203,7 +203,6 @@ message:
   lang_status_paths: "பாதைகள்: {0}, {1}"
   wire:
     hard_cap: "கம்பி சங்கிலி மிக பெரியது: {0}/{1}."
-    item_not_placeable: "இந்தப் பொருளை கம்பிக்கு அருகில் வைக்க முடியாது."
   placement:
     blocked: "இங்கு வைப்பது தடுக்கப்பட்டுள்ளது."
   bus:

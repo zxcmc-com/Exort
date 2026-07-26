@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Mogħdijiet: {0}, {1}"
   wire:
     hard_cap: "Il-katina tal-wajer hija kbira wisq: {0}/{1}."
-    item_not_placeable: "Dan l-oġġett ma jistax jitqiegħed maġenb wajer."
   placement:
     blocked: "It-tqegħid huwa mblukkat hawn."
   bus:

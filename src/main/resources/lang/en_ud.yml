@@ -203,7 +203,6 @@ message:
   lang_status_paths: " :sɥʇɐԀ{0} ‚{1}"
   wire:
     hard_cap: " :ǝƃɹɐl ooʇ sᴉ uᴉɐɥɔ ǝɹᴉM{0}/{1}˙"
-    item_not_placeable: "˙ǝɹᴉʍ ɐ ʇsuᴉɐƃɐ pǝɔɐld ǝq ʇouuɐɔ ɯǝʇᴉ sᴉɥ⊥"
   placement:
     blocked: "˙ǝɹǝɥ pǝʞɔolq sᴉ ʇuǝɯǝɔɐlԀ"
   bus:

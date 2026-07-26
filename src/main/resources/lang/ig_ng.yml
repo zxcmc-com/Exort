@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Ụzọ: {0}, {1}"
   wire:
     hard_cap: "Agbụ waya buru ibu nke ukwuu: {0}/{1}."
-    item_not_placeable: "Enweghị ike idowe ihe a n'akụkụ waya."
   placement:
     blocked: "A gbochiri idowe ihe ebe a."
   bus:

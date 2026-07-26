@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Llwybrau: {0}, {1}"
   wire:
     hard_cap: "Mae cadwyn y wifren yn rhy fawr: {0}/{1}."
-    item_not_placeable: "Ni ellir gosod yr eitem hon yn erbyn gwifren."
   placement:
     blocked: "Mae gosod wedi'i rwystro yma."
   bus:

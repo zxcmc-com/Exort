@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Пътища: {0}, {1}"
   wire:
     hard_cap: "Веригата от кабели е твърде голяма: {0}/{1}."
-    item_not_placeable: "Този предмет не може да бъде поставен до кабел."
   placement:
     blocked: "Поставянето тук е блокирано."
   bus:

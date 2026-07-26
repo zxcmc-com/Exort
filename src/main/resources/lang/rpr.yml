@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Пути: {0}, {1}"
   wire:
     hard_cap: "Цепь кабеля слишкомъ большая: {0}/{1}."
-    item_not_placeable: "Сію вещь нельзя поставить рядомъ съ проводомъ."
   placement:
     blocked: "Размѣщеніе здѣсь запрещено."
   bus:

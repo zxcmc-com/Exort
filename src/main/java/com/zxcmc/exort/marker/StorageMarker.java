@@ -189,6 +189,11 @@ public final class StorageMarker {
         && ChunkMarkerStore.getString(plugin, block, SECTION, FIELD_TIER).isPresent();
   }
 
+  /** Includes incomplete marker data so recovery code keeps corrupt state fail-closed. */
+  public static boolean hasMarkerData(Plugin plugin, Block block) {
+    return ChunkMarkerStore.hasSection(plugin, block, SECTION);
+  }
+
   public static void clear(Plugin plugin, Block block) {
     ChunkMarkerStore.clearSection(plugin, block, SECTION);
   }

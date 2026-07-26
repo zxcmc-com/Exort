@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Шляхи: {0}, {1}"
   wire:
     hard_cap: "Ланцюг дроту завеликий: {0}/{1}."
-    item_not_placeable: "Цей предмет не мож поставити біля дроту."
   placement:
     blocked: "Тут не мож розміщувати блоки."
   bus:

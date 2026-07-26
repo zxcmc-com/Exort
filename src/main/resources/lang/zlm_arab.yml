@@ -203,7 +203,6 @@ message:
   lang_status_paths: "لالوان: {0}, {1}"
   wire:
     hard_cap: "رانتاين wire ترلالو بسر: {0}/{1}."
-    item_not_placeable: "بارڠ اين تيدق بوليه دلتقكن برسبلهن دڠن واير."
   placement:
     blocked: "ڤنمڤتن دسکت د سيني."
   bus:

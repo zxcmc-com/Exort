@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Mga path: {0}, {1}"
   wire:
     hard_cap: "Masyadong mahaba ang kawing ng kawad: {0}/{1}."
-    item_not_placeable: "Hindi maaaring ilagay ang item na ito sa tabi ng kawad."
   placement:
     blocked: "Harang ang paglalagay dito."
   bus:

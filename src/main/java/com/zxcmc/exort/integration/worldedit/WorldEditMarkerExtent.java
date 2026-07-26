@@ -153,8 +153,19 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
     }
     ensureHistoryCapacity();
     BlockVector3 resolved = resolvePosition(position);
-    if (!commandContextPresent && !Bukkit.isPrimaryThread()) {
+    BaseBlock previousBlock =
+        historyAction == null && stage == EditSession.Stage.BEFORE_HISTORY
+            ? super.getFullBlock(position)
+            : null;
+    boolean primaryThread = Bukkit.isPrimaryThread();
+    boolean preparedPreimage =
+        operationSnapshot != null && operationSnapshot.safelyPrepared(world.getUID(), resolved);
+    if (!primaryThread && !preparedPreimage) {
       BaseBlock current = super.getFullBlock(position);
+      if (bridge.carrierPolicy().isCarrierCandidate(current) && actorId != null) {
+        PerfStats.incrementCounter("worldedit.direct.rejected");
+        return false;
+      }
       if (bridge.carrierPolicy().isCarrierCandidate(current)
           && !bridge.reserveDirectReconciliation(world, resolved)) {
         PerfStats.incrementCounter("worldedit.direct.rejected");
@@ -165,12 +176,17 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
     int chunkZ = resolved.z() >> 4;
     ChunkSnapshot snapshot = snapshot(chunkX, chunkZ);
     long key = WorldEditMarkerMath.blockKey(resolved.x(), resolved.y(), resolved.z());
+    WorldEditMarkerHistory.FrameState replayFrameState =
+        replayHistoryFrame == null || historyAction == null
+            ? null
+            : replayHistoryFrame.state(historyAction, key);
     LinCompoundTag existingTag = snapshot.get(key);
     MarkerSnapshot existingSnapshot = parseSnapshot(existingTag);
     existingSnapshot =
         WorldEditBridge.chooseExistingSnapshot(
             existingSnapshot, operationSnapshot, world.getUID(), resolved);
-    if (WorldEditMarkerTrustPolicy.rejectExisting(existingSnapshot, commandContextPresent)) {
+    boolean trustedExistingState = commandContextPresent || actorId != null && primaryThread;
+    if (WorldEditMarkerTrustPolicy.rejectExisting(existingSnapshot, trustedExistingState)) {
       PerfStats.incrementCounter("worldedit.direct.rejected");
       return false;
     }
@@ -273,9 +289,10 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
       parsed = WorldEditBridge.withRelay(parsed, new RelayData(null));
       exort = WorldEditMarkerCodec.buildExortTag(parsed);
     }
-    boolean markerPresent = existingTag != null;
+    boolean markerPresent = existingSnapshot != null;
     boolean historyHit = false;
     boolean historyStorageCloneRequired = false;
+    boolean historyClearCarrierToAir = false;
     BaseBlock historyClearBlock = null;
     MarkerSnapshot historyRemovalSnapshot = null;
     if (parsed == null && base != null && actorId != null && historyAction != null) {
@@ -325,6 +342,7 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
             markerSource = historyAction == HistoryAction.REDO ? "redo_frame" : "undo_frame";
           }
         } else if (historyState.clear()) {
+          historyClearCarrierToAir = historyState.clearCarrierToAir();
           if (historyFromStack) {
             bridge
                 .markerHistory()
@@ -336,7 +354,7 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
                     resolved.y(),
                     resolved.z());
           }
-          if (isHistoryCarrier(base)) {
+          if (historyState.clearCarrierToAir() && isHistoryCarrier(base)) {
             historyClearBlock = airBlock();
           }
           HistoryAction reverseAction =
@@ -371,6 +389,25 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
         }
       }
     }
+    String storageCloneSourceId = null;
+    if (historyAction == null
+        && parsed != null
+        && parsed.storage() != null
+        && !moveOperation
+        && shouldCloneStorageForNormalSet(parsed, fromClipboard, moveHit, null)) {
+      storageCloneSourceId = parsed.storage().storageId();
+      parsed =
+          WorldEditBridge.withStorageId(
+              parsed,
+              bridge.storageCloneId(
+                  operationId,
+                  world.getUID(),
+                  resolved.x(),
+                  resolved.y(),
+                  resolved.z(),
+                  storageCloneSourceId));
+      exort = WorldEditMarkerCodec.buildExortTag(parsed);
+    }
     if (historyAction == null && actorId != null && stage == EditSession.Stage.BEFORE_HISTORY) {
       MarkerSnapshot undoSnapshot =
           WorldEditBridge.chooseUndoSnapshot(
@@ -388,15 +425,14 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
                 normalHistoryFrame,
                 resolved.x(),
                 resolved.y(),
-                resolved.z());
+                resolved.z(),
+                isAirBlock(previousBlock),
+                blockStateString(previousBlock));
       }
       bridge
           .markerHistory()
           .clearRedoTarget(actorId, world.getUID(), resolved.x(), resolved.y(), resolved.z());
       if (parsed != null) {
-        boolean redoStorageCloneRequired =
-            !moveOperation
-                && shouldCloneStorageForNormalSet(parsed, fromClipboard, moveHit, historyAction);
         bridge
             .markerHistory()
             .rememberRedoTarget(
@@ -407,10 +443,8 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
                 resolved.z(),
                 parsed,
                 normalHistoryFrame,
-                redoStorageCloneRequired);
-      } else if (existingSnapshot != null
-          || moveSourceHistory != null
-          || cutSourceHistory != null) {
+                false);
+      } else if (undoSnapshot != null || moveSourceHistory != null || cutSourceHistory != null) {
         bridge
             .markerHistory()
             .rememberRedoClear(
@@ -419,7 +453,9 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
                 normalHistoryFrame,
                 resolved.x(),
                 resolved.y(),
-                resolved.z());
+                resolved.z(),
+                isAirBlock(base),
+                blockStateString(base));
       }
     }
     MarkerSnapshot undoSnapshot =
@@ -437,13 +473,14 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
         normalHistoryFrame);
     ensureHistoryCapacity();
     boolean storageCloneRequired =
-        parsed != null
-            && parsed.storage() != null
-            && (historyHit
-                ? historyStorageCloneRequired
-                : !moveOperation
-                    && shouldCloneStorageForNormalSet(
-                        parsed, fromClipboard, moveHit, historyAction));
+        storageCloneSourceId != null
+            || parsed != null
+                && parsed.storage() != null
+                && (historyHit
+                    ? historyStorageCloneRequired
+                    : !moveOperation
+                        && shouldCloneStorageForNormalSet(
+                            parsed, fromClipboard, moveHit, historyAction));
     WorldEditDebugService debug = bridge.dependencies().debugService();
     if (debug != null && debug.isFull()) {
       String baseType = base == null ? "null" : base.getBlockType().getId();
@@ -496,6 +533,7 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
     if (parsed == null
         && !markerPresent
         && !historyHit
+        && undoSnapshot == null
         && moveSourceHistory == null
         && cutSourceHistory == null) {
       if (historyClearBlock != null) {
@@ -529,6 +567,7 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
     boolean markerCleanupRequested =
         parsed == null
             && (markerPresent
+                || undoSnapshot != null
                 || historyHit
                 || moveSourceHistory != null
                 || cutSourceHistory != null);
@@ -551,9 +590,20 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
             hasMarker ? NamedTextColor.GREEN : NamedTextColor.RED);
       }
     }
-    if (result || markerCleanupRequested) {
+    boolean historyReplayRequested = historyAction != null && replayFrameState != null;
+    boolean markerWriteRequested =
+        parsed != null && (fromClipboard || carriedHit || sidecarHit || moveHit || historyHit);
+    if (result || markerCleanupRequested || historyReplayRequested || markerWriteRequested) {
+      if (markerWriteRequested && !result) {
+        bridge.ensureTrustedIncomingCarrier(world.getUID(), resolved, parsed);
+      }
+      boolean historyStorageRelocation =
+          historyAction != null
+              && replayHistoryFrame != null
+              && replayHistoryFrame.containsStorageIdentity(historyAction, removedStorageId);
       boolean identityRelocation =
           moveOperation
+              || historyStorageRelocation
               || historyAction != null
                   && parsed != null
                   && parsed.storage() != null
@@ -568,18 +618,23 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
               parsed,
               removedStorageId,
               storageCloneRequired,
-              identityRelocation));
+              identityRelocation,
+              storageCloneSourceId,
+              historyAction != null && historyClearCarrierToAir));
+      if (historyReplayRequested) {
+        replayHistoryFrame.markApplied(historyAction, key);
+      }
       if (stage == EditSession.Stage.BEFORE_HISTORY
           && moveHit
           && movePatch != null
           && appliedMoveDestinations.add(key)
           && appliedMoveDestinationCount.incrementAndGet() == movePatch.destinationMarkers().size()
           && moveSourceCleanupQueued.compareAndSet(false, true)) {
-        bridge.enqueueMoveSourceCleanup(
-            operationId, world.getUID(), movePatch, observedMoveSourceClears);
+        bridge.enqueueMoveReconciliation(
+            operationId, world.getUID(), movePatch, operationSnapshot, observedMoveSourceClears);
       }
     }
-    return result || markerCleanupRequested;
+    return result || markerCleanupRequested || historyReplayRequested || markerWriteRequested;
   }
 
   private void ensureHistoryCapacity() throws WorldEditHistoryLimitException {
@@ -620,6 +675,10 @@ class WorldEditMarkerExtent extends AbstractDelegateExtent {
 
   private static boolean isAirBlock(BaseBlock base) {
     return base != null && WorldEditBridge.airType().equals(base.getBlockType());
+  }
+
+  private static String blockStateString(BaseBlock base) {
+    return base == null ? null : base.toImmutableState().getAsString();
   }
 
   private BaseBlock carrierBlockForStage(

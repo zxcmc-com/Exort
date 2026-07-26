@@ -203,7 +203,6 @@ message:
   lang_status_paths: "pluta: {0}, {1}"
   wire:
     hard_cap: "Skori skori mutce barda: {0}/{1}."
-    item_not_placeable: "ti na se curmi lo nu se punji lo skori."
   placement:
     blocked: "lo nu punji vi cu se zunti."
   bus:

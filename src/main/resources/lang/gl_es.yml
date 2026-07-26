@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Rutas: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
-    item_not_placeable: "Este obxecto non se pode colocar contra un cable."
   placement:
     blocked: "A colocación está bloqueada aquí."
   bus:

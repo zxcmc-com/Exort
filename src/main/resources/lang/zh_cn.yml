@@ -203,7 +203,6 @@ message:
   lang_status_paths: "路径：{0}, {1}"
   wire:
     hard_cap: "线缆链过大：{0}/{1}。"
-    item_not_placeable: "不能将此物品贴着线缆放置。"
   placement:
     blocked: "此处禁止放置。"
   bus:

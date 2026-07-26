@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Viae: {0}, {1}"
   wire:
     hard_cap: "Funis catena nimis magnum: {0}/{1}."
-    item_not_placeable: "Hoc res contra funem poni non potest."
   placement:
     blocked: "Positio hic impeditur."
   bus:

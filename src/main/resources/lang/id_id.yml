@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Path: {0}, {1}"
   wire:
     hard_cap: "Rantai wire terlalu besar: {0}/{1}."
-    item_not_placeable: "Item ini tidak dapat ditempatkan pada kabel."
   placement:
     blocked: "Penempatan diblokir di sini."
   bus:

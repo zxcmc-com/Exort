@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Šliachi: {0}, {1}"
   wire:
     hard_cap: "Lancuh kabelia zanadta vialiki: {0}/{1}."
-    item_not_placeable: "Hety pradmiet nieĺha razmiascić pobač z kabieliem."
   placement:
     blocked: "Razmiaščennie tut zablakav ana."
   bus:

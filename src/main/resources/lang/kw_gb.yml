@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Henfordhow: {0}, {1}"
   wire:
     hard_cap: "Chayn wire yw re vras: {0}/{1}."
-    item_not_placeable: "Nyns yw possybyl settya an tra ma yn erbyn wire."
   placement:
     blocked: "Settyans yw lettys omma."
   bus:

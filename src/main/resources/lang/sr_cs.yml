@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Putanje: {0}, {1}"
   wire:
     hard_cap: "Lanac kabla je prevelik: {0}/{1}."
-    item_not_placeable: "Ovaj predmet se ne može postaviti uz kabl."
   placement:
     blocked: "Postavljanje je ovde blokirano."
   bus:

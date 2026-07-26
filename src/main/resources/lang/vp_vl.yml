@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Pathoj: {0}, {1}"
   wire:
     hard_cap: "Kablo kedja för stor: {0}/{1}."
-    item_not_placeable: "Denna itemo kan nai läggas mot un kablo."
   placement:
     blocked: "Placering är blockad här."
   bus:

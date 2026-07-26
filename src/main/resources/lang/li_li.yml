@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Paej: {0}, {1}"
   wire:
     hard_cap: "De kabelketting is te groet: {0}/{1}."
-    item_not_placeable: "Dit veurwerp kin neet taege eine kabel geplaatst waere."
   placement:
     blocked: "Plaatsing is hie geblokkeerd."
   bus:

@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Weeër: {0}, {1}"
   wire:
     hard_cap: "Kabelkette ass ze grouss: {0}/{1}."
-    item_not_placeable: "Dësen Item kann net un engem Kabel placéiert ginn."
   placement:
     blocked: "D'Placéieren ass hei blockéiert."
   bus:

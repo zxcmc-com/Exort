@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Hentoù: {0}, {1}"
   wire:
     hard_cap: "Re vras eo chadenn an orjal: {0}/{1}."
-    item_not_placeable: "N'haller ket lakaat an dra-mañ ouzh un orjal."
   placement:
     blocked: "Stanket eo al lakaat amañ."
   bus:

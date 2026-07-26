@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Замууд: {0}, {1}"
   wire:
     hard_cap: "Кабелийн chain хэт том: {0}/{1}."
-    item_not_placeable: "Энэ эд зүйлийг кабелийн хажууд байрлуулах боломжгүй."
   placement:
     blocked: "Энд байрлуулахыг хориглосон."
   bus:

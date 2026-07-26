@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Ceļi: {0}, {1}"
   wire:
     hard_cap: "Vada ķēde ir pārāk liela: {0}/{1}."
-    item_not_placeable: "Šo priekšmetu nevar novietot pie vada."
   placement:
     blocked: "Novietošana šeit ir bloķēta."
   bus:

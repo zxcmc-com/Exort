@@ -203,7 +203,6 @@ message:
   lang_status_paths: "مسیرها: {0}, {1}"
   wire:
     hard_cap: "زنجیره سیم بیش از حد بزرگ است: {0}/{1}."
-    item_not_placeable: "این مورد را نمی‌توان کنار سیم قرار داد."
   placement:
     blocked: "قرار دادن در اینجا مسدود است."
   bus:

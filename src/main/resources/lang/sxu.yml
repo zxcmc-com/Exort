@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Pfade: {0}, {1}"
   wire:
     hard_cap: "Kabelkette is zu groß: {0}/{1}."
-    item_not_placeable: "Das Item kann nich an nem Kabel platziert wern."
   placement:
     blocked: "Platziern is hier blockiert."
   bus:

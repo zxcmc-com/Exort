@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Патеки: {0}, {1}"
   wire:
     hard_cap: "Ланецот на жици е преголем: {0}/{1}."
-    item_not_placeable: "Овој предмет не може да се постави до жица."
   placement:
     blocked: "Поставувањето овде е блокирано."
   bus:

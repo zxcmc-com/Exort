@@ -203,7 +203,6 @@ message:
   lang_status_paths: "パス: {0}, {1}"
   wire:
     hard_cap: "ワイヤーチェーンが大きすぎます: {0}/{1}。"
-    item_not_placeable: "このアイテムはワイヤーに隣接して設置できません。"
   placement:
     blocked: "ここには設置できません。"
   bus:

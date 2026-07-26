@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Ways: {0}, {1}"
   wire:
     hard_cap: "Cord chain too large: {0}/{1}."
-    item_not_placeable: "This ware may not be laid against a cord."
   placement:
     blocked: "Laying is barred here."
   bus:

@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Rutas: {0}, {1}"
   wire:
     hard_cap: "La cadena de cables es demasiado grande: {0}/{1}."
-    item_not_placeable: "Esti ojetu nun se puei poner escontra un cable."
   placement:
     blocked: "Equí nun se puei poner."
   bus:

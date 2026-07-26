@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Cosáin: {0}, {1}"
   wire:
     hard_cap: "Tá slabhra sreinge rómhór: {0}/{1}."
-    item_not_placeable: "Ní féidir an mhír seo a chur in aghaidh sreinge."
   placement:
     blocked: "Tá cosc ar shocrúchán anseo."
   bus:

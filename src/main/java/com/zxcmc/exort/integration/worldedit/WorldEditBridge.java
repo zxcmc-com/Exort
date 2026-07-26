@@ -16,6 +16,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.math.transform.Transform;
 import com.sk89q.worldedit.regions.Region;
+import com.sk89q.worldedit.regions.RegionOperationException;
 import com.sk89q.worldedit.registry.state.BooleanProperty;
 import com.sk89q.worldedit.registry.state.Property;
 import com.sk89q.worldedit.session.ClipboardHolder;
@@ -60,6 +61,7 @@ import com.zxcmc.exort.wireless.transmitter.TransmitterSessionManager;
 import com.zxcmc.exort.wireless.transmitter.TransmitterStoredBooster;
 import com.zxcmc.exort.wireless.transmitter.TransmitterStoredTerminal;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -76,9 +78,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -87,6 +92,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -114,6 +120,7 @@ public final class WorldEditBridge implements Listener {
   private static final int APPLY_PER_TICK = 3000;
   private static final int DIRECT_RECONCILIATION_CAP = 100_000;
   private static final int MARKER_CAPTURE_CHUNK_CAP = 100_000;
+  private static final int STACK_MARKER_CAP = 100_000;
   private static final int RETRY_DELAY_TICKS = 2;
   private static final int MAX_RETRIES = 40;
   private static final long PASTE_COMMAND_TTL_MS = TimeUnit.SECONDS.toMillis(5);
@@ -140,6 +147,7 @@ public final class WorldEditBridge implements Listener {
   private final Set<WorldEditLoadedMarkerChunkCursor> entityRefreshCursors =
       ConcurrentHashMap.newKeySet();
   private final Set<BukkitTask> lifecycleTasks = ConcurrentHashMap.newKeySet();
+  private final UUID storageCloneSessionId = UUID.randomUUID();
   private final WorldEditMarkerHistory markerHistory = new WorldEditMarkerHistory();
   private final Map<UUID, PendingClipboardPatch> clipboardPatches = new ConcurrentHashMap<>();
   private final Map<UUID, PendingClipboardPatch> pendingCutSourcePatches =
@@ -148,14 +156,15 @@ public final class WorldEditBridge implements Listener {
   private final Map<UUID, PendingPasteCommand> pendingPasteCommands = new ConcurrentHashMap<>();
   private final Map<UUID, PendingHistoryCommand> pendingHistoryCommands = new ConcurrentHashMap<>();
   private final Map<UUID, PendingMovePatch> pendingMovePatches = new ConcurrentHashMap<>();
+  private final Map<UUID, PendingStackPatch> pendingStackPatches = new ConcurrentHashMap<>();
   private final WorldEditOperationContexts operationContexts =
       new WorldEditOperationContexts(OPERATION_CONTEXT_TTL_MS);
   private final WorldEditTrustedClipboards trustedClipboards = new WorldEditTrustedClipboards();
   private final Map<UUID, RejectedClipboard> rejectedClipboards = new ConcurrentHashMap<>();
   private final Map<UUID, TrustedSchematic> trustedSchematics = new ConcurrentHashMap<>();
   private final WorldEditOperationTracker operationTracker = new WorldEditOperationTracker();
-  private final Map<StoragePreparationKey, CompletableFuture<Boolean>> storagePreparations =
-      new ConcurrentHashMap<>();
+  private final ConcurrentMap<StoragePreparationKey, CompletableFuture<Boolean>>
+      storagePreparations = new ConcurrentHashMap<>();
   private final Object flushTaskLock = new Object();
   private BukkitTask flushTask;
   private BukkitTask directReconciliationTask;
@@ -341,6 +350,7 @@ public final class WorldEditBridge implements Listener {
     pendingPasteCommands.clear();
     pendingHistoryCommands.clear();
     pendingMovePatches.clear();
+    pendingStackPatches.clear();
     operationContexts.clear();
     trustedClipboards.clear();
     rejectedClipboards.clear();
@@ -397,6 +407,25 @@ public final class WorldEditBridge implements Listener {
             markerHistory.beginNormalOperation(actorId, world.getUID(), operationId);
       } else if (historyAction != null && stage == EditSession.Stage.BEFORE_CHANGE) {
         replayHistoryFrame = markerHistory.beginReplay(actorId, world.getUID(), historyAction);
+        if (replayHistoryFrame != null) {
+          long commandOperationId = operationId;
+          operationId = operationTracker.nextOperationId();
+          markHistoryReplayStarted(actorId, historyAction);
+          if (debug != null && debug.isEnabled()) {
+            debug.recordEvent(
+                "we history replay frame action="
+                    + historyAction.name().toLowerCase(Locale.ROOT)
+                    + " commandOperation="
+                    + commandOperationId
+                    + " replayOperation="
+                    + operationId
+                    + " frameOperation="
+                    + replayHistoryFrame.operationId(),
+                NamedTextColor.DARK_GREEN);
+          }
+        }
+        scheduleReplayFrameReconciliation(
+            operationId, world.getUID(), historyAction, replayHistoryFrame);
       }
     }
     boolean pasteCommandPending = historyAction == null && hasPendingPasteCommand(actor);
@@ -404,14 +433,28 @@ public final class WorldEditBridge implements Listener {
         pasteCommandPending ? resolvePendingPastePatch(actor, world.getUID()) : null;
     PendingMovePatch movePatch =
         historyAction == null && !pasteCommandPending ? resolvePendingMovePatch(actor) : null;
+    PendingPastePatch stackPatch =
+        historyAction == null && !pasteCommandPending && movePatch == null
+            ? resolvePendingStackPatch(actor)
+            : null;
+    PendingPastePatch incomingPatch = pastePatch != null ? pastePatch : stackPatch;
     PendingClipboardPatch cutSourcePatch =
         historyAction == null && !pasteCommandPending && movePatch == null
             ? pendingCutSourcePatch(actor)
             : null;
     PendingOperationSnapshot operationSnapshot =
-        historyAction == null && !pasteCommandPending && movePatch == null && cutSourcePatch == null
-            ? operationContext == null ? null : operationContext.markerSnapshot()
+        historyAction == null && operationContext != null
+            ? operationContext.markerSnapshot()
             : null;
+    if (stage == EditSession.Stage.BEFORE_HISTORY
+        && historyAction == null
+        && actorId != null
+        && normalHistoryFrame != null
+        && operationSnapshot != null
+        && !operationSnapshot.markers().isEmpty()) {
+      scheduleOperationPreimageReconciliation(
+          actorId, operationId, world.getUID(), operationSnapshot, normalHistoryFrame);
+    }
     if (debug != null && debug.isFull()) {
       debug.recordEvent(
           "we session context actor="
@@ -438,7 +481,7 @@ public final class WorldEditBridge implements Listener {
             normalHistoryFrame,
             replayHistoryFrame,
             clipboardTransform,
-            pastePatch,
+            incomingPatch,
             movePatch,
             cutSourcePatch,
             operationSnapshot,
@@ -502,22 +545,26 @@ public final class WorldEditBridge implements Listener {
     }
     ParsedHistoryCommand historyCommand = WorldEditCommandParser.parseHistoryCommand(command);
     if (historyCommand != null) {
-      rememberHistoryCommand(actorId, historyCommand);
+      PendingHistoryCommand pendingHistory = rememberHistoryCommand(actorId, historyCommand);
       rememberOperationContext(actor, command, null, null);
+      scheduleHistoryCommandFallback(actorId, selectionGeometry(actor).worldId(), pendingHistory);
       return false;
     }
+    pendingHistoryCommands.remove(actorId);
     if (WorldEditCommandParser.isClipboardCopyCommand(command)) {
       ClipboardCapture capture = captureClipboardPatches(actor);
       PendingClipboardPatch patch = capture.copyPatch();
+      PendingOperationSnapshot preimage =
+          WorldEditCommandParser.isClipboardCutCommand(command) ? capture.sourcePreimage() : null;
       if (patch == null || patch.markers().isEmpty()) {
         clipboardPatches.remove(actorId);
         pendingCutSourcePatches.remove(actorId);
-        rememberOperationContext(actor, command, patch, null);
+        rememberOperationContext(actor, command, patch, preimage);
         return false;
       }
       rememberClipboardPatch(actor, patch);
       rememberCutSourcePatchIfNeeded(actor, command, capture.cutPatch());
-      rememberOperationContext(actor, command, patch, null);
+      rememberOperationContext(actor, command, patch, preimage);
       clipboardPatcher.schedule(actor, patch);
       return false;
     }
@@ -531,16 +578,36 @@ public final class WorldEditBridge implements Listener {
                 + ".");
         return true;
       }
-      rememberPasteCommand(actorId, WorldEditCommandParser.parsePasteCommand(command));
-      rememberOperationContext(actor, command, clipboardPatches.get(actorId), null);
+      PendingPasteCommand pasteCommand = WorldEditCommandParser.parsePasteCommand(command);
+      PendingOperationSnapshot preimage = capturePastePreimage(actor, pasteCommand);
+      rememberPasteCommand(actorId, pasteCommand);
+      rememberOperationSnapshot(preimage);
+      rememberOperationContext(actor, command, clipboardPatches.get(actorId), preimage);
       return false;
     }
     if (WorldEditCommandParser.isMoveCommand(command)) {
-      rememberMovePatch(actorId, captureMovePatch(actor, command, player));
-      rememberOperationContext(actor, command, null, null);
+      PreparedMove prepared = captureMovePreparation(actor, command, player);
+      rememberMovePatch(actorId, prepared.movePatch());
+      rememberOperationSnapshot(prepared.preimage());
+      rememberOperationContext(actor, command, null, prepared.preimage());
       return false;
     }
     if (WorldEditCommandParser.isOperationSnapshotCommand(command)) {
+      if (WorldEditCommandParser.blockMutationKind(command)
+          == WorldEditCommandParser.BlockMutationKind.STACK) {
+        PreparedStack stack = captureStackPatch(actor, command, player);
+        if (!stack.safe()) {
+          ExortLog.warn(
+              "Blocked WorldEdit stack because its Exort source sidecar could not be prepared"
+                  + " within loaded bounded state for actor "
+                  + actorId
+                  + ".");
+          return true;
+        }
+        rememberStackPatch(actorId, stack.patch());
+      } else {
+        pendingStackPatches.remove(actorId);
+      }
       PendingOperationSnapshot snapshot = captureOperationSnapshot(actor, command, player);
       rememberOperationSnapshot(snapshot);
       rememberOperationContext(actor, command, null, snapshot);
@@ -703,6 +770,7 @@ public final class WorldEditBridge implements Listener {
     if (actorId == null || pasteCommand == null) return;
     pendingCutSourcePatches.remove(actorId);
     pendingMovePatches.remove(actorId);
+    pendingStackPatches.remove(actorId);
     pendingHistoryCommands.remove(actorId);
     pendingPasteCommands.put(actorId, pasteCommand);
     scheduleLifecycleTask(() -> pendingPasteCommands.remove(actorId, pasteCommand), 100L);
@@ -711,6 +779,7 @@ public final class WorldEditBridge implements Listener {
   private void rememberMovePatch(UUID actorId, PendingMovePatch movePatch) {
     if (actorId == null) return;
     pendingPasteCommands.remove(actorId);
+    pendingStackPatches.remove(actorId);
     pendingCutSourcePatches.remove(actorId);
     pendingHistoryCommands.remove(actorId);
     if (movePatch == null || movePatch.destinationMarkers().isEmpty()) {
@@ -721,19 +790,108 @@ public final class WorldEditBridge implements Listener {
     scheduleLifecycleTask(() -> pendingMovePatches.remove(actorId, movePatch), 100L);
   }
 
-  private void rememberHistoryCommand(UUID actorId, ParsedHistoryCommand historyCommand) {
-    if (actorId == null || historyCommand == null) return;
+  private void rememberStackPatch(UUID actorId, PendingPastePatch stackPatch) {
+    if (actorId == null) return;
     pendingPasteCommands.remove(actorId);
     pendingMovePatches.remove(actorId);
+    pendingCutSourcePatches.remove(actorId);
+    pendingHistoryCommands.remove(actorId);
+    if (stackPatch == null || stackPatch.destinationMarkers().isEmpty()) {
+      pendingStackPatches.remove(actorId);
+      return;
+    }
+    PendingStackPatch pending = new PendingStackPatch(stackPatch, System.currentTimeMillis(), 3);
+    pendingStackPatches.put(actorId, pending);
+    scheduleLifecycleTask(() -> pendingStackPatches.remove(actorId, pending), 100L);
+  }
+
+  private PendingHistoryCommand rememberHistoryCommand(
+      UUID actorId, ParsedHistoryCommand historyCommand) {
+    if (actorId == null || historyCommand == null) return null;
+    pendingPasteCommands.remove(actorId);
+    pendingMovePatches.remove(actorId);
+    pendingStackPatches.remove(actorId);
     pendingCutSourcePatches.remove(actorId);
     pendingCutClipboardTransfers.remove(actorId);
     PendingHistoryCommand command =
         new PendingHistoryCommand(
             historyCommand.action(),
+            historyCommand.steps(),
             System.currentTimeMillis(),
             historyStageUses(historyCommand.steps()));
     pendingHistoryCommands.put(actorId, command);
-    scheduleLifecycleTask(() -> pendingHistoryCommands.remove(actorId, command), 100L);
+    scheduleLifecycleTask(() -> clearHistoryCommand(actorId, command), 20L);
+    scheduleLifecycleTask(() -> clearHistoryCommand(actorId, command), 100L);
+    return command;
+  }
+
+  private void clearHistoryCommand(UUID actorId, PendingHistoryCommand command) {
+    if (actorId == null || command == null) {
+      return;
+    }
+    pendingHistoryCommands.computeIfPresent(
+        actorId,
+        (ignored, current) ->
+            current.replayFramesStarted() == command.replayFramesStarted() ? null : current);
+  }
+
+  private void markHistoryReplayStarted(UUID actorId, HistoryAction action) {
+    PendingHistoryCommand command = pendingHistoryCommands.get(actorId);
+    if (command != null && command.action() == action) {
+      command.replayFramesStarted().updateAndGet(current -> Math.min(command.steps(), current + 1));
+    }
+  }
+
+  private void scheduleHistoryCommandFallback(
+      UUID actorId, UUID worldId, PendingHistoryCommand command) {
+    if (actorId == null || worldId == null || command == null) {
+      return;
+    }
+    scheduleLifecycleTask(
+        () -> {
+          int replayFramesStarted = Math.min(command.steps(), command.replayFramesStarted().get());
+          if (replayFramesStarted >= command.steps()) {
+            return;
+          }
+          int restoredFrames = 0;
+          int restoredStates = 0;
+          for (int step = replayFramesStarted; step < command.steps(); step++) {
+            WorldEditMarkerHistory.Frame frame =
+                markerHistory.beginReplay(actorId, worldId, command.action());
+            if (frame == null) {
+              break;
+            }
+            long fallbackOperationId = operationTracker.nextOperationId();
+            List<MarkerUpdate> updates =
+                replayFrameUpdates(fallbackOperationId, worldId, command.action(), frame);
+            for (MarkerUpdate update : updates) {
+              if (!prepareReplayTarget(update)) {
+                continue;
+              }
+              enqueue(update);
+            }
+            restoredFrames++;
+            restoredStates += updates.size();
+            command
+                .replayFramesStarted()
+                .updateAndGet(current -> Math.min(command.steps(), current + 1));
+          }
+          if (restoredFrames > 0) {
+            PerfStats.addCounter("worldedit.history.commandFallbackStates", restoredStates);
+            WorldEditDebugService debug = deps.debugService();
+            if (debug != null && debug.isEnabled()) {
+              debug.recordEvent(
+                  "we history command fallback action="
+                      + command.action().name().toLowerCase(Locale.ROOT)
+                      + " frames="
+                      + restoredFrames
+                      + " states="
+                      + restoredStates,
+                  NamedTextColor.GOLD);
+            }
+          }
+        },
+        10L);
   }
 
   private static int historyStageUses(int steps) {
@@ -858,6 +1016,7 @@ public final class WorldEditBridge implements Listener {
     pendingCutClipboardTransfers.remove(actorId);
     pendingPasteCommands.remove(actorId);
     pendingMovePatches.remove(actorId);
+    pendingStackPatches.remove(actorId);
     operationContexts.clear(actorId);
     trustedClipboards.clear(actorId);
     rejectedClipboards.remove(actorId);
@@ -939,9 +1098,7 @@ public final class WorldEditBridge implements Listener {
       destinations.put(sourcePos, destination);
     }
     Map<Long, MarkerSnapshot> destinationMarkers = new HashMap<>();
-    Map<Long, MarkerSnapshot> undoMarkers = new HashMap<>();
     UUID sourceWorldId = clipboardPatch.sourceWorldId();
-    World destinationWorld = Bukkit.getWorld(destinationWorldId);
     for (Map.Entry<BlockVector3, MarkerSnapshot> entry : snapshots.entrySet()) {
       BlockVector3 destination = destinations.get(entry.getKey());
       if (destination == null) {
@@ -958,13 +1115,6 @@ public final class WorldEditBridge implements Listener {
       long destinationKey =
           WorldEditMarkerMath.blockKey(destination.x(), destination.y(), destination.z());
       destinationMarkers.put(destinationKey, snapshot);
-      MarkerSnapshot undoSnapshot = captureMarkerSnapshot(destinationWorld, destination);
-      if (undoSnapshot == null && Objects.equals(sourceWorldId, destinationWorldId)) {
-        undoSnapshot = snapshots.get(destination);
-      }
-      if (undoSnapshot != null) {
-        undoMarkers.put(destinationKey, undoSnapshot);
-      }
     }
     if (destinationMarkers.isEmpty()) {
       pendingPasteCommands.remove(actorId, command);
@@ -981,7 +1131,86 @@ public final class WorldEditBridge implements Listener {
       debug.recordEvent(
           "we paste sidecar markers=" + destinationMarkers.size(), NamedTextColor.DARK_GREEN);
     }
-    return new PendingPastePatch(destinationMarkers, undoMarkers, preserveStorageIdentity);
+    return new PendingPastePatch(destinationMarkers, Map.of(), preserveStorageIdentity);
+  }
+
+  private PendingOperationSnapshot capturePastePreimage(Actor actor, PendingPasteCommand command) {
+    if (actor == null || command == null || command.onlySelect() || !Bukkit.isPrimaryThread()) {
+      return null;
+    }
+    LocalSession session = WorldEdit.getInstance().getSessionManager().get(actor);
+    ClipboardHolder holder;
+    Clipboard clipboard;
+    try {
+      holder = session.getClipboard();
+      clipboard = holder.getClipboard();
+    } catch (EmptyClipboardException e) {
+      return null;
+    }
+    if (clipboard == null || clipboard.getRegion() == null || clipboard.getOrigin() == null) {
+      return null;
+    }
+    World destinationWorld = actorWorld(actor);
+    if (destinationWorld == null) {
+      destinationWorld = selectionGeometry(actor).world();
+    }
+    if (destinationWorld == null) {
+      return null;
+    }
+    BlockVector3 target;
+    try {
+      target = command.atOrigin() ? clipboard.getOrigin() : session.getPlacementPosition(actor);
+    } catch (IncompleteRegionException e) {
+      return null;
+    }
+    WorldEditBounds destinationBounds =
+        transformedClipboardBounds(
+            clipboard.getRegion(), clipboard.getOrigin(), target, holder.getTransform());
+    if (destinationBounds == null) {
+      return null;
+    }
+    SelectionGeometry geometry =
+        new SelectionGeometry(
+            destinationWorld.getUID(), destinationWorld, null, destinationBounds, target);
+    CapturedMarkers captured = captureMarkers(geometry, destinationBounds, null, true);
+    return toOperationSnapshot(captured, "worldedit_paste_preimage");
+  }
+
+  static WorldEditBounds transformedClipboardBounds(
+      Region region, BlockVector3 origin, BlockVector3 target, Transform transform) {
+    if (region == null || origin == null || target == null) {
+      return null;
+    }
+    BlockVector3 min = region.getMinimumPoint();
+    BlockVector3 max = region.getMaximumPoint();
+    BlockVector3 transformedMin = null;
+    BlockVector3 transformedMax = null;
+    for (int x : new int[] {min.x(), max.x()}) {
+      for (int y : new int[] {min.y(), max.y()}) {
+        for (int z : new int[] {min.z(), max.z()}) {
+          BlockVector3 offset = BlockVector3.at(x, y, z).subtract(origin);
+          BlockVector3 transformed =
+              transform == null || transform.isIdentity()
+                  ? offset.add(target)
+                  : transform.apply(offset.toVector3()).toBlockPoint().add(target);
+          transformedMin =
+              transformedMin == null
+                  ? transformed
+                  : BlockVector3.at(
+                      Math.min(transformedMin.x(), transformed.x()),
+                      Math.min(transformedMin.y(), transformed.y()),
+                      Math.min(transformedMin.z(), transformed.z()));
+          transformedMax =
+              transformedMax == null
+                  ? transformed
+                  : BlockVector3.at(
+                      Math.max(transformedMax.x(), transformed.x()),
+                      Math.max(transformedMax.y(), transformed.y()),
+                      Math.max(transformedMax.z(), transformed.z()));
+        }
+      }
+    }
+    return transformedMin == null ? null : new WorldEditBounds(transformedMin, transformedMax);
   }
 
   private boolean hasPendingPasteCommand(Actor actor) {
@@ -1028,10 +1257,6 @@ public final class WorldEditBridge implements Listener {
 
   private void consumeHistoryCommand(UUID actorId, PendingHistoryCommand command) {
     if (actorId == null || command == null) return;
-    if (command.usesRemaining() <= 1) {
-      pendingHistoryCommands.remove(actorId, command);
-      return;
-    }
     pendingHistoryCommands.replace(actorId, command, command.consume());
   }
 
@@ -1053,10 +1278,29 @@ public final class WorldEditBridge implements Listener {
     return patch;
   }
 
+  private PendingPastePatch resolvePendingStackPatch(Actor actor) {
+    if (actor == null || actor.getUniqueId() == null) return null;
+    UUID actorId = actor.getUniqueId();
+    PendingStackPatch pending = pendingStackPatches.get(actorId);
+    if (pending == null) return null;
+    long now = System.currentTimeMillis();
+    if (now - pending.timestampMs() > MOVE_COMMAND_TTL_MS) {
+      pendingStackPatches.remove(actorId);
+      return null;
+    }
+    if (pending.usesRemaining() <= 1) {
+      pendingStackPatches.remove(actorId, pending);
+    } else {
+      pendingStackPatches.replace(actorId, pending, pending.consume());
+    }
+    return pending.patch();
+  }
+
   private ClipboardCapture captureClipboardPatches(Actor actor) {
     CapturedMarkers captured = captureSelectionMarkers(actor, true);
     if (captured.markers().isEmpty()) {
-      return new ClipboardCapture(null, null);
+      return new ClipboardCapture(
+          null, null, toOperationSnapshot(captured, "worldedit_cut_preimage"));
     }
     WorldEditDebugService debug = deps.debugService();
     if (debug != null && debug.isEnabled()) {
@@ -1077,19 +1321,32 @@ public final class WorldEditBridge implements Listener {
     PendingClipboardPatch cutPatch =
         new PendingClipboardPatch(
             captured.sourceWorldId(), captured.bounds(), captured.origin(), captured.markers());
-    return new ClipboardCapture(copyPatch, cutPatch);
+    return new ClipboardCapture(
+        copyPatch, cutPatch, toOperationSnapshot(captured, "worldedit_cut_preimage"));
   }
 
   private record ClipboardCapture(
-      PendingClipboardPatch copyPatch, PendingClipboardPatch cutPatch) {}
+      PendingClipboardPatch copyPatch,
+      PendingClipboardPatch cutPatch,
+      PendingOperationSnapshot sourcePreimage) {}
 
-  private PendingMovePatch captureMovePatch(Actor actor, String command, Player player) {
+  private PreparedMove captureMovePreparation(Actor actor, String command, Player player) {
     BlockVector3 vector = WorldEditCommandParser.parseMoveVector(command, player);
     if (vector.equals(BlockVector3.at(0, 0, 0))) {
-      return null;
+      return new PreparedMove(null, null);
     }
-    CapturedMarkers captured = captureSelectionMarkers(actor, true);
-    if (captured.markers().isEmpty()) {
+    SelectionGeometry geometry = selectionGeometry(actor);
+    if (geometry.world() == null || geometry.bounds() == null || geometry.region() == null) {
+      return new PreparedMove(null, null);
+    }
+    CapturedMarkers captured = captureMarkers(geometry, geometry.bounds(), geometry.region(), true);
+    PendingMovePatch movePatch = buildMovePatch(captured, vector);
+    PendingOperationSnapshot preimage = captureMovePreimage(geometry, captured, vector);
+    return new PreparedMove(movePatch, preimage);
+  }
+
+  private PendingMovePatch buildMovePatch(CapturedMarkers captured, BlockVector3 vector) {
+    if (captured == null || vector == null || captured.markers().isEmpty()) {
       return null;
     }
     Map<Long, MarkerSnapshot> destinationMarkers = new HashMap<>();
@@ -1140,6 +1397,156 @@ public final class WorldEditBridge implements Listener {
         sourceMarkers, destinationMarkers, vector, System.currentTimeMillis(), 3);
   }
 
+  private PendingOperationSnapshot captureMovePreimage(
+      SelectionGeometry sourceGeometry, CapturedMarkers source, BlockVector3 vector) {
+    if (sourceGeometry == null
+        || sourceGeometry.world() == null
+        || sourceGeometry.bounds() == null
+        || sourceGeometry.region() == null
+        || source == null
+        || vector == null) {
+      return null;
+    }
+    WorldEditBounds destinationBounds = sourceGeometry.bounds().translate(vector);
+    Region destinationRegion = sourceGeometry.region().clone();
+    try {
+      destinationRegion.shift(vector);
+    } catch (RegionOperationException e) {
+      return mergePreimages(
+          source,
+          new CapturedMarkers(
+              sourceGeometry.worldId(),
+              destinationBounds,
+              sourceGeometry.origin(),
+              Map.of(),
+              Set.of(),
+              0,
+              false),
+          "worldedit_move_preimage");
+    }
+    SelectionGeometry destinationGeometry =
+        new SelectionGeometry(
+            sourceGeometry.worldId(),
+            sourceGeometry.world(),
+            destinationRegion,
+            destinationBounds,
+            sourceGeometry.origin());
+    CapturedMarkers destination =
+        captureMarkers(destinationGeometry, destinationBounds, destinationRegion, true);
+    return mergePreimages(source, destination, "worldedit_move_preimage");
+  }
+
+  private PendingOperationSnapshot mergePreimages(
+      CapturedMarkers first, CapturedMarkers second, String reason) {
+    if (first == null && second == null) {
+      return null;
+    }
+    CapturedMarkers primary = first != null ? first : second;
+    if (primary == null || primary.sourceWorldId() == null) {
+      return null;
+    }
+    Map<Long, MarkerSnapshot> markers = new HashMap<>();
+    Set<ChunkKey> markerChunks = new HashSet<>();
+    Set<ChunkKey> coveredChunks = new HashSet<>();
+    List<WorldEditBounds> coverageBounds = new ArrayList<>();
+    boolean complete = true;
+    WorldEditBounds aggregate = null;
+    for (CapturedMarkers captured : new CapturedMarkers[] {first, second}) {
+      if (captured == null) {
+        complete = false;
+        continue;
+      }
+      addCapturedSnapshots(captured, markers, markerChunks);
+      coveredChunks.addAll(captured.coveredChunks());
+      if (captured.bounds() != null) {
+        coverageBounds.add(captured.bounds());
+        aggregate = aggregate == null ? captured.bounds() : aggregate.union(captured.bounds());
+      }
+      complete &= captured.complete();
+    }
+    return new PendingOperationSnapshot(
+        primary.sourceWorldId(),
+        markers,
+        markerChunks,
+        coveredChunks,
+        coverageBounds,
+        aggregate,
+        reason,
+        complete);
+  }
+
+  private record PreparedMove(PendingMovePatch movePatch, PendingOperationSnapshot preimage) {}
+
+  private PreparedStack captureStackPatch(Actor actor, String command, Player player) {
+    SelectionGeometry geometry = selectionGeometry(actor);
+    if (geometry.world() == null || geometry.bounds() == null || geometry.region() == null) {
+      return new PreparedStack(null, true);
+    }
+    CapturedMarkers captured = captureMarkers(geometry, geometry.bounds(), geometry.region(), true);
+    if (!captured.complete()) {
+      return new PreparedStack(null, false);
+    }
+    Map<BlockVector3, MarkerSnapshot> sources = parseSnapshots(captured.markers());
+    if (sources.isEmpty()) {
+      return new PreparedStack(null, true);
+    }
+    Integer count = WorldEditCommandParser.parseStackCount(command);
+    BlockVector3 direction = WorldEditCommandParser.parseStackDirection(command, player);
+    if (count == null || direction == null) {
+      return new PreparedStack(null, false);
+    }
+    long destinationCount = (long) sources.size() * count;
+    if (destinationCount > STACK_MARKER_CAP) {
+      PerfStats.incrementCounter("worldedit.operation.captureOverflow");
+      return new PreparedStack(null, false);
+    }
+    Map<Long, MarkerSnapshot> destinationMarkers = new HashMap<>();
+    for (int repetition = 1; repetition <= count; repetition++) {
+      BlockVector3 offset = stackOffset(geometry.bounds(), direction, repetition);
+      if (offset == null) {
+        return new PreparedStack(null, false);
+      }
+      Map<BlockVector3, BlockVector3> destinations = new HashMap<>();
+      for (BlockVector3 source : sources.keySet()) {
+        destinations.put(source, source.add(offset));
+      }
+      for (Map.Entry<BlockVector3, MarkerSnapshot> entry : sources.entrySet()) {
+        BlockVector3 destination = destinations.get(entry.getKey());
+        MarkerSnapshot snapshot = entry.getValue().withoutTransmitterStoredItems();
+        snapshot =
+            RelayLinkRewrite.rewrite(
+                snapshot,
+                entry.getKey(),
+                captured.sourceWorldId(),
+                captured.sourceWorldId(),
+                destinations,
+                sources);
+        destinationMarkers.put(
+            WorldEditMarkerMath.blockKey(destination.x(), destination.y(), destination.z()),
+            snapshot);
+      }
+    }
+    return new PreparedStack(new PendingPastePatch(destinationMarkers, Map.of(), false), true);
+  }
+
+  private static BlockVector3 stackOffset(
+      WorldEditBounds selection, BlockVector3 direction, int repetition) {
+    long x = (long) selection.sizeX() * direction.x() * repetition;
+    long y = (long) selection.sizeY() * direction.y() * repetition;
+    long z = (long) selection.sizeZ() * direction.z() * repetition;
+    if (x < Integer.MIN_VALUE
+        || x > Integer.MAX_VALUE
+        || y < Integer.MIN_VALUE
+        || y > Integer.MAX_VALUE
+        || z < Integer.MIN_VALUE
+        || z > Integer.MAX_VALUE) {
+      return null;
+    }
+    return BlockVector3.at((int) x, (int) y, (int) z);
+  }
+
+  private record PreparedStack(PendingPastePatch patch, boolean safe) {}
+
   private PendingOperationSnapshot captureOperationSnapshot(
       Actor actor, String command, Player player) {
     if (!Bukkit.isPrimaryThread()) {
@@ -1164,11 +1571,18 @@ public final class WorldEditBridge implements Listener {
     Set<ChunkKey> chunks = new HashSet<>();
     UUID worldId = captured.sourceWorldId();
     addCapturedSnapshots(captured, markers, chunks);
-    if (worldId == null || markers.isEmpty()) {
+    if (worldId == null) {
       return null;
     }
     return new PendingOperationSnapshot(
-        worldId, markers, chunks, affected, "worldedit_" + operationSnapshotReason(command));
+        worldId,
+        markers,
+        chunks,
+        captured.coveredChunks(),
+        List.of(affected),
+        affected,
+        "worldedit_" + operationSnapshotReason(command),
+        captured.complete());
   }
 
   private void addCapturedSnapshots(
@@ -1185,6 +1599,24 @@ public final class WorldEditBridge implements Listener {
       markers.put(WorldEditMarkerMath.blockKey(pos.x(), pos.y(), pos.z()), snapshot);
       chunks.add(new ChunkKey(captured.sourceWorldId(), pos.x() >> 4, pos.z() >> 4));
     }
+  }
+
+  private PendingOperationSnapshot toOperationSnapshot(CapturedMarkers captured, String reason) {
+    if (captured == null || captured.sourceWorldId() == null || captured.bounds() == null) {
+      return null;
+    }
+    Map<Long, MarkerSnapshot> markers = new HashMap<>();
+    Set<ChunkKey> markerChunks = new HashSet<>();
+    addCapturedSnapshots(captured, markers, markerChunks);
+    return new PendingOperationSnapshot(
+        captured.sourceWorldId(),
+        markers,
+        markerChunks,
+        captured.coveredChunks(),
+        List.of(captured.bounds()),
+        captured.bounds(),
+        reason,
+        captured.complete());
   }
 
   private void rememberOperationSnapshot(PendingOperationSnapshot snapshot) {
@@ -1374,6 +1806,7 @@ public final class WorldEditBridge implements Listener {
     }
     World world = geometry.world();
     Map<BlockVector3, LinCompoundTag> markers = new HashMap<>();
+    Set<ChunkKey> coveredChunks = new HashSet<>();
     if (bounds.chunkCountCapped(MARKER_CAPTURE_CHUNK_CAP + 1) > MARKER_CAPTURE_CHUNK_CAP) {
       PerfStats.incrementCounter("worldedit.operation.captureOverflow");
       if (markerCaptureOverflowWarned.compareAndSet(false, true)) {
@@ -1381,12 +1814,18 @@ public final class WorldEditBridge implements Listener {
             "[WorldEdit] Exort marker capture exceeded its 100000-chunk safety cap; marker "
                 + "correlation for this operation was rejected.");
       }
-      return CapturedMarkers.empty(world.getUID());
+      return new CapturedMarkers(
+          world.getUID(), bounds, geometry.origin(), Map.of(), Set.of(), 0, false);
     }
     int capturedChunks = 0;
+    boolean complete = true;
     for (int chunkX = bounds.minChunkX(); chunkX <= bounds.maxChunkX(); chunkX++) {
       for (int chunkZ = bounds.minChunkZ(); chunkZ <= bounds.maxChunkZ(); chunkZ++) {
-        if (!world.isChunkLoaded(chunkX, chunkZ)) continue;
+        if (!world.isChunkLoaded(chunkX, chunkZ)) {
+          complete = false;
+          continue;
+        }
+        coveredChunks.add(new ChunkKey(world.getUID(), chunkX, chunkZ));
         Chunk chunk = world.getChunkAt(chunkX, chunkZ);
         if (!ChunkMarkerStore.hasAnyBlockData(plugin, chunk)) continue;
         capturedChunks++;
@@ -1405,7 +1844,14 @@ public final class WorldEditBridge implements Listener {
             });
       }
     }
-    return new CapturedMarkers(world.getUID(), bounds, geometry.origin(), markers, capturedChunks);
+    return new CapturedMarkers(
+        world.getUID(),
+        bounds,
+        geometry.origin(),
+        markers,
+        coveredChunks,
+        capturedChunks,
+        complete);
   }
 
   private record SelectionGeometry(
@@ -1555,7 +2001,14 @@ public final class WorldEditBridge implements Listener {
     if (operationSnapshot == null) {
       return liveSnapshot;
     }
-    return richerTransmitterSnapshot(liveSnapshot, operationSnapshot.get(worldId, position));
+    MarkerSnapshot prepared = operationSnapshot.get(worldId, position);
+    if (prepared != null) {
+      return richerTransmitterSnapshot(prepared, liveSnapshot);
+    }
+    if (operationSnapshot.covers(worldId, position)) {
+      return null;
+    }
+    return liveSnapshot;
   }
 
   static MarkerSnapshot richerTransmitterSnapshot(
@@ -1602,11 +2055,56 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
-  void enqueueMoveSourceCleanup(
-      long operationId, UUID worldId, PendingMovePatch movePatch, Set<Long> observedSourceClears) {
+  String storageCloneId(
+      long operationId, UUID worldId, int x, int y, int z, String sourceStorageId) {
+    String seed =
+        storageCloneSessionId
+            + ":"
+            + operationId
+            + ":"
+            + worldId
+            + ":"
+            + x
+            + ":"
+            + y
+            + ":"
+            + z
+            + ":"
+            + sourceStorageId;
+    return UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)).toString();
+  }
+
+  void ensureTrustedIncomingCarrier(UUID worldId, BlockVector3 position, MarkerSnapshot snapshot) {
+    if (worldId == null || position == null || snapshot == null) {
+      return;
+    }
+    scheduleLifecycleTask(
+        () -> {
+          World world = Bukkit.getWorld(worldId);
+          if (world == null || !world.isChunkLoaded(position.x() >> 4, position.z() >> 4)) {
+            return;
+          }
+          Material carrier = carrierMaterial(snapshot);
+          Block block = world.getBlockAt(position.x(), position.y(), position.z());
+          if (carrier != null && !Carriers.matchesCarrier(block, carrier)) {
+            block.setType(carrier, false);
+          }
+        },
+        1L);
+  }
+
+  void enqueueMoveReconciliation(
+      long operationId,
+      UUID worldId,
+      PendingMovePatch movePatch,
+      PendingOperationSnapshot preimage,
+      Set<Long> observedSourceClears) {
     if (worldId == null || movePatch == null) {
       return;
     }
+    List<MarkerUpdate> destinationUpdates =
+        moveDestinationUpdates(operationId, worldId, movePatch, preimage);
+    destinationUpdates.forEach(this::enqueue);
     for (Map.Entry<Long, MarkerSnapshot> entry : movePatch.sourceMarkers().entrySet()) {
       long key = entry.getKey();
       if (movePatch.destinationMarkers().containsKey(key)
@@ -1618,16 +2116,577 @@ public final class WorldEditBridge implements Listener {
           snapshot != null && snapshot.storage() != null ? snapshot.storage().storageId() : null;
       enqueue(
           new MarkerUpdate(
-              operationId,
-              worldId,
+                  operationId,
+                  worldId,
+                  WorldEditMarkerMath.blockX(key),
+                  WorldEditMarkerMath.blockY(key),
+                  WorldEditMarkerMath.blockZ(key),
+                  null,
+                  removedStorageId,
+                  false,
+                  true)
+              .asAuthoritativeFinalState());
+    }
+    scheduleLifecycleTask(
+        () -> {
+          World world = Bukkit.getWorld(worldId);
+          if (world == null) {
+            return;
+          }
+          int restored = 0;
+          Set<ChunkKey> refreshedChunks = new HashSet<>();
+          Set<BlockRef> networkRefreshStarts = new HashSet<>();
+          for (MarkerUpdate update : destinationUpdates) {
+            if (operationTracker.isSuperseded(update)
+                || !world.isChunkLoaded(update.chunkX(), update.chunkZ())) {
+              continue;
+            }
+            Block block = world.getBlockAt(update.x(), update.y(), update.z());
+            Material expectedCarrier = carrierMaterial(update.snapshot());
+            if (expectedCarrier == null || !Carriers.matchesCarrier(block, expectedCarrier)) {
+              continue;
+            }
+            MarkerSnapshot current =
+                captureMarkerSnapshot(world, BlockVector3.at(update.x(), update.y(), update.z()));
+            if (Objects.equals(current, update.snapshot())) {
+              ItemHologramManager hologramManager = deps.hologramManager();
+              if (hologramManager != null && current.storage() != null) {
+                hologramManager.registerStorage(block);
+              }
+              if (hologramManager != null && current.terminal() != null) {
+                hologramManager.registerTerminal(block);
+              }
+              refreshedChunks.add(new ChunkKey(update.worldId(), update.chunkX(), update.chunkZ()));
+              if (shouldRefreshWireNetworkAfterUpdate(update)) {
+                networkRefreshStarts.add(
+                    new BlockRef(update.worldId(), update.x(), update.y(), update.z()));
+              }
+            } else {
+              enqueue(update);
+            }
+            restored++;
+          }
+          refreshScheduler.refreshAffectedChunks(
+              refreshedChunks, networkRefreshStarts, "move_final");
+          if (restored > 0) {
+            PerfStats.addCounter("worldedit.move.reconciled", restored);
+          }
+        },
+        20L);
+  }
+
+  static List<MarkerUpdate> moveDestinationUpdates(
+      long operationId,
+      UUID worldId,
+      PendingMovePatch movePatch,
+      PendingOperationSnapshot preimage) {
+    if (worldId == null || movePatch == null || movePatch.destinationMarkers().isEmpty()) {
+      return List.of();
+    }
+    List<MarkerUpdate> updates = new ArrayList<>(movePatch.destinationMarkers().size());
+    for (Map.Entry<Long, MarkerSnapshot> entry : movePatch.destinationMarkers().entrySet()) {
+      long key = entry.getKey();
+      MarkerSnapshot destination = entry.getValue();
+      BlockVector3 position =
+          BlockVector3.at(
               WorldEditMarkerMath.blockX(key),
               WorldEditMarkerMath.blockY(key),
-              WorldEditMarkerMath.blockZ(key),
-              null,
-              removedStorageId,
-              false,
-              true));
+              WorldEditMarkerMath.blockZ(key));
+      MarkerSnapshot replaced = preimage == null ? null : preimage.get(worldId, position);
+      updates.add(
+          new MarkerUpdate(
+                  operationId,
+                  worldId,
+                  position.x(),
+                  position.y(),
+                  position.z(),
+                  destination,
+                  replacedStorageId(replaced, destination),
+                  false,
+                  true)
+              .asAuthoritativeFinalState());
     }
+    return List.copyOf(updates);
+  }
+
+  private void scheduleReplayFrameReconciliation(
+      long operationId,
+      UUID worldId,
+      HistoryAction action,
+      WorldEditMarkerHistory.Frame replayFrame) {
+    if (worldId == null || action == null || replayFrame == null) {
+      return;
+    }
+    scheduleLifecycleTask(
+        () ->
+            reconcileReplayFrame(
+                operationId,
+                worldId,
+                action,
+                replayFrameUpdates(operationId, worldId, action, replayFrame),
+                "missing"),
+        2L);
+    scheduleLifecycleTask(
+        () ->
+            reconcileReplayFrame(
+                operationId,
+                worldId,
+                action,
+                replayFrameAllUpdates(operationId, worldId, action, replayFrame),
+                "final",
+                false),
+        20L);
+    scheduleLifecycleTask(
+        () ->
+            reconcileReplayFrame(
+                operationId,
+                worldId,
+                action,
+                replayFrameAllUpdates(operationId, worldId, action, replayFrame),
+                "verified_2s",
+                true),
+        40L);
+    scheduleLifecycleTask(
+        () ->
+            reconcileReplayFrame(
+                operationId,
+                worldId,
+                action,
+                replayFrameAllUpdates(operationId, worldId, action, replayFrame),
+                "verified_5s",
+                true),
+        100L);
+  }
+
+  private void reconcileReplayFrame(
+      long operationId,
+      UUID worldId,
+      HistoryAction action,
+      List<MarkerUpdate> reconciled,
+      String pass) {
+    reconcileReplayFrame(operationId, worldId, action, reconciled, pass, false);
+  }
+
+  private void reconcileReplayFrame(
+      long operationId,
+      UUID worldId,
+      HistoryAction action,
+      List<MarkerUpdate> reconciled,
+      String pass,
+      boolean verifyLiveState) {
+    int queued = 0;
+    Set<ChunkKey> verifiedChunks = new HashSet<>();
+    Set<BlockRef> verifiedNetworkStarts = new HashSet<>();
+    for (MarkerUpdate update : reconciled) {
+      if (operationTracker.isSuperseded(update)) {
+        debugReplayReconciliationUpdate(update, pass, "superseded");
+        continue;
+      }
+      if (verifyLiveState && replayTargetMatchesLiveState(update)) {
+        ChunkKey chunk = new ChunkKey(update.worldId(), update.chunkX(), update.chunkZ());
+        verifiedChunks.add(chunk);
+        if (shouldRefreshWireNetworkAfterUpdate(update)) {
+          verifiedNetworkStarts.add(
+              new BlockRef(update.worldId(), update.x(), update.y(), update.z()));
+        }
+        debugReplayReconciliationUpdate(update, pass, "verified");
+        continue;
+      }
+      if (!prepareReplayTarget(update)) {
+        debugReplayReconciliationUpdate(update, pass, "unsafe");
+        continue;
+      }
+      enqueue(update);
+      queued++;
+      debugReplayReconciliationUpdate(update, pass, "queued");
+    }
+    if (!verifiedChunks.isEmpty()) {
+      refreshScheduler.refreshAffectedChunks(
+          verifiedChunks, verifiedNetworkStarts, "history_" + pass);
+    }
+    if (queued == 0) {
+      return;
+    }
+    PerfStats.addCounter("worldedit.history.reconciled", queued);
+    WorldEditDebugService debug = deps.debugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent(
+          "we history reconciled action="
+              + action.name().toLowerCase(Locale.ROOT)
+              + " operation="
+              + operationId
+              + " pass="
+              + pass
+              + " states="
+              + queued,
+          NamedTextColor.GOLD);
+    }
+  }
+
+  private boolean replayTargetMatchesLiveState(MarkerUpdate update) {
+    if (update == null) {
+      return true;
+    }
+    World world = Bukkit.getWorld(update.worldId());
+    if (world == null || !world.isChunkLoaded(update.chunkX(), update.chunkZ())) {
+      return false;
+    }
+    Block block = world.getBlockAt(update.x(), update.y(), update.z());
+    MarkerSnapshot target = update.snapshot();
+    MarkerSnapshot current =
+        captureMarkerSnapshot(world, BlockVector3.at(update.x(), update.y(), update.z()));
+    if (!Objects.equals(current, target)) {
+      return false;
+    }
+    if (target == null) {
+      return replacementBlockStateMatches(block, update.replacementBlockState())
+          && (!update.clearCarrierToAir() || block.getType().isAir());
+    }
+    if (target.storage() != null
+        && deps.storageClaimRegistry()
+                .exactClaim(target.storage().storageId(), StorageClaimLocation.fromBlock(block))
+            != StorageClaimRegistry.ExactClaim.MATCHED) {
+      return false;
+    }
+    Material carrier = carrierMaterial(target);
+    return carrier == null || Carriers.matchesCarrier(block, carrier);
+  }
+
+  private void debugReplayReconciliationUpdate(MarkerUpdate update, String pass, String outcome) {
+    WorldEditDebugService debug = deps.debugService();
+    if (debug == null || !debug.isFull() || update == null) {
+      return;
+    }
+    debug.recordEvent(
+        "we history target pass="
+            + pass
+            + " operation="
+            + update.operationId()
+            + " pos="
+            + update.x()
+            + ","
+            + update.y()
+            + ","
+            + update.z()
+            + " sections="
+            + snapshotSections(update.snapshot())
+            + " clear="
+            + (update.snapshot() == null)
+            + " clearCarrierToAir="
+            + update.clearCarrierToAir()
+            + " replacementBlockState="
+            + update.replacementBlockState()
+            + " outcome="
+            + outcome,
+        NamedTextColor.DARK_GRAY);
+  }
+
+  private void scheduleOperationPreimageReconciliation(
+      UUID actorId,
+      long operationId,
+      UUID worldId,
+      PendingOperationSnapshot preimage,
+      WorldEditMarkerHistory.Frame normalFrame) {
+    scheduleLifecycleTask(
+        () -> reconcileOperationPreimage(actorId, operationId, worldId, preimage, normalFrame), 2L);
+  }
+
+  private void reconcileOperationPreimage(
+      UUID actorId,
+      long operationId,
+      UUID worldId,
+      PendingOperationSnapshot preimage,
+      WorldEditMarkerHistory.Frame normalFrame) {
+    World world = Bukkit.getWorld(worldId);
+    if (world == null || preimage == null || normalFrame == null || normalFrame.overflowed()) {
+      return;
+    }
+    List<PreimageChange> changes = new ArrayList<>();
+    for (Map.Entry<Long, MarkerSnapshot> entry : preimage.markers().entrySet()) {
+      long key = entry.getKey();
+      if (normalFrame.state(HistoryAction.UNDO, key) != null) {
+        continue;
+      }
+      int x = WorldEditMarkerMath.blockX(key);
+      int y = WorldEditMarkerMath.blockY(key);
+      int z = WorldEditMarkerMath.blockZ(key);
+      if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+        continue;
+      }
+      MarkerSnapshot before = entry.getValue();
+      MarkerSnapshot after = captureMarkerSnapshot(world, BlockVector3.at(x, y, z));
+      if (!Objects.equals(before, after)) {
+        String replacementBlockState =
+            after == null ? world.getBlockAt(x, y, z).getBlockData().getAsString() : null;
+        changes.add(new PreimageChange(key, before, after, replacementBlockState));
+      }
+    }
+    if (changes.isEmpty()) {
+      return;
+    }
+    for (PreimageChange change : changes) {
+      int x = WorldEditMarkerMath.blockX(change.key());
+      int y = WorldEditMarkerMath.blockY(change.key());
+      int z = WorldEditMarkerMath.blockZ(change.key());
+      markerHistory.remember(actorId, null, worldId, x, y, z, change.before(), normalFrame);
+      if (change.after() == null) {
+        markerHistory.rememberRedoClear(
+            actorId,
+            worldId,
+            normalFrame,
+            x,
+            y,
+            z,
+            "minecraft:air".equals(change.replacementBlockState()),
+            change.replacementBlockState());
+      } else {
+        markerHistory.rememberRedoTarget(
+            actorId, worldId, x, y, z, change.after(), normalFrame, false);
+      }
+      if (normalFrame.overflowed()) {
+        restoreOverflowedPreimage(operationId, world, changes);
+        PerfStats.incrementCounter("worldedit.operation.reconciliationOverflow");
+        return;
+      }
+    }
+    for (PreimageChange change : changes) {
+      enqueue(preimageChangeUpdate(operationId, worldId, change));
+    }
+    PerfStats.addCounter("worldedit.operation.reconciled", changes.size());
+    WorldEditDebugService debug = deps.debugService();
+    if (debug != null && debug.isEnabled()) {
+      debug.recordEvent(
+          "we operation reconciled operation=" + operationId + " states=" + changes.size(),
+          NamedTextColor.GOLD);
+    }
+  }
+
+  private void restoreOverflowedPreimage(
+      long operationId, World world, List<PreimageChange> changes) {
+    for (PreimageChange change : changes) {
+      int x = WorldEditMarkerMath.blockX(change.key());
+      int y = WorldEditMarkerMath.blockY(change.key());
+      int z = WorldEditMarkerMath.blockZ(change.key());
+      if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+        continue;
+      }
+      MarkerSnapshot before = change.before();
+      Block block = world.getBlockAt(x, y, z);
+      Material carrier = carrierMaterial(before);
+      if (carrier != null && !Carriers.matchesCarrier(block, carrier)) {
+        block.setType(carrier, false);
+      }
+      enqueue(
+          new MarkerUpdate(
+                  operationId,
+                  world.getUID(),
+                  x,
+                  y,
+                  z,
+                  before,
+                  replacedStorageId(change.after(), before),
+                  false,
+                  before.storage() != null)
+              .asAuthoritativeFinalState());
+    }
+    plugin
+        .getLogger()
+        .warning(
+            "[WorldEdit] Restored "
+                + changes.size()
+                + " Exort block(s) because the operation history frame exceeded its safety"
+                + " limits.");
+  }
+
+  private static MarkerUpdate preimageChangeUpdate(
+      long operationId, UUID worldId, PreimageChange change) {
+    MarkerSnapshot after = change.after();
+    return new MarkerUpdate(
+            operationId,
+            worldId,
+            WorldEditMarkerMath.blockX(change.key()),
+            WorldEditMarkerMath.blockY(change.key()),
+            WorldEditMarkerMath.blockZ(change.key()),
+            after,
+            replacedStorageId(change.before(), after),
+            false,
+            after != null && after.storage() != null)
+        .asAuthoritativeFinalState();
+  }
+
+  private static String replacedStorageId(MarkerSnapshot replaced, MarkerSnapshot replacement) {
+    if (replaced == null || replaced.storage() == null) {
+      return null;
+    }
+    return replacement == null
+            || replacement.storage() == null
+            || !Objects.equals(replaced.storage().storageId(), replacement.storage().storageId())
+        ? replaced.storage().storageId()
+        : null;
+  }
+
+  private record PreimageChange(
+      long key, MarkerSnapshot before, MarkerSnapshot after, String replacementBlockState) {}
+
+  private boolean prepareReplayTarget(MarkerUpdate update) {
+    if (update == null) {
+      return false;
+    }
+    if (update.snapshot() != null) {
+      prepareReplayCarrier(update);
+      return true;
+    }
+    World world = Bukkit.getWorld(update.worldId());
+    if (world == null || !world.isChunkLoaded(update.chunkX(), update.chunkZ())) {
+      return false;
+    }
+    Block block = world.getBlockAt(update.x(), update.y(), update.z());
+    String replacementBlockState = update.replacementBlockState();
+    if (replacementBlockState == null || replacementBlockState.isBlank()) {
+      return captureMarkerSnapshot(world, BlockVector3.at(update.x(), update.y(), update.z()))
+          == null;
+    }
+    MarkerSnapshot liveSnapshot =
+        captureMarkerSnapshot(world, BlockVector3.at(update.x(), update.y(), update.z()));
+    if (liveSnapshot == null && !carrierPolicy.isCarrierCandidate(block)) {
+      return true;
+    }
+    try {
+      BlockData replacement = Bukkit.createBlockData(replacementBlockState);
+      if (!replacementBlockStateMatches(block, replacementBlockState)) {
+        block.setBlockData(replacement, false);
+      }
+      return true;
+    } catch (IllegalArgumentException exception) {
+      plugin
+          .getLogger()
+          .log(
+              Level.WARNING,
+              "[WorldEdit] Refused an unsafe history clear because its recorded vanilla block"
+                  + " state is invalid at "
+                  + update.x()
+                  + ","
+                  + update.y()
+                  + ","
+                  + update.z()
+                  + ": "
+                  + replacementBlockState,
+              exception);
+      return false;
+    }
+  }
+
+  private static boolean replacementBlockStateMatches(Block block, String replacementBlockState) {
+    if (block == null) {
+      return false;
+    }
+    if (replacementBlockState == null || replacementBlockState.isBlank()) {
+      return true;
+    }
+    try {
+      BlockData expected = Bukkit.createBlockData(replacementBlockState);
+      BlockData actual = block.getBlockData();
+      return expected.matches(actual) && actual.matches(expected);
+    } catch (IllegalArgumentException ignored) {
+      return false;
+    }
+  }
+
+  private void prepareReplayCarrier(MarkerUpdate update) {
+    if (update == null) {
+      return;
+    }
+    World world = Bukkit.getWorld(update.worldId());
+    if (world == null || !world.isChunkLoaded(update.chunkX(), update.chunkZ())) {
+      return;
+    }
+    Block block = world.getBlockAt(update.x(), update.y(), update.z());
+    MarkerSnapshot snapshot = update.snapshot();
+    if (snapshot == null) {
+      return;
+    }
+    Material carrier = carrierMaterial(snapshot);
+    if (carrier != null && !Carriers.matchesCarrier(block, carrier)) {
+      Carriers.applyCarrier(block, carrier);
+    }
+  }
+
+  static List<MarkerUpdate> replayFrameUpdates(
+      long operationId,
+      UUID worldId,
+      HistoryAction action,
+      WorldEditMarkerHistory.Frame replayFrame) {
+    if (worldId == null || action == null || replayFrame == null) {
+      return List.of();
+    }
+    return replayFrameUpdates(
+        operationId, worldId, action, replayFrame, replayFrame.unappliedStates(action));
+  }
+
+  static List<MarkerUpdate> replayFrameAllUpdates(
+      long operationId,
+      UUID worldId,
+      HistoryAction action,
+      WorldEditMarkerHistory.Frame replayFrame) {
+    if (worldId == null || action == null || replayFrame == null) {
+      return List.of();
+    }
+    return replayFrameUpdates(
+        operationId, worldId, action, replayFrame, replayFrame.states(action));
+  }
+
+  private static List<MarkerUpdate> replayFrameUpdates(
+      long operationId,
+      UUID worldId,
+      HistoryAction action,
+      WorldEditMarkerHistory.Frame replayFrame,
+      Map<Long, WorldEditMarkerHistory.FrameState> targetStates) {
+    HistoryAction reverseAction =
+        action == HistoryAction.REDO ? HistoryAction.UNDO : HistoryAction.REDO;
+    Set<String> targetStorageIds = new HashSet<>();
+    for (WorldEditMarkerHistory.FrameState state : replayFrame.states(action).values()) {
+      MarkerSnapshot snapshot = state.snapshot();
+      if (snapshot != null && snapshot.storage() != null && !state.storageCloneRequired()) {
+        targetStorageIds.add(snapshot.storage().storageId());
+      }
+    }
+    List<MarkerUpdate> updates = new ArrayList<>();
+    for (Map.Entry<Long, WorldEditMarkerHistory.FrameState> entry : targetStates.entrySet()) {
+      long key = entry.getKey();
+      WorldEditMarkerHistory.FrameState targetState = entry.getValue();
+      MarkerSnapshot target = targetState.snapshot();
+      WorldEditMarkerHistory.FrameState reverseState = replayFrame.state(reverseAction, key);
+      MarkerSnapshot replaced = reverseState == null ? null : reverseState.snapshot();
+      String removedStorageId =
+          replaced != null
+                  && replaced.storage() != null
+                  && (target == null
+                      || target.storage() == null
+                      || !Objects.equals(
+                          replaced.storage().storageId(), target.storage().storageId()))
+              ? replaced.storage().storageId()
+              : null;
+      boolean preserveStorageIdentity =
+          target != null && target.storage() != null && !targetState.storageCloneRequired()
+              || removedStorageId != null && targetStorageIds.contains(removedStorageId);
+      updates.add(
+          new MarkerUpdate(
+                  operationId,
+                  worldId,
+                  WorldEditMarkerMath.blockX(key),
+                  WorldEditMarkerMath.blockY(key),
+                  WorldEditMarkerMath.blockZ(key),
+                  target,
+                  removedStorageId,
+                  targetState.storageCloneRequired(),
+                  preserveStorageIdentity,
+                  null,
+                  targetState.clearCarrierToAir(),
+                  targetState.replacementBlockState(),
+                  false)
+              .asAuthoritativeFinalState());
+    }
+    return List.copyOf(updates);
   }
 
   private void scheduleFlushIfNeeded() {
@@ -1711,6 +2770,25 @@ public final class WorldEditBridge implements Listener {
       Iterable<PendingUpdate> updatesToApply = coalesceByBlock(batch.updates);
       for (PendingUpdate pending : updatesToApply) {
         MarkerUpdate update = pending.update;
+        if (operationTracker.isSuperseded(update)) {
+          PerfStats.incrementCounter("worldedit.markerUpdate.superseded");
+          WorldEditDebugService debug = deps.debugService();
+          if (debug != null && debug.isFull()) {
+            debug.recordEvent(
+                "we marker update superseded operation="
+                    + update.operationId()
+                    + " pos="
+                    + update.x()
+                    + ","
+                    + update.y()
+                    + ","
+                    + update.z()
+                    + " authoritative="
+                    + update.authoritativeFinalState(),
+                NamedTextColor.DARK_GRAY);
+          }
+          continue;
+        }
         if (update.moveOperation() && blockedMoveOperations.contains(update.operationId())) {
           pending.nextTick = tickCounter + 1L;
           updates.add(pending);
@@ -1718,12 +2796,17 @@ public final class WorldEditBridge implements Listener {
         }
         MarkerSnapshot snapshot = update.snapshot();
         if (snapshot != null && snapshot.storage() != null && update.storageCloneRequired()) {
-          String storageId = snapshot.storage().storageId();
+          String explicitCloneSourceId = update.storageCloneSourceId();
+          String storageId =
+              explicitCloneSourceId == null
+                  ? snapshot.storage().storageId()
+                  : explicitCloneSourceId;
           Set<String> removedStorageIds =
               removedStorageIdsByOperation.getOrDefault(update.operationId(), Set.of());
           boolean moveStorage =
-              storageIdentityAction(update, removedStorageIds)
-                  == StorageIdentityAction.PRESERVE_IDENTITY;
+              explicitCloneSourceId == null
+                  && storageIdentityAction(update, removedStorageIds)
+                      == StorageIdentityAction.PRESERVE_IDENTITY;
           if (moveStorage) {
             if (!update.moveOperation()) {
               update = update.asMove();
@@ -1747,19 +2830,23 @@ public final class WorldEditBridge implements Listener {
                   NamedTextColor.DARK_GREEN);
             }
           } else if (storageId != null) {
-            String newId = UUID.randomUUID().toString();
+            String newId =
+                explicitCloneSourceId == null
+                    ? UUID.randomUUID().toString()
+                    : snapshot.storage().storageId();
             MarkerSnapshot clonedSnapshot = withStorageId(resolveStorageTier(snapshot), newId);
             MarkerUpdate clonedUpdate =
                 new MarkerUpdate(
-                    update.operationId(),
-                    update.worldId(),
-                    update.x(),
-                    update.y(),
-                    update.z(),
-                    clonedSnapshot,
-                    null,
-                    false,
-                    false);
+                        update.operationId(),
+                        update.worldId(),
+                        update.x(),
+                        update.y(),
+                        update.z(),
+                        clonedSnapshot,
+                        null,
+                        false,
+                        false)
+                    .asAuthoritativeFinalStateIf(update.authoritativeFinalState());
             WorldEditDebugService debug = deps.debugService();
             if (debug != null && debug.isFull()) {
               debug.recordEvent(
@@ -1786,6 +2873,13 @@ public final class WorldEditBridge implements Listener {
             blockedMoveOperations.add(update.operationId());
           }
           if (pending.attempts < MAX_RETRIES) {
+            // FAWE may publish a late carrier write after reconciliation has already prepared the
+            // target block. Re-establish the trusted carrier before every retry; otherwise a
+            // successfully moved Storage claim can remain attached to a Wire/vanilla carrier and
+            // the marker update will fail for the rest of its retry budget.
+            if (update.snapshot() != null) {
+              prepareReplayCarrier(update);
+            }
             pending.attempts++;
             pending.nextTick = tickCounter + RETRY_DELAY_TICKS;
             updates.add(pending);
@@ -1843,7 +2937,7 @@ public final class WorldEditBridge implements Listener {
     }
   }
 
-  private static Iterable<PendingUpdate> coalesceByBlock(Iterable<PendingUpdate> pendingUpdates) {
+  static Iterable<PendingUpdate> coalesceByBlock(Iterable<PendingUpdate> pendingUpdates) {
     Map<Long, PendingUpdate> latest = new LinkedHashMap<>();
     for (PendingUpdate pending : pendingUpdates) {
       if (pending == null || pending.update == null) {
@@ -1851,6 +2945,17 @@ public final class WorldEditBridge implements Listener {
       }
       MarkerUpdate update = pending.update;
       long key = WorldEditMarkerMath.blockKey(update.x(), update.y(), update.z());
+      PendingUpdate current = latest.get(key);
+      if (current != null) {
+        MarkerUpdate currentUpdate = current.update;
+        if (MarkerUpdate.hasHigherPriority(
+            currentUpdate.operationId(),
+            currentUpdate.authoritativeFinalState(),
+            update.operationId(),
+            update.authoritativeFinalState())) {
+          continue;
+        }
+      }
       latest.remove(key);
       latest.put(key, pending);
     }
@@ -1919,9 +3024,14 @@ public final class WorldEditBridge implements Listener {
     Block block = world.getBlockAt(update.x(), update.y(), update.z());
     MarkerSnapshot snapshot = update.snapshot();
     if (snapshot == null) {
-      releaseRemovedStorageClaim(block, update.removedStorageId());
+      if (!operationTracker.preservesStorageIdentity(update)) {
+        releaseRemovedStorageClaim(block, update.removedStorageId());
+      }
       removeExistingBlockState(block);
       ChunkMarkerStore.clearBlock(plugin, block);
+      if (update.clearCarrierToAir() && carrierPolicy.isCarrierCandidate(block)) {
+        block.setType(Material.AIR, false);
+      }
       return true;
     }
     if (snapshot.storage() != null && !Carriers.matchesCarrier(block, deps.storageCarrier())) {
@@ -2131,7 +3241,7 @@ public final class WorldEditBridge implements Listener {
     }
     Block target = world.getBlockAt(clonedUpdate.x(), clonedUpdate.y(), clonedUpdate.z());
     StorageClaimLocation destination = StorageClaimLocation.fromBlock(target);
-    releaseDifferentStorageAt(target, storage.storageId(), false)
+    releaseDifferentStorageAt(target, storage.storageId())
         .thenCompose(
             released -> {
               if (!released) {
@@ -2179,22 +3289,35 @@ public final class WorldEditBridge implements Listener {
     StorageData storage = update.snapshot().storage();
     StorageClaimLocation destination = StorageClaimLocation.fromBlock(block);
     StorageClaimRegistry registry = deps.storageClaimRegistry();
-    if (registry.exactClaim(storage.storageId(), destination)
-        == StorageClaimRegistry.ExactClaim.MATCHED) {
+    StorageClaimRegistry.ExactClaim exact = registry.exactClaim(storage.storageId(), destination);
+    if (exact == StorageClaimRegistry.ExactClaim.MATCHED) {
       return true;
     }
-    StoragePreparationKey key =
-        new StoragePreparationKey(
-            update.operationId(),
-            update.worldId(),
-            update.x(),
-            update.y(),
-            update.z(),
-            storage.storageId());
-    storagePreparations.computeIfAbsent(
+    WorldEditDebugService debug = deps.debugService();
+    if (debug != null && debug.isFull()) {
+      debug.recordEvent(
+          "we storage claim pending operation="
+              + update.operationId()
+              + " storage="
+              + storage.storageId()
+              + " destination="
+              + update.x()
+              + ","
+              + update.y()
+              + ","
+              + update.z()
+              + " exact="
+              + exact
+              + " current="
+              + registry.claim(storage.storageId()).orElse(null),
+          NamedTextColor.YELLOW);
+    }
+    StoragePreparationKey key = new StoragePreparationKey(storage.storageId());
+    startTrackedPreparation(
+        storagePreparations,
         key,
-        ignored ->
-            releaseDifferentStorageAt(block, storage.storageId(), update.moveOperation())
+        () ->
+            releaseDifferentStorageAt(block, storage.storageId())
                 .thenCompose(
                     released -> {
                       if (!released) return CompletableFuture.completedFuture(false);
@@ -2221,49 +3344,108 @@ public final class WorldEditBridge implements Listener {
                               storage.tierMaxItems(),
                               storage.displayName())
                           .thenApply(nothing -> true);
-                    })
-                .whenComplete(
-                    (prepared, error) -> {
-                      storagePreparations.remove(key);
-                      if (error != null) {
-                        plugin
-                            .getLogger()
-                            .log(
-                                Level.WARNING,
-                                "WorldEdit could not claim storage "
-                                    + storage.storageId()
-                                    + " at "
-                                    + update.x()
-                                    + ","
-                                    + update.y()
-                                    + ","
-                                    + update.z(),
-                                unwrap(error));
-                      }
-                    }));
+                    }),
+        (prepared, error) -> {
+          WorldEditDebugService completionDebug = deps.debugService();
+          if (completionDebug != null && completionDebug.isFull()) {
+            completionDebug.recordEvent(
+                "we storage claim prepared operation="
+                    + update.operationId()
+                    + " storage="
+                    + storage.storageId()
+                    + " destination="
+                    + update.x()
+                    + ","
+                    + update.y()
+                    + ","
+                    + update.z()
+                    + " prepared="
+                    + prepared
+                    + " exact="
+                    + registry.exactClaim(storage.storageId(), destination)
+                    + " current="
+                    + registry.claim(storage.storageId()).orElse(null),
+                error == null ? NamedTextColor.DARK_GREEN : NamedTextColor.RED);
+          }
+          if (error != null) {
+            plugin
+                .getLogger()
+                .log(
+                    Level.WARNING,
+                    "WorldEdit could not claim storage "
+                        + storage.storageId()
+                        + " at "
+                        + update.x()
+                        + ","
+                        + update.y()
+                        + ","
+                        + update.z(),
+                    unwrap(error));
+          } else if (Boolean.TRUE.equals(prepared)) {
+            // Do not rely exclusively on the original PendingUpdate surviving coalescing while
+            // the DB claim is prepared. Requeue the exact marker snapshot on the server thread and
+            // prepare its carrier again, so claim and chunk marker converge atomically.
+            scheduleLifecycleTask(
+                () -> {
+                  if (operationTracker.isSuperseded(update)) {
+                    return;
+                  }
+                  prepareReplayCarrier(update);
+                  enqueue(update);
+                  WorldEditDebugService replayDebug = deps.debugService();
+                  if (replayDebug != null && replayDebug.isFull()) {
+                    replayDebug.recordEvent(
+                        "we storage marker requeued operation="
+                            + update.operationId()
+                            + " storage="
+                            + storage.storageId()
+                            + " destination="
+                            + update.x()
+                            + ","
+                            + update.y()
+                            + ","
+                            + update.z(),
+                        NamedTextColor.DARK_GREEN);
+                  }
+                },
+                1L);
+          }
+        });
     return false;
   }
 
+  static <K, T> boolean startTrackedPreparation(
+      ConcurrentMap<K, CompletableFuture<T>> preparations,
+      K key,
+      Supplier<CompletableFuture<T>> starter,
+      BiConsumer<T, Throwable> completion) {
+    CompletableFuture<T> placeholder = new CompletableFuture<>();
+    if (preparations.putIfAbsent(key, placeholder) != null) {
+      return false;
+    }
+    CompletableFuture<T> started;
+    try {
+      started = Objects.requireNonNull(starter.get(), "preparation future");
+    } catch (RuntimeException error) {
+      started = CompletableFuture.failedFuture(error);
+    }
+    started.whenComplete(
+        (value, error) -> {
+          if (error == null) {
+            placeholder.complete(value);
+          } else {
+            placeholder.completeExceptionally(error);
+          }
+          preparations.remove(key, placeholder);
+          completion.accept(value, error);
+        });
+    return true;
+  }
+
   private CompletableFuture<Boolean> releaseDifferentStorageAt(
-      Block target, String incomingStorageId, boolean allowDisplacedMoveMarker) {
-    Optional<StorageMarker.Data> existing = StorageMarker.get(plugin, target);
-    if (existing.isEmpty() || incomingStorageId.equals(existing.get().storageId())) {
-      return CompletableFuture.completedFuture(true);
-    }
+      Block target, String incomingStorageId) {
     StorageClaimLocation location = StorageClaimLocation.fromBlock(target);
-    StorageClaimRegistry registry = deps.storageClaimRegistry();
-    StorageClaimRegistry.ExactClaim exact =
-        registry.exactClaim(existing.get().storageId(), location);
-    if (exact == StorageClaimRegistry.ExactClaim.ABSENT) {
-      return CompletableFuture.completedFuture(true);
-    }
-    if (exact == StorageClaimRegistry.ExactClaim.MISMATCH && allowDisplacedMoveMarker) {
-      return CompletableFuture.completedFuture(true);
-    }
-    if (exact != StorageClaimRegistry.ExactClaim.MATCHED) {
-      return CompletableFuture.completedFuture(false);
-    }
-    return registry.releaseExact(existing.get().storageId(), location);
+    return deps.storageClaimRegistry().releaseDifferentAt(incomingStorageId, location);
   }
 
   private void releaseRemovedStorageClaim(Block block, String capturedStorageId) {
@@ -2364,8 +3546,7 @@ public final class WorldEditBridge implements Listener {
         : StorageIdentityAction.CREATE_EMPTY;
   }
 
-  private record StoragePreparationKey(
-      long operationId, UUID worldId, int x, int y, int z, String storageId) {}
+  private record StoragePreparationKey(String storageId) {}
 
   private static TerminalKind parseTerminalKind(TerminalData data) {
     String raw = data.type();
@@ -2891,7 +4072,7 @@ public final class WorldEditBridge implements Listener {
         snapshot.storageCore());
   }
 
-  private static MarkerSnapshot withStorageId(MarkerSnapshot snapshot, String storageId) {
+  static MarkerSnapshot withStorageId(MarkerSnapshot snapshot, String storageId) {
     if (snapshot == null || snapshot.storage() == null) return snapshot;
     StorageData resolvedStorage = snapshot.storage();
     if (resolvedStorage == null) return snapshot;

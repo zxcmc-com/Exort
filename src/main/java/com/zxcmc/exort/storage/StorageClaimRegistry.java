@@ -1,10 +1,14 @@
 package com.zxcmc.exort.storage;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -53,11 +57,14 @@ public final class StorageClaimRegistry implements AutoCloseable {
 
   private record Slot(StorageClaim claim, UUID reservationToken) {}
 
+  private record ChunkKey(UUID worldId, int chunkX, int chunkZ) {}
+
   private final StorageClaimStore store;
   private final Logger logger;
   private final Clock clock;
   private final Map<String, Slot> byStorageId = new HashMap<>();
   private final Map<StorageClaimLocation, String> byLocation = new HashMap<>();
+  private final Map<ChunkKey, Set<String>> byChunk = new HashMap<>();
   private final AtomicBoolean closed = new AtomicBoolean();
   private State state = State.NEW;
   private CompletableFuture<Void> readiness = new CompletableFuture<>();
@@ -104,6 +111,7 @@ public final class StorageClaimRegistry implements AutoCloseable {
               state = State.FAILED;
               byStorageId.clear();
               byLocation.clear();
+              byChunk.clear();
             }
           }
           if (error == null) {
@@ -145,6 +153,10 @@ public final class StorageClaimRegistry implements AutoCloseable {
     byStorageId.putAll(candidateById);
     byLocation.clear();
     byLocation.putAll(candidateByLocation);
+    byChunk.clear();
+    for (StorageClaim claim : claims) {
+      indexChunk(claim);
+    }
     state = State.READY;
   }
 
@@ -156,6 +168,7 @@ public final class StorageClaimRegistry implements AutoCloseable {
     state = State.FAILED;
     byStorageId.clear();
     byLocation.clear();
+    byChunk.clear();
     readiness.completeExceptionally(
         new CancellationException("Storage claim registry generation was closed"));
   }
@@ -187,6 +200,7 @@ public final class StorageClaimRegistry implements AutoCloseable {
             now);
     byStorageId.put(storageId, new Slot(claim, token));
     byLocation.put(location, storageId);
+    indexChunk(claim);
     return new ReservationResult(new Reservation(storageId, location, token), null);
   }
 
@@ -216,6 +230,7 @@ public final class StorageClaimRegistry implements AutoCloseable {
                 } else {
                   byStorageId.remove(reservation.storageId());
                   byLocation.remove(reservation.location(), reservation.storageId());
+                  unindexChunk(current.claim());
                 }
               }
             });
@@ -228,6 +243,51 @@ public final class StorageClaimRegistry implements AutoCloseable {
     return slot.claim().location().equals(location) && slot.reservationToken() == null
         ? ExactClaim.MATCHED
         : ExactClaim.MISMATCH;
+  }
+
+  /**
+   * Returns the stable persisted claim occupying {@code location}.
+   *
+   * <p>Reservations and claims currently being changed are intentionally hidden so repair callers
+   * cannot race an in-flight placement, break, or move.
+   */
+  public synchronized Optional<StorageClaim> persistedClaimAt(StorageClaimLocation location) {
+    Objects.requireNonNull(location, "location");
+    if (state != State.READY) {
+      return Optional.empty();
+    }
+    String storageId = byLocation.get(location);
+    if (storageId == null) {
+      return Optional.empty();
+    }
+    Slot slot = byStorageId.get(storageId);
+    if (slot == null
+        || slot.reservationToken() != null
+        || !location.equals(slot.claim().location())) {
+      return Optional.empty();
+    }
+    return Optional.of(slot.claim());
+  }
+
+  /** Returns stable persisted claims in one already-loaded chunk without scanning all claims. */
+  public synchronized List<StorageClaim> persistedClaimsInChunk(
+      UUID worldId, int chunkX, int chunkZ) {
+    Objects.requireNonNull(worldId, "worldId");
+    if (state != State.READY) {
+      return List.of();
+    }
+    Set<String> storageIds = byChunk.get(new ChunkKey(worldId, chunkX, chunkZ));
+    if (storageIds == null || storageIds.isEmpty()) {
+      return List.of();
+    }
+    List<StorageClaim> claims = new ArrayList<>(storageIds.size());
+    for (String storageId : storageIds) {
+      Slot slot = byStorageId.get(storageId);
+      if (slot != null && slot.reservationToken() == null) {
+        claims.add(slot.claim());
+      }
+    }
+    return List.copyOf(claims);
   }
 
   /**
@@ -259,6 +319,7 @@ public final class StorageClaimRegistry implements AutoCloseable {
                 if (Boolean.TRUE.equals(deleted)) {
                   byStorageId.remove(storageId);
                   byLocation.remove(location, storageId);
+                  unindexChunk(current.claim());
                   return true;
                 }
                 byStorageId.put(storageId, new Slot(releasing, null));
@@ -275,6 +336,29 @@ public final class StorageClaimRegistry implements AutoCloseable {
                 }
               }
             });
+  }
+
+  /**
+   * Releases the persisted claim occupying {@code location} when it belongs to another storage.
+   *
+   * <p>The location index is authoritative here. Callers such as WorldEdit may already have
+   * replaced the block marker before deferred domain reconciliation runs, so inspecting the live
+   * marker cannot reliably identify the displaced storage.
+   */
+  public CompletableFuture<Boolean> releaseDifferentAt(
+      String incomingStorageId, StorageClaimLocation location) {
+    Objects.requireNonNull(incomingStorageId, "incomingStorageId");
+    Objects.requireNonNull(location, "location");
+    synchronized (this) {
+      if (state != State.READY) {
+        return CompletableFuture.completedFuture(false);
+      }
+      String owner = byLocation.get(location);
+      if (owner == null || incomingStorageId.equals(owner)) {
+        return CompletableFuture.completedFuture(true);
+      }
+      return releaseExact(owner, location);
+    }
   }
 
   /** Moves one already-claimed identity without ever exposing two active locations. */
@@ -315,6 +399,8 @@ public final class StorageClaimRegistry implements AutoCloseable {
       token = UUID.randomUUID();
       byLocation.remove(source.location(), storageId);
       byLocation.put(destination, storageId);
+      unindexChunk(source);
+      indexChunk(moved);
       byStorageId.put(storageId, new Slot(moved, token));
     }
     StorageClaim original = source;
@@ -353,7 +439,28 @@ public final class StorageClaimRegistry implements AutoCloseable {
     }
     byLocation.remove(candidate.location(), original.storageId());
     byLocation.put(original.location(), original.storageId());
+    unindexChunk(candidate);
+    indexChunk(original);
     byStorageId.put(original.storageId(), new Slot(original, null));
+  }
+
+  private void indexChunk(StorageClaim claim) {
+    ChunkKey key = chunkKey(claim.location());
+    byChunk.computeIfAbsent(key, ignored -> new HashSet<>()).add(claim.storageId());
+  }
+
+  private void unindexChunk(StorageClaim claim) {
+    ChunkKey key = chunkKey(claim.location());
+    Set<String> storageIds = byChunk.get(key);
+    if (storageIds == null) return;
+    storageIds.remove(claim.storageId());
+    if (storageIds.isEmpty()) {
+      byChunk.remove(key);
+    }
+  }
+
+  private static ChunkKey chunkKey(StorageClaimLocation location) {
+    return new ChunkKey(location.worldId(), location.x() >> 4, location.z() >> 4);
   }
 
   public synchronized java.util.Optional<StorageClaim> claim(String storageId) {

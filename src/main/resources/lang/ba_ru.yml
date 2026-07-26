@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Юлдар: {0}, {1}"
   wire:
     hard_cap: "Сым сылбыры бик ҙур: {0}/{1}."
-    item_not_placeable: "Был предметты сым янына ҡуйып булмай."
   placement:
     blocked: "Был урында ҡуйыу тыйылған."
   bus:

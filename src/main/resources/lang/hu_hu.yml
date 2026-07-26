@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Útvonalak: {0}, {1}"
   wire:
     hard_cap: "A kábel-lánc túl nagy: {0}/{1}."
-    item_not_placeable: "Ez a tárgy nem helyezhető kábel mellé."
   placement:
     blocked: "Itt nem lehet elhelyezni."
   bus:

@@ -1,7 +1,9 @@
 package com.zxcmc.exort.integration.worldedit;
 
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -74,6 +76,7 @@ final class WorldEditMarkerHistory {
     Frame frame = pollValidFrame(framesFor(action), actorWorldKey, now);
     if (frame == null) return null;
     frame.refresh(now);
+    frame.beginReplay(action);
     Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> oppositeFrames = framesFor(opposite(action));
     ConcurrentLinkedDeque<Frame> oppositeStack =
         oppositeFrames.computeIfAbsent(actorWorldKey, ignored -> new ConcurrentLinkedDeque<>());
@@ -208,28 +211,110 @@ final class WorldEditMarkerHistory {
   }
 
   synchronized void rememberUndoClear(Frame normalFrame, int x, int y, int z) {
-    rememberUndoClear(null, null, normalFrame, x, y, z);
+    rememberUndoClear(null, null, normalFrame, x, y, z, false);
   }
 
   synchronized void rememberUndoClear(
       UUID actorId, UUID worldId, Frame normalFrame, int x, int y, int z) {
+    rememberUndoClear(actorId, worldId, normalFrame, x, y, z, false);
+  }
+
+  synchronized void rememberUndoClear(
+      UUID actorId,
+      UUID worldId,
+      Frame normalFrame,
+      int x,
+      int y,
+      int z,
+      boolean clearCarrierToAir) {
+    rememberUndoClear(
+        actorId,
+        worldId,
+        normalFrame,
+        x,
+        y,
+        z,
+        clearCarrierToAir,
+        clearCarrierToAir ? "minecraft:air" : null);
+  }
+
+  synchronized void rememberUndoClear(
+      UUID actorId,
+      UUID worldId,
+      Frame normalFrame,
+      int x,
+      int y,
+      int z,
+      boolean clearCarrierToAir,
+      String replacementBlockState) {
     if (normalFrame == null) return;
-    normalFrame.rememberUndoClear(WorldEditMarkerMath.blockKey(x, y, z));
+    normalFrame.rememberUndoClear(
+        WorldEditMarkerMath.blockKey(x, y, z), clearCarrierToAir, replacementBlockState);
     if (!normalFrame.overflowed()) {
-      rememberClear(actorId, HistoryAction.UNDO, worldId, x, y, z, normalFrame);
+      rememberClear(
+          actorId,
+          HistoryAction.UNDO,
+          worldId,
+          x,
+          y,
+          z,
+          normalFrame,
+          clearCarrierToAir,
+          replacementBlockState);
     }
   }
 
   synchronized void rememberRedoClear(Frame normalFrame, int x, int y, int z) {
-    rememberRedoClear(null, null, normalFrame, x, y, z);
+    rememberRedoClear(null, null, normalFrame, x, y, z, false);
   }
 
   synchronized void rememberRedoClear(
       UUID actorId, UUID worldId, Frame normalFrame, int x, int y, int z) {
+    rememberRedoClear(actorId, worldId, normalFrame, x, y, z, false);
+  }
+
+  synchronized void rememberRedoClear(
+      UUID actorId,
+      UUID worldId,
+      Frame normalFrame,
+      int x,
+      int y,
+      int z,
+      boolean clearCarrierToAir) {
+    rememberRedoClear(
+        actorId,
+        worldId,
+        normalFrame,
+        x,
+        y,
+        z,
+        clearCarrierToAir,
+        clearCarrierToAir ? "minecraft:air" : null);
+  }
+
+  synchronized void rememberRedoClear(
+      UUID actorId,
+      UUID worldId,
+      Frame normalFrame,
+      int x,
+      int y,
+      int z,
+      boolean clearCarrierToAir,
+      String replacementBlockState) {
     if (normalFrame == null) return;
-    normalFrame.rememberRedoClear(WorldEditMarkerMath.blockKey(x, y, z));
+    normalFrame.rememberRedoClear(
+        WorldEditMarkerMath.blockKey(x, y, z), clearCarrierToAir, replacementBlockState);
     if (!normalFrame.overflowed()) {
-      rememberClear(actorId, HistoryAction.REDO, worldId, x, y, z, normalFrame);
+      rememberClear(
+          actorId,
+          HistoryAction.REDO,
+          worldId,
+          x,
+          y,
+          z,
+          normalFrame,
+          clearCarrierToAir,
+          replacementBlockState);
     }
   }
 
@@ -262,13 +347,26 @@ final class WorldEditMarkerHistory {
   }
 
   private void rememberClear(
-      UUID actorId, HistoryAction action, UUID worldId, int x, int y, int z, Frame normalFrame) {
+      UUID actorId,
+      HistoryAction action,
+      UUID worldId,
+      int x,
+      int y,
+      int z,
+      Frame normalFrame,
+      boolean clearCarrierToAir,
+      String replacementBlockState) {
     if (actorId == null || action == null) return;
     long now = System.currentTimeMillis();
     maintainIfDue(now);
     HistoryKey key = new HistoryKey(actorId, worldId, x, y, z);
     Map<HistoryKey, ConcurrentLinkedDeque<HistoryEntry>> targetHistory = historyFor(action);
-    retainHistory(targetHistory, key, FrameState.cleared(), now, normalFrame);
+    retainHistory(
+        targetHistory,
+        key,
+        FrameState.cleared(clearCarrierToAir, replacementBlockState),
+        now,
+        normalFrame);
   }
 
   private Map<ActorWorldKey, ConcurrentLinkedDeque<Frame>> framesFor(HistoryAction action) {
@@ -542,6 +640,8 @@ final class WorldEditMarkerHistory {
     private final RetentionBudget budget;
     private final ConcurrentMap<Long, FrameState> undoStates = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, FrameState> redoStates = new ConcurrentHashMap<>();
+    private final Set<Long> appliedUndoStates = ConcurrentHashMap.newKeySet();
+    private final Set<Long> appliedRedoStates = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean released = new AtomicBoolean();
     private volatile long timestampMs;
     private long retainedStates;
@@ -606,15 +706,78 @@ final class WorldEditMarkerHistory {
     }
 
     synchronized void rememberUndoClear(long blockKey) {
-      rememberIfAbsent(undoStates, blockKey, FrameState.cleared());
+      rememberUndoClear(blockKey, false);
+    }
+
+    synchronized void rememberUndoClear(long blockKey, boolean clearCarrierToAir) {
+      rememberUndoClear(blockKey, clearCarrierToAir, clearCarrierToAir ? "minecraft:air" : null);
+    }
+
+    synchronized void rememberUndoClear(
+        long blockKey, boolean clearCarrierToAir, String replacementBlockState) {
+      rememberIfAbsent(
+          undoStates, blockKey, FrameState.cleared(clearCarrierToAir, replacementBlockState));
     }
 
     synchronized void rememberRedoClear(long blockKey) {
-      rememberReplacing(redoStates, blockKey, FrameState.cleared());
+      rememberRedoClear(blockKey, false);
+    }
+
+    synchronized void rememberRedoClear(long blockKey, boolean clearCarrierToAir) {
+      rememberRedoClear(blockKey, clearCarrierToAir, clearCarrierToAir ? "minecraft:air" : null);
+    }
+
+    synchronized void rememberRedoClear(
+        long blockKey, boolean clearCarrierToAir, String replacementBlockState) {
+      rememberReplacing(
+          redoStates, blockKey, FrameState.cleared(clearCarrierToAir, replacementBlockState));
     }
 
     FrameState state(HistoryAction action, long blockKey) {
       return action == HistoryAction.REDO ? redoStates.get(blockKey) : undoStates.get(blockKey);
+    }
+
+    Map<Long, FrameState> states(HistoryAction action) {
+      return Map.copyOf(action == HistoryAction.REDO ? redoStates : undoStates);
+    }
+
+    boolean containsStorageIdentity(HistoryAction action, String storageId) {
+      if (storageId == null || storageId.isBlank()) {
+        return false;
+      }
+      for (FrameState state : (action == HistoryAction.REDO ? redoStates : undoStates).values()) {
+        MarkerSnapshot snapshot = state.snapshot();
+        if (snapshot != null
+            && snapshot.storage() != null
+            && storageId.equals(snapshot.storage().storageId())
+            && !state.storageCloneRequired()) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    Map<Long, FrameState> unappliedStates(HistoryAction action) {
+      Map<Long, FrameState> states = states(action);
+      Set<Long> applied = action == HistoryAction.REDO ? appliedRedoStates : appliedUndoStates;
+      Map<Long, FrameState> result = new HashMap<>();
+      states.forEach(
+          (blockKey, state) -> {
+            if (!applied.contains(blockKey)) {
+              result.put(blockKey, state);
+            }
+          });
+      return Map.copyOf(result);
+    }
+
+    void beginReplay(HistoryAction action) {
+      (action == HistoryAction.REDO ? appliedRedoStates : appliedUndoStates).clear();
+    }
+
+    void markApplied(HistoryAction action, long blockKey) {
+      if (state(action, blockKey) != null) {
+        (action == HistoryAction.REDO ? appliedRedoStates : appliedUndoStates).add(blockKey);
+      }
     }
 
     MarkerSnapshot snapshot(HistoryAction action, long blockKey) {
@@ -645,6 +808,8 @@ final class WorldEditMarkerHistory {
       overflowed = true;
       undoStates.clear();
       redoStates.clear();
+      appliedUndoStates.clear();
+      appliedRedoStates.clear();
       budget.releaseFrame(retainedStates, retainedBytes);
       retainedStates = 0L;
       retainedBytes = 0L;
@@ -691,22 +856,35 @@ final class WorldEditMarkerHistory {
     }
   }
 
-  record FrameState(MarkerSnapshot snapshot, boolean clear, boolean storageCloneRequired) {
+  record FrameState(
+      MarkerSnapshot snapshot,
+      boolean clear,
+      boolean storageCloneRequired,
+      boolean clearCarrierToAir,
+      String replacementBlockState) {
     static FrameState marker(MarkerSnapshot snapshot) {
       return marker(snapshot, false);
     }
 
     static FrameState marker(MarkerSnapshot snapshot, boolean storageCloneRequired) {
-      return new FrameState(snapshot, false, storageCloneRequired);
+      return new FrameState(snapshot, false, storageCloneRequired, false, null);
     }
 
     static FrameState cleared() {
-      return new FrameState(null, true, false);
+      return cleared(false);
+    }
+
+    static FrameState cleared(boolean clearCarrierToAir) {
+      return cleared(clearCarrierToAir, clearCarrierToAir ? "minecraft:air" : null);
+    }
+
+    static FrameState cleared(boolean clearCarrierToAir, String replacementBlockState) {
+      return new FrameState(null, true, false, clearCarrierToAir, replacementBlockState);
     }
 
     long estimatedBytes() {
       if (snapshot == null) {
-        return 64L;
+        return 64L + (replacementBlockState == null ? 0L : replacementBlockState.length() * 2L);
       }
       long bytes = 512L;
       if (snapshot.bus() != null) {

@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Paden: {0}, {1}"
   wire:
     hard_cap: "Kabelkedden is to groot: {0}/{1}."
-    item_not_placeable: "Dit Item kann nich an en Kabel sett warrn."
   placement:
     blocked: "Platzeren is hier blockeert."
   bus:

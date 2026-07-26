@@ -2,6 +2,7 @@ package com.zxcmc.exort.carrier;
 
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Waterlogged;
 
@@ -57,11 +58,21 @@ public final class Carriers {
 
   public static void applyCarrier(Block block, Material carrier) {
     if (block == null || carrier == null) return;
+    if (carrier == CHORUS_MATERIAL) {
+      BlockData data = CHORUS_MATERIAL.createBlockData();
+      if (data instanceof Waterlogged waterlogged) {
+        waterlogged.setWaterlogged(false);
+      }
+      if (data instanceof MultipleFacing facing) {
+        for (var face : facing.getAllowedFaces()) {
+          facing.setFace(face, true);
+        }
+      }
+      block.setBlockData(data, false);
+      return;
+    }
     if (block.getType() != carrier) {
       block.setType(carrier, false);
-    }
-    if (carrier == CHORUS_MATERIAL) {
-      applyChorusFaces(block);
     }
   }
 }

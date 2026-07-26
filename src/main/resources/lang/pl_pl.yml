@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Ścieżki: {0}, {1}"
   wire:
     hard_cap: "Łańcuch przewodów jest zbyt duży: {0}/{1}."
-    item_not_placeable: "Tego przedmiotu nie można umieścić przy przewodzie."
   placement:
     blocked: "Umieszczanie jest tutaj zablokowane."
   bus:

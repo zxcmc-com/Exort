@@ -203,7 +203,6 @@ message:
   lang_status_paths: "ເສັ້ນທາງ: {0}, {1}"
   wire:
     hard_cap: "ໂຊ່ສາຍໃຫຍ່ເກີນໄປ: {0}/{1}."
-    item_not_placeable: "ບໍ່ສາມາດວາງໄອເທັມນີ້ຕິດກັບສາຍໄດ້."
   placement:
     blocked: "ການວາງຖືກປິດກັ້ນຢູ່ບ່ອນນີ້."
   bus:

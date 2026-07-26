@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Polut: {0}, {1}"
   wire:
     hard_cap: "Kaapeliketju on liian suuri: {0}/{1}."
-    item_not_placeable: "Tätä esinettä ei voi asettaa kaapelia vasten."
   placement:
     blocked: "Sijoittaminen on estetty tässä."
   bus:

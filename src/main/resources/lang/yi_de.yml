@@ -203,7 +203,6 @@ message:
   lang_status_paths: "וועגן: {0}, {1}"
   wire:
     hard_cap: "דראָט־קייט איז צו גרויס: {0}/{1}."
-    item_not_placeable: "דעם אייטעם קען מען נישט שטעלן קעגן אַ דראָט."
   placement:
     blocked: "פּלאַצירונג איז דאָ געבלאקט."
   bus:

@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Pathz: {0}, {1}"
   wire:
     hard_cap: "String chainz too bigz: {0}/{1}."
-    item_not_placeable: "Dis thingy no can placez gainst string."
   placement:
     blocked: "Placin blocked heer."
   bus:

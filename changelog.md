@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.15 — 2026-07-26
+- Supported WorldEdit and FAWE block edits now restore overwritten Exort blocks through undo and redo for region edits, transformed pastes, cuts, stacks, shapes, nearby replacements, and overlapping or consecutive moves, including FAWE history replays that do not repeat the block write; commands are rejected before changing managed blocks when their previous Exort state cannot be captured safely.
+- Storages moved or cut with WorldEdit or FAWE keep their original identities and contents, while pasted and stacked copies receive stable independent empty identities; undo and redo can restore both structures when one Storage overwrites another.
+- Loaded chunks and Storage placement now repair stale occupied-location records when no Storage exists at the exact position, allowing moved Storages or a retried placement to reclaim it without deleting saved contents; uncertain or unloaded state remains protected.
+- Right-clicking an Exort Wire now shows its network status even while sneaking and no longer suppresses placement of vanilla or Exort blocks against the Wire.
+
 ## 0.19.14 — 2026-07-24
 - Developers can now obtain the experimental read-only Exort API v1 through Bukkit ServicesManager, inspect typed Exort item/block descriptors with explicit copy-safety policies, and compile against dedicated API, sources, and Javadoc artifacts without depending on the full plugin JAR.
 

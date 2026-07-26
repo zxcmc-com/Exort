@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Voyi: {0}, {1}"
   wire:
     hard_cap: "Kablo kateno tro granda: {0}/{1}."
-    item_not_placeable: "Ca objekto ne povas esar pozata kontre kablo."
   placement:
     blocked: "Pozado esas blokita hike."
   bus:

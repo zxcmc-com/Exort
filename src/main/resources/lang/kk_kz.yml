@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Жолдар: {0}, {1}"
   wire:
     hard_cap: "Сым тізбегі тым үлкен: {0}/{1}."
-    item_not_placeable: "Бұл затты сымға жанастырып орналастыру мүмкін емес."
   placement:
     blocked: "Бұл жерде орналастыру бұғатталған."
   bus:

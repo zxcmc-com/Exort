@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Paden: {0}, {1}"
   wire:
     hard_cap: "Kabelkeatling is te grut: {0}/{1}."
-    item_not_placeable: "Dit item kin net tsjin in kabel pleatst wurde."
   placement:
     blocked: "Pleatsing is hjir blokkearre."
   bus:

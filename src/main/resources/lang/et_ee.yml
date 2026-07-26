@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Rajad: {0}, {1}"
   wire:
     hard_cap: "Kaablikett on liiga suur: {0}/{1}."
-    item_not_placeable: "Seda eset ei saa paigutada kaabli kõrvale."
   placement:
     blocked: "Paigutamine on siin blokeeritud."
   bus:

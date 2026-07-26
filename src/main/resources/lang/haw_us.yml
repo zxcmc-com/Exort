@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Nā ala: {0}, {1}"
   wire:
     hard_cap: "Nui loa ke kaulahao uea: {0}/{1}."
-    item_not_placeable: "ʻAʻole hiki ke hoʻokomo ʻia kēia mea ma ka uea."
   placement:
     blocked: "Ua ālai ʻia ka hoʻokomo ʻana ma ʻaneʻi."
   bus:

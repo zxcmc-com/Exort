@@ -203,7 +203,6 @@ message:
   lang_status_paths: "ბილიკები: {0}, {1}"
   wire:
     hard_cap: "კაბელის ჯაჭვი ძალიან დიდია: {0}/{1}."
-    item_not_placeable: "ამ ნივთის მავთულთან განთავსება შეუძლებელია."
   placement:
     blocked: "აქ განთავსება დაბლოკილია."
   bus:

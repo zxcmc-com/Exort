@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Awọn ọna: {0}, {1}"
   wire:
     hard_cap: "Ẹwọn waya tobi ju: {0}/{1}."
-    item_not_placeable: "Ko ṣee fi nnkan yii si ẹgbẹ waya."
   placement:
     blocked: "A ti dina gbigbe nnkan si ibi yii."
   bus:

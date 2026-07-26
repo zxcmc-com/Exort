@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Stier: {0}, {1}"
   wire:
     hard_cap: "Kabelkjeden er for stor: {0}/{1}."
-    item_not_placeable: "Denne gjenstanden kan ikke plasseres inntil en kabel."
   placement:
     blocked: "Plassering er blokkert her."
   bus:

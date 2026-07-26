@@ -1,10 +1,17 @@
 package com.zxcmc.exort.placement.storage;
 
+import com.zxcmc.exort.carrier.Carriers;
 import com.zxcmc.exort.feedback.FeedbackReason;
+import com.zxcmc.exort.marker.StorageMarker;
+import com.zxcmc.exort.storage.StorageClaim;
 import com.zxcmc.exort.storage.StorageClaimLocation;
 import com.zxcmc.exort.storage.StorageClaimRegistry;
 import com.zxcmc.exort.storage.StorageManager;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
@@ -16,6 +23,7 @@ public final class StoragePlacementService {
   private final StorageClaimRegistry claimRegistry;
   private final StoragePlacementFailureHandler failureHandler;
   private final StoragePlacementDependencies dependencies;
+  private final Set<StorageClaimLocation> staleClaimRepairs = ConcurrentHashMap.newKeySet();
 
   public StoragePlacementService(
       StorageManager storageManager,
@@ -32,7 +40,9 @@ public final class StoragePlacementService {
     StorageClaimLocation location = StorageClaimLocation.fromBlock(block);
     StorageClaimRegistry.ReservationResult result = claimRegistry.reserve(storageId, location);
     if (!result.allowed()) {
-      warnDenied(player, storageId, location, result.denial());
+      if (!repairStaleClaim(player, block, location, result.denial())) {
+        warnDenied(player, storageId, location, result.denial());
+      }
     }
     return result;
   }
@@ -98,5 +108,77 @@ public final class StoragePlacementService {
             denial == StorageClaimRegistry.Denial.NOT_READY
                 ? "message.storage_loading"
                 : "message.storage_load_failed");
+  }
+
+  private boolean repairStaleClaim(
+      Player player,
+      Block block,
+      StorageClaimLocation location,
+      StorageClaimRegistry.Denial denial) {
+    if (denial == StorageClaimRegistry.Denial.NOT_READY
+        || !Carriers.matchesCarrier(block, dependencies.storageCarrier())
+        || StorageMarker.hasMarkerData(dependencies.plugin(), block)) {
+      return false;
+    }
+    Optional<StorageClaim> occupant = claimRegistry.persistedClaimAt(location);
+    if (occupant.isEmpty()) {
+      return staleClaimRepairs.contains(location);
+    }
+    dependencies
+        .playerFeedback()
+        .respond(player, FeedbackReason.STORAGE_LOADING, "message.storage_loading");
+    if (!staleClaimRepairs.add(location)) {
+      return true;
+    }
+    StorageClaim staleClaim = occupant.get();
+    dependencies
+        .plugin()
+        .getLogger()
+        .warning(
+            "Repairing orphaned physical storage claim "
+                + staleClaim.storageId()
+                + " at "
+                + location
+                + " after a Storage placement found no physical Storage marker; the placement was"
+                + " cancelled and can be retried after repair");
+    claimRegistry
+        .releaseExact(staleClaim.storageId(), location)
+        .whenComplete(
+            (released, error) -> {
+              staleClaimRepairs.remove(location);
+              if (error != null) {
+                dependencies
+                    .plugin()
+                    .getLogger()
+                    .log(
+                        Level.SEVERE,
+                        "Failed to repair orphaned physical storage claim "
+                            + staleClaim.storageId()
+                            + " at "
+                            + location,
+                        error);
+              } else if (Boolean.TRUE.equals(released)) {
+                dependencies
+                    .plugin()
+                    .getLogger()
+                    .info(
+                        "Released orphaned physical storage claim "
+                            + staleClaim.storageId()
+                            + " at "
+                            + location
+                            + "; the Storage row and contents were preserved");
+              } else {
+                dependencies
+                    .plugin()
+                    .getLogger()
+                    .warning(
+                        "Could not release orphaned physical storage claim "
+                            + staleClaim.storageId()
+                            + " at "
+                            + location
+                            + "; placement remains fail-closed");
+              }
+            });
+    return true;
   }
 }

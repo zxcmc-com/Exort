@@ -203,7 +203,6 @@ message:
   lang_status_paths: "נתיבים: {0}, {1}"
   wire:
     hard_cap: "שרשרת החוטים גדולה מדי: {0}/{1}."
-    item_not_placeable: "אי אפשר להציב את הפריט הזה בצמוד לחוט."
   placement:
     blocked: "ההצבה חסומה כאן."
   bus:

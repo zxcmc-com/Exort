@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Slóðir: {0}, {1}"
   wire:
     hard_cap: "Vírkeðjan er of stór: {0}/{1}."
-    item_not_placeable: "Ekki er hægt að setja þennan hlut upp við vír."
   placement:
     blocked: "Ekki er hægt að staðsetja hér."
   bus:

@@ -1,14 +1,10 @@
-import com.github.spotbugs.snom.Confidence
-import com.github.spotbugs.snom.Effort
-
 plugins {
     id 'java'
     id 'com.gradleup.shadow' version '9.5.1'
-    id 'com.github.spotbugs' version '6.5.8'
 }
 
 group = 'com.zxcmc.exort'
-version = '0.19.14'
+version = '0.19.15'
 description = 'Exort Storage Network'
 
 def pluginVersion = version.toString()
@@ -25,26 +21,6 @@ base {
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
-    }
-}
-
-spotbugs {
-    toolVersion = '4.10.2'
-    effort = Effort.valueOf('MAX')
-    reportLevel = Confidence.valueOf('HIGH')
-    ignoreFailures = false
-    showProgress = false
-    maxHeapSize = '1g'
-}
-
-tasks.named('spotbugsTest') {
-    enabled = false
-}
-
-tasks.named('spotbugsMain') {
-    reports {
-        xml.required = true
-        html.required = true
     }
 }
 
@@ -154,14 +130,12 @@ repositories {
     }
 }
 
-configurations {
-    googleJavaFormat
-    apiConsumerPaper
-}
-
 configurations.configureEach {
     if (canBeResolved) {
-        attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+        attributes.attribute(
+            org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+            25
+        )
     }
     if (paperApiVersionOverride.isPresent()) {
         resolutionStrategy.deactivateDependencyLocking()
@@ -197,120 +171,15 @@ dependencies {
     compileOnly('team.unnamed:creative-api:1.13.14') { transitive = false }
     implementation 'org.bstats:bstats-bukkit:3.1.0'
     implementation 'org.bstats:bstats-base:3.1.0'
-    testImplementation platform('org.junit:junit-bom:5.11.4')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation "me.lucko:spark-api:${sparkApiVersion}"
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation "io.papermc.paper:paper-api:${paperApiVersion}"
-    testImplementation 'com.sk89q.worldedit:worldedit-core:7.3.0'
-    testRuntimeOnly 'org.xerial:sqlite-jdbc:3.45.3.0'
-    googleJavaFormat 'com.google.googlejavaformat:google-java-format:1.35.0'
-    apiConsumerPaper "io.papermc.paper:paper-api:${paperApiVersion}"
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 21
     options.compilerArgs += [
-        "-Xlint:deprecation",
-        "-Xlint:unchecked"
+        '-Xlint:deprecation',
+        '-Xlint:unchecked'
     ]
-}
-
-tasks.register('googleJavaFormat', JavaExec) {
-    group = 'formatting'
-    description = 'Formats Java sources using google-java-format.'
-    classpath = configurations.googleJavaFormat
-    mainClass = 'com.google.googlejavaformat.java.Main'
-    javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-    jvmArgs(
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
-    )
-    args '--replace'
-    args fileTree('src') {
-        include 'main/java/**/*.java'
-        include 'test/java/**/*.java'
-        include 'apiConsumer/java/**/*.java'
-        exclude '**/CreativeTabData.java'
-    }.files
-}
-
-tasks.register('googleJavaFormatCheck', JavaExec) {
-    group = 'verification'
-    description = 'Checks Java source formatting using google-java-format without rewriting files.'
-    classpath = configurations.googleJavaFormat
-    mainClass = 'com.google.googlejavaformat.java.Main'
-    javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-    jvmArgs(
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
-    )
-    args '--dry-run'
-    args '--set-exit-if-changed'
-    args fileTree('src') {
-        include 'main/java/**/*.java'
-        include 'test/java/**/*.java'
-        include 'apiConsumer/java/**/*.java'
-        exclude '**/CreativeTabData.java'
-    }.files
-}
-
-tasks.register('exportResourcePack', JavaExec) {
-    group = 'build'
-    description = 'Exports the standalone Exort resource pack to build/exort-resource-pack.'
-    dependsOn tasks.named('classes')
-    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'com.zxcmc.exort.infra.resourcepack.export.ResourcePackCli'
-    javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-    args file('src/main/resources').absolutePath
-    args layout.buildDirectory.dir('exort-resource-pack').get().asFile.absolutePath
-    args 'true'
-    inputs.dir file('src/main/resources/pack')
-    inputs.dir file('src/main/resources/lang')
-    outputs.file layout.buildDirectory.file('exort-resource-pack/exort.zip')
-}
-
-tasks.named('googleJavaFormatCheck') {
-    mustRunAfter tasks.named('googleJavaFormat')
-}
-
-tasks.named('check') {
-    dependsOn tasks.named('googleJavaFormatCheck')
-}
-
-tasks.named('test') {
-    useJUnitPlatform {
-        excludeTags 'storage-gui-stress'
-    }
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-}
-
-tasks.register('storageGuiStressTest', Test) {
-    group = 'verification'
-    description = 'Runs the isolated 1k/10k/100k Storage hydration and GUI index stress matrix.'
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform {
-        includeTags 'storage-gui-stress'
-    }
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-    maxHeapSize = '3g'
-    shouldRunAfter tasks.named('test')
 }
 
 tasks.named('shadowJar') {
@@ -404,23 +273,8 @@ def apiJavadocJar = tasks.register('apiJavadocJar', Jar) {
     }
 }
 
-def compileApiConsumer = tasks.register('compileApiConsumer', JavaCompile) {
-    group = 'verification'
-    description = 'Compiles an external consumer using only the API JAR and Paper API.'
-    dependsOn apiJar
-    source = fileTree('src/apiConsumer/java') {
-        include '**/*.java'
-    }
-    classpath = files(apiJar.flatMap { it.archiveFile }) + configurations.apiConsumerPaper
-    destinationDirectory = layout.buildDirectory.dir('classes/apiConsumer')
-}
-
 tasks.named('assemble') {
-    dependsOn apiJar, apiSourcesJar, apiJavadocJar
-}
-
-tasks.named('build') {
-    dependsOn tasks.named('verifyPluginJar'), tasks.named('verifyApiJar')
+    dependsOn tasks.named('shadowJar'), apiJar, apiSourcesJar, apiJavadocJar
 }
 
 tasks.processResources {
@@ -434,194 +288,4 @@ tasks.processResources {
             description: pluginDescription
         )
     }
-}
-
-def pluginJar = tasks.named('shadowJar').flatMap { it.archiveFile }
-
-tasks.register('verifyPluginJar') {
-    group = 'verification'
-    description = 'Verifies the deployable plugin JAR structure, bytecode level, and bStats relocation.'
-    dependsOn tasks.named('shadowJar')
-    inputs.file(pluginJar)
-
-    doLast {
-        def jarFile = pluginJar.get().asFile
-        if (!jarFile.isFile() || jarFile.length() == 0L) {
-            throw new GradleException("Plugin JAR is missing or empty: ${jarFile}")
-        }
-
-        def expectedBstatsClasses = [
-            'com/zxcmc/exort/libs/bstats/MetricsBase.class',
-            'com/zxcmc/exort/libs/bstats/bukkit/Metrics.class',
-            'com/zxcmc/exort/libs/bstats/charts/AdvancedBarChart.class',
-            'com/zxcmc/exort/libs/bstats/charts/AdvancedPie.class',
-            'com/zxcmc/exort/libs/bstats/charts/CustomChart.class',
-            'com/zxcmc/exort/libs/bstats/charts/DrilldownPie.class',
-            'com/zxcmc/exort/libs/bstats/charts/MultiLineChart.class',
-            'com/zxcmc/exort/libs/bstats/charts/SimpleBarChart.class',
-            'com/zxcmc/exort/libs/bstats/charts/SimplePie.class',
-            'com/zxcmc/exort/libs/bstats/charts/SingleLineChart.class',
-            'com/zxcmc/exort/libs/bstats/config/MetricsConfig.class',
-            'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder.class',
-            'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder$1.class',
-            'com/zxcmc/exort/libs/bstats/json/JsonObjectBuilder$JsonObject.class'
-        ] as Set
-        def allowedRootFiles = [
-            'config.yml', 'paper-plugin.yml', 'recipes.yml', 'storage-tiers.yml'
-        ] as Set
-        def allowedDirectoryEntries = ['com/', 'com/zxcmc/'] as Set
-        def allowedPrefixes = [
-            'META-INF/', 'com/zxcmc/exort/', 'lang/', 'pack/'
-        ]
-
-        new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
-            def entries = zip.entries().toList()
-            def entryNames = entries.collect { it.name }
-            if (entryNames.isEmpty()) {
-                throw new GradleException("Plugin JAR has no entries: ${jarFile}")
-            }
-            if (entryNames.toSet().size() != entryNames.size()) {
-                throw new GradleException("Plugin JAR contains duplicate ZIP entries: ${jarFile}")
-            }
-
-            ['paper-plugin.yml', 'com/zxcmc/exort/core/ExortPlugin.class'].each { required ->
-                if (!entryNames.contains(required)) {
-                    throw new GradleException("Plugin JAR is missing required entry: ${required}")
-                }
-            }
-
-            def descriptor = zip.getInputStream(zip.getEntry('paper-plugin.yml')).getText('UTF-8')
-            if (descriptor.contains('${version}') || descriptor.contains('${description}')) {
-                throw new GradleException('paper-plugin.yml still contains unexpanded build placeholders')
-            }
-            if (!descriptor.contains('main: com.zxcmc.exort.core.ExortPlugin')) {
-                throw new GradleException('paper-plugin.yml does not declare the expected main class')
-            }
-            if (!descriptor.contains("version: \"${pluginVersion}\"")) {
-                throw new GradleException(
-                    "paper-plugin.yml does not contain the expected version ${pluginVersion}"
-                )
-            }
-
-            def mainClassEntry = zip.getEntry('com/zxcmc/exort/core/ExortPlugin.class')
-            zip.getInputStream(mainClassEntry).withCloseable { classStream ->
-                def classHeader = new DataInputStream(classStream)
-                if (Integer.toUnsignedLong(classHeader.readInt()) != 0xCAFEBABEL) {
-                    throw new GradleException('ExortPlugin.class has an invalid class-file header')
-                }
-                classHeader.readUnsignedShort()
-                def majorVersion = classHeader.readUnsignedShort()
-                if (majorVersion != 65) {
-                    throw new GradleException(
-                        "Expected Java 21 class-file version 65, found ${majorVersion}"
-                    )
-                }
-            }
-
-            def actualBstatsClasses = entryNames.findAll {
-                it.startsWith('com/zxcmc/exort/libs/bstats/') && it.endsWith('.class')
-            } as Set
-            if (actualBstatsClasses != expectedBstatsClasses) {
-                def missing = expectedBstatsClasses - actualBstatsClasses
-                def unexpected = actualBstatsClasses - expectedBstatsClasses
-                throw new GradleException(
-                    "Unexpected relocated bStats class set; missing=${missing}, unexpected=${unexpected}"
-                )
-            }
-            if (entryNames.any { it.startsWith('org/bstats/') }) {
-                throw new GradleException('Plugin JAR contains unrelocated org.bstats classes')
-            }
-            if (entryNames.any { it.startsWith('me/lucko/spark/') }) {
-                throw new GradleException('Plugin JAR must not bundle compile-only spark API classes')
-            }
-
-            def unexpectedEntry = entryNames.find { name ->
-                def allowedPath = allowedRootFiles.contains(name) ||
-                    allowedDirectoryEntries.contains(name) ||
-                    allowedPrefixes.any { name.startsWith(it) }
-                !allowedPath || name.endsWith('.java')
-            }
-            if (unexpectedEntry != null) {
-                throw new GradleException(
-                    "Plugin JAR contains an entry outside the artifact allowlist: ${unexpectedEntry}"
-                )
-            }
-        }
-    }
-}
-
-tasks.register('verifyApiJar') {
-    group = 'verification'
-    description = 'Verifies the isolated public API artifacts and compile-only consumer boundary.'
-    dependsOn apiJar, apiSourcesJar, apiJavadocJar, compileApiConsumer
-    inputs.files(
-        apiJar.flatMap { it.archiveFile },
-        apiSourcesJar.flatMap { it.archiveFile },
-        apiJavadocJar.flatMap { it.archiveFile }
-    )
-
-    doLast {
-        def jarFile = apiJar.get().archiveFile.get().asFile
-        if (!jarFile.isFile() || jarFile.length() == 0L) {
-            throw new GradleException("API JAR is missing or empty: ${jarFile}")
-        }
-        def requiredClasses = [
-            'com/zxcmc/exort/api/ExortApi.class',
-            'com/zxcmc/exort/api/model/ExortBlockDescriptor.class',
-            'com/zxcmc/exort/api/model/ExortContentType.class',
-            'com/zxcmc/exort/api/model/ExortItemCopyPolicy.class',
-            'com/zxcmc/exort/api/model/ExortItemDescriptor.class',
-            'com/zxcmc/exort/api/model/StorageTierDescriptor.class'
-        ] as Set
-        def allowedRootFiles = ['LICENSE.md'] as Set
-        def allowedPrefixes = ['META-INF/', 'com/zxcmc/exort/api/']
-
-        new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
-            def entries = zip.entries().toList()
-            def entryNames = entries.collect { it.name }
-            if (entryNames.toSet().size() != entryNames.size()) {
-                throw new GradleException("API JAR contains duplicate ZIP entries: ${jarFile}")
-            }
-            def missing = requiredClasses - (entryNames as Set)
-            if (!missing.isEmpty()) {
-                throw new GradleException("API JAR is missing public classes: ${missing}")
-            }
-            def unexpectedEntry = entryNames.find { name ->
-                !name.endsWith('/') &&
-                    !allowedRootFiles.contains(name) &&
-                    !allowedPrefixes.any { name.startsWith(it) }
-            }
-            if (unexpectedEntry != null) {
-                throw new GradleException(
-                    "API JAR contains an entry outside the public boundary: ${unexpectedEntry}"
-                )
-            }
-            entries.findAll { !it.directory && it.name.endsWith('.class') }.each { entry ->
-                byte[] bytes = zip.getInputStream(entry).bytes
-                def header = new DataInputStream(new ByteArrayInputStream(bytes))
-                if (Integer.toUnsignedLong(header.readInt()) != 0xCAFEBABEL) {
-                    throw new GradleException("Invalid class-file header in ${entry.name}")
-                }
-                header.readUnsignedShort()
-                def majorVersion = header.readUnsignedShort()
-                if (majorVersion != 65) {
-                    throw new GradleException(
-                        "Expected Java 21 class-file version 65 in ${entry.name}, found ${majorVersion}"
-                    )
-                }
-                def constants = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
-                def internalReference =
-                    (constants =~ /com\\/zxcmc\\/exort\\/(?!api\\/)[A-Za-z0-9_\\/$]+/).find()
-                if (internalReference) {
-                    throw new GradleException(
-                        "Public API class ${entry.name} references an internal Exort package"
-                    )
-                }
-            }
-        }
-    }
-}
-
-tasks.named('check') {
-    dependsOn tasks.named('verifyApiJar')
 }

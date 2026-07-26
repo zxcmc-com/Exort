@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Pathmey: {0}, {1}"
   wire:
     hard_cap: "Tlhegh tlhegh tInquʼ: {0}/{1}."
-    item_not_placeable: "tlheghDaq Dochvam lanlaHbeʼluʼ."
   placement:
     blocked: "naDev lanluʼmeH botluʼ."
   bus:

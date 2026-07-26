@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Yollar: {0}, {1}"
   wire:
     hard_cap: "Kablo zinciri çok büyük: {0}/{1}."
-    item_not_placeable: "Bu eşya kabloya bitişik yerleştirilemez."
   placement:
     blocked: "Buraya yerleştirme engellendi."
   bus:

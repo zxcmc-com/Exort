@@ -203,7 +203,6 @@ message:
   lang_status_paths: "พาธ: {0}, {1}"
   wire:
     hard_cap: "โซ่สายใหญ่เกินไป: {0}/{1}"
-    item_not_placeable: "ไม่สามารถวางไอเทมนี้ชิดกับสายได้"
   placement:
     blocked: "บริเวณนี้ถูกห้ามวาง"
   bus:

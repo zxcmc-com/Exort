@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Keliai: {0}, {1}"
   wire:
     hard_cap: "Kabelių grandinė per didelė: {0}/{1}."
-    item_not_placeable: "Šio daikto negalima padėti prie kabelio."
   placement:
     blocked: "Čia statyti negalima."
   bus:

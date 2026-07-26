@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Đường dẫn: {0}, {1}"
   wire:
     hard_cap: "Chuỗi wire quá lớn: {0}/{1}."
-    item_not_placeable: "Không thể đặt vật phẩm này sát dây dẫn."
   placement:
     blocked: "Không thể đặt tại đây."
   bus:

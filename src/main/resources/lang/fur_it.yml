@@ -203,7 +203,6 @@ message:
   lang_status_paths: "Percorsi: {0}, {1}"
   wire:
     hard_cap: "La catena di cavi è troppo grande: {0}/{1}."
-    item_not_placeable: "Chest ogjet nol pues jessi plaçât cuintri un cavo."
   placement:
     blocked: "Il plaçament al è blocât achì."
   bus:
