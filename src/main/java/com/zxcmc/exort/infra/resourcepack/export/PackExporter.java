@@ -189,7 +189,7 @@ public final class PackExporter {
     boolean first = true;
     for (String entry : entries.keySet()) {
       TextureAsset texture = TextureAsset.fromEntry(entry);
-      if (texture == null || "minecraft".equals(texture.namespace())) {
+      if (texture == null || "minecraft".equals(texture.namespace()) || texture.isItemTexture()) {
         continue;
       }
       if (!first) {
@@ -269,6 +269,10 @@ public final class PackExporter {
   }
 
   private record TextureAsset(String namespace, String path) {
+    boolean isItemTexture() {
+      return path.startsWith("item/");
+    }
+
     static TextureAsset fromEntry(String entry) {
       if (!entry.startsWith("assets/") || !entry.endsWith(".png")) {
         return null;

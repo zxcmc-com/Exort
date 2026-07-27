@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.17 — 2026-07-27
+- Generated resource packs and Nexo, Oraxen, and ItemsAdder handoffs no longer place item-only Wireless Signal Booster textures in the block atlas, preventing duplicate item/block atlas conflicts while preserving provider-required aliases for shared block models.
+
 ## 0.19.16 — 2026-07-27
 - Closing, re-sorting, or updating a Storage or Crafting Terminal after its item index finished no longer fails on immutable sort state; per-viewer index work is also released without interrupting other viewers or skipping dirty Storage cleanup.
 

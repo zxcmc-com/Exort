@@ -42,6 +42,7 @@ public final class ResourcePackProviderBridge {
   private static final String NEXO_PACK_NAME = "zxcmc_exort.zip";
   private static final String ORAXEN_PACK_NAME = "zxcmc_exort.zip";
   private static final String EXORT_NAMESPACE = "exort";
+  private static final String ITEM_TEXTURE_PREFIX = "item/";
   private static final String ITEMS_ADDER_ITEM_TEXTURE_PREFIX = "item/ia_";
   private static final int ARCHIVE_BUFFER_SIZE = 8192;
   static final int MAX_PACK_ARCHIVE_ENTRIES = 10_000;
@@ -580,7 +581,7 @@ public final class ResourcePackProviderBridge {
       return texture;
     }
     String path = texture.substring(namespaceEnd + 1);
-    if (path.startsWith(ITEMS_ADDER_ITEM_TEXTURE_PREFIX)) {
+    if (path.startsWith(ITEM_TEXTURE_PREFIX)) {
       return texture;
     }
     Path source = texturePath(root, EXORT_NAMESPACE, path);
@@ -622,7 +623,9 @@ public final class ResourcePackProviderBridge {
               .sorted()
               .toList()) {
         TextureKey texture = textureKey(root, file);
-        if (texture == null || "minecraft".equals(texture.namespace())) {
+        if (texture == null
+            || "minecraft".equals(texture.namespace())
+            || (texture.isItemTexture() && !texture.isItemsAdderAlias())) {
           continue;
         }
         textures.add(texture.key());
@@ -801,6 +804,14 @@ public final class ResourcePackProviderBridge {
   private record TextureKey(String namespace, String path) {
     String key() {
       return namespace + ":" + path;
+    }
+
+    boolean isItemTexture() {
+      return path.startsWith(ITEM_TEXTURE_PREFIX);
+    }
+
+    boolean isItemsAdderAlias() {
+      return path.startsWith(ITEMS_ADDER_ITEM_TEXTURE_PREFIX);
     }
 
     static TextureKey parse(String key) {
