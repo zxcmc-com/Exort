@@ -14,9 +14,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -49,24 +51,32 @@ public final class StorageDisplayIndexService implements AutoCloseable {
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
   }
 
-  public void acquire(StorageCache cache) {
+  public void acquire(StorageCache cache, Object owner) {
     Objects.requireNonNull(cache, "cache");
+    Objects.requireNonNull(owner, "owner");
     ActiveIndex state =
         active.computeIfAbsent(
             cache.getStorageId(), ignored -> new ActiveIndex(cache, ++generationSequence));
-    state.viewers++;
+    if (state.cache != cache) {
+      throw new IllegalStateException(
+          "A different Storage cache is already indexed for " + cache.getStorageId());
+    }
+    state.owners.add(owner);
   }
 
-  public void release(StorageCache cache) {
-    if (cache == null) {
+  public void release(StorageCache cache, Object owner) {
+    if (cache == null || owner == null) {
       return;
     }
     ActiveIndex state = active.get(cache.getStorageId());
     if (state == null || state.cache != cache) {
       return;
     }
-    state.viewers = Math.max(0, state.viewers - 1);
-    if (state.viewers == 0) {
+    if (!state.owners.remove(owner)) {
+      return;
+    }
+    cancelPending(state, owner);
+    if (state.owners.isEmpty()) {
       active.remove(cache.getStorageId(), state);
       state.generation++;
       state.entries = List.of();
@@ -79,9 +89,11 @@ public final class StorageDisplayIndexService implements AutoCloseable {
   public CompletableFuture<Result> request(Request request) {
     Objects.requireNonNull(request, "request");
     ActiveIndex state = active.get(request.cache().getStorageId());
-    if (state == null || state.cache != request.cache() || state.viewers <= 0) {
+    if (state == null
+        || state.cache != request.cache()
+        || !state.owners.contains(request.owner())) {
       return CompletableFuture.failedFuture(
-          new CancellationException("Storage index has no active viewers"));
+          new CancellationException("Storage index owner is not active"));
     }
     long generation = state.generation;
     CompletableFuture<Result> requested = new CompletableFuture<>();
@@ -181,7 +193,7 @@ public final class StorageDisplayIndexService implements AutoCloseable {
   }
 
   private boolean isActive(ActiveIndex state, long generation) {
-    return state.viewers > 0
+    return !state.owners.isEmpty()
         && state.generation == generation
         && active.get(state.cache.getStorageId()) == state;
   }
@@ -196,7 +208,7 @@ public final class StorageDisplayIndexService implements AutoCloseable {
   public void close() {
     for (ActiveIndex state : active.values()) {
       state.generation++;
-      state.viewers = 0;
+      state.owners.clear();
       state.entries = List.of();
       state.baseReady = false;
       cancelPending(state);
@@ -218,6 +230,13 @@ public final class StorageDisplayIndexService implements AutoCloseable {
       pending.cancel(false);
     }
     state.pendingByOwner.clear();
+  }
+
+  private static void cancelPending(ActiveIndex state, Object owner) {
+    CompletableFuture<Result> pending = state.pendingByOwner.remove(owner);
+    if (pending != null) {
+      pending.cancel(false);
+    }
   }
 
   public record Request(
@@ -257,7 +276,11 @@ public final class StorageDisplayIndexService implements AutoCloseable {
       int searchResultsCount,
       long cacheVersion,
       long structuralVersion,
-      long contentVersion) {}
+      long contentVersion) {
+    public Result {
+      sortOrder = List.copyOf(sortOrder);
+    }
+  }
 
   public static final class StaleStructureException extends RuntimeException {
     private StaleStructureException() {
@@ -285,13 +308,13 @@ public final class StorageDisplayIndexService implements AutoCloseable {
   private static final class ActiveIndex {
     private final StorageCache cache;
     private long generation;
-    private int viewers;
+    private final Set<Object> owners = Collections.newSetFromMap(new IdentityHashMap<>());
     private long structuralVersion = -1L;
     private long contentVersion = -1L;
     private List<StorageCache.StorageItem> entries = List.of();
     private boolean baseReady;
     private CompletableFuture<List<StorageCache.StorageItem>> build;
-    private final Map<Object, CompletableFuture<Result>> pendingByOwner = new HashMap<>();
+    private final Map<Object, CompletableFuture<Result>> pendingByOwner = new IdentityHashMap<>();
 
     private ActiveIndex(StorageCache cache, long generation) {
       this.cache = cache;

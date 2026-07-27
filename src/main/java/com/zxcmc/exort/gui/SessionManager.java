@@ -32,6 +32,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -319,7 +320,7 @@ public class SessionManager {
         createSession(type, player, cache, tier, terminal, storageLocation, readOnly, wireless);
     registry.register(session);
     cache.viewerOpened();
-    displayIndexService.acquire(cache);
+    displayIndexService.acquire(cache, session);
     player.openInventory(session.getInventory());
     session.render();
     if (storageLocation != null) {
@@ -366,8 +367,22 @@ public class SessionManager {
     GuiSession session = removal.session();
     changed = true;
     session.getCache().viewerClosed();
-    displayIndexService.release(session.getCache());
-    session.onClose();
+    runSessionCleanup(
+        session::onClose,
+        () -> displayIndexService.release(session.getCache(), session),
+        failure ->
+            plugin
+                .getLogger()
+                .log(
+                    Level.WARNING,
+                    "Failed to close "
+                        + session.type()
+                        + " session for "
+                        + player.getUniqueId()
+                        + " in Storage "
+                        + session.getStorageId()
+                        + "; continuing cleanup.",
+                    failure));
     if (session.getCache().isDirty() && !session.getCache().hasViewers()) {
       storageManager.flush(session.getCache());
     }
@@ -383,6 +398,17 @@ public class SessionManager {
       renderStorage(session.getStorageId(), SortEvent.DEPOSIT);
     }
     return changed;
+  }
+
+  static void runSessionCleanup(
+      Runnable sessionCleanup, Runnable indexRelease, Consumer<Throwable> failureHandler) {
+    try {
+      sessionCleanup.run();
+    } catch (RuntimeException | LinkageError failure) {
+      failureHandler.accept(failure);
+    } finally {
+      indexRelease.run();
+    }
   }
 
   public void shutdown() {

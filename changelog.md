@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.16 — 2026-07-27
+- Closing, re-sorting, or updating a Storage or Crafting Terminal after its item index finished no longer fails on immutable sort state; per-viewer index work is also released without interrupting other viewers or skipping dirty Storage cleanup.
+
 ## 0.19.15 — 2026-07-26
 - Supported WorldEdit and FAWE block edits now restore overwritten Exort blocks through undo and redo for region edits, transformed pastes, cuts, stacks, shapes, nearby replacements, and overlapping or consecutive moves, including FAWE history replays that do not repeat the block write; commands are rejected before changing managed blocks when their previous Exort state cannot be captured safely.
 - Storages moved or cut with WorldEdit or FAWE keep their original identities and contents, while pasted and stacked copies receive stable independent empty identities; undo and redo can restore both structures when one Storage overwrites another.

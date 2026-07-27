@@ -20,7 +20,12 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 public final class SortSearchHelper {
-  public record SortResult(List<StorageCache.StorageItem> ordered, List<String> order) {}
+  public record SortResult(List<StorageCache.StorageItem> ordered, List<String> order) {
+    public SortResult {
+      ordered = List.copyOf(ordered);
+      order = List.copyOf(order);
+    }
+  }
 
   private record ExortSearchNames(String primaryName, List<String> candidates) {}
 

@@ -115,19 +115,23 @@ public class CraftingSession extends AbstractStorageSession {
 
   @Override
   public void onClose() {
-    CraftingState.Buffer buffer = state.snapshotBuffer();
-    if (CraftingBufferFlushPolicy.shouldFlushOnClose(readOnly, buffer) && !flushBufferToStorage()) {
-      flushBufferToPlayerOrDrop();
+    try {
+      CraftingState.Buffer buffer = state.snapshotBuffer();
+      if (CraftingBufferFlushPolicy.shouldFlushOnClose(readOnly, buffer)
+          && !flushBufferToStorage()) {
+        flushBufferToPlayerOrDrop();
+      }
+    } finally {
+      try {
+        closeStorageSessionState();
+      } finally {
+        if (infoErrorTaskId != -1) {
+          Bukkit.getScheduler().cancelTask(infoErrorTaskId);
+          infoErrorTaskId = -1;
+        }
+        infoButtonState.resetConfirm();
+      }
     }
-    sortFrozen = false;
-    sortOrder.clear();
-    bossBar.removeAll();
-    cancelWirelessRefreshTask();
-    if (infoErrorTaskId != -1) {
-      Bukkit.getScheduler().cancelTask(infoErrorTaskId);
-      infoErrorTaskId = -1;
-    }
-    infoButtonState.resetConfirm();
   }
 
   public void render() {
@@ -290,7 +294,7 @@ public class CraftingSession extends AbstractStorageSession {
               case CATEGORY -> SortMode.AMOUNT;
             };
         sortFrozen = false;
-        sortOrder.clear();
+        resetSortOrder();
         manager.updateSortMode(cache, sortMode);
       }
       return;
@@ -360,7 +364,7 @@ public class CraftingSession extends AbstractStorageSession {
             case CATEGORY -> SortMode.AMOUNT;
           };
       sortFrozen = false;
-      sortOrder.clear();
+      resetSortOrder();
       manager.updateSortMode(cache, sortMode);
       return;
     }
@@ -558,7 +562,7 @@ public class CraftingSession extends AbstractStorageSession {
       sortFrozen = true;
     } else if (event == SortEvent.DEPOSIT) {
       sortFrozen = false;
-      sortOrder.clear();
+      resetSortOrder();
     }
   }
 

@@ -10,7 +10,6 @@ import com.zxcmc.exort.storage.StorageTier;
 import com.zxcmc.exort.storage.sort.SortMode;
 import com.zxcmc.exort.wireless.WirelessTerminalService;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +47,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
   protected boolean readOnly;
   protected SortMode sortMode = SortMode.AMOUNT;
   protected boolean sortFrozen;
-  protected List<String> sortOrder = new ArrayList<>();
+  private final StorageSortOrderState sortOrder = new StorageSortOrderState();
   protected SearchQuery searchQuery = SearchQuery.empty();
   protected List<DisplayEntry> displayList = List.of();
   protected List<Integer> displayCategories = List.of();
@@ -229,7 +228,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
             itemLanguage,
             sortMode,
             sortFrozen,
-            List.copyOf(sortOrder),
+            sortOrder.snapshot(),
             searchQuery,
             page);
     if (!requestKey.equals(pendingIndexKey)) {
@@ -260,7 +259,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
                       cache,
                       sortMode,
                       sortFrozen,
-                      sortOrder,
+                      sortOrder.snapshot(),
                       searchQuery,
                       itemNames,
                       lang,
@@ -290,7 +289,7 @@ public abstract class AbstractStorageSession implements SearchableSession {
               indexFailure = failure;
               return;
             }
-            sortOrder = result.sortOrder();
+            sortOrder.publish(result.sortOrder());
             searchResultsCount = result.searchResultsCount();
             displayCategories = result.displayCategories();
             displayListTruncated = false;
@@ -394,6 +393,31 @@ public abstract class AbstractStorageSession implements SearchableSession {
       Bukkit.getScheduler().cancelTask(wirelessRefreshTaskId);
       wirelessRefreshTaskId = -1;
     }
+  }
+
+  protected final void resetSortOrder() {
+    sortOrder.reset();
+  }
+
+  protected final void closeStorageSessionState() {
+    CompletableFuture<StorageDisplayIndexService.Result> request = pendingIndex;
+    pendingIndex = null;
+    pendingIndexKey = null;
+    indexReady = false;
+    indexFailure = null;
+    displayList = List.of();
+    displayCategories = List.of();
+    displayListTruncated = false;
+    searchResultsCount = 0;
+    sortFrozen = false;
+    sortOrder.reset();
+    wirelessForceRebuild = false;
+    wirelessRefreshUntilMs = 0L;
+    if (request != null) {
+      request.cancel(false);
+    }
+    bossBar.removeAll();
+    cancelWirelessRefreshTask();
   }
 
   private ItemStack displaySample(StorageCache.StorageItem item) {

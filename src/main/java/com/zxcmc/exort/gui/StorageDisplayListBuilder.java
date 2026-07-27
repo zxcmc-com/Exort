@@ -218,7 +218,11 @@ final class StorageDisplayListBuilder {
       List<Integer> displayCategories,
       List<String> sortOrder,
       int searchResultsCount,
-      boolean truncated) {}
+      boolean truncated) {
+    Result {
+      sortOrder = List.copyOf(sortOrder);
+    }
+  }
 
   private static final class WindowAppender {
     private final int windowStart;

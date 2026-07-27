@@ -63,15 +63,15 @@ public class StorageSession extends AbstractStorageSession {
   }
 
   public void onClose() {
-    sortFrozen = false;
-    sortOrder.clear();
-    bossBar.removeAll();
-    cancelWirelessRefreshTask();
-    if (infoErrorTaskId != -1) {
-      Bukkit.getScheduler().cancelTask(infoErrorTaskId);
-      infoErrorTaskId = -1;
+    try {
+      closeStorageSessionState();
+    } finally {
+      if (infoErrorTaskId != -1) {
+        Bukkit.getScheduler().cancelTask(infoErrorTaskId);
+        infoErrorTaskId = -1;
+      }
+      infoButtonState.resetConfirm();
     }
-    infoButtonState.resetConfirm();
   }
 
   @Override
@@ -297,7 +297,7 @@ public class StorageSession extends AbstractStorageSession {
             case CATEGORY -> SortMode.AMOUNT;
           };
       sortFrozen = false;
-      sortOrder.clear();
+      resetSortOrder();
       manager.updateSortMode(cache, sortMode);
     }
   }
@@ -308,7 +308,7 @@ public class StorageSession extends AbstractStorageSession {
       sortFrozen = true;
     } else if (event == SortEvent.DEPOSIT) {
       sortFrozen = false;
-      sortOrder.clear();
+      resetSortOrder();
     }
   }
 }
