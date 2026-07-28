@@ -49,12 +49,21 @@ public final class ExortBlockClassifier {
   }
 
   public boolean isExortBlock(Block block) {
+    if (isInteractiveBlock(block)) {
+      return true;
+    }
+    if (isWire(block)) {
+      return true;
+    }
+    return block != null
+        && Carriers.matchesCarrier(block, materials.storageCarrier())
+        && StorageCoreMarker.isCore(plugin, block);
+  }
+
+  public boolean isInteractiveBlock(Block block) {
     if (block == null) return false;
     if (Carriers.matchesCarrier(block, materials.terminalCarrier())
         && TerminalMarker.isTerminal(plugin, block)) {
-      return true;
-    }
-    if (Carriers.matchesCarrier(block, materials.wire()) && WireMarker.isWire(plugin, block)) {
       return true;
     }
     if (Carriers.matchesCarrier(block, materials.monitorCarrier())
@@ -80,8 +89,7 @@ public final class ExortBlockClassifier {
         && StorageMarker.isMarkedStorage(plugin, block)) {
       return true;
     }
-    return Carriers.matchesCarrier(block, materials.storageCarrier())
-        && StorageCoreMarker.isCore(plugin, block);
+    return false;
   }
 
   public Optional<ExortBlockDescriptor> inspect(Block block) {
@@ -98,7 +106,7 @@ public final class ExortBlockClassifier {
                           : ExortContentType.TERMINAL,
                       chorusCarrier));
     }
-    if (Carriers.matchesCarrier(block, materials.wire()) && WireMarker.isWire(plugin, block)) {
+    if (isWire(block)) {
       return Optional.of(descriptor(ExortContentType.WIRE, chorusCarrier));
     }
     if (Carriers.matchesCarrier(block, materials.monitorCarrier())
@@ -148,6 +156,12 @@ public final class ExortBlockClassifier {
 
   public boolean isExortChorusCarrier(Block block) {
     return block != null && block.getType() == Material.CHORUS_PLANT && isExortBlock(block);
+  }
+
+  private boolean isWire(Block block) {
+    return block != null
+        && Carriers.matchesCarrier(block, materials.wire())
+        && WireMarker.isWire(plugin, block);
   }
 
   private static ExortBlockDescriptor descriptor(ExortContentType type, boolean chorusCarrier) {

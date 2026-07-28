@@ -228,7 +228,7 @@ public final class RightClickPlacementGuard implements Listener, Runnable {
       return;
     }
     Block target = guard.guard().exortBlock().resolve();
-    if (player.isSneaking() || target == null || !targets.isExortBlock(target)) {
+    if (player.isSneaking() || target == null || !targets.requiresPlacementGuard(target)) {
       removeGuard(ownerId, guard.key());
       return;
     }
@@ -251,7 +251,7 @@ public final class RightClickPlacementGuard implements Listener, Runnable {
     Block target = guard.guard().exortBlock().resolve();
     removeGuard(ownerId);
     suppressUntilTick.put(ownerId, Bukkit.getCurrentTick() + LEFT_CLICK_SUPPRESS_TICKS);
-    if (target != null && targets.isExortBlock(target)) {
+    if (target != null && targets.requiresPlacementGuard(target)) {
       customBlockBreaker.handlePlacementGuardAttack(player, target);
     }
   }
@@ -453,7 +453,7 @@ public final class RightClickPlacementGuard implements Listener, Runnable {
 
   private void addGuardTarget(
       Map<GuardKey, GuardTarget> result, Block exortBlock, BlockFace face, Vector hitPosition) {
-    if (!isLoaded(exortBlock) || !targets.isExortBlock(exortBlock)) {
+    if (!isLoaded(exortBlock) || !targets.requiresPlacementGuard(exortBlock)) {
       return;
     }
     Block placementBlock = exortBlock.getRelative(face);
@@ -497,7 +497,7 @@ public final class RightClickPlacementGuard implements Listener, Runnable {
   private void correctMissedClientPrediction(
       Player player, Block clickedBlock, Block placementBlock) {
     if (player.isSneaking()
-        || !targets.isExortBlock(clickedBlock)
+        || !targets.requiresPlacementGuard(clickedBlock)
         || !isLoaded(placementBlock)
         || !isReplaceable(placementBlock)) {
       return;

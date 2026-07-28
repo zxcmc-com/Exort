@@ -36,4 +36,8 @@ public final class ExortBlockTargetResolver {
   public boolean isExortBlock(Block block) {
     return classifier.isExortBlock(block);
   }
+
+  public boolean requiresPlacementGuard(Block block) {
+    return classifier.isInteractiveBlock(block);
+  }
 }

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.18 — 2026-07-28
+- Placement guard hitboxes are now limited to interactive Exort blocks; vanilla blocks can be placed against non-interactive Exort blocks (like Storage Wires and Storage Cores) without sneaking and retain their normal placement sound.
+
 ## 0.19.17 — 2026-07-27
 - Generated resource packs and Nexo, Oraxen, and ItemsAdder handoffs no longer place item-only Wireless Signal Booster textures in the block atlas, preventing duplicate item/block atlas conflicts while preserving provider-required aliases for shared block models.
 

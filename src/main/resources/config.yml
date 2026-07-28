@@ -97,7 +97,8 @@ performance:
     # values above the global budget are clamped to that budget.
     maxOperationsPerChunk: 40
 
-# Prevent client-side ghost placement and sounds when right-clicking Exort blocks with placeable items.
+# Prevent client-side ghost placement and sounds when right-clicking interactive Exort blocks with
+# placeable items.
 placementGuard: true
 
 # Region/claim protection integrations.
